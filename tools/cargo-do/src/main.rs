@@ -5,6 +5,7 @@ use std::{fmt::Write as _, format_args as f};
 use util::*;
 
 fn main() {
+    init_local_temp();
     let (task, args) = args();
 
     match task {

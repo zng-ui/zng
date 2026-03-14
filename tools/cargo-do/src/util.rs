@@ -189,6 +189,24 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     (task, args)
 }
 
+// rustdoc and other cargo commands use the system temp dir, that may be in another disk,
+// this changes it to target/tmp
+pub fn init_local_temp() {
+    let dir = std::env::current_dir().unwrap().join("target/tmp/cargo-do");
+    std::fs::create_dir_all(&dir).unwrap();
+
+    #[cfg(windows)]
+    {
+        let dir = dir.display().to_string().replace('/', "\\");
+        unsafe { std::env::set_var("TMP", &dir) };
+        unsafe { std::env::set_var("TEMP", dir) };
+    }
+    #[cfg(not(windows))]
+    {
+        unsafe { std::env::set_var("TMPDIR", dir) };
+    }
+}
+
 // Information about the running task.
 pub struct TaskInfo {
     pub name: &'static str,
