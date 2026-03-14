@@ -1298,6 +1298,7 @@ impl IpcBytesMut {
 
     /// Use or copy `bytes` to exclusive mutable memory.
     pub fn from_bytes_blocking(bytes: IpcBytes) -> io::Result<Self> {
+        #[cfg_attr(not(ipc), allow(irrefutable_let_patterns))]
         if let IpcBytesData::Heap(_) = &*bytes.0 {
             match Arc::try_unwrap(bytes.0) {
                 Ok(r) => match r {

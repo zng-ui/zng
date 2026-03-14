@@ -44,7 +44,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ImageFormat::from_static("OpenEXR", "x-exr", "exr", Cap::ENCODE),
     // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
-    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::empty()),
+    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", Cap::ENCODE),
     #[cfg(feature = "image_gif")]
     ImageFormat::from_static("GIF", "gif", "gif", Cap::ENCODE),
     #[cfg(feature = "image_hdr")]
