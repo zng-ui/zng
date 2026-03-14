@@ -73,6 +73,8 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
     let temp = std::env::temp_dir().join("cargo-zng-new-tests").join(test);
     fs::create_dir_all(&temp).unwrap();
 
+    fs::write(temp.join("Cargo.toml"), "[workspace]\nmembers=[]\n").unwrap();
+
     let source = test_dir.join("template");
     assert!(source.exists());
     let expected_target = source.with_file_name("expected_target");
