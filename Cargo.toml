@@ -8,9 +8,12 @@ members = [
     "tests",
     "tests/macro-tests",
     "tests/render-tests",
-    "tests/cargo-zng-res-tests/custom/tools/*",
+    "tests/cargo-zng-res-tests/custom/tools/*", "target/tmp/cargo-do/cargo-zng-new-tests/basic/target/the-app", "target/tmp/cargo-do/cargo-zng-new-tests/post/target/the-app", "target/tmp/cargo-do/cargo-zng-new-tests/sanitize/target/the-app",
 ]
 default-members = ["crates/*"]
+
+# local temp dir
+exclude = ["target/tmp/cargo-do/*"]
 
 [profile.dev]
 debug = 1
