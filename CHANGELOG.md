@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.6
+
 * Fix `zng` build with `"view_bundle_licenses"` feature.
     - Fix `zng-view` build with `"bundle_licenses"`.
 
