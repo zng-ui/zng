@@ -57,7 +57,7 @@ impl ImagesExtension for SvgRenderExtension {
     }
 
     fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
-        let svg = ImageFormat::from_static("SVG", "svg+xml", "svg", ImageFormatCapability::empty());
+        let svg = ImageFormat::from_static2("SVG", "svg+xml", "svg", "", ImageFormatCapability::empty());
         formats.push(svg);
     }
 }
