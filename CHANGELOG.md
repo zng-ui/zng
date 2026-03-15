@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `HeadlessApp::doc_test_deadline` so spawn a timeout task in doctests.
 
 # 0.21.6
 

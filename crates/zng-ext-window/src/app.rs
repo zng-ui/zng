@@ -115,7 +115,7 @@ pub trait HeadlessAppWindowExt {
     where
         F: Send + Future<Output = WindowRoot> + 'static;
 
-    /// Open a new headless window and update the app until the window closes or 60 seconds elapse.
+    /// Open a new headless window and update the app until the window closes or 65 seconds elapse.
     #[cfg(any(test, doc, feature = "test_util"))]
     fn doc_test_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>)
     where
