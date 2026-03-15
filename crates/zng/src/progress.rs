@@ -5,6 +5,7 @@
 //! This widget displays [`task::Progress`] values that track the status of a running task.
 //!
 //! ```
+//! # fn demo() {
 //! use zng::prelude::*;
 //!
 //! let p = var(task::Progress::indeterminate());
@@ -20,6 +21,7 @@
 //!     }
 //!     p.set(task::Progress::complete().with_msg("done sleeping"));
 //! });
+//! # }
 //! ```
 //!
 //! [`task::Progress`]: zng::task::Progress
