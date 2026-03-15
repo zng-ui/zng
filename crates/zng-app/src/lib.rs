@@ -364,6 +364,16 @@ impl HeadlessApp {
         }
     }
 
+    /// Spawn a task that will exit with error after 65 seconds elapses.
+    #[cfg(any(test, feature = "test_util"))]
+    pub fn doc_test_deadline(&self) {
+        zng_task::spawn(async {
+            zng_task::deadline(std::time::Duration::from_secs(65)).await;
+            eprintln!("doc_test_deadline reached 65s deadline");
+            zng_env::exit(-1);
+        });
+    }
+
     /// Requests and wait for app exit.
     ///
     /// Forces deinit if exit is cancelled.

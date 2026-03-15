@@ -81,6 +81,7 @@
 //! use zng::prelude::*;
 //!
 //! let mut app = APP.defaults().run_headless(/* with_renderer: */ false);
+//! # app.doc_test_deadline();
 //! app.run_window("id", async {
 //!     Window! {
 //!         child = Text!("Some text");
