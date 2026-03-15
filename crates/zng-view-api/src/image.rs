@@ -667,6 +667,11 @@ pub struct ImageFormat {
     /// Lowercase, without dot, comma separated if there is more than one.
     pub file_extensions: Txt,
 
+    /// Identifier file prefixes.
+    ///
+    /// Lower case ASCII hexadecimals, comma separated if there is more than one, `"xx"` matches any byte.
+    pub magic_numbers: Txt,
+
     /// Capabilities of this format.
     pub capabilities: ImageFormatCapability,
 }
@@ -676,6 +681,7 @@ impl ImageFormat {
     /// # Panics
     ///
     /// Panics if `media_type_suffixes` not ASCII.
+    #[deprecated = "use `from_static2`, it will replace this function next breaking release"]
     pub const fn from_static(
         display_name: &'static str,
         media_type_suffixes: &'static str,
@@ -687,6 +693,30 @@ impl ImageFormat {
             display_name: Txt::from_static(display_name),
             media_type_suffixes: Txt::from_static(media_type_suffixes),
             file_extensions: Txt::from_static(file_extensions),
+            magic_numbers: Txt::from_static(""),
+            capabilities,
+        }
+    }
+
+    /// From static strings.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `media_type_suffixes` or `magic_numbers` are not ASCII.
+    pub const fn from_static2(
+        display_name: &'static str,
+        media_type_suffixes: &'static str,
+        file_extensions: &'static str,
+        magic_numbers: &'static str,
+        capabilities: ImageFormatCapability,
+    ) -> Self {
+        assert!(media_type_suffixes.is_ascii());
+        assert!(magic_numbers.is_ascii());
+        Self {
+            display_name: Txt::from_static(display_name),
+            media_type_suffixes: Txt::from_static(media_type_suffixes),
+            file_extensions: Txt::from_static(file_extensions),
+            magic_numbers: Txt::from_static(magic_numbers),
             capabilities,
         }
     }
@@ -713,6 +743,31 @@ impl ImageFormat {
         let f = f.strip_prefix('.').unwrap_or(f);
         let f = f.strip_prefix("image/").unwrap_or(f);
         self.media_type_suffixes_iter().any(|e| e.eq_ignore_ascii_case(f)) || self.file_extensions_iter().any(|e| e.eq_ignore_ascii_case(f))
+    }
+
+    /// Check if `file_prefix` matches any magic numbers.
+    ///
+    /// A good size for `file_prefix` is 24 bytes, it should cover all image formats.
+    pub fn matches_magic(&self, file_prefix: &[u8]) -> bool {
+        'search: for magic in self.magic_numbers.split(',') {
+            if magic.len() > file_prefix.len() * 2 {
+                continue 'search;
+            }
+            'm: for (c, b) in magic.as_bytes().chunks_exact(2).zip(file_prefix) {
+                if c == b"xx" {
+                    continue 'm;
+                }
+                fn decode(c: u8) -> u8 {
+                    if c >= b'a' { c - b'a' + 10 } else { c - b'0' }
+                }
+                let c = (decode(c[0]) << 4) | decode(c[1]);
+                if c != *b {
+                    continue 'search;
+                }
+            }
+            return true;
+        }
+        false
     }
 }
 
