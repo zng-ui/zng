@@ -26,6 +26,7 @@ use zng_task::{
 use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::{
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
     image::{ImageDecoded, ImageEncodeRequest, ImageEntryMetadata, ImageTextureId},
     window::RenderMode,
 };
@@ -652,6 +653,11 @@ impl ImageEntry {
         }
 
         self.entries.insert(i, VarEq(entry));
+    }
+
+    /// Custom metadata provided by the view-process implementation.
+    pub fn extensions(&self) -> &[(ApiExtensionId, ApiExtensionPayload)] {
+        &self.data.meta.extensions
     }
 }
 impl zng_app::render::Img for ImageEntry {

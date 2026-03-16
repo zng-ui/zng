@@ -7,6 +7,8 @@ use zng_txt::Txt;
 
 use zng_unit::{Px, PxDensity2d, PxSize};
 
+use crate::api_extension::{ApiExtensionId, ApiExtensionPayload};
+
 crate::declare_id! {
     /// Id of a decoded image in the cache.
     ///
@@ -489,6 +491,9 @@ pub struct ImageMetadata {
     ///
     /// When this is `None` the is the first [`ImageEntryKind::Page`] in the container, usually the only page.
     pub parent: Option<ImageEntryMetadata>,
+
+    /// Custom metadata.
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 impl ImageMetadata {
     /// New.
@@ -500,6 +505,7 @@ impl ImageMetadata {
             is_mask,
             original_color_type,
             parent: None,
+            extensions: vec![],
         }
     }
 }
@@ -512,6 +518,7 @@ impl Default for ImageMetadata {
             is_mask: Default::default(),
             original_color_type: ColorType::BGRA8,
             parent: Default::default(),
+            extensions: vec![],
         }
     }
 }

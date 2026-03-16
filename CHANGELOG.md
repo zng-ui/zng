@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add support for extensions metadata in audio and image APIs.
 * Add `ImageFormat::magic_numbers`.
 * Add `HeadlessApp::doc_test_deadline` so spawn a timeout task in doctests.
 

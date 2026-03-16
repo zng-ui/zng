@@ -11,7 +11,10 @@ use zng_task::channel::{IpcBytes, IpcBytesCast};
 use zng_txt::Txt;
 use zng_unit::{ByteLength, ByteUnits};
 use zng_var::{Var, VarEq, impl_from_and_into_var};
-use zng_view_api::audio::{AudioDecoded, AudioMetadata};
+use zng_view_api::{
+    api_extension::{ApiExtensionId, ApiExtensionPayload},
+    audio::{AudioDecoded, AudioMetadata},
+};
 
 pub use zng_app::view_process::AudioOutputId;
 pub use zng_view_api::audio::{AudioDataFormat, AudioFormat, AudioFormatCapability, AudioTracksMode};
@@ -322,6 +325,11 @@ impl AudioTrack {
             })
             .unwrap_or(self.tracks.len());
         self.tracks.insert(i, VarEq(track));
+    }
+
+    /// Custom metadata provided by the view-process implementation.
+    pub fn extensions(&self) -> &[(ApiExtensionId, ApiExtensionPayload)] {
+        &self.meta.extensions
     }
 }
 
