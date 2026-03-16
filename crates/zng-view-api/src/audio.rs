@@ -8,6 +8,8 @@ use zng_task::channel::IpcBytesCast;
 use zng_txt::Txt;
 use zng_unit::Factor;
 
+use crate::api_extension::{ApiExtensionId, ApiExtensionPayload};
+
 crate::declare_id! {
     /// Audio device ID.
     ///
@@ -308,6 +310,9 @@ pub struct AudioMetadata {
 
     /// Track is an entry (or subtree) of this other track.
     pub parent: Option<AudioTrackMetadata>,
+
+    /// Custom metadata.
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 impl AudioMetadata {
     /// New.
@@ -318,6 +323,7 @@ impl AudioMetadata {
             sample_rate,
             total_duration: None,
             parent: None,
+            extensions: vec![],
         }
     }
 }
@@ -330,6 +336,7 @@ impl Default for AudioMetadata {
             sample_rate: Default::default(),
             total_duration: Default::default(),
             parent: Default::default(),
+            extensions: vec![],
         }
     }
 }
