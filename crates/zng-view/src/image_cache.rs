@@ -905,6 +905,7 @@ struct ImageHeader {
     orientation: image::metadata::Orientation,
     density: Option<PxDensity2d>,
     icc_profile: Option<lcms2::Profile>,
+    #[cfg(feature = "image_meta_exif")]
     exif: Option<Vec<u8>>,
     og_color_type: image::ExtendedColorType,
     cur_hotspot: Option<PxPoint>,
