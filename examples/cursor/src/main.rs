@@ -5,7 +5,6 @@ use zng::{color::filter::invert_color, image::ImageFit, mouse::CursorIcon, prelu
 mod widgets;
 
 fn main() {
-    // !!: TODO update screenshot
     // zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
     zng::env::init!();
 
