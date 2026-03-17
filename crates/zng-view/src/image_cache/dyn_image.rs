@@ -284,6 +284,21 @@ pub(crate) fn tiff_icc_profile<R: std::io::Read + std::io::Seek>(tiff: &mut tiff
     // https://docs.rs/image/latest/src/image/codecs/tiff.rs.html#264
     tiff.get_tag_u8_vec(tiff::tags::Tag::Unknown(34675)).ok()
 }
+#[cfg(all(feature = "image_tiff", feature = "image_meta_exif"))]
+pub(crate) fn tiff_exif<R: std::io::Read + std::io::Seek>(tiff: &mut tiff::decoder::Decoder<R>) -> image::ImageResult<Option<Vec<u8>>> {
+    let reader = tiff.inner();
+    let original_pos = reader.stream_position()?;
+    reader.seek(std::io::SeekFrom::Start(0))?;
+
+    let exif_data = exif::Reader::new()
+        .read_from_container(&mut std::io::BufReader::new(&mut *reader))
+        .ok()
+        .map(|exif| exif.buf().to_vec());
+
+    reader.seek(std::io::SeekFrom::Start(original_pos))?;
+
+    Ok(exif_data)
+}
 
 #[cfg(feature = "image_jpeg")]
 pub(crate) fn jpeg_density(data: &[u8]) -> Option<zng_unit::PxDensity2d> {

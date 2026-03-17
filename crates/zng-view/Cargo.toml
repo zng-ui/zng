@@ -109,6 +109,12 @@ image_all = [
     "image_webp",
 ]
 
+# Enable EXIF metadata copy in images.
+# 
+# Note that EXIF is always used when decoding, this feature enables copying the raw blob
+# as the "image_meta_exif" metadata.
+image_meta_exif = []
+
 # Enable MP3 audio decoder and encoder.
 audio_mp3 = ["audio_any", "rodio/mp3"]
 # Enable MP4 audio decoder and encoder.

@@ -408,49 +408,54 @@ wrap = ["dep:zng-wgt-wrap"]
 # Enable the shortcut text widget.
 shortcut_text = ["dep:zng-wgt-shortcut"]
 
-# Enable BMP image decoder and encoder with "view" feature.
+# Enable BMP image format with "view" feature.
 image_bmp = ["zng-view?/image_bmp"]
 # Enable DDS image decoder with "view" feature.
 image_dds = ["zng-view?/image_dds"]
-# Enable EXR image decoder and encoder with "view" feature.
+# Enable EXR image format with "view" feature.
 image_exr = ["zng-view?/image_exr"]
-# Enable Farbfeld image decoder and encoder with "view" feature.
+# Enable Farbfeld image format with "view" feature.
 image_ff = ["zng-view?/image_ff"]
-# Enable GIF image decoder and encoder with "view" feature.
+# Enable GIF image format with "view" feature.
 image_gif = ["zng-view?/image_gif"]
-# Enable Radiance HDR image decoder and encoder with "view" feature.
+# Enable Radiance HDR image format with "view" feature.
 image_hdr = ["zng-view?/image_hdr"]
-# Enable ICO image decoder and encoder with "view" feature.
+# Enable ICO image format with "view" feature.
 image_ico = ["zng-view?/image_ico"]
-# Enable CUR image decoder and encoder with "view" feature.
+# Enable CUR image format with "view" feature.
 image_cur = ["zng-view?/image_cur"]
-# Enable JPEG image decoder and encoder with "view" feature.
+# Enable JPEG image format with "view" feature.
 image_jpeg = ["zng-view?/image_jpeg"]
-# Enable PNG image decoder and encoder with "view" feature.
+# Enable PNG image format with "view" feature.
 image_png = ["zng-view?/image_png"]
-# Enable PNM image decoder and encoder with "view" feature.
+# Enable PNM image format with "view" feature.
 image_pnm = ["zng-view?/image_pnm"]
-# Enable QOI image decoder and encoder with "view" feature.
+# Enable QOI image format with "view" feature.
 image_qoi = ["zng-view?/image_qoi"]
-# Enable TGA image decoder and encoder with "view" feature.
+# Enable TGA image format with "view" feature.
 image_tga = ["zng-view?/image_tga"]
-# Enable TIFF image decoder and encoder with "view" feature.
+# Enable TIFF image format with "view" feature.
 image_tiff = ["zng-view?/image_tiff"]
-# Enable WEBP image decoder with "view" feature.
+# Enable WEBP image format with "view" feature.
 image_webp = ["zng-view?/image_webp"]
 
-# Enable all image encoders and decoders with "view" feature.
+# Enable all image fomats with "view" feature.
 image_all = ["zng-view?/image_all"]
 
-# Enable MP3 audio decoder and encoder with "view" feature.
+# Enable EXIF metadata copy in images with "view" feature.
+# 
+# Note that EXIF is always used when decoding, this feature enables `ImageEntry::exif`.
+image_meta_exif = ["zng-view?/image_meta_exif"]
+
+# Enable MP3 audio format with "view" feature.
 audio_mp3 = ["zng-view?/audio_mp3"]
-# Enable MP4 audio decoder and encoder with "view" feature.
+# Enable MP4 audio format with "view" feature.
 audio_mp4 = ["zng-view?/audio_mp4"]
-# Enable FLAC audio decoder and encoder with "view" feature.
+# Enable FLAC audio format with "view" feature.
 audio_flac = ["zng-view?/audio_flac"]
-# Enable MP3 audio decoder and encoder with "view" feature.
+# Enable MP3 audio format with "view" feature.
 audio_vorbis = ["zng-view?/audio_vorbis"]
-# Enable WAV audio decoder and encoder with "view" feature.
+# Enable WAV audio format with "view" feature.
 audio_wav = ["zng-view?/audio_wav"]
 
 # Enable all audio decoders and encoders with "view" feature.

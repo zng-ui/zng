@@ -1406,12 +1406,16 @@ impl App {
         }
         #[cfg(feature = "image_cur")]
         exts.data("image_cur");
+        #[cfg(feature = "image_meta_exif")]
+        exts.data("image_meta_exif");
         App {
             headless: false,
             image_cache: ImageCache::new(
                 app_sender.clone(),
                 #[cfg(feature = "image_cur")]
                 exts.id(&ApiExtensionName::new("image_cur").unwrap()).unwrap(),
+                #[cfg(feature = "image_meta_exif")]
+                exts.id(&ApiExtensionName::new("image_meta_exif").unwrap()).unwrap(),
             ),
             exts,
             gl_manager: GlContextManager::default(),
