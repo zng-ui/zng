@@ -114,6 +114,11 @@ image_all = [
 # Note that EXIF is always used when decoding, this feature enables copying the raw blob
 # as the "image_meta_exif" metadata.
 image_meta_exif = []
+# Enable ICC Profile metadata copy in images.
+# 
+# Note that images are always color managed when decoding, this feature enabled copying the raw profile
+# as the "image_meta_icc" metadata.
+image_meta_icc = []
 
 # Enable MP3 audio decoder and encoder.
 audio_mp3 = ["audio_any", "rodio/mp3"]

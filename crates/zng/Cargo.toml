@@ -446,6 +446,10 @@ image_all = ["zng-view?/image_all"]
 # 
 # Note that EXIF is always used when decoding, this feature enables `ImageEntry::exif`.
 image_meta_exif = ["zng-view?/image_meta_exif"]
+# Enable ICC Profile metadata copy in images with "view" feature.
+# 
+# Note that images are always color managed when decoding, this feature enables `ImageEntry::icc_profile`.
+image_meta_icc = ["zng-view?/image_meta_icc"]
 
 # Enable MP3 audio format with "view" feature.
 audio_mp3 = ["zng-view?/audio_mp3"]
