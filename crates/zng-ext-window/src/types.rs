@@ -374,6 +374,8 @@ pub struct CursorImg {
 
     /// Icon to use if the image cannot be displayed.
     pub fallback: CursorIcon,
+
+    // TODO(breaking) add size
 }
 #[cfg(feature = "image")]
 impl_from_and_into_var! {
