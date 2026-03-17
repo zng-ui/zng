@@ -855,6 +855,21 @@ impl ViewExtensions {
         self
     }
 
+    /// Register a data extension, custom image, audio metadata and others.
+    ///
+    /// Use [`id`] to retrieve identifier.
+    ///
+    /// [`id`]: Self::id
+    pub fn data(&mut self, name: impl Into<ApiExtensionName>) -> &mut Self {
+        struct DataExt(ApiExtensionName);
+        impl ViewExtension for DataExt {
+            fn name(&self) -> &ApiExtensionName {
+                &self.0
+            }
+        }
+        self.register(|_| DataExt(name.into()))
+    }
+
     pub(crate) fn api_extensions(&self) -> ApiExtensions {
         let mut r = ApiExtensions::new();
         for ext in &self.exts {

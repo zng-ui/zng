@@ -18,32 +18,61 @@ use zng_view_api::image::ImageMaskMode;
 #[cfg(not(feature = "image_any"))]
 use crate::image_cache::lcms2;
 
+#[derive(Clone, Copy)]
+pub(crate) enum ContainerFormat {
+    Image(image::ImageFormat),
+    #[cfg(feature = "image_cur")]
+    Cur,
+}
+impl ContainerFormat {
+    fn from_extension(ext: &str) -> Option<ContainerFormat> {
+        match image::ImageFormat::from_extension(ext) {
+            Some(f) => Some(ContainerFormat::Image(f)),
+            #[cfg(feature = "image_cur")]
+            None if ext == "cur" => Some(ContainerFormat::Cur),
+            _ => None,
+        }
+    }
+
+    fn from_mime_type(t: &str) -> Option<ContainerFormat> {
+        match image::ImageFormat::from_mime_type(t) {
+            Some(f) => Some(ContainerFormat::Image(f)),
+            #[cfg(feature = "image_cur")]
+            None if t == "x-win-bitmap" => Some(ContainerFormat::Cur),
+            _ => None,
+        }
+    }
+}
+
 impl ImageCache {
     /// Guess and verify the image format and get entries sorted by kind and size.
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, Vec<(usize, ImageEntryKind)>), Txt> {
+    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(ContainerFormat, Vec<(usize, ImageEntryKind)>), Txt> {
         let maybe_fmt = match fmt {
-            ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
-            ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
+            ImageDataFormat::FileExtension(ext) => ContainerFormat::from_extension(ext.as_str()),
+            ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(ContainerFormat::from_mime_type),
             ImageDataFormat::Unknown => None,
             ImageDataFormat::Bgra8 { .. } => unreachable!(),
             ImageDataFormat::A8 { .. } => unreachable!(),
             _ => None,
         };
 
-        let reader = match maybe_fmt {
-            Some(fmt) => image::ImageReader::with_format(std::io::Cursor::new(data), fmt),
-            None => image::ImageReader::new(std::io::Cursor::new(data))
-                .with_guessed_format()
-                .map_err(|e| e.to_txt())?,
-        };
-
-        let fmt = match reader.format() {
+        let fmt = match maybe_fmt {
             Some(f) => f,
-            None => return Err(Txt::from_static("unknown format")),
+            None => {
+                let guess = image::ImageReader::new(std::io::Cursor::new(data))
+                    .with_guessed_format()
+                    .map_err(|e| e.to_txt())?;
+                match guess.format() {
+                    Some(f) => ContainerFormat::Image(f),
+                    None => return Err(Txt::from_static("unknown format")),
+                }
+            }
         };
 
-        if let Err(e) = reader.into_decoder() {
+        if let ContainerFormat::Image(f) = fmt
+            && let Err(e) = image::ImageReader::with_format(std::io::Cursor::new(data), f).into_decoder()
+        {
             // decoder error, try fallback to Unknown
             if let image::ImageError::Decoding(_) = &e
                 && maybe_fmt.is_some()
@@ -55,8 +84,8 @@ impl ImageCache {
         }
 
         match fmt {
-            #[cfg(feature = "image_ico")]
-            image::ImageFormat::Ico => {
+            #[cfg(any(feature = "image_ico", feature = "image_cur"))]
+            ContainerFormat::Image(image::ImageFormat::Ico) | ContainerFormat::Cur => {
                 if let Ok(ico) = ico::IconDir::read(std::io::Cursor::new(data)) {
                     // largest entry is the `Page` others are `Reduced`.
                     let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
@@ -80,7 +109,7 @@ impl ImageCache {
                 }
             }
             #[cfg(feature = "image_tiff")]
-            image::ImageFormat::Tiff => {
+            ContainerFormat::Image(image::ImageFormat::Tiff) => {
                 if let Ok(mut tiff) = tiff::decoder::Decoder::new(std::io::Cursor::new(data)) {
                     let mut r = vec![];
 
@@ -137,17 +166,21 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_metadata(data: &[u8], fmt: image::ImageFormat, entry: usize) -> Result<ImageHeader, Txt> {
+    pub(super) fn decode_metadata(data: &[u8], fmt: ContainerFormat, entry: usize) -> Result<ImageHeader, Txt> {
         // multi entry containers
         match fmt {
-            #[cfg(feature = "image_ico")]
-            image::ImageFormat::Ico => return Self::decode_metadata_ico(data, entry),
+            #[cfg(any(feature = "image_ico", feature = "image_cur"))]
+            ContainerFormat::Image(image::ImageFormat::Ico) | ContainerFormat::Cur => return Self::decode_metadata_ico(data, entry),
             #[cfg(feature = "image_tiff")]
-            image::ImageFormat::Tiff => return Self::decode_metadata_tiff(data, entry),
+            ContainerFormat::Image(image::ImageFormat::Tiff) => return Self::decode_metadata_tiff(data, entry),
             _ => {}
         }
 
         // single entry containers
+        let fmt = match fmt {
+            ContainerFormat::Image(image_format) => image_format,
+            ContainerFormat::Cur => unreachable!(),
+        };
 
         let mut decoder = image::ImageReader::with_format(std::io::Cursor::new(data), fmt)
             .into_decoder()
@@ -224,6 +257,7 @@ impl ImageCache {
             density,
             icc_profile,
             og_color_type,
+            cur_hotspot: None,
         })
     }
 
@@ -232,17 +266,28 @@ impl ImageCache {
         let ico = ico::IconDir::read(std::io::Cursor::new(data)).map_err(|e| e.to_txt())?;
 
         let entry = &ico.entries()[entry];
-        if entry.is_png() {
-            Self::decode_metadata(entry.data(), image::ImageFormat::Png, 0)
+        let mut r = if entry.is_png() {
+            Self::decode_metadata(entry.data(), ContainerFormat::Image(image::ImageFormat::Png), 0)?
         } else {
-            Ok(ImageHeader {
+            ImageHeader {
                 size: PxSize::new(Px(entry.width() as _), Px(entry.height() as _)),
                 orientation: image::metadata::Orientation::NoTransforms,
                 density: None,
                 icc_profile: None,
                 og_color_type: image::ExtendedColorType::Rgba8,
-            })
+                cur_hotspot: None,
+            }
+        };
+
+        if let Some((x, y)) = entry.cursor_hotspot() {
+            use zng_unit::PxPoint;
+
+            let x = (x as u32).min(entry.width());
+            let y = (y as u32).min(entry.height());
+            r.cur_hotspot = Some(PxPoint::new(Px(x as _), Px(y as _)));
         }
+
+        Ok(r)
     }
     #[cfg(feature = "image_tiff")]
     fn decode_metadata_tiff(data: &[u8], entry: usize) -> Result<ImageHeader, Txt> {
@@ -259,6 +304,7 @@ impl ImageCache {
             density,
             icc_profile,
             og_color_type: color_type.into(),
+            cur_hotspot: None,
         })
     }
 
@@ -307,7 +353,7 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_image(buf: &[u8], format: image::ImageFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
+    pub(super) fn decode_image(buf: &[u8], format: ContainerFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
         IpcDynamicImage::decode(buf, format, entry)
     }
 

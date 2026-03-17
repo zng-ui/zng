@@ -70,6 +70,8 @@ image_gif = ["image_any", "image/gif"]
 image_hdr = ["image_any", "image/hdr"]
 # Enable ICO image decoder and encoder.
 image_ico = ["image_any", "image/ico", "dep:ico"]
+# Enable CUR image decoder and encoder.
+image_cur = ["image_any", "image/ico", "dep:ico"]
 # Enable JPEG image decoder and encoder.
 image_jpeg = ["image_any", "image/jpeg"]
 # Enable PNG image decoder and encoder.
@@ -97,6 +99,7 @@ image_all = [
     "image_gif",
     "image_hdr",
     "image_ico",
+    "image_cur",
     "image_jpeg",
     "image_png",
     "image_pnm",

@@ -3,6 +3,8 @@
 use image::{error::*, *};
 use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
 
+use crate::image_cache::decode::ContainerFormat;
+
 pub(crate) enum IpcDynamicImage {
     /// Each pixel in this image is 8-bit Luma
     ImageLuma8(GrayImage),
@@ -95,14 +97,17 @@ macro_rules! dynamic_map(
 );
 
 impl IpcDynamicImage {
-    pub fn decode(buf: &[u8], format: ImageFormat, entry: usize) -> image::ImageResult<Self> {
-        match format {
-            #[cfg(feature = "image_ico")]
-            ImageFormat::Ico => return Self::decode_ico(buf, entry),
-            #[cfg(feature = "image_tiff")]
-            ImageFormat::Tiff => return Self::decode_tiff(buf, entry),
-            _ => {}
-        }
+    pub fn decode(buf: &[u8], format: ContainerFormat, entry: usize) -> image::ImageResult<Self> {
+        let format = match format {
+            ContainerFormat::Image(f) => match f {
+                #[cfg(feature = "image_ico")]
+                ImageFormat::Ico => return Self::decode_ico(buf, entry),
+                #[cfg(feature = "image_tiff")]
+                ImageFormat::Tiff => return Self::decode_tiff(buf, entry),
+                f => f,
+            },
+            ContainerFormat::Cur => return Self::decode_ico(buf, entry),
+        };
 
         let buf = std::io::Cursor::new(buf);
 

@@ -422,6 +422,8 @@ image_gif = ["zng-view?/image_gif"]
 image_hdr = ["zng-view?/image_hdr"]
 # Enable ICO image decoder and encoder with "view" feature.
 image_ico = ["zng-view?/image_ico"]
+# Enable CUR image decoder and encoder with "view" feature.
+image_cur = ["zng-view?/image_cur"]
 # Enable JPEG image decoder and encoder with "view" feature.
 image_jpeg = ["zng-view?/image_jpeg"]
 # Enable PNG image decoder and encoder with "view" feature.

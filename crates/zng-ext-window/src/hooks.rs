@@ -536,11 +536,16 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                             WindowCapability::SET_CURSOR_IMAGE,
                             "cursor-img",
                             move |i| {
-                                // layout hotspot relative to the image size
-                                use zng_wgt::prelude::*;
-                                let metrics = LayoutMetrics::new(1.fct(), i.size(), i.size().width);
-                                let hotspot =
-                                    LAYOUT.with_root_context(zng_layout::context::LayoutPassId::new(), metrics, || hotspot.layout());
+                                let hotspot = match i.cur_hotspot() {
+                                    Some(h) => h,
+                                    None => {
+                                        // layout hotspot relative to the image size
+                                        use zng_wgt::prelude::*;
+                                        let metrics = LayoutMetrics::new(1.fct(), i.size(), i.size().width);
+                                        LAYOUT.with_root_context(zng_layout::context::LayoutPassId::new(), metrics, || hotspot.layout())
+                                    }
+                                };
+
                                 Some((i.clone(), hotspot))
                             },
                         );
