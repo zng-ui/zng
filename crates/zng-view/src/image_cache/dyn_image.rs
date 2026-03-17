@@ -106,6 +106,7 @@ impl IpcDynamicImage {
                 ImageFormat::Tiff => return Self::decode_tiff(buf, entry),
                 f => f,
             },
+            #[cfg(feature = "image_cur")]
             ContainerFormat::Cur => return Self::decode_ico(buf, entry),
         };
 
@@ -126,7 +127,7 @@ impl IpcDynamicImage {
         Self::from_decoded(buf, color_type, w, h)
     }
 
-    #[cfg(feature = "image_ico")]
+    #[cfg(any(feature = "image_ico", feature = "image_cur"))]
     fn decode_ico(buf: &[u8], entry: usize) -> image::ImageResult<Self> {
         let buf = std::io::Cursor::new(buf);
 

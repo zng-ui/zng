@@ -249,6 +249,7 @@ impl ImageCache {
                 app_sender,
                 resizer,
                 notified_header,
+                #[cfg(feature = "image_cur")]
                 image_cur_ext_id,
                 id,
                 format,
