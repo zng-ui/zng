@@ -466,6 +466,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                     image_data(false, Some(key), data_format, data, options, limits, r)
                 }
                 Err(e) => {
+                    tracing::debug!("cannot read {path:?}, {e}");
                     r.set(ImageEntry::new_error(e.to_txt()));
                 }
             });
@@ -489,11 +490,15 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
 
             let limit = limits.max_encoded_len;
             zng_task::spawn(async move {
-                match download(uri, accept, limit).await {
+                match download(uri.clone(), accept, limit).await {
                     Ok((fmt, data)) => {
+                        tracing::trace!("download {uri:?}, len: {:?}, fmt: {fmt:?}", data.len().bytes());
                         image_data(false, Some(key), fmt, data, options, limits, r);
                     }
-                    Err(e) => r.set(ImageEntry::new_error(e.to_txt())),
+                    Err(e) => {
+                        tracing::debug!("cannot download {uri:?}, {e}");
+                        r.set(ImageEntry::new_error(e.to_txt()));
+                    }
                 }
             });
         }
