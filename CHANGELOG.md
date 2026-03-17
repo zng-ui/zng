@@ -1,8 +1,10 @@
 # Unreleased
 
+* Add `ImageEntry::exif` that provides a copy of the EXIF metadata used for decoding.
+    - Adds `"image_meta_exif"` feature, not enabled by default.
 * Add support for CUR cursor images.
     - Adds `ImageEntry::cur_hotspot`.
-    - Adds `"image_cur"` Cargo feature.
+    - Adds `"image_cur"` feature.
     - Integrated with `cursor` property `WindowVars::cursor`.
 * Add support for extensions metadata in audio and image APIs.
 * Add `ImageFormat::magic_numbers`.

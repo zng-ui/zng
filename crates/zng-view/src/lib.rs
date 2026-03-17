@@ -1406,6 +1406,8 @@ impl App {
         }
         #[cfg(feature = "image_cur")]
         exts.data("image_cur");
+        #[cfg(feature = "image_meta_exif")]
+        exts.data("image_meta_exif");
         App {
             headless: false,
             image_cache: ImageCache::new(
