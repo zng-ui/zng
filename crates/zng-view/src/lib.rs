@@ -77,6 +77,7 @@
 //!     - The `zng-wgt-webrender-debug` crate implements a property that uses this extension.
 //! * `"zng-view.prefer_angle": bool`, on Windows, prefer ANGLE(EGL) over WGL if the `libEGL.dll` and `libGLESv2.dll`
 //!    libraries can by dynamically loaded. The `extend-view` example demonstrates this extension.
+//! * `"image_cur" : PxPoint`, provide the CUR hotspot in image metadata extensions.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
@@ -147,6 +148,8 @@ use webrender::api::*;
 use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
+#[cfg(feature = "image_cur")]
+use zng_view_api::api_extension::ApiExtensionName;
 use zng_view_api::{
     ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -1401,11 +1404,17 @@ impl App {
         {
             exts.window("zng-view.prefer_angle", extensions::PreferAngleExt::new);
         }
+        #[cfg(feature = "image_cur")]
+        exts.data("image_cur");
         App {
             headless: false,
+            image_cache: ImageCache::new(
+                app_sender.clone(),
+                #[cfg(feature = "image_cur")]
+                exts.id(&ApiExtensionName::new("image_cur").unwrap()).unwrap(),
+            ),
             exts,
             gl_manager: GlContextManager::default(),
-            image_cache: ImageCache::new(app_sender.clone()),
             audio_cache: AudioCache::new(app_sender.clone()),
             app_sender,
             request_recv,

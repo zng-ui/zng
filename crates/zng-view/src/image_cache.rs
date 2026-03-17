@@ -7,6 +7,8 @@ use webrender::api::ImageDescriptor;
 use zng_txt::formatx;
 
 use zng_task::channel::{IpcBytes, IpcReceiver};
+#[cfg(feature = "image_any")]
+use zng_unit::PxPoint;
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
@@ -57,6 +59,9 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ImageFormat::from_static2("Radiance HDR", "vnd.radiance", "hdr", "233f52414449414e43450a", Cap::ENCODE),
     #[cfg(feature = "image_ico")]
     ImageFormat::from_static2("ICO", "x-icon,vnd.microsoft.icon", "ico", "00000100", Cap::ENCODE_ENTRIES),
+    // https://www.nationalarchives.gov.uk/pronom/fmt/385
+    #[cfg(feature = "image_cur")]
+    ImageFormat::from_static2("CUR", "x-win-bitmap", "cur", "00000200", Cap::empty()),
     #[cfg(feature = "image_jpeg")]
     ImageFormat::from_static2("JPEG", "jpeg", "jpg,jpeg", "ffd8ff", Cap::ENCODE),
     #[cfg(feature = "image_png")]
@@ -89,15 +94,22 @@ pub(crate) struct ImageCache {
     image_id_gen: Arc<Mutex<ImageId>>,
     encode_id_gen: ImageEncodeId,
     resizer: Arc<ResizerCache>,
+    #[cfg(feature = "image_cur")]
+    image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
 }
 impl ImageCache {
-    pub fn new(app_sender: AppEventSender) -> Self {
+    pub fn new(
+        app_sender: AppEventSender,
+        #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
+    ) -> Self {
         Self {
             app_sender,
             images: FxHashMap::default(),
             image_id_gen: Arc::new(Mutex::new(ImageId::first())),
             encode_id_gen: ImageEncodeId::first(),
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
+            #[cfg(feature = "image_cur")]
+            image_cur_ext_id,
         }
     }
 
@@ -118,12 +130,16 @@ impl ImageCache {
         let id_gen = self.image_id_gen.clone();
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
+        #[cfg(feature = "image_cur")]
+        let image_cur_ext_id = self.image_cur_ext_id;
         rayon::spawn(move || {
             Self::add_impl(
                 id_gen,
                 app_sender,
                 resizer,
                 false,
+                #[cfg(feature = "image_cur")]
+                image_cur_ext_id,
                 id,
                 format,
                 data,
@@ -155,6 +171,8 @@ impl ImageCache {
         let id_gen = self.image_id_gen.clone();
         let app_sender = self.app_sender.clone();
         let resizer = self.resizer.clone();
+        #[cfg(feature = "image_cur")]
+        let image_cur_ext_id = self.image_cur_ext_id;
         rayon::spawn(move || {
             // image crate does not implement progressive decoding, just receive all payloads and continue as `add` for now
 
@@ -196,6 +214,8 @@ impl ImageCache {
                         let og_color_size = image_color_type_to_vp(h.og_color_type);
                         let mut meta = ImageMetadata::new(id, size, mask.is_some(), og_color_size.clone());
                         meta.density = h.density;
+                        #[cfg(feature = "image_cur")]
+                        downscale_hotspot(image_cur_ext_id, size, &mut meta, h.size, h.cur_hotspot);
 
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
                         notified_header = true;
@@ -229,6 +249,8 @@ impl ImageCache {
                 app_sender,
                 resizer,
                 notified_header,
+                #[cfg(feature = "image_cur")]
+                image_cur_ext_id,
                 id,
                 format,
                 all_data,
@@ -248,6 +270,7 @@ impl ImageCache {
         app_sender: AppEventSender,
         resizer: Arc<ResizerCache>,
         notified_meta: bool,
+        #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
 
         id: ImageId,
         format: ImageDataFormat,
@@ -270,6 +293,7 @@ impl ImageCache {
                 let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
                 meta.density = density;
                 meta.parent = parent;
+                // !!:
                 if !notified_meta {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())));
                 }
@@ -460,6 +484,8 @@ impl ImageCache {
                     SynthReduced {
                         // source: previous task pixels
                         size: PxSize,
+                        #[cfg(feature = "image_cur")]
+                        page_cur: (PxSize, Option<PxPoint>), // (page_size, pager_cur_hotspot)
                         id: ImageId,
                         parent: ImageEntryMetadata,
                     },
@@ -481,6 +507,7 @@ impl ImageCache {
                     let id = if tasks.is_empty() { id } else { id_gen.lock().incr() };
                     let mut page_entries = 0;
                     let page_entries = if tasks.is_empty() { &mut root_entries } else { &mut page_entries };
+                    let page_cur_hotspot = page.1.cur_hotspot;
 
                     tasks.push(Task::Decode {
                         entry_index: page.0,
@@ -516,6 +543,8 @@ impl ImageCache {
                             *page_entries += 1;
                             tasks.push(Task::SynthReduced {
                                 size: synth,
+                                #[cfg(feature = "image_cur")]
+                                page_cur: (page_size, page_cur_hotspot),
                                 id: id_gen.lock().incr(),
                                 parent: ImageEntryMetadata::new(id, *page_entries, ImageEntryKind::Reduced { synthetic: true }),
                             });
@@ -536,6 +565,8 @@ impl ImageCache {
                             *page_entries += 1;
                             tasks.push(Task::SynthReduced {
                                 size: synth,
+                                #[cfg(feature = "image_cur")]
+                                page_cur: (page_size, page_cur_hotspot),
                                 id: id_gen.lock().incr(),
                                 parent: ImageEntryMetadata::new(id, *page_entries, ImageEntryKind::Reduced { synthetic: true }),
                             });
@@ -560,6 +591,8 @@ impl ImageCache {
                             let mut meta = ImageMetadata::new(*id, size, mask.is_some(), og_color_type);
                             meta.density = entry_header.density;
                             meta.parent = parent.clone();
+                            #[cfg(feature = "image_cur")]
+                            downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
 
                             if *notify_meta
                                 && app_sender
@@ -571,11 +604,19 @@ impl ImageCache {
 
                             tasks_meta.push(meta);
                         }
-                        Task::SynthReduced { size, id, parent } => {
+                        Task::SynthReduced {
+                            size,
+                            id,
+                            parent,
+                            #[cfg(feature = "image_cur")]
+                            page_cur,
+                        } => {
                             let mut meta = tasks_meta.last().cloned().unwrap();
                             meta.id = *id;
                             meta.size = *size;
                             meta.parent = Some(parent.clone());
+                            #[cfg(feature = "image_cur")]
+                            downscale_hotspot(image_cur_ext_id, *size, &mut meta, page_cur.0, page_cur.1);
 
                             if app_sender
                                 .send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())))
@@ -637,6 +678,9 @@ impl ImageCache {
                                     meta.size = size;
                                     meta.density = density;
                                     meta.is_mask = is_mask;
+                                    #[cfg(feature = "image_cur")]
+                                    downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
+
                                     let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
                                     if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
                                         return;
@@ -651,26 +695,31 @@ impl ImageCache {
                             },
                             Err(e) => return error!("{e}"),
                         },
-                        Task::SynthReduced { size, .. } => {
-                            match Self::downscale_decoded(mask, Some(size), &resizer, prev_size, &prev_pixels) {
-                                Ok(r) => {
-                                    let (size, pixels_mut) = r.unwrap();
-                                    match pixels_mut.finish_blocking() {
-                                        Ok(pixels) => {
-                                            meta.size = size;
-                                            let decoded = ImageDecoded::new(meta, pixels.clone(), prev_is_opaque);
-                                            if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
-                                                return;
-                                            }
-                                            prev_pixels = pixels;
-                                            prev_size = size;
+                        Task::SynthReduced {
+                            size,
+                            #[cfg(feature = "image_cur")]
+                            page_cur,
+                            ..
+                        } => match Self::downscale_decoded(mask, Some(size), &resizer, prev_size, &prev_pixels) {
+                            Ok(r) => {
+                                let (size, pixels_mut) = r.unwrap();
+                                match pixels_mut.finish_blocking() {
+                                    Ok(pixels) => {
+                                        meta.size = size;
+                                        #[cfg(feature = "image_cur")]
+                                        downscale_hotspot(image_cur_ext_id, size, &mut meta, page_cur.0, page_cur.1);
+                                        let decoded = ImageDecoded::new(meta, pixels.clone(), prev_is_opaque);
+                                        if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
+                                            return;
                                         }
-                                        Err(e) => return error!("{e}"),
+                                        prev_pixels = pixels;
+                                        prev_size = size;
                                     }
+                                    Err(e) => return error!("{e}"),
                                 }
-                                Err(e) => return error!("{e}"),
                             }
-                        }
+                            Err(e) => return error!("{e}"),
+                        },
                     }
                 }
             }
@@ -796,6 +845,25 @@ impl ImageCache {
         self.images.clear();
     }
 }
+
+#[cfg(feature = "image_cur")]
+fn downscale_hotspot(
+    image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
+    downscaled_size: PxSize,
+    meta: &mut ImageMetadata,
+    full_size: PxSize,
+    cur_hotspot: Option<PxPoint>,
+) {
+    if let Some(mut hotspot) = cur_hotspot {
+        hotspot.x *= downscaled_size.width.0 as f32 / full_size.width.0 as f32;
+        hotspot.y *= downscaled_size.height.0 as f32 / full_size.height.0 as f32;
+
+        meta.extensions.push((
+            image_cur_ext_id,
+            zng_view_api::api_extension::ApiExtensionPayload::serialize(&hotspot).unwrap(),
+        ));
+    }
+}
 #[cfg(feature = "image_any")]
 struct ImageHeader {
     size: PxSize,
@@ -803,6 +871,7 @@ struct ImageHeader {
     density: Option<PxDensity2d>,
     icc_profile: Option<lcms2::Profile>,
     og_color_type: image::ExtendedColorType,
+    cur_hotspot: Option<PxPoint>,
 }
 
 fn image_color_type_to_vp(color_type: image::ExtendedColorType) -> ColorType {

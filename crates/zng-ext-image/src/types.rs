@@ -659,6 +659,20 @@ impl ImageEntry {
     pub fn extensions(&self) -> &[(ApiExtensionId, ApiExtensionPayload)] {
         &self.data.meta.extensions
     }
+
+    /// Gets the CUR hotspot.
+    ///
+    /// This value is only available if the view-process implements the `"image_cur"` extension. The default
+    /// implementation does when built with the `"image_cur"` feature.
+    pub fn cur_hotspot(&self) -> Option<PxPoint> {
+        let ext_id = VIEW_PROCESS.extension_id("image_cur").ok()??;
+        for (id, data) in self.extensions() {
+            if *id == ext_id {
+                return data.deserialize::<PxPoint>().ok();
+            }
+        }
+        None
+    }
 }
 impl zng_app::render::Img for ImageEntry {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {

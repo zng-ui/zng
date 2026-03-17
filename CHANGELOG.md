@@ -1,5 +1,9 @@
 # Unreleased
 
+* Add support for CUR cursor images.
+    - Adds `ImageEntry::cur_hotspot`.
+    - Adds `"image_cur"` Cargo feature.
+    - Integrated with `cursor` property `WindowVars::cursor`.
 * Add support for extensions metadata in audio and image APIs.
 * Add `ImageFormat::magic_numbers`.
 * Add `HeadlessApp::doc_test_deadline` so spawn a timeout task in doctests.
