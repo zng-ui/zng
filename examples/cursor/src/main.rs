@@ -5,6 +5,7 @@ use zng::{color::filter::invert_color, image::ImageFit, mouse::CursorIcon, prelu
 mod widgets;
 
 fn main() {
+    zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
     zng::env::init!();
 
     APP.defaults().run_window("main", async {
@@ -26,7 +27,7 @@ fn main() {
                 top_to_bottom,
                 ui_vec![
                     Grid! {
-                        columns = ui_vec![grid::Column!(1.lft()); 5];
+                        columns = ui_vec![grid::Column!(1.lft()); 6];
                         auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                         cells = demos;
                     },
@@ -127,5 +128,7 @@ pub const CURSORS: &[(CursorIcon, &[u8])] = &[
 
 // (label, cursor_img, fallback)
 #[expect(clippy::type_complexity)]
-pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] =
-    &[("custom", (include_bytes!("../../image/res/RGBA8.png"), 4, 6), CursorIcon::Default)];
+pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] = &[
+    ("Custom (PNG)", (include_bytes!("../../image/res/RGBA8.png"), 4, 6), CursorIcon::Default),
+    ("Custom (CUR)", (include_bytes!("../res/cur/ccrosshair.cur"), 0, 0), CursorIcon::Crosshair),
+];
