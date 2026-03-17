@@ -241,10 +241,15 @@ impl ImageCache {
 
         // exif fallback
         if (density.is_none() || matches!(orientation, NoTransforms))
-            && let Ok(Some(exif)) = decoder.exif_metadata()
+            && let Ok(Some(e)) = decoder.exif_metadata()
         {
-            Self::decode_exif_metadata(exif, &mut orientation, &mut density);
+            Self::decode_exif_metadata(e, &mut orientation, &mut density);
         }
+
+        #[cfg(feature = "image_meta_exif")]
+        let exif = decoder.exif_metadata().ok().flatten();
+        #[cfg(not(feature = "image_meta_exif"))]
+        let exif = None;
 
         // color profile
         if let Ok(Some(icc)) = decoder.icc_profile() {
@@ -266,6 +271,7 @@ impl ImageCache {
             orientation,
             density,
             icc_profile,
+            exif,
             og_color_type,
             cur_hotspot: None,
         })
@@ -283,6 +289,7 @@ impl ImageCache {
                 size: PxSize::new(Px(entry.width() as _), Px(entry.height() as _)),
                 orientation: image::metadata::Orientation::NoTransforms,
                 density: None,
+                exif: None,
                 icc_profile: None,
                 og_color_type: image::ExtendedColorType::Rgba8,
                 cur_hotspot: None,
@@ -308,11 +315,17 @@ impl ImageCache {
         let orientation = crate::image_cache::dyn_image::tiff_orientation(&mut tiff).map_err(|e| e.to_txt())?;
         let density = crate::image_cache::dyn_image::tiff_density(&mut tiff);
         let icc_profile = crate::image_cache::dyn_image::tiff_icc_profile(&mut tiff).and_then(Self::parse_icc);
+        #[cfg(feature = "image_meta_exif")]
+        let exif = crate::image_cache::dyn_image::tiff_exif(&mut tiff).map_err(|e| e.to_txt())?;
+        #[cfg(not(feature = "image_meta_exif"))]
+        let exif = None;
+
         Ok(ImageHeader {
             size: PxSize::new(Px(w as _), Px(h as _)),
             orientation,
             density,
             icc_profile,
+            exif,
             og_color_type: color_type.into(),
             cur_hotspot: None,
         })

@@ -1414,6 +1414,8 @@ impl App {
                 app_sender.clone(),
                 #[cfg(feature = "image_cur")]
                 exts.id(&ApiExtensionName::new("image_cur").unwrap()).unwrap(),
+                #[cfg(feature = "image_meta_exif")]
+                exts.id(&ApiExtensionName::new("image_meta_exif").unwrap()).unwrap(),
             ),
             exts,
             gl_manager: GlContextManager::default(),

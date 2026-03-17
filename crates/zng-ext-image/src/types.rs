@@ -675,17 +675,17 @@ impl ImageEntry {
     }
 
     /// EXIF metadata blob.
-    /// 
+    ///
     /// This value is only available if the view-process implements the `"image_meta_exif"` extension.
     /// The default implementation does when built with the `"image_meta_exif"` feature.
-    /// 
+    ///
     /// Note that the view-process implementation already applies EXIF transforms when decoding, this value
-    /// is merely an optional copy of the raw data, you can use the [`kamadak-exif`](https://docs.rs/kamadak-exif/latest/exif/) crate to parse it. 
+    /// is merely an optional copy of the raw data, you can use the [`kamadak-exif`](https://docs.rs/kamadak-exif/latest/exif/) crate to parse it.
     pub fn exif(&self) -> Option<&[u8]> {
         let ext_id = VIEW_PROCESS.extension_id("image_meta_exif").ok()??;
         for (id, data) in self.extensions() {
             if *id == ext_id {
-                return Some(&data.0[..])
+                return Some(&data.0[..]);
             }
         }
         None

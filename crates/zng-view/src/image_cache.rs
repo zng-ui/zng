@@ -96,11 +96,14 @@ pub(crate) struct ImageCache {
     resizer: Arc<ResizerCache>,
     #[cfg(feature = "image_cur")]
     image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
+    #[cfg(feature = "image_meta_exif")]
+    exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
 }
 impl ImageCache {
     pub fn new(
         app_sender: AppEventSender,
         #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
+        #[cfg(feature = "image_meta_exif")] exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
     ) -> Self {
         Self {
             app_sender,
@@ -110,6 +113,8 @@ impl ImageCache {
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
             #[cfg(feature = "image_cur")]
             image_cur_ext_id,
+            #[cfg(feature = "image_meta_exif")]
+            exif_ext_id,
         }
     }
 
@@ -132,6 +137,8 @@ impl ImageCache {
         let resizer = self.resizer.clone();
         #[cfg(feature = "image_cur")]
         let image_cur_ext_id = self.image_cur_ext_id;
+        #[cfg(feature = "image_meta_exif")]
+        let exif_ext_id = self.exif_ext_id;
         rayon::spawn(move || {
             Self::add_impl(
                 id_gen,
@@ -140,6 +147,8 @@ impl ImageCache {
                 false,
                 #[cfg(feature = "image_cur")]
                 image_cur_ext_id,
+                #[cfg(feature = "image_meta_exif")]
+                exif_ext_id,
                 id,
                 format,
                 data,
@@ -173,6 +182,8 @@ impl ImageCache {
         let resizer = self.resizer.clone();
         #[cfg(feature = "image_cur")]
         let image_cur_ext_id = self.image_cur_ext_id;
+        #[cfg(feature = "image_meta_exif")]
+        let exif_ext_id = self.exif_ext_id;
         rayon::spawn(move || {
             // image crate does not implement progressive decoding, just receive all payloads and continue as `add` for now
 
@@ -216,6 +227,13 @@ impl ImageCache {
                         meta.density = h.density;
                         #[cfg(feature = "image_cur")]
                         downscale_hotspot(image_cur_ext_id, size, &mut meta, h.size, h.cur_hotspot);
+                        #[cfg(feature = "image_meta_exif")]
+                        if let Some(exif) = &h.exif
+                            && !exif.is_empty()
+                        {
+                            meta.extensions
+                                .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif.clone())));
+                        }
 
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
                         notified_header = true;
@@ -251,6 +269,8 @@ impl ImageCache {
                 notified_header,
                 #[cfg(feature = "image_cur")]
                 image_cur_ext_id,
+                #[cfg(feature = "image_meta_exif")]
+                exif_ext_id,
                 id,
                 format,
                 all_data,
@@ -271,6 +291,7 @@ impl ImageCache {
         resizer: Arc<ResizerCache>,
         notified_meta: bool,
         #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
+        #[cfg(feature = "image_meta_exif")] exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
 
         id: ImageId,
         format: ImageDataFormat,
@@ -293,7 +314,6 @@ impl ImageCache {
                 let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
                 meta.density = density;
                 meta.parent = parent;
-                // !!:
                 if !notified_meta {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())));
                 }
@@ -593,6 +613,13 @@ impl ImageCache {
                             meta.parent = parent.clone();
                             #[cfg(feature = "image_cur")]
                             downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
+                            #[cfg(feature = "image_meta_exif")]
+                            if let Some(exif) = &entry_header.exif
+                                && !exif.is_empty()
+                            {
+                                meta.extensions
+                                    .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif.clone())));
+                            }
 
                             if *notify_meta
                                 && app_sender
@@ -678,6 +705,14 @@ impl ImageCache {
                                     meta.size = size;
                                     meta.density = density;
                                     meta.is_mask = is_mask;
+                                    #[cfg(feature = "image_meta_exif")]
+                                    if let Some(exif) = entry_header.exif
+                                        && !exif.is_empty()
+                                    {
+                                        meta.extensions
+                                            .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif)));
+                                    }
+
                                     #[cfg(feature = "image_cur")]
                                     downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
 
@@ -870,6 +905,7 @@ struct ImageHeader {
     orientation: image::metadata::Orientation,
     density: Option<PxDensity2d>,
     icc_profile: Option<lcms2::Profile>,
+    exif: Option<Vec<u8>>,
     og_color_type: image::ExtendedColorType,
     cur_hotspot: Option<PxPoint>,
 }

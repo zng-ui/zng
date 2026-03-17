@@ -445,7 +445,7 @@ image_all = ["zng-view?/image_all"]
 # Enable EXIF metadata copy in images with "view" feature.
 # 
 # Note that EXIF is always used when decoding, this feature enables `ImageEntry::exif`.
-image_meta_exif = []
+image_meta_exif = ["zng-view?/image_meta_exif"]
 
 # Enable MP3 audio format with "view" feature.
 audio_mp3 = ["zng-view?/audio_mp3"]
