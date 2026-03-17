@@ -59,15 +59,25 @@ impl ImageCache {
 
         let fmt = match maybe_fmt {
             Some(f) => f,
-            None => {
-                let guess = image::ImageReader::new(std::io::Cursor::new(data))
-                    .with_guessed_format()
-                    .map_err(|e| e.to_txt())?;
-                match guess.format() {
-                    Some(f) => ContainerFormat::Image(f),
-                    None => return Err(Txt::from_static("unknown format")),
+            // try magic number matching
+            None => match super::FORMATS.iter().find(|f| f.matches_magic(data)).and_then(|f| {
+                f.file_extensions_iter()
+                    .next()
+                    .and_then(ContainerFormat::from_extension)
+                    .or_else(|| f.media_types().next().and_then(|t| ContainerFormat::from_mime_type(&t)))
+            }) {
+                Some(f) => f,
+                None => {
+                    // try image crate magic number matching, in case an update added format?
+                    let guess = image::ImageReader::new(std::io::Cursor::new(data))
+                        .with_guessed_format()
+                        .map_err(|e| e.to_txt())?;
+                    match guess.format() {
+                        Some(f) => ContainerFormat::Image(f),
+                        None => return Err(Txt::from_static("unknown format")),
+                    }
                 }
-            }
+            },
         };
 
         if let ContainerFormat::Image(f) = fmt
