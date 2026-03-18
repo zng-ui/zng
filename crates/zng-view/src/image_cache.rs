@@ -98,12 +98,15 @@ pub(crate) struct ImageCache {
     image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
     #[cfg(feature = "image_meta_exif")]
     exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
+    #[cfg(feature = "image_meta_icc")]
+    icc_ext_id: zng_view_api::api_extension::ApiExtensionId,
 }
 impl ImageCache {
     pub fn new(
         app_sender: AppEventSender,
         #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
         #[cfg(feature = "image_meta_exif")] exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
+        #[cfg(feature = "image_meta_icc")] icc_ext_id: zng_view_api::api_extension::ApiExtensionId,
     ) -> Self {
         Self {
             app_sender,
@@ -115,6 +118,8 @@ impl ImageCache {
             image_cur_ext_id,
             #[cfg(feature = "image_meta_exif")]
             exif_ext_id,
+            #[cfg(feature = "image_meta_icc")]
+            icc_ext_id,
         }
     }
 
@@ -139,6 +144,8 @@ impl ImageCache {
         let image_cur_ext_id = self.image_cur_ext_id;
         #[cfg(feature = "image_meta_exif")]
         let exif_ext_id = self.exif_ext_id;
+        #[cfg(feature = "image_meta_icc")]
+        let icc_ext_id = self.icc_ext_id;
         rayon::spawn(move || {
             Self::add_impl(
                 id_gen,
@@ -149,6 +156,8 @@ impl ImageCache {
                 image_cur_ext_id,
                 #[cfg(feature = "image_meta_exif")]
                 exif_ext_id,
+                #[cfg(feature = "image_meta_icc")]
+                icc_ext_id,
                 id,
                 format,
                 data,
@@ -184,6 +193,8 @@ impl ImageCache {
         let image_cur_ext_id = self.image_cur_ext_id;
         #[cfg(feature = "image_meta_exif")]
         let exif_ext_id = self.exif_ext_id;
+        #[cfg(feature = "image_meta_icc")]
+        let icc_ext_id = self.icc_ext_id;
         rayon::spawn(move || {
             // image crate does not implement progressive decoding, just receive all payloads and continue as `add` for now
 
@@ -234,6 +245,13 @@ impl ImageCache {
                             meta.extensions
                                 .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif.clone())));
                         }
+                        #[cfg(feature = "image_meta_icc")]
+                        if let Some(icc) = &h.icc_profile
+                            && let Ok(icc) = icc.icc()
+                        {
+                            meta.extensions
+                                .push((icc_ext_id, zng_view_api::api_extension::ApiExtensionPayload(icc)));
+                        }
 
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta)));
                         notified_header = true;
@@ -271,6 +289,8 @@ impl ImageCache {
                 image_cur_ext_id,
                 #[cfg(feature = "image_meta_exif")]
                 exif_ext_id,
+                #[cfg(feature = "image_meta_icc")]
+                icc_ext_id,
                 id,
                 format,
                 all_data,
@@ -292,6 +312,7 @@ impl ImageCache {
         notified_meta: bool,
         #[cfg(feature = "image_cur")] image_cur_ext_id: zng_view_api::api_extension::ApiExtensionId,
         #[cfg(feature = "image_meta_exif")] exif_ext_id: zng_view_api::api_extension::ApiExtensionId,
+        #[cfg(feature = "image_meta_icc")] icc_ext_id: zng_view_api::api_extension::ApiExtensionId,
 
         id: ImageId,
         format: ImageDataFormat,
@@ -620,6 +641,13 @@ impl ImageCache {
                                 meta.extensions
                                     .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif.clone())));
                             }
+                            #[cfg(feature = "image_meta_icc")]
+                            if let Some(icc) = &entry_header.icc_profile
+                                && let Ok(icc) = icc.icc()
+                            {
+                                meta.extensions
+                                    .push((icc_ext_id, zng_view_api::api_extension::ApiExtensionPayload(icc)));
+                            }
 
                             if *notify_meta
                                 && app_sender
@@ -696,7 +724,7 @@ impl ImageCache {
                                 img,
                                 mask,
                                 entry_header.density,
-                                entry_header.icc_profile,
+                                entry_header.icc_profile.as_ref(),
                                 downscale,
                                 entry_header.orientation,
                                 &resizer,
@@ -711,6 +739,13 @@ impl ImageCache {
                                     {
                                         meta.extensions
                                             .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif)));
+                                    }
+                                    #[cfg(feature = "image_meta_icc")]
+                                    if let Some(icc) = &entry_header.icc_profile
+                                        && let Ok(icc) = icc.icc()
+                                    {
+                                        meta.extensions
+                                            .push((icc_ext_id, zng_view_api::api_extension::ApiExtensionPayload(icc)));
                                     }
 
                                     #[cfg(feature = "image_cur")]

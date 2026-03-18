@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `ImageEntry::icc_profile` that provides a copy of the ICC Profile metadata used for decoding.
+    - Adds `"image_meta_icc"` feature, not enabled by default.
 * Add `ImageEntry::exif` that provides a copy of the EXIF metadata used for decoding.
     - Adds `"image_meta_exif"` feature, not enabled by default.
 * Add support for CUR cursor images.

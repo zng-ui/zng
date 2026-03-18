@@ -383,7 +383,7 @@ impl ImageCache {
         image: IpcDynamicImage,
         mask: Option<ImageMaskMode>,
         density: Option<PxDensity2d>,
-        icc_profile: Option<lcms2::Profile>,
+        icc_profile: Option<&lcms2::Profile>,
         downscale: Option<PxSize>,
         orientation: image::metadata::Orientation,
         resizer_cache: &ResizerCache,
@@ -730,7 +730,7 @@ impl ImageCache {
         if let Some(p) = icc_profile {
             use lcms2::*;
             let srgb = Profile::new_srgb();
-            let t = Transform::new(&p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
+            let t = Transform::new(p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
             t.transform_in_place(&mut pixels);
         }
         #[cfg(not(feature = "image_any"))]
