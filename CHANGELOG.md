@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.7
+
 * Add `ImageSource::Entries` for generating multi entry images.
     - SVG renderer now uses this to generate downscaled samples if requested.
 * Add `ImageEntry::icc_profile` that provides a copy of the ICC Profile metadata used for decoding.
