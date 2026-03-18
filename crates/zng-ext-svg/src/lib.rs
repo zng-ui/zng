@@ -53,7 +53,7 @@ impl ImagesExtension for SvgRenderExtension {
         let downscale = options.downscale.take();
         options.cache_mode = ImageCacheMode::Ignore;
         let limits = ImageLimits::none().with_max_decoded_len(max_decoded_len);
-        Some(IMAGES.image_task(async move { load(max_decoded_len, data, downscale) }, options, Some(limits)))
+        Some(IMAGES.image_task(async move { load_render(max_decoded_len, data, downscale) }, options, Some(limits)))
     }
 
     fn available_formats(&self, formats: &mut Vec<ImageFormat>) {
@@ -66,7 +66,7 @@ enum SvgData {
     Raw(Vec<u8>),
     Str(String),
 }
-fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
+fn load_render(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
@@ -76,52 +76,77 @@ fn load(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDowns
     match tree {
         Ok(tree) => {
             let mut size = tree.size().to_int_size();
+            let mut entry_sizes = vec![];
 
+            fn to_skia_size(size: PxSize) -> Option<resvg::tiny_skia::IntSize> {
+                match resvg::tiny_skia::IntSize::from_wh(size.width.0 as _, size.height.0 as _) {
+                    Some(s) => Some(s),
+                    None => {
+                        tracing::error!("cannot resize svg to zero size");
+                        None
+                    }
+                }
+            }
             if let Some(d) = downscale {
                 let size_px = PxSize::new(Px(size.width() as _), Px(size.height() as _));
 
-                let (full_size, _) = d.sizes(size_px, &[]);
-                let full_size = full_size.unwrap_or(size_px);
+                let (full_size, entries) = d.sizes(size_px, &[]);
+                size = full_size.and_then(to_skia_size).unwrap_or(size);
 
-                match resvg::tiny_skia::IntSize::from_wh(full_size.width.0 as _, full_size.height.0 as _) {
-                    Some(s) => size = s,
-                    None => tracing::error!("cannot resize svg to zero size"),
+                for entry in entries {
+                    if let Some(s) = to_skia_size(entry) {
+                        entry_sizes.push(s);
+                    }
                 }
             }
 
-            if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
-                let img = ImageEntry::new_error(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
-                return ImageSource::Image(zng_var::const_var(img));
-            }
-
-            let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
-                Ok(b) => b,
-                Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
-            };
-            let mut pixmap = match resvg::tiny_skia::PixmapMut::from_bytes(&mut data, size.width(), size.height()) {
-                Some(p) => p,
-                None => return error(formatx!("can't allocate pixmap for {:?} svg", size)),
-            };
-            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap);
-            let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
-
-            for rgba in data.chunks_exact_mut(4) {
-                // rgba to bgra
-                rgba.swap(0, 2);
-            }
-
-            ImageSource::Data(
-                ImageHash::compute(&data),
-                match data.finish_blocking() {
+            let render = |size: resvg::tiny_skia::IntSize| -> ImageSource {
+                if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
+                    return error(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
+                }
+                let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
                     Ok(b) => b,
-                    Err(e) => return error(formatx!("cannot finish ipc bytes allocation, {e}")),
-                },
-                ImageDataFormat::Bgra8 {
-                    size,
-                    density: Some(PxDensity2d::splat(options.dpi.ppi())),
-                    original_color_type: ColorType::RGBA8,
-                },
-            )
+                    Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
+                };
+                let mut pixmap = match resvg::tiny_skia::PixmapMut::from_bytes(&mut data, size.width(), size.height()) {
+                    Some(p) => p,
+                    None => return error(formatx!("can't allocate pixmap for {:?} svg", size)),
+                };
+                resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap);
+
+                let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
+                for rgba in data.chunks_exact_mut(4) {
+                    // rgba to bgra
+                    rgba.swap(0, 2);
+                }
+
+                ImageSource::Data(
+                    ImageHash::compute(&data),
+                    match data.finish_blocking() {
+                        Ok(b) => b,
+                        Err(e) => return error(formatx!("cannot finish ipc bytes allocation, {e}")),
+                    },
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        density: Some(PxDensity2d::splat(options.dpi.ppi())),
+                        original_color_type: ColorType::RGBA8,
+                    },
+                )
+            };
+
+            let primary = render(size);
+            if entry_sizes.is_empty() {
+                primary
+            } else {
+                let entries = entry_sizes
+                    .into_iter()
+                    .map(|s| (ImageEntryKind::Reduced { synthetic: true }, render(s)))
+                    .collect();
+                ImageSource::Entries {
+                    primary: Box::new(primary),
+                    entries,
+                }
+            }
         }
         Err(e) => error(formatx!("{e}")),
     }

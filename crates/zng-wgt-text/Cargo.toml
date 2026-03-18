@@ -36,4 +36,4 @@ serde = { version = "1.0", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
-euclid = { version = "0.22", default-features = false }
+euclid = { version = "0.22", default-features = false, features = ["std"] }

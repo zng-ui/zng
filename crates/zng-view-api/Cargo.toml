@@ -24,6 +24,7 @@ var = ["dep:zng-var"]
 euclid = { version = "0.22.6", features = [
     "serde",
     "bytemuck",
+    "std",
 ] } # same version as webrender, but with bytemuck
 
 zng-unit = { path = "../zng-unit", version = "0.6.1", default-features = false }
