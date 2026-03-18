@@ -5,7 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 29 feature flags, 0 enabled by default.
+This crate provides 32 feature flags, 0 enabled by default.
 
 #### `"ipc"`
 Enables pre-build and init as view-process.
@@ -63,6 +63,9 @@ Enable Radiance HDR image decoder and encoder.
 #### `"image_ico"`
 Enable ICO image decoder and encoder.
 
+#### `"image_cur"`
+Enable CUR image decoder and encoder.
+
 #### `"image_jpeg"`
 Enable JPEG image decoder and encoder.
 
@@ -89,6 +92,18 @@ If any image format feature is enabled.
 
 #### `"image_all"`
 Enable all image decoders and encoders.
+
+#### `"image_meta_exif"`
+Enable EXIF metadata copy in images.
+
+Note that EXIF is always used when decoding, this feature enables copying the raw blob
+as the "image_meta_exif" metadata.
+
+#### `"image_meta_icc"`
+Enable ICC Profile metadata copy in images.
+
+Note that images are always color managed when decoding, this feature enabled copying the raw profile
+as the "image_meta_icc" metadata.
 
 #### `"audio_mp3"`
 Enable MP3 audio decoder and encoder.
