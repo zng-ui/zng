@@ -42,7 +42,7 @@ zng-wgt-button = { path = "../zng-wgt-button", version = "0.13.6", default-featu
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 pastey = { version = "0.2", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
-euclid = { version = "0.22", default-features = false }
+euclid = { version = "0.22", default-features = false, features = ["std"] }
 tracing = { version = "0.1", default-features = false }
 
 [package.metadata.docs.rs]
