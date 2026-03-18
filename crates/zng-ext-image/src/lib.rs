@@ -374,6 +374,34 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
         var.set_bind(&r).perm();
         r.hold(var).perm();
         return;
+    } else if let ImageSource::Entries { primary, entries } = source {
+        let entries: Vec<_> = entries
+            .into_iter()
+            .map(|(k, e)| (k, IMAGES.image(e, options.clone(), Some(limits.clone()))))
+            .collect();
+        let r_weak = r.downgrade();
+        let binding = move |mut primary: ImageEntry| -> bool {
+            let primary_id = primary.handle.image_id();
+            for (i, (kind, entry)) in entries.iter().enumerate() {
+                let kind = kind.clone();
+                primary.insert_entry(entry.map(move |e| {
+                    let mut e = e.clone();
+                    e.data.meta.parent = Some(zng_view_api::image::ImageEntryMetadata::new(primary_id, i, kind.clone()));
+                    e
+                }));
+            }
+            if let Some(r) = r_weak.upgrade() {
+                r.set(primary);
+                true
+            } else {
+                false
+            }
+        };
+        let primary = IMAGES.image(*primary, options.clone(), Some(limits.clone()));
+        binding(primary.get());
+        primary.hook(move |a| binding(a.value().clone())).perm();
+        r.hold(primary).perm();
+        return;
     }
 
     if !VIEW_PROCESS.is_available() && !s.load_in_headless.get() {

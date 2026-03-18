@@ -934,6 +934,16 @@ pub enum ImageSource {
     ///
     /// The image is passed-through, not cached.
     Image(ImageVar),
+
+    /// A custom multi entry image.
+    ///
+    /// Only the entry images are cached, the service returns a variable that aggregates the entries into a single image.
+    Entries {
+        /// The first entry.
+        primary: Box<ImageSource>,
+        /// The other entries.
+        entries: Vec<(ImageEntryKind, ImageSource)>,
+    },
 }
 impl ImageSource {
     /// New source from data.
@@ -944,7 +954,7 @@ impl ImageSource {
         Self::Data(hash, data, format)
     }
 
-    /// Returns the image hash, unless the source is [`ImageEntry`].
+    /// Returns the image hash, unless the source is [`ImageSource::Image`] or [`ImageSource::Entries`].
     pub fn hash128(&self, options: &ImageOptions) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p, options)),
@@ -953,6 +963,7 @@ impl ImageSource {
             ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, options)),
             ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, options)),
             ImageSource::Image(_) => None,
+            ImageSource::Entries { .. } => None,
         }
     }
 
@@ -1381,6 +1392,11 @@ impl fmt::Debug for ImageSource {
 
             ImageSource::Render(_, _) => write!(f, "Render(_, _)"),
             ImageSource::Image(_) => write!(f, "Image(_)"),
+            ImageSource::Entries { primary, entries } => f
+                .debug_struct("Entries")
+                .field("primary", primary)
+                .field("entries", entries)
+                .finish(),
         }
     }
 }

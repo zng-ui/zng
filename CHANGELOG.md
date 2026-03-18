@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `ImageSource::Entries` for generating multi entry images.
+    - SVG renderer now uses this to generate downscaled samples if requested.
 * Add `ImageEntry::icc_profile` that provides a copy of the ICC Profile metadata used for decoding.
     - Adds `"image_meta_icc"` feature, not enabled by default.
 * Add `ImageEntry::exif` that provides a copy of the EXIF metadata used for decoding.
