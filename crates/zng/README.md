@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.21.6", features = ["view_prebuilt"] }
+zng = { version = "0.21.7", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 90 feature flags, 1 enabled by default.
+This crate provides 94 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -194,6 +194,9 @@ Embed hyphenation dictionaries for all supported languages.
 
 If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the
 `HYPHENATION::init_data_source` method.
+
+#### `"lang_autonym"`
+Embed language and region names for `Lang::autonym`.
 
 #### `"material_icons"`
 Include all Material Icons icon sets in the default app.
@@ -363,64 +366,77 @@ Enable wrap widget.
 Enable the shortcut text widget.
 
 #### `"image_bmp"`
-Enable BMP image decoder and encoder with "view" feature.
+Enable BMP image format with "view" feature.
 
 #### `"image_dds"`
 Enable DDS image decoder with "view" feature.
 
 #### `"image_exr"`
-Enable EXR image decoder and encoder with "view" feature.
+Enable EXR image format with "view" feature.
 
 #### `"image_ff"`
-Enable Farbfeld image decoder and encoder with "view" feature.
+Enable Farbfeld image format with "view" feature.
 
 #### `"image_gif"`
-Enable GIF image decoder and encoder with "view" feature.
+Enable GIF image format with "view" feature.
 
 #### `"image_hdr"`
-Enable Radiance HDR image decoder and encoder with "view" feature.
+Enable Radiance HDR image format with "view" feature.
 
 #### `"image_ico"`
-Enable ICO image decoder and encoder with "view" feature.
+Enable ICO image format with "view" feature.
+
+#### `"image_cur"`
+Enable CUR image format with "view" feature.
 
 #### `"image_jpeg"`
-Enable JPEG image decoder and encoder with "view" feature.
+Enable JPEG image format with "view" feature.
 
 #### `"image_png"`
-Enable PNG image decoder and encoder with "view" feature.
+Enable PNG image format with "view" feature.
 
 #### `"image_pnm"`
-Enable PNM image decoder and encoder with "view" feature.
+Enable PNM image format with "view" feature.
 
 #### `"image_qoi"`
-Enable QOI image decoder and encoder with "view" feature.
+Enable QOI image format with "view" feature.
 
 #### `"image_tga"`
-Enable TGA image decoder and encoder with "view" feature.
+Enable TGA image format with "view" feature.
 
 #### `"image_tiff"`
-Enable TIFF image decoder and encoder with "view" feature.
+Enable TIFF image format with "view" feature.
 
 #### `"image_webp"`
-Enable WEBP image decoder with "view" feature.
+Enable WEBP image format with "view" feature.
 
 #### `"image_all"`
-Enable all image encoders and decoders with "view" feature.
+Enable all image fomats with "view" feature.
+
+#### `"image_meta_exif"`
+Enable EXIF metadata copy in images with "view" feature.
+
+Note that EXIF is always used when decoding, this feature enables `ImageEntry::exif`.
+
+#### `"image_meta_icc"`
+Enable ICC Profile metadata copy in images with "view" feature.
+
+Note that images are always color managed when decoding, this feature enables `ImageEntry::icc_profile`.
 
 #### `"audio_mp3"`
-Enable MP3 audio decoder and encoder with "view" feature.
+Enable MP3 audio format with "view" feature.
 
 #### `"audio_mp4"`
-Enable MP4 audio decoder and encoder with "view" feature.
+Enable MP4 audio format with "view" feature.
 
 #### `"audio_flac"`
-Enable FLAC audio decoder and encoder with "view" feature.
+Enable FLAC audio format with "view" feature.
 
 #### `"audio_vorbis"`
-Enable MP3 audio decoder and encoder with "view" feature.
+Enable MP3 audio format with "view" feature.
 
 #### `"audio_wav"`
-Enable WAV audio decoder and encoder with "view" feature.
+Enable WAV audio format with "view" feature.
 
 #### `"audio_all"`
 Enable all audio decoders and encoders with "view" feature.
