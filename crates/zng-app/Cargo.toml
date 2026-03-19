@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.22.6"
+version = "0.22.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -85,12 +85,12 @@ zng-time = { path = "../zng-time", version = "0.9.2", default-features = false }
 zng-var = { path = "../zng-var", version = "0.13.4", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }
 zng-task = { path = "../zng-task", version = "0.12.5", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.19.6", features = [
+zng-view-api = { path = "../zng-view-api", version = "0.19.7", features = [
     "var",
 ], default-features = false }
 zng-state-map = { path = "../zng-state-map", version = "0.10.0", default-features = false }
 zng-layout = { path = "../zng-layout", version = "0.10.4", default-features = false }
-zng-color = { path = "../zng-color", version = "0.12.6", default-features = false }
+zng-color = { path = "../zng-color", version = "0.12.7", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi", "smallvec", "tracing-log", "env-filter"] }
