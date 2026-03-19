@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.8
+
 * Fix view-process image format magic number matching any empty pattern.
 * Fix AVIF image format magic number.
 
