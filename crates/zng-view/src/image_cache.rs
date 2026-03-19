@@ -37,7 +37,7 @@ pub(crate) mod lcms2 {
 
 pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
-    ImageFormat::from_static2("AVIF", "avif", "avif", "", Cap::empty()),
+    ImageFormat::from_static2("AVIF", "avif", "avif", "xxxxxxxx6674797061766966", Cap::empty()),
     #[cfg(feature = "image_bmp")]
     ImageFormat::from_static2("BMP", "bmp", "bmp,dib", "424D", Cap::ENCODE),
     #[cfg(feature = "image_dds")]
