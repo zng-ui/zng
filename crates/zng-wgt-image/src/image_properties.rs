@@ -4,7 +4,7 @@ use std::fmt;
 use node::CONTEXT_IMAGE_VAR;
 use zng_app::render::ImageRendering;
 use zng_ext_image::{ImageDownscaleMode, ImageEntriesMode, ImageLimits};
-use zng_ext_window::WINDOW_Ext as _;
+use zng_ext_window::{WINDOW_Ext as _, WindowInstanceState};
 use zng_wgt_window::BlockWindowLoad;
 
 /// Image layout mode.
@@ -608,7 +608,8 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
 
 /// Image loaded and layout event.
 ///
-/// This property calls `handler` every first layout after [`on_load`].
+/// This property calls `handler` every first layout after [`on_load`] in a loaded window. If the window
+/// is loading the call is delayed until it is loaded.
 ///
 /// # Handlers
 ///
@@ -629,6 +630,7 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
 pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode {
     let mut handler = handler.into_wgt_runner();
     let mut update = false;
+    let mut window_load = VarHandle::dummy();
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -641,6 +643,7 @@ pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> 
         }
         UiNodeOp::Deinit => {
             handler.deinit();
+            window_load = VarHandle::dummy();
         }
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
@@ -654,7 +657,31 @@ pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> 
         }
         UiNodeOp::Layout { .. } => {
             if std::mem::take(&mut update) && CONTEXT_IMAGE_VAR.with(ImageEntry::is_loaded) {
-                handler.event(&ImgLoadArgs {});
+                let win_state = WINDOW.vars().instance_state();
+                let has_renderer = WINDOW.mode().has_renderer();
+                if let WindowInstanceState::Loaded { has_view } = win_state.get()
+                    && (!has_renderer || has_view)
+                {
+                    handler.event(&ImgLoadArgs {});
+                } else if window_load.is_dummy() {
+                    // wait window load, this is because its common for window to change size
+                    // on open as the OS sets the state and `on_load_layout` primary use is getting
+                    // an "initial" presentation state for scale to fit for example
+                    update = true;
+                    let id = WIDGET.id();
+                    window_load = win_state.hook(move |a| match a.value() {
+                        zng_ext_window::WindowInstanceState::Loaded { has_view } => {
+                            if !has_renderer || *has_view {
+                                UPDATES.layout(id);
+                                false
+                            } else {
+                                true
+                            }
+                        }
+                        zng_ext_window::WindowInstanceState::Closed => false,
+                        _ => true,
+                    });
+                }
             }
         }
         _ => {}
