@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `can_<command>` properties holding command handle after deinit.
 
 # 0.21.8
 
