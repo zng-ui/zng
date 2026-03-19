@@ -474,19 +474,79 @@ impl Command {
 
     /// Gets a variable that tracks if this command has any handlers.
     pub fn has_handlers(&self) -> Var<bool> {
-        let mut write = self.local.write();
         match self.scope {
-            CommandScope::App => write.has_handlers.read_only(),
-            scope => write.scopes.entry(scope).or_default().has_handlers.read_only(),
+            CommandScope::App => self.local.read().has_handlers.read_only(),
+            scope => {
+                // scoped data is retained only if there are handlers or observers (has_handlers, is_enabled)
+
+                // get or insert entry
+                let mut write = self.local.write();
+                let entry = write.scopes.entry(scope).or_default();
+
+                // create observer
+                entry.observer_count += 1;
+                let observer = var(entry.has_handlers.get());
+                entry.has_handlers.set_bind(&observer).perm();
+
+                // setup observer cleanup
+                let command = *self;
+                observer
+                    .hook_drop(move || {
+                        if !APP.is_started() {
+                            return;
+                        }
+                        let mut write = command.local.write();
+                        let mut entry = match write.scopes.entry(scope) {
+                            hash_map::Entry::Occupied(e) => e,
+                            hash_map::Entry::Vacant(_) => unreachable!(),
+                        };
+                        entry.get_mut().observer_count -= 1;
+                        if entry.get().observer_count == 0 && entry.get().handle_count == 0 {
+                            entry.remove();
+                            EVENTS.unregister_command(command);
+                        }
+                    })
+                    .perm();
+
+                observer.read_only()
+            }
         }
     }
 
     /// Gets a variable that tracks if this command has any enabled handlers.
     pub fn is_enabled(&self) -> Var<bool> {
-        let mut write = self.local.write();
         match self.scope {
-            CommandScope::App => write.is_enabled.read_only(),
-            scope => write.scopes.entry(scope).or_default().is_enabled.read_only(),
+            CommandScope::App => self.local.read().is_enabled.read_only(),
+            scope => {
+                let mut write = self.local.write();
+                let entry = write.scopes.entry(scope).or_default();
+
+                entry.observer_count += 1;
+                let observer = var(entry.is_enabled.get());
+                entry.is_enabled.set_bind(&observer).perm();
+
+                let command = *self;
+                observer
+                    .hook_drop(move || {
+                        if !APP.is_started() {
+                            return;
+                        }
+
+                        let mut write = command.local.write();
+                        let mut entry = match write.scopes.entry(scope) {
+                            hash_map::Entry::Occupied(e) => e,
+                            hash_map::Entry::Vacant(_) => unreachable!(),
+                        };
+                        entry.get_mut().observer_count -= 1;
+                        if entry.get().observer_count == 0 && entry.get().handle_count == 0 {
+                            entry.remove();
+                            EVENTS.unregister_command(command);
+                        }
+                    })
+                    .perm();
+
+                observer.read_only()
+            }
         }
     }
 
@@ -1174,8 +1234,10 @@ impl Drop for CommandHandle {
 
                         if data.handle_count == 0 {
                             data.has_handlers.set(false);
-                            entry.remove();
-                            EVENTS.unregister_command(command);
+                            if data.observer_count == 0 {
+                                entry.remove();
+                                EVENTS.unregister_command(command);
+                            }
                         }
                     }
                 }
@@ -1692,8 +1754,8 @@ impl CommandData {
                 tracing::trace!(
                     "subscribe to {:?}, handle_count: {:?}, enabled_count: {:?}",
                     CommandDbg::new(self.static_name, command.scope),
-                    self.handle_count,
-                    self.enabled_count
+                    data.handle_count,
+                    data.enabled_count
                 );
 
                 if let CommandScope::Widget(id) = scope {
@@ -1713,6 +1775,7 @@ impl CommandData {
 }
 
 struct ScopedValue {
+    observer_count: usize,
     handle_count: usize,
     enabled_count: usize,
     is_enabled: Var<bool>,
@@ -1723,6 +1786,7 @@ struct ScopedValue {
 impl Default for ScopedValue {
     fn default() -> Self {
         ScopedValue {
+            observer_count: 0,
             is_enabled: var(false),
             has_handlers: var(false),
             handle_count: 0,
@@ -1813,7 +1877,7 @@ mod tests {
     }
 
     #[test]
-    fn has_handlers() {
+    fn has_handlers_not_scoped() {
         let mut app = APP.minimal().run_headless(false);
 
         assert!(!FOO_CMD.has_handlers().get());
