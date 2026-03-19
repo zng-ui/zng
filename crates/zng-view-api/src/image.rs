@@ -757,7 +757,7 @@ impl ImageFormat {
     /// A good size for `file_prefix` is 24 bytes, it should cover all image formats.
     pub fn matches_magic(&self, file_prefix: &[u8]) -> bool {
         'search: for magic in self.magic_numbers.split(',') {
-            if magic.len() > file_prefix.len() * 2 {
+            if magic.is_empty() || magic.len() > file_prefix.len() * 2 {
                 continue 'search;
             }
             'm: for (c, b) in magic.as_bytes().chunks_exact(2).zip(file_prefix) {
