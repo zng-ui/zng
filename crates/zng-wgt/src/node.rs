@@ -974,15 +974,16 @@ pub fn command_contextual_enabled(child: UiNode, cmd: Command, ctx: ContextVar<b
                 CommandHandle::dummy()
             };
             if !ctx.capabilities().is_const() {
+                let handle = handle.enabled().clone();
+                let win_handle = win_handle.enabled().clone();
                 _handle = ctx.hook(move |a| {
-                    handle.enabled().set(*a.value());
-                    win_handle.enabled().set(*a.value());
+                    handle.set(*a.value());
+                    win_handle.set(*a.value());
                     true
                 });
-            } else {
-                _wgt_handle = handle;
-                _win_handle = win_handle;
             }
+            _wgt_handle = handle;
+            _win_handle = win_handle;
         }
         UiNodeOp::Deinit => {
             _handle = VarHandle::dummy();
