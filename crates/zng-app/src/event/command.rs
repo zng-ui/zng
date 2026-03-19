@@ -1692,8 +1692,8 @@ impl CommandData {
                 tracing::trace!(
                     "subscribe to {:?}, handle_count: {:?}, enabled_count: {:?}",
                     CommandDbg::new(self.static_name, command.scope),
-                    self.handle_count,
-                    self.enabled_count
+                    data.handle_count,
+                    data.enabled_count
                 );
 
                 if let CommandScope::Widget(id) = scope {
