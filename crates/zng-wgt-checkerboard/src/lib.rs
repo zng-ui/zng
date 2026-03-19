@@ -136,6 +136,10 @@ pub fn node() -> UiNode {
             }
         }
         UiNodeOp::Render { frame } => {
+            if render_size.is_empty() {
+                return;
+            }
+
             let [c0, c1] = COLORS_VAR.get().0;
             let sch = COLOR_SCHEME_VAR.get();
             let colors = [c0[sch], c1[sch]];
