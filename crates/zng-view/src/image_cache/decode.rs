@@ -42,6 +42,21 @@ impl ContainerFormat {
             _ => None,
         }
     }
+
+    fn name(&self) -> Txt {
+        match self {
+            ContainerFormat::Image(image_format) => {
+                let ext = image_format.extensions_str()[0];
+                super::FORMATS
+                    .iter()
+                    .find(|f| f.file_extensions_iter().any(|e| e == ext))
+                    .map(|f| f.display_name.clone())
+                    .unwrap_or_else(|| zng_txt::formatx!("{image_format:?}"))
+            }
+            #[cfg(feature = "image_cur")]
+            ContainerFormat::Cur => Txt::from_static("CUR"),
+        }
+    }
 }
 
 impl ImageCache {
@@ -185,6 +200,7 @@ impl ImageCache {
             ContainerFormat::Image(image::ImageFormat::Tiff) => return Self::decode_metadata_tiff(data, entry),
             _ => {}
         }
+        let format_name = fmt.name();
 
         // single entry containers
         let fmt = match fmt {
@@ -273,6 +289,7 @@ impl ImageCache {
             exif,
             og_color_type,
             cur_hotspot: None,
+            format_name,
         })
     }
 
@@ -293,6 +310,7 @@ impl ImageCache {
                 icc_profile: None,
                 og_color_type: image::ExtendedColorType::Rgba8,
                 cur_hotspot: None,
+                format_name: Txt::from_static("ICO"),
             }
         };
 
@@ -327,6 +345,7 @@ impl ImageCache {
             exif,
             og_color_type: color_type.into(),
             cur_hotspot: None,
+            format_name: Txt::from_static("TIFF"),
         })
     }
 

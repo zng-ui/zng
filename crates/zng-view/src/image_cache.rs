@@ -4,6 +4,8 @@ use std::{fmt, sync::Arc};
 use zng_task::parking_lot::Mutex;
 
 use webrender::api::ImageDescriptor;
+#[cfg(feature = "image_any")]
+use zng_txt::Txt;
 use zng_txt::formatx;
 
 use zng_task::channel::{IpcBytes, IpcReceiver};
@@ -236,6 +238,7 @@ impl ImageCache {
                         let og_color_size = image_color_type_to_vp(h.og_color_type);
                         let mut meta = ImageMetadata::new(id, size, mask.is_some(), og_color_size.clone());
                         meta.density = h.density;
+                        meta.format_name = h.format_name;
                         #[cfg(feature = "image_cur")]
                         downscale_hotspot(image_cur_ext_id, size, &mut meta, h.size, h.cur_hotspot);
                         #[cfg(feature = "image_meta_exif")]
@@ -335,6 +338,7 @@ impl ImageCache {
                 let mut meta = ImageMetadata::new(id, size, is_mask, $og_color_type);
                 meta.density = density;
                 meta.parent = parent;
+                meta.format_name = meta.original_color_type.name.clone();
                 if !notified_meta {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataDecoded(meta.clone())));
                 }
@@ -632,6 +636,7 @@ impl ImageCache {
                             let mut meta = ImageMetadata::new(*id, size, mask.is_some(), og_color_type);
                             meta.density = entry_header.density;
                             meta.parent = parent.clone();
+                            meta.format_name = entry_header.format_name.clone();
                             #[cfg(feature = "image_cur")]
                             downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
                             #[cfg(feature = "image_meta_exif")]
@@ -689,6 +694,7 @@ impl ImageCache {
                     let og_color_type = image_color_type_to_vp(entry.1.og_color_type);
                     let mut meta = ImageMetadata::new(id_gen.lock().incr(), entry.1.size, mask.is_some(), og_color_type);
                     meta.density = entry.1.density;
+                    meta.format_name = entry.1.format_name.clone();
                     root_entries += 1;
                     let kind = match entry.2 {
                         ImageEntryKind::Reduced { .. } => ImageEntryKind::Other {
@@ -732,6 +738,7 @@ impl ImageCache {
                                 Ok((pixels, size, density, is_opaque, is_mask)) => {
                                     meta.size = size;
                                     meta.density = density;
+                                    meta.format_name = entry_header.format_name.clone();
                                     meta.is_mask = is_mask;
                                     #[cfg(feature = "image_meta_exif")]
                                     if let Some(exif) = entry_header.exif
@@ -944,6 +951,7 @@ struct ImageHeader {
     exif: Option<Vec<u8>>,
     og_color_type: image::ExtendedColorType,
     cur_hotspot: Option<PxPoint>,
+    format_name: Txt,
 }
 
 fn image_color_type_to_vp(color_type: image::ExtendedColorType) -> ColorType {
