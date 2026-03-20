@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add machine translated l10n resources for German, Spanish, French, Italian, Japanese, Korean and Simplified Chinese.
 * Add `ImageEntry::format_name`.
 * Change `Image::on_load_layout` to await window load.
 * Fix scoped command state variables disconnecting.
