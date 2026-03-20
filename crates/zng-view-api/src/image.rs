@@ -487,6 +487,8 @@ pub struct ImageMetadata {
     pub is_mask: bool,
     /// Image color type before it was converted to BGRA8 or A8.
     pub original_color_type: ColorType,
+    /// The [`ImageFormat::display_name`] that was decoded or the [`ColorType::name`] if the image was not decoded.
+    pub format_name: Txt,
     /// Extra metadata if this image is an entry in another image.
     ///
     /// When this is `None` the is the first [`ImageEntryKind::Page`] in the container, usually the only page.
@@ -506,6 +508,7 @@ impl ImageMetadata {
             original_color_type,
             parent: None,
             extensions: vec![],
+            format_name: Txt::default(),
         }
     }
 }
@@ -519,6 +522,7 @@ impl Default for ImageMetadata {
             original_color_type: ColorType::BGRA8,
             parent: Default::default(),
             extensions: vec![],
+            format_name: Txt::default(),
         }
     }
 }

@@ -244,6 +244,11 @@ impl ImageEntry {
         self.data.meta.density
     }
 
+    /// Gets the [`ImageFormat::display_name`] that was decoded or the [`ColorType::name`] if the image was not decoded.
+    pub fn format_name(&self) -> Txt {
+        self.data.meta.format_name.clone()
+    }
+
     /// Image color type before it was converted to BGRA8 or A8.
     pub fn original_color_type(&self) -> ColorType {
         self.data.meta.original_color_type.clone()

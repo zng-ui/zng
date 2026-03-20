@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `ImageEntry::format_name`.
 * Change `Image::on_load_layout` to await window load.
 * Fix scoped command state variables disconnecting.
 * Fix `can_<command>` properties holding command handle after deinit.
