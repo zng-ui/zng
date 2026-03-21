@@ -184,6 +184,8 @@ impl FontName {
     /// New "serif" font name.
     ///
     /// Serif fonts represent the formal text style for a script.
+    ///
+    /// The font is resolved to the [`GenericFonts::serif`] value.
     pub fn serif() -> Self {
         Self::new("serif")
     }
@@ -192,6 +194,8 @@ impl FontName {
     ///
     /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have close to the same thickness)
     /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
+    ///
+    /// The font is resolved to the [`GenericFonts::sans_serif`] value.
     pub fn sans_serif() -> Self {
         Self::new("sans-serif")
     }
@@ -199,6 +203,8 @@ impl FontName {
     /// New "monospace" font name.
     ///
     /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
+    ///
+    /// The font is resolved to the [`GenericFonts::monospace`] value.
     pub fn monospace() -> Self {
         Self::new("monospace")
     }
@@ -207,6 +213,8 @@ impl FontName {
     ///
     /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
     /// like handwritten pen or brush writing than printed letter-work.
+    ///    
+    /// The font is resolved to the [`GenericFonts::cursive`] value.
     pub fn cursive() -> Self {
         Self::new("cursive")
     }
@@ -214,8 +222,19 @@ impl FontName {
     /// New "fantasy" font name.
     ///
     /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
+    ///
+    /// The font is resolved to the [`GenericFonts::fantasy`] value.
     pub fn fantasy() -> Self {
         Self::new("fantasy")
+    }
+
+    /// New "system-ui" font name.
+    ///
+    /// This represents the default UI font defined by for the given operating system and language.
+    ///
+    /// The font is resolved to the [`GenericFonts::system_ui`] value.
+    pub fn system_ui() -> Self {
+        Self::new("system-ui")
     }
 
     /// Reference the font name string.
@@ -305,7 +324,7 @@ impl<'de> serde::Deserialize<'de> for FontName {
 ///
 /// # Default
 ///
-/// The default value is the [`system_ui`](FontNames::system_ui) for the undefined language (`und`).
+/// The default value is the [`system_ui`](FontName::system_ui).
 #[derive(Eq, PartialEq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct FontNames(pub Vec<FontName>);
@@ -316,115 +335,27 @@ impl FontNames {
     }
 
     /// Returns the default UI font names for Windows.
+    #[deprecated = "use `FONTS.generics().system_ui`"]
     pub fn windows_ui(lang: &Lang) -> Self {
-        // source: VSCode
-        // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
-
-        if lang!("zh-Hans").matches(lang, true, false) {
-            ["Segoe UI", "Microsoft YaHei", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!("zh-Hant").matches(lang, true, false) {
-            ["Segoe UI", "Microsoft Jhenghei", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!(ja).matches(lang, true, false) {
-            ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "Segoe Ui Emoji", "sans-serif"].into()
-        } else if lang!(ko).matches(lang, true, false) {
-            ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into()
-        } else {
-            ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into()
-        }
+        FONTS.generics().system_ui(lang)
     }
 
     /// Returns the default UI font names for MacOS/iOS.
+    #[deprecated = "use `FONTS.generics().system_ui`"]
     pub fn mac_ui(lang: &Lang) -> Self {
-        // source: VSCode
-
-        if lang!("zh-Hans").matches(lang, true, false) {
-            ["PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into()
-        } else if lang!("zh-Hant").matches(lang, true, false) {
-            ["PingFang TC", "Apple Color Emoji", "sans-serif"].into()
-        } else if lang!(ja).matches(lang, true, false) {
-            ["Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
-        } else if lang!(ko).matches(lang, true, false) {
-            [
-                "Nanum Gothic",
-                "Apple SD Gothic Neo",
-                "AppleGothic",
-                "Apple Color Emoji",
-                "sans-serif",
-            ]
-            .into()
-        } else {
-            ["Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into()
-        }
+        FONTS.generics().system_ui(lang)
     }
 
     /// Returns the default UI font names for Linux.
+    #[deprecated = "use `FONTS.generics().system_ui`"]
     pub fn linux_ui(lang: &Lang) -> Self {
-        // source: VSCode
-
-        if lang!("zh-Hans").matches(lang, true, false) {
-            [
-                "Ubuntu",
-                "Droid Sans",
-                "Source Han Sans SC",
-                "Source Han Sans CN",
-                "Source Han Sans",
-                "Noto Color Emoji",
-                "sans-serif",
-            ]
-            .into()
-        } else if lang!("zh-Hant").matches(lang, true, false) {
-            [
-                "Ubuntu",
-                "Droid Sans",
-                "Source Han Sans TC",
-                "Source Han Sans TW",
-                "Source Han Sans",
-                "Noto Color Emoji",
-                "sans-serif",
-            ]
-            .into()
-        } else if lang!(ja).matches(lang, true, false) {
-            [
-                "system-ui",
-                "Ubuntu",
-                "Droid Sans",
-                "Source Han Sans J",
-                "Source Han Sans JP",
-                "Source Han Sans",
-                "Noto Color Emoji",
-                "sans-serif",
-            ]
-            .into()
-        } else if lang!(ko).matches(lang, true, false) {
-            [
-                "system-ui",
-                "Ubuntu",
-                "Droid Sans",
-                "Source Han Sans K",
-                "Source Han Sans JR",
-                "Source Han Sans",
-                "UnDotum",
-                "FBaekmuk Gulim",
-                "Noto Color Emoji",
-                "sans-serif",
-            ]
-            .into()
-        } else {
-            ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
-        }
+        FONTS.generics().system_ui(lang)
     }
 
     /// Returns the default UI font names for the current operating system.
+    #[deprecated = "use `FONTS.generics().system_ui`"]
     pub fn system_ui(lang: &Lang) -> Self {
-        if cfg!(windows) {
-            Self::windows_ui(lang)
-        } else if cfg!(target_os = "linux") {
-            Self::linux_ui(lang)
-        } else if cfg!(target_os = "macos") {
-            Self::mac_ui(lang)
-        } else {
-            [FontName::sans_serif()].into()
-        }
+        FONTS.generics().system_ui(lang)
     }
 
     /// Push a font name from any type that converts to [`FontName`].
@@ -434,7 +365,7 @@ impl FontNames {
 }
 impl Default for FontNames {
     fn default() -> Self {
-        Self::system_ui(&Lang::default())
+        FontName::system_ui().into()
     }
 }
 impl fmt::Debug for FontNames {
@@ -791,12 +722,15 @@ impl FONTS {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<Option<FontFace>> {
+        let resolved = GenericFonts {}.resolve(family, lang);
+        let family = resolved.as_ref().unwrap_or(family);
+
         // try with shared lock
-        if let Some(cached) = FONTS_SV.read().loader.try_cached(family, style, weight, stretch, lang) {
+        if let Some(cached) = FONTS_SV.read().loader.try_resolved(family, style, weight, stretch) {
             return cached;
         }
         // begin load with exclusive lock (cache is tried again in `load`)
-        FONTS_SV.write().loader.load(family, style, weight, stretch, lang)
+        FONTS_SV.write().loader.load_resolved(family, style, weight, stretch)
     }
 
     /// Find a single font face with all normal properties.
@@ -1878,6 +1812,8 @@ impl FontFaceLoader {
             return r;
         }
 
+        let resolved = GenericFonts {}.resolve_list(families, lang);
+        let families = resolved.as_ref().map(|n| &***n).unwrap_or(families);
         let mut list = Vec::with_capacity(families.len() + 1);
         let mut pending = vec![];
 
@@ -1889,7 +1825,7 @@ impl FontFaceLoader {
                     continue;
                 }
 
-                let face = self.load(name, style, weight, stretch, lang);
+                let face = self.load_resolved(name, style, weight, stretch);
                 if face.is_done() {
                     if let Some(face) = face.rsp().unwrap() {
                         list.push(face);
@@ -1943,33 +1879,6 @@ impl FontFaceLoader {
             });
 
         r
-    }
-
-    fn try_cached(
-        &self,
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-        lang: &Lang,
-    ) -> Option<ResponseVar<Option<FontFace>>> {
-        let resolved = GenericFonts {}.resolve(font_name, lang);
-        let font_name = resolved.as_ref().unwrap_or(font_name);
-        self.try_resolved(font_name, style, weight, stretch)
-    }
-
-    /// Try cached again, otherwise begins loading and inserts the response in the cache.
-    fn load(
-        &mut self,
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-        lang: &Lang,
-    ) -> ResponseVar<Option<FontFace>> {
-        let resolved = GenericFonts {}.resolve(font_name, lang);
-        let font_name = resolved.as_ref().unwrap_or(font_name);
-        self.load_resolved(font_name, style, weight, stretch)
     }
 
     /// Get a `font_name` that already resolved generic names if it is already in cache.
@@ -2231,6 +2140,7 @@ struct GenericFontsService {
     cursive: LangMap<FontName>,
     fantasy: LangMap<FontName>,
     fallback: LangMap<FontName>,
+    system_ui: LangMap<FontNames>,
 }
 impl GenericFontsService {
     fn new() -> Self {
@@ -2253,12 +2163,124 @@ impl GenericFontsService {
             "sans-serif"
         };
 
+        let mut system_ui = LangMap::with_capacity(5);
+
+        // source: VSCode
+        // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
+
+        if cfg!(windows) {
+            system_ui.insert(
+                lang!("zh-Hans"),
+                ["Segoe UI", "Microsoft YaHei", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("zh-Hant"),
+                ["Segoe UI", "Microsoft Jhenghei", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("ja"),
+                ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("ko"),
+                ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(lang!(und), ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into());
+        } else if cfg!(target_os = "macos") {
+            system_ui.insert(
+                lang!("zh-Hans"),
+                ["PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(lang!("zh-Hant"), ["PingFang TC", "Apple Color Emoji", "sans-serif"].into());
+            system_ui.insert(lang!("ja"), ["Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into());
+            system_ui.insert(
+                lang!("ko"),
+                [
+                    "Nanum Gothic",
+                    "Apple SD Gothic Neo",
+                    "AppleGothic",
+                    "Apple Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!(und),
+                ["Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into(),
+            );
+        } else if cfg!(target_os = "linux") {
+            system_ui.insert(
+                lang!("zh-Hans"),
+                [
+                    "Ubuntu",
+                    "Droid Sans",
+                    "Source Han Sans SC",
+                    "Source Han Sans CN",
+                    "Source Han Sans",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("zh-Hant"),
+                [
+                    "Ubuntu",
+                    "Droid Sans",
+                    "Source Han Sans TC",
+                    "Source Han Sans TW",
+                    "Source Han Sans",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("ja"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Droid Sans",
+                    "Source Han Sans J",
+                    "Source Han Sans JP",
+                    "Source Han Sans",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("ko"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Droid Sans",
+                    "Source Han Sans K",
+                    "Source Han Sans JR",
+                    "Source Han Sans",
+                    "UnDotum",
+                    "FBaekmuk Gulim",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!(und),
+                ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into(),
+            );
+        } else {
+            system_ui.insert(lang!(und), ["system-ui"].into());
+        }
+
         GenericFontsService {
             serif: default(serif),
             sans_serif: default(sans_serif),
             monospace: default(monospace),
             cursive: default(cursive),
             fantasy: default(fantasy),
+
+            system_ui,
 
             fallback: default(fallback),
         }
@@ -2272,18 +2294,18 @@ impl GenericFontsService {
 /// # Defaults
 ///
 /// By default the `serif`, `sans_serif`, `monospace`, `cursive` and `fantasy` are set to their own generic name,
-/// this delegates the resolution to the operating system.
+/// this delegates the resolution to the operating system. The `set_*` methods can be used to override the default.
 ///
 /// The default `fallback` font is "Segoe UI Symbol" for Windows, "Standard Symbols PS" for Linux and "sans-serif" for others.
 ///
-/// See also [`FontNames::system_ui`] for the default font selection for UIs.
+/// See also [`FontNames::system_ui`] for the default font selection for `system-ui`.
 ///
 /// [`FontNames::system_ui`]: crate::FontNames::system_ui
 #[non_exhaustive]
 pub struct GenericFonts {}
 macro_rules! impl_fallback_accessors {
     ($($name:ident=$name_str:tt),+ $(,)?) => {$($crate::paste! {
-    #[doc = "Gets the fallback *"$name_str "* font for the given language."]
+    #[doc = "Gets the *"$name_str "* font for the given language."]
     ///
     /// Returns a font name for the best `lang` match.
     ///
@@ -2293,7 +2315,7 @@ macro_rules! impl_fallback_accessors {
         GENERIC_FONTS_SV.read().$name.get(lang).unwrap().clone()
     }
 
-    #[doc = "Sets the fallback *"$name_str "* font for the given language."]
+    #[doc = "Sets the *"$name_str "* font for the given language."]
     ///
     /// The change is applied for the next update.
     ///
@@ -2313,6 +2335,30 @@ impl GenericFonts {
     #[rustfmt::skip] // for zng fmt
     impl_fallback_accessors! {
         serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy"
+    }
+
+    /// Gets the *"system-ui"* font for the given language.
+    ///
+    /// Returns a font name list for the best `lang` match.
+    ///
+    /// Note that the returned names can still contain the generic `"system-ui"`, this delegates the resolution to the operating system.
+    pub fn system_ui(&self, lang: &Lang) -> FontNames {
+        GENERIC_FONTS_SV.read().system_ui.get(lang).unwrap().clone()
+    }
+
+    /// Sets the *"system-ui"* fonts for a the given language.
+    ///
+    /// The change is applied for the next update.
+    ///
+    /// Use `lang!(und)` to set fonts used when no language matches.
+    pub fn set_system_ui(&self, lang: Lang, font_names: impl Into<FontNames>) {
+        self.set_system_ui_impl(lang, font_names.into())
+    }
+    fn set_system_ui_impl(&self, lang: Lang, font_names: FontNames) {
+        UPDATES.once_update("GenericFonts.set_system_ui", move || {
+            GENERIC_FONTS_SV.write().system_ui.insert(lang.clone(), font_names);
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::GenericFont(FontName::system_ui(), lang)));
+        });
     }
 
     /// Gets the ultimate fallback font used when none of the other fonts support a glyph.
@@ -2340,17 +2386,43 @@ impl GenericFonts {
     /// Returns the font name registered for the generic `name` and `lang`.
     ///
     /// Returns `None` if `name` if not one of the generic font names.
+    ///
+    /// Note that this does not resolve `"system-ui"`, use [`resolve_list`] for that.
+    ///
+    /// [`resolve_list`]: GenericFonts::resolve_list
     pub fn resolve(&self, name: &FontName, lang: &Lang) -> Option<FontName> {
-        if name == &FontName::serif() {
-            Some(self.serif(lang))
-        } else if name == &FontName::sans_serif() {
-            Some(self.sans_serif(lang))
-        } else if name == &FontName::monospace() {
-            Some(self.monospace(lang))
-        } else if name == &FontName::cursive() {
-            Some(self.cursive(lang))
-        } else if name == &FontName::fantasy() {
-            Some(self.fantasy(lang))
+        match &**name {
+            "serif" => Some(self.serif(lang)),
+            "sans-serif" => Some(self.sans_serif(lang)),
+            "monospace" => Some(self.monospace(lang)),
+            "cursive" => Some(self.cursive(lang)),
+            "fantasy" => Some(self.fantasy(lang)),
+            _ => None,
+        }
+    }
+
+    /// Returns a new list if any name in `names` can [`resolve`].
+    ///
+    /// [`resolve`]: GenericFonts::resolve
+    pub fn resolve_list(&self, names: &[FontName], lang: &Lang) -> Option<FontNames> {
+        if names
+            .iter()
+            .any(|n| ["system-ui", "serif", "sans-serif", "monospace", "cursive", "fantasy"].contains(&&**n))
+        {
+            let mut r = FontNames(Vec::with_capacity(names.len()));
+            for name in names {
+                match self.resolve(name, lang) {
+                    Some(n) => r.push(n),
+                    None => {
+                        if name == "system-ui" {
+                            r.extend(self.system_ui(lang));
+                        } else {
+                            r.push(name.clone())
+                        }
+                    }
+                }
+            }
+            Some(r)
         } else {
             None
         }

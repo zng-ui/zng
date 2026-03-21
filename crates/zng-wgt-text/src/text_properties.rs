@@ -24,7 +24,7 @@ context_var! {
     /// Font family of [`Text!`] spans.
     ///
     /// [`Text!`]: struct@crate::Text
-    pub static FONT_FAMILY_VAR: FontNames = FontNames::default();
+    pub static FONT_FAMILY_VAR: FontNames = FontName::system_ui();
 
     /// Font size of [`Text!`] spans.
     ///
