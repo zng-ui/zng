@@ -13,6 +13,8 @@ env:
 
 jobs:
   check-ubuntu:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +31,8 @@ jobs:
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   check-windows:
+    permissions:
+      contents: read
     needs: [check-ubuntu]
     strategy:
       fail-fast: false
@@ -50,6 +54,8 @@ jobs:
           crate: cargo-about
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }}
   check-macos:
+    permissions:
+      contents: read
     needs: [check-ubuntu]
     strategy:
       fail-fast: false
@@ -66,6 +72,8 @@ jobs:
           crate: cargo-about
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   doc:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     steps:

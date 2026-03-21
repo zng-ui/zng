@@ -17,6 +17,8 @@ env:
 
 jobs:
   check-ubuntu:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +34,8 @@ jobs:
       - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean
   check-macos:
+    permissions:
+      contents: read
     needs: [check-ubuntu]
     strategy:
       fail-fast: false
@@ -47,6 +51,8 @@ jobs:
       - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean
   check-windows:
+    permissions:
+      contents: read
     needs: [check-ubuntu]
     strategy:
       fail-fast: false
