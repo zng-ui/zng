@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `Text!` widget not refreshing on `LANG_VAR` changes.
+
 * Add `FontName::system_ui` with value `"system-ui`.
     - **Deprecated** `FontNames::system_ui` and related methods.
     - Add `GenericFonts::system_ui` and related methods.

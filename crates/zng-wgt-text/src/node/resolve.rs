@@ -111,13 +111,15 @@ fn resolve_text_font(child: impl IntoUiNode) -> UiNode {
                     .sub_var(&FONT_WEIGHT_VAR)
                     .sub_var(&FONT_STRETCH_VAR)
                     .sub_event(&FONT_CHANGED_EVENT)
-                    .sub_var(&FONT_SYNTHESIS_VAR);
+                    .sub_var(&FONT_SYNTHESIS_VAR)
+                    .sub_var(&LANG_VAR);
             }
             UiNodeOp::Update { .. } => {
                 if FONT_CHANGED_EVENT.has_update(true) | FONT_FAMILY_VAR.is_new()
                     || FONT_STYLE_VAR.is_new()
                     || FONT_WEIGHT_VAR.is_new()
                     || FONT_STRETCH_VAR.is_new()
+                    || LANG_VAR.is_new()
                 {
                     state = State::Reload;
                 } else if let State::Loading { response, .. } = &state {
