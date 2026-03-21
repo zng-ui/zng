@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.9
+
 * Force update `tar` dependency to avoid vulnerability.
 * Add machine translated l10n resources for German, Spanish, French, Italian, Japanese, Korean and Simplified Chinese.
 * Add `ImageEntry::format_name`.
