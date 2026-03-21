@@ -34,7 +34,7 @@ zng-unique-id = { path = "../zng-unique-id", version = "0.11.0", default-feature
 zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]
-tar = { version = "0.4", default-features = false, features = ["xattr"] }
+tar = { version = "0.4.45", default-features = false, features = ["xattr"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 linkme = { version = "0.3.35", default-features = false }

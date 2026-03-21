@@ -204,6 +204,7 @@ fn locale_menu() -> UiNode {
                                 text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
                                 child = Text!("{l:#}");
                                 value::<zng::l10n::Lang> = l.clone();
+                                lang = l.clone();
                             }
                         });
                     }
