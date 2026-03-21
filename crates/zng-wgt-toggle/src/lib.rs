@@ -16,7 +16,7 @@ use std::{error::Error, fmt, sync::Arc};
 
 use colors::BASE_COLOR_VAR;
 use task::parking_lot::Mutex;
-use zng_ext_font::FontNames;
+use zng_ext_font::FONTS;
 use zng_ext_input::{
     gesture::CLICK_EVENT,
     mouse::{ClickMode, MOUSE_INPUT_EVENT},
@@ -1044,7 +1044,7 @@ fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
     let checked = ICONS.get_or(["toggle.checked", "check"], || {
         zng_wgt_text::Text! {
             txt = "✓";
-            font_family = FontNames::system_ui(&lang!(und));
+            font_family = FONTS.generics().system_ui(&lang!(und));
             txt_align = Align::CENTER;
         }
     });

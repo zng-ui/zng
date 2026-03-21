@@ -241,7 +241,7 @@ async fn set_fallback_font() {
 
     let shaped_icon = FONTS
         .list(
-            &FontNames::system_ui(&und),
+            &[FontName::system_ui()],
             FontStyle::Normal,
             FontWeight::NORMAL,
             FontStretch::NORMAL,

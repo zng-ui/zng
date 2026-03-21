@@ -1,5 +1,9 @@
 # Unreleased
 
+* Add `FontName::system_ui` with value `"system-ui`.
+    - **Deprecated** `FontNames::system_ui` and related methods.
+    - Add `GenericFonts::system_ui` and related methods.
+    - Fixes Chinese, Japanese and Korean UI fonts not loading.
 
 # 0.21.9
 

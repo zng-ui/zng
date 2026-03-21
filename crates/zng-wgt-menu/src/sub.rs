@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::{icon_fn, shortcut_txt};
 use colors::BASE_COLOR_VAR;
-use zng_ext_font::FontNames;
+use zng_ext_font::FONTS;
 use zng_ext_input::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT, WidgetInfoFocusExt as _},
     gesture::CLICK_EVENT,
@@ -547,7 +547,7 @@ impl SubMenuStyle {
 
             end_column_fn = wgt_fn!(|_| zng_wgt_text::Text! {
                 size = 1.2.em();
-                font_family = FontNames::system_ui(&lang!(und));
+                font_family = FONTS.generics().system_ui(&lang!(und));
                 align = Align::CENTER;
 
                 txt = "⏵";
@@ -808,7 +808,7 @@ impl ToggleStyle {
 
             start_column_fn = wgt_fn!(|_| Text! {
                 size = 1.2.em();
-                font_family = FontNames::system_ui(&lang!(und));
+                font_family = FONTS.generics().system_ui(&lang!(und));
                 align = Align::CENTER;
 
                 txt = "✓";
