@@ -234,7 +234,7 @@
                 }
             } catch (error) {
                 console.error("error fetching '" + url + "', " + error);
-                place.querySelector("div") = error;
+                place.querySelector("div").textContent = error;
                 continue;
             }
             e.classList.remove('inherit-fetch');

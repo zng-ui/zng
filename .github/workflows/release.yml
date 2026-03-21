@@ -390,6 +390,8 @@ jobs:
           if-no-files-found: error
 
   doc-ubuntu:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     steps:
