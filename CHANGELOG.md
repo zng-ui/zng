@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix `cargo zng l10n --pseudo` handling of terms.
+* Fix `cargo zng l10n --pseudo` issues.
+    - Now handles terms correctly.
+    - Now also replaces literal strings.
+    - Fixes function call arguments.
 * Upgrade `cargo zng l10n --pseudo` to current directory format.
     - Generates pseudo localization for dependencies too.
 
