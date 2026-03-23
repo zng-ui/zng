@@ -51,8 +51,8 @@ fn generate_file(
 
     for entry in source.body {
         match entry {
-            Entry::Message(m) => write_entry(&mut output, &m.id, m.value.as_ref(), &m.attributes, transform),
-            Entry::Term(t) => write_entry(&mut output, &t.id, Some(&t.value), &t.attributes, transform),
+            Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, transform),
+            Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, transform),
             Entry::Comment(_) | Entry::GroupComment(_) | Entry::ResourceComment(_) | Entry::Junk { .. } => {}
         }
     }
@@ -66,12 +66,13 @@ fn generate_file(
 
 fn write_entry(
     output: &mut String,
+    is_term: bool,
     id: &Identifier<String>,
     value: Option<&Pattern<String>>,
     attributes: &[Attribute<String>],
     transform: &impl Fn(&str) -> Cow<str>,
 ) {
-    write!(output, "\n\n{} = ", id.name).unwrap();
+    write!(output, "\n\n{}{} = ", if is_term { "-" } else { "" }, id.name).unwrap();
     if let Some(value) = value {
         write_pattern(output, value, transform);
     }

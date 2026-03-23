@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng l10n --pseudo` handling of terms.
 * Upgrade `cargo zng l10n --pseudo` to current directory format.
     - Generates pseudo localization for dependencies too.
 
