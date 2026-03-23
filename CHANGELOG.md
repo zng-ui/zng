@@ -1,5 +1,6 @@
 # Unreleased
 
+* Define autonym for pseudo (test) locales.
 * Fix `cargo zng l10n --pseudo` issues.
     - Now handles terms correctly.
     - Now also replaces literal strings.
