@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.22.8"
+version = "0.22.9"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -73,7 +73,7 @@ deadlock_detection = ["zng-task/deadlock_detection"]
 memory_profiler = ["dep:dhat"]
 
 [dependencies]
-zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.9.0", default-features = false }
+zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.9.1", default-features = false }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.11.0", default-features = false }
 zng-env = { path = "../zng-env", version = "0.10.3", default-features = false }
