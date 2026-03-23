@@ -81,7 +81,7 @@ pub struct L10nArgs {
     ///
     /// EXAMPLE
     ///
-    /// "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
+    /// "l10n/en" generates pseudo from "l10n/en/**/*.ftl" to "l10n/pseudo"
     #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo: String,
     /// Generate pseudo mirrored locale

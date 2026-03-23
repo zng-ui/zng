@@ -4,34 +4,29 @@ use fluent_syntax::ast::{Attribute, CallArguments, Entry, Expression, Identifier
 
 use crate::util;
 
-/// Visit all FTL in `dir`, apply `transform` for each entry and write it to a new dir in `to_name`.
 pub fn generate(dir: &str, to_name: &str, file_header: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
-    let dir = Path::new(dir);
-    let to_dir = dir.with_file_name(to_name);
-
-    for entry in fs::read_dir(dir).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", dir.display())) {
-        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", dir.display()));
-        let path = entry.path();
-        if path.is_file() && path.extension().map(|e| e == "ftl").unwrap_or(false) {
-            let _ = util::check_or_create_dir(check, &to_dir);
-            generate_file(
-                &path,
-                &to_dir.join(path.file_name().unwrap()),
-                file_header,
-                transform,
-                check,
-                verbose,
-            );
-        }
-    }
-
-    let unnamed = dir.with_extension("ftl");
-    if unnamed.exists() {
-        generate_file(&unnamed, &to_dir.with_extension("ftl"), file_header, transform, check, verbose);
+    let dir_path = Path::new(dir);
+    let pattern = dir_path.join("**/*.ftl");
+    let to_dir = dir_path.with_file_name(to_name);
+    for entry in glob::glob(&pattern.display().to_string()).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
+        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}"));
+        let relative_entry = entry.strip_prefix(dir_path).unwrap();
+        let to_file = to_dir.join(relative_entry);
+        let _ = util::check_or_create_dir_all(check, to_file.parent().unwrap());
+        let display_to = to_file.strip_prefix(to_dir.parent().unwrap()).unwrap();
+        generate_file(&entry, &to_file, display_to, file_header, transform, check, verbose);
     }
 }
 
-fn generate_file(from: &Path, to: &Path, file_header: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
+fn generate_file(
+    from: &Path,
+    to: &Path,
+    display_to: &Path,
+    file_header: &str,
+    transform: &impl Fn(&str) -> Cow<str>,
+    check: bool,
+    verbose: bool,
+) {
     let source = match fs::read_to_string(from) {
         Ok(s) => s,
         Err(e) => {
@@ -65,7 +60,7 @@ fn generate_file(from: &Path, to: &Path, file_header: &str, transform: &impl Fn(
     if let Err(e) = util::check_or_write(check, to, output.as_bytes(), verbose) {
         error!("cannot write `{}`, {e}", to.display());
     } else {
-        println!("  generated {}", to.display());
+        println!("  generated {}", display_to.display());
     }
 }
 
