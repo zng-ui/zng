@@ -1,5 +1,8 @@
 # Unreleased
 
+* Upgrade `cargo zng l10n --pseudo` to current directory format.
+    - Generates pseudo localization for dependencies too.
+
 * Fix `Text!` widget not refreshing on `LANG_VAR` changes.
 
 * Add `FontName::system_ui` with value `"system-ui`.

@@ -338,18 +338,6 @@ pub struct DependencyManifest {
     pub manifest_path: PathBuf,
 }
 
-pub fn check_or_create_dir(check: bool, path: impl AsRef<Path>) -> io::Result<()> {
-    if check {
-        let path = path.as_ref();
-        if !path.is_dir() {
-            fatal!("expected `{}` dir", path.display());
-        }
-        Ok(())
-    } else {
-        fs::create_dir(path)
-    }
-}
-
 pub fn check_or_create_dir_all(check: bool, path: impl AsRef<Path>) -> io::Result<()> {
     if check {
         let path = path.as_ref();
