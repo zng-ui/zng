@@ -51,8 +51,8 @@ fn generate_file(
 
     for entry in source.body {
         match entry {
-            Entry::Message(m) => write_entry(&mut output, &m.id, m.value.as_ref(), &m.attributes, transform),
-            Entry::Term(t) => write_entry(&mut output, &t.id, Some(&t.value), &t.attributes, transform),
+            Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, transform),
+            Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, transform),
             Entry::Comment(_) | Entry::GroupComment(_) | Entry::ResourceComment(_) | Entry::Junk { .. } => {}
         }
     }
@@ -66,45 +66,47 @@ fn generate_file(
 
 fn write_entry(
     output: &mut String,
+    is_term: bool,
     id: &Identifier<String>,
     value: Option<&Pattern<String>>,
     attributes: &[Attribute<String>],
     transform: &impl Fn(&str) -> Cow<str>,
 ) {
-    write!(output, "\n\n{} = ", id.name).unwrap();
+    write!(output, "\n\n{}{} = ", if is_term { "-" } else { "" }, id.name).unwrap();
     if let Some(value) = value {
-        write_pattern(output, value, transform);
+        write_pattern(output, value, transform, 1);
     }
     for attr in attributes {
         write!(output, "\n    .{} = ", attr.id.name).unwrap();
-        write_pattern(output, &attr.value, transform);
+        write_pattern(output, &attr.value, transform, 2);
     }
 }
 
-fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &impl Fn(&str) -> Cow<str>) {
+fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
     for el in &pattern.elements {
         match el {
             PatternElement::TextElement { value } => {
-                let mut prefix = "";
-                for line in value.lines() {
+                let mut prefix = String::new();
+                for line in value.split('\n') {
+                    // not .lines() because is consumes trailing empty lines
                     write!(output, "{prefix}{}", transform(line)).unwrap();
-                    prefix = "    ";
+                    prefix = format!("\n{}", " ".repeat(depth * 4));
                 }
             }
-            PatternElement::Placeable { expression } => write_expression(output, expression, transform),
+            PatternElement::Placeable { expression } => write_expression(output, expression, transform, depth),
         }
     }
 }
 
-fn write_expression(output: &mut String, expr: &Expression<String>, transform: &impl Fn(&str) -> Cow<str>) {
+fn write_expression(output: &mut String, expr: &Expression<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
     match expr {
         Expression::Select { selector, variants } => {
             write!(output, "{{").unwrap();
-            write_inline_expression(output, selector, transform);
+            write_inline_expression_inner(output, selector, transform, depth);
             writeln!(output, " ->").unwrap();
 
             for v in variants {
-                write!(output, "    ").unwrap();
+                write!(output, "{}", " ".repeat((depth + 1) * 4)).unwrap();
                 if v.default {
                     write!(output, "*").unwrap();
                 }
@@ -114,61 +116,110 @@ fn write_expression(output: &mut String, expr: &Expression<String>, transform: &
                 };
                 write!(output, "[{key}] ").unwrap();
 
-                write_pattern(output, &v.value, transform);
+                write_pattern(output, &v.value, transform, depth + 2);
+                writeln!(output).unwrap();
             }
 
             writeln!(output, "}}").unwrap();
         }
-        Expression::Inline(e) => write_inline_expression(output, e, transform),
+        Expression::Inline(e) => write_inline_expression(output, e, transform, depth),
     }
 }
-fn write_inline_expression(output: &mut String, expr: &InlineExpression<String>, transform: &impl Fn(&str) -> Cow<str>) {
+fn write_inline_expression(output: &mut String, expr: &InlineExpression<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
+    write!(output, "{{ ").unwrap();
+    write_inline_expression_inner(output, expr, transform, depth);
+    write!(output, " }} ").unwrap();
+}
+fn write_inline_expression_inner(
+    output: &mut String,
+    expr: &InlineExpression<String>,
+    transform: &impl Fn(&str) -> Cow<str>,
+    depth: usize,
+) {
     match expr {
-        InlineExpression::StringLiteral { value } => write!(output, "{{ \"{value}\" }}").unwrap(),
-        InlineExpression::NumberLiteral { value } => write!(output, "{{ {value} }}").unwrap(),
+        InlineExpression::StringLiteral { value } => {
+            let value = transform(value);
+            let value = value.replace('\\', "\\\\").replace('"', "\\\"");
+            write!(output, "\"{value}\"").unwrap()
+        }
+        InlineExpression::NumberLiteral { value } => write!(output, "{value}").unwrap(),
         InlineExpression::FunctionReference { id, arguments } => {
-            write!(output, "{{ {}", id.name).unwrap();
-            write_arguments(output, arguments, transform);
-            write!(output, " }}").unwrap()
+            write!(output, "{}", id.name).unwrap();
+            write_arguments(output, arguments, transform, depth);
         }
         InlineExpression::MessageReference { id, attribute } => {
-            write!(output, "{{ {}", id.name).unwrap();
+            write!(output, "{}", id.name).unwrap();
             if let Some(a) = attribute {
                 write!(output, ".{}", a.name).unwrap();
             }
-            write!(output, " }}").unwrap()
         }
         InlineExpression::TermReference { id, attribute, arguments } => {
-            write!(output, "{{ -{}", id.name).unwrap();
+            write!(output, "-{}", id.name).unwrap();
             if let Some(a) = attribute {
                 write!(output, ".{}", a.name).unwrap();
             }
             if let Some(args) = arguments {
-                write_arguments(output, args, transform);
+                write_arguments(output, args, transform, depth);
             }
-            write!(output, " }}").unwrap()
         }
-        InlineExpression::VariableReference { id } => write!(output, "{{ ${} }}", id.name).unwrap(),
+        InlineExpression::VariableReference { id } => write!(output, "${}", id.name).unwrap(),
         InlineExpression::Placeable { expression } => {
-            write!(output, "{{ ").unwrap();
-            write_expression(output, expression, transform);
-            write!(output, " }}").unwrap();
+            write_expression(output, expression, transform, depth);
         }
     }
 }
 
-fn write_arguments(output: &mut String, arguments: &CallArguments<String>, transform: &impl Fn(&str) -> Cow<str>) {
+fn write_arguments(output: &mut String, arguments: &CallArguments<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
     write!(output, "(").unwrap();
     let mut sep = "";
     for a in &arguments.positional {
         write!(output, "{sep}").unwrap();
-        write_inline_expression(output, a, transform);
+        write_inline_expression_inner(output, a, transform, depth);
         sep = ", ";
     }
     for a in &arguments.named {
-        write!(output, "{sep}{}", a.name.name).unwrap();
-        write_inline_expression(output, &a.value, transform);
+        write!(output, "{sep}{}:", a.name.name).unwrap();
+        write_inline_expression_inner(output, &a.value, transform, depth);
         sep = ", ";
     }
     write!(output, ")").unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_write_entry() {
+        let source = r#"
+-lang = en-US
+
+button = Button
+
+window = 
+    .title = Localize Example ({-lang})
+
+click-count = {$n ->
+    [one] Clicked {$n} time
+    *[other] Clicked {$n} times
+}
+key-count = {NUMBER($n) ->
+    [one] Clicked {$n} time
+    *[other] Clicked {$n} times
+}
+        "#;
+        let source = fluent_syntax::parser::parse(source.to_owned()).unwrap();
+
+        let mut output = String::new();
+        for entry in &source.body {
+            match entry {
+                Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, &|a| Cow::Borrowed(a)),
+                Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, &|a| Cow::Borrowed(a)),
+                _ => {}
+            }
+        }
+
+        let _ =
+            fluent_syntax::parser::parse(output.clone()).unwrap_or_else(|e| panic!("write_entry output invalid\n{}\n{output}", &e.1[0]));
+    }
 }

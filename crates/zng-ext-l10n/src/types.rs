@@ -486,6 +486,9 @@ impl Lang {
             ("zh", "Hant", "") => ("繁體中文", ""),
             ("zh", "", "TW") => ("繁體中文", "台灣"),
             ("zu", "", "") => ("Isizulu", ""),
+            ("pseudo", "", "") => ("Ƥşeuḓo", ""),
+            ("pseudo", "Mirr", "") => ("Ԁsǝnpo-Wıɹɹoɹǝp", ""),
+            ("pseudo", "Wide", "") => ("Ƥşeeuuḓoo-Ẇiḓee", ""),
             _ => {
                 if self.0.region.is_some() {
                     let q = Lang(unic_langid::LanguageIdentifier::from_parts(
