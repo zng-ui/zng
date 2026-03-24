@@ -93,7 +93,10 @@ async fn run(request: Request) -> Result<Response, Error> {
 
     if !request.body.is_empty() {
         stdin.write_all(&request.body[..]).await?;
+        stdin.flush().await?;
     }
+    stdin.close().await?;
+    drop(stdin);
 
     let metrics = if request.metrics {
         let m = var(Metrics::zero());
@@ -243,7 +246,7 @@ fn run_response(
     metrics: Var<Metrics>,
     reader: BufReader<crate::process::ChildStdout>,
 ) -> Result<Response, Error> {
-    let code = http::StatusCode::from_u16(response.code.unwrap())?;
+    let code = http::StatusCode::from_u16(response.code.unwrap_or(0))?;
 
     let mut header = http::header::HeaderMap::new();
     for r in response.headers {
