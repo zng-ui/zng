@@ -93,7 +93,10 @@ async fn run(request: Request) -> Result<Response, Error> {
 
     if !request.body.is_empty() {
         stdin.write_all(&request.body[..]).await?;
+        stdin.flush().await?;
     }
+    stdin.close().await?;
+    drop(stdin);
 
     let metrics = if request.metrics {
         let m = var(Metrics::zero());
