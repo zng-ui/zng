@@ -243,7 +243,7 @@ fn run_response(
     metrics: Var<Metrics>,
     reader: BufReader<crate::process::ChildStdout>,
 ) -> Result<Response, Error> {
-    let code = http::StatusCode::from_u16(response.code.unwrap())?;
+    let code = http::StatusCode::from_u16(response.code.unwrap_or(0))?;
 
     let mut header = http::header::HeaderMap::new();
     for r in response.headers {

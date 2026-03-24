@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix panic when http task response is missing code.
+* Surface http task API `CacheMode` in `zng::task::http`.
 
 # 0.21.10
 
