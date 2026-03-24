@@ -305,7 +305,7 @@ Options:
 
           EXAMPLE
 
-          "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
+          "l10n/en" generates pseudo from "l10n/en/**/*.ftl" to "l10n/pseudo"
 
       --pseudo-m <PATH>
           Generate pseudo mirrored locale
