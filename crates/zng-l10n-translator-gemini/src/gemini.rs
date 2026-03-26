@@ -13,19 +13,29 @@ struct Content {
     pub parts: Vec<Part>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct Candidate {
     pub content: Content,
     #[serde(rename = "finishReason")]
     pub finish_reason: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct GeminiResponse {
     pub candidates: Vec<Candidate>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
+struct GeminiErrorResponse {
+    pub error: GeminiError,
+}
+#[derive(Deserialize, Debug)]
+struct GeminiError {
+    pub code: u16,
+    pub message: String,
+}
+
+#[derive(Serialize, Debug)]
 struct GeminiRequest {
     pub contents: Vec<Content>,
     pub system_instruction: Content,
@@ -76,27 +86,52 @@ pub async fn translate(
                 parts: vec![Part { text: input }],
             }],
         })?;
-    let mut response = send(request).await?.body_json::<GeminiResponse>().await?;
+    let mut response = send(request).await?;
+    let mut gemini_response = match response.body_json::<GeminiResponse>().await {
+        Ok(r) => r,
+        Err(_) => {
+            if let Ok(gemini_error) = response.body_json::<GeminiErrorResponse>().await {
+                return Err(e(gemini_error.error));
+            }
+            let other_error = response.body_text().await.unwrap_or_default();
+            return Err(e(UnknownGeminiError(other_error.into())));
+        }
+    };
 
     // Just check if model completed response, Fluent syntax validation is done by cargo-zng
-    if let Some(mut r) = response.candidates.pop()
+    if let Some(mut r) = gemini_response.candidates.pop()
         && r.finish_reason == "STOP"
         && let Some(p) = r.content.parts.pop()
     {
         Ok(p.text)
     } else {
-        struct InvalidResponse(GeminiResponse);
-        impl fmt::Debug for InvalidResponse {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_tuple("InvalidResponse").field(&self.0).finish()
-            }
-        }
-        impl fmt::Display for InvalidResponse {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "invalid response\n{:#?}", self.0)
-            }
-        }
-        impl std::error::Error for InvalidResponse {}
-        Err(Box::new(InvalidResponse(response)))
+        Err(e(InvalidResponse(gemini_response)))
     }
 }
+fn e(e: impl Error + Send + Sync + 'static) -> Box<dyn Error + Send + Sync> {
+    Box::new(e)
+}
+
+#[derive(Debug)]
+struct InvalidResponse(GeminiResponse);
+impl fmt::Display for InvalidResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid response\n{:#?}", self.0)
+    }
+}
+impl std::error::Error for InvalidResponse {}
+impl fmt::Display for GeminiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.message, self.code)
+    }
+}
+impl std::error::Error for GeminiError {}
+
+#[derive(Debug)]
+struct UnknownGeminiError(String);
+impl fmt::Display for UnknownGeminiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unknown response:\n{}", self.0)
+    }
+}
+impl std::error::Error for UnknownGeminiError {}
