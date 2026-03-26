@@ -1,0 +1,18 @@
+[package]
+name = "zng-1l0n-translator-gemini"
+version = "0.11.7"
+authors = ["The Zng Project Developers"]
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Gemini plugin for `cargo zng l10n --translate`."
+documentation = "https://zng-ui.github.io/doc/cargo_zng"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[dependencies]
+clap = { version = "4.5", features = ["std", "derive"], default-features = false }
+zng-task = { path = "../zng-task", version = "0.12.6", default-features = false, features = ["http"] }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.14.10", default-features = false, features = ["lang_autonym"] }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }

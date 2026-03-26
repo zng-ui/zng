@@ -21,6 +21,8 @@ mod scraper;
 
 mod generate_util;
 mod pseudo;
+mod translate;
+
 #[derive(Args, Debug)]
 pub struct L10nArgs {
     /// Rust files glob or directory
@@ -90,6 +92,30 @@ pub struct L10nArgs {
     /// Generate pseudo wide locale
     #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo_w: String,
+
+    /// Machine translate locale from dir/lang
+    ///
+    /// EXAMPLE
+    ///
+    /// "l10n/template" translates from "l10n/template/**/*.ftl" to a folder for each --translate-to language
+    #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
+    translate: String,
+
+    /// Explicit source language for --translate
+    ///
+    /// By default is the source folder name, or English for `template`
+    #[arg(long, default_value = "", value_name = "LANG", hide_default_value = true)]
+    translate_from: String,
+
+    /// Target languages for --translate
+    #[arg(long, default_value = "de,es,fr,it,ja,ko,pt,zh-Hans", value_name = "LANGS")] // !!: TODO
+    translate_to: String,
+
+    /// Replace all existing machine translations with --translate
+    ///
+    /// By default only replaces stale translations
+    #[arg(long, action)]
+    translate_replace: bool,
 
     /// Verify that packages are scrapped and validate Fluent files
     #[arg(long, action)]
@@ -459,6 +485,10 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     pseudo: String::new(),
                     pseudo_m: String::new(),
                     pseudo_w: String::new(),
+                    translate: String::new(),
+                    translate_from: String::new(),
+                    translate_to: String::new(),
+                    translate_replace: false,
                     check: args.check,
                     check_strict: args.check_strict,
                     verbose: args.verbose,
@@ -480,6 +510,16 @@ fn run_generators(args: &L10nArgs) {
     }
     if !args.pseudo_w.is_empty() {
         pseudo::pseudo_wide(&args.pseudo_w, args.check, args.verbose);
+    }
+    if !args.translate.is_empty() {
+        translate::translate(
+            &args.translate,
+            &args.translate_from,
+            &args.translate_to,
+            args.translate_replace,
+            args.check,
+            args.verbose,
+        );
     }
 }
 
