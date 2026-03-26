@@ -108,7 +108,11 @@ pub struct L10nArgs {
     translate_from: String,
 
     /// Target languages for --translate
-    #[arg(long, default_value = "de,es,fr,it,ja,ko,pt,zh-Hans", value_name = "LANGS")] // !!: TODO
+    #[arg(
+        long,
+        default_value = "ar,bg,ca,cs,da,de,el,en,es-419,es-ES,et,eu,fi,fr-CA,fr-FR,gl,he,hi,hr,hu,id,it,ja,ko,lt,lv,nb,nl,pl,pt-BR,pt-PT,ro,ru,sk,sl,sr-Latn,sv,th,tr,uk,vi,zh-Hans,zh-Hant",
+        value_name = "LANGS"
+    )]
     translate_to: String,
 
     /// Replace all existing machine translations with --translate
