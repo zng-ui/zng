@@ -149,7 +149,7 @@ fn doc(mut args: Vec<&str>) {
             let line = line.trim();
 
             let mut clean_push = |arg: &str| {
-                let arg = arg.trim_matches(&[' ', '"']);
+                let arg = arg.trim_matches([' ', '"']);
                 if arg.starts_with("doc/") {
                     assert!(!package.is_empty());
                     // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
@@ -162,7 +162,13 @@ fn doc(mut args: Vec<&str>) {
 
             if line.starts_with("rustdoc-args = ") {
                 is_in_args = !line.contains(']');
-                let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
+                let line = line
+                    .strip_prefix("rustdoc-args = ")
+                    .unwrap()
+                    .trim()
+                    .trim_matches('[')
+                    .trim_matches(']')
+                    .trim();
                 for arg in line.split(',') {
                     clean_push(arg);
                 }
@@ -176,13 +182,13 @@ fn doc(mut args: Vec<&str>) {
                 is_in_skip = !line.contains(']');
                 let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
                 for g in line.split(',') {
-                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches([' ', '"'])).unwrap());
                 }
             } else if is_in_skip {
                 is_in_skip = !line.contains(']');
                 let line = line.trim().trim_matches(']').trim();
                 for g in line.split(',') {
-                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches([' ', '"'])).unwrap());
                 }
             }
         }
@@ -227,10 +233,10 @@ fn doc(mut args: Vec<&str>) {
         );
     }
 
-    if let Some(p) = &package {
-        if !found_package {
-            error(f!("package `{p}` not found"));
-        }
+    if let Some(p) = &package
+        && !found_package
+    {
+        error(f!("package `{p}` not found"));
     }
 
     if !skip_deadlinks {
@@ -251,9 +257,9 @@ fn doc(mut args: Vec<&str>) {
             let cutout = if let Some(m) = cutout.find(&html) { m.start() } else { html.len() };
             let html = &html[..cutout];
 
-            let matches1: Vec<_> = broken_link1.find_iter(&html).map(|m| m.as_str()).collect();
+            let matches1: Vec<_> = broken_link1.find_iter(html).map(|m| m.as_str()).collect();
             let matches2: Vec<_> = broken_link2
-                .captures_iter(&html)
+                .captures_iter(html)
                 .map(|m| (m.get(1).unwrap().as_str(), m.get(2).unwrap().as_str()))
                 .collect();
 
@@ -400,7 +406,7 @@ fn check_all_features(mut args: Vec<&str>) {
 
     let mut tasks = vec![];
     for member in &members {
-        if !package.is_empty() && package != &member.name || member.name == "cargo-zng" {
+        if !package.is_empty() && package != member.name || member.name == "cargo-zng" {
             continue;
         }
 
@@ -434,7 +440,7 @@ fn check_all_features(mut args: Vec<&str>) {
             for feat in set {
                 features.push_str(sep);
                 features.push('"');
-                features.push_str(&feat);
+                features.push_str(feat);
                 features.push('"');
                 sep = ", ";
             }
@@ -444,7 +450,7 @@ fn check_all_features(mut args: Vec<&str>) {
             use std::fmt::Write as _;
             use std::io::Write as _;
 
-            let dir = std::env::temp_dir().join(&format!("zng-do-caf-{name}"));
+            let dir = std::env::temp_dir().join(format!("zng-do-caf-{name}"));
             if current_full_build_dir != dir {
                 clean = 0;
                 let prev_dir = current_full_build_dir;
@@ -455,15 +461,15 @@ fn check_all_features(mut args: Vec<&str>) {
                 std::fs::create_dir_all(&dir).unwrap();
                 current_full_build_dir = dir;
                 std::env::set_current_dir(&current_full_build_dir).unwrap();
-                if prev_dir != std::path::PathBuf::new() {
-                    if let Err(e) = remove_dir_all::remove_dir_all(&prev_dir) {
-                        error(f!("failed to cleanup `{}`, {e}", prev_dir.display()));
-                    }
+                if prev_dir != std::path::PathBuf::new()
+                    && let Err(e) = remove_dir_all::remove_dir_all(&prev_dir)
+                {
+                    error(f!("failed to cleanup `{}`, {e}", prev_dir.display()));
                 }
                 cmd("cargo", &["new", "--quiet", "--lib", "check-all-features"], &[]);
                 std::env::set_current_dir("check-all-features").unwrap();
 
-                let mut lib_rs = std::fs::OpenOptions::new().write(true).append(true).open("src/lib.rs").unwrap();
+                let mut lib_rs = std::fs::OpenOptions::new().append(true).open("src/lib.rs").unwrap();
                 writeln!(&mut lib_rs, "pub use {}::*;", name.replace('-', "_")).unwrap();
             }
             clean += 1;
@@ -474,7 +480,7 @@ fn check_all_features(mut args: Vec<&str>) {
             }
 
             // replace features
-            let local_path = full_path_crates.join(&name).display().to_string().replace('\\', "/");
+            let local_path = full_path_crates.join(name).display().to_string().replace('\\', "/");
             let mut cargo_toml = std::fs::read_to_string("Cargo.toml")
                 .unwrap()
                 .split_once("[dependencies]")
@@ -527,6 +533,7 @@ fn check_all_features(mut args: Vec<&str>) {
 
 // do l10n [-p, --package <pkg>] [--check]
 //         [--all]
+//         [--translate, --translate-replace]
 //
 //    Scrap localization files for publishing. Localization filers are placed in
 //    crate-dir/l0n/ for each crate. The l10n/ dir is cleared before scrapping.
@@ -546,26 +553,35 @@ fn l10n(mut args: Vec<&str>) {
         util::top_cargo_toml("crates")
     };
 
+    let translate_replace = take_flag(&mut args, &["--translate-replace"]);
+    let translate = take_flag(&mut args, &["--translate"]) || translate_replace;
+
     let check = args.iter().any(|a| *a == "--check" || *a == "--check-strict");
 
     cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
+    if translate {
+        cmd_req("cargo", &["build", "--package", "zng-l10n-translator-gemini"], &[]);
+    }
+
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
     for manifest_path in crates {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
 
-        if !check {
-            if let Err(e) = remove_dir_all::remove_dir_all(&output.join("template")) {
-                if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
-                    error(f!("cannot clear `{}`, {e}", output.display()));
-                    continue;
-                }
-            }
+        if !check
+            && let Err(e) = remove_dir_all::remove_dir_all(output.join("template"))
+            && !matches!(e.kind(), std::io::ErrorKind::NotFound)
+        {
+            error(f!("cannot clear `{}`, {e}", output.display()));
+            continue;
         }
         cmd(
             &exe,
             &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()],
             &args,
         );
+        if translate {
+            // cmd_env()
+        }
     }
 }
 
@@ -610,7 +626,7 @@ fn test(mut args: Vec<&str>) {
 
         let t_args = vec![nightly, "test", "--package", "zng*", "--lib", "--no-fail-fast", "--all-features"];
 
-        if unit_tests.iter().any(|t| *t == "") {
+        if unit_tests.contains(&"") {
             if take_flag(&mut args, &["-a", "--all"]) {
                 cmd_env("cargo", &t_args, &args, env);
             } else {
@@ -635,7 +651,7 @@ fn test(mut args: Vec<&str>) {
             "--all-features",
         ];
 
-        if int_tests.iter().any(|t| *t == "") {
+        if int_tests.contains(&"") {
             if take_flag(&mut args, &["-a", "--all"]) {
                 fatal("expected value for --test, or --all");
             }
@@ -673,16 +689,17 @@ fn test(mut args: Vec<&str>) {
 
             let mut changes = vec![];
             for m in util::git_modified() {
-                if let Some(ext) = m.extension() {
-                    if ext == "stderr" && m.starts_with("tests/macro-tests/cases") {
-                        error(format!("macro test `{}` modified", m.display()));
-                        changes.push(m);
-                    }
+                if let Some(ext) = m.extension()
+                    && ext == "stderr"
+                    && m.starts_with("tests/macro-tests/cases")
+                {
+                    error(format!("macro test `{}` modified", m.display()));
+                    changes.push(m);
                 }
             }
             if !changes.is_empty() {
                 for m in &changes {
-                    util::print_git_diff(&m);
+                    util::print_git_diff(m);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100)); // help GitHub log sync prints.
                 fatal(format!("{} macro tests modified, review and commit", changes.len()));
@@ -702,7 +719,7 @@ fn test(mut args: Vec<&str>) {
         cmd_env("cargo", &e_args, &args, env);
     } else if take_flag(&mut args, &["--published"]) {
         let latest = util::crates_io_latest("zng");
-        let minor = latest.split('.').skip(1).next().unwrap();
+        let minor = latest.split('.').nth(1).unwrap();
         let minor: u32 = minor.parse().unwrap();
         let prev = minor - 1;
         let dir = std::env::temp_dir().join("zng-do-test-published");
@@ -875,12 +892,10 @@ fn run_wasm(mut args: Vec<&str>) {
         fatal(f!("cannot write {}, {e}", index_file.display()))
     }
 
-    if !no_serve {
-        if let Err(e) = std::process::Command::new("basic-http-server").arg(out_dir).status() {
-            error(f!(
-                "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
-            ));
-        }
+    if !no_serve && let Err(e) = std::process::Command::new("basic-http-server").arg(out_dir).status() {
+        error(f!(
+            "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
+        ));
     }
 }
 
@@ -976,7 +991,7 @@ fn expand(mut args: Vec<&str>) {
 }
 
 // do fmt, f [--check <cargo-fmt-args>] [-- <rustfmt-args>]
-//    Format workspace, macro test samples, test-crates and the tasks script.
+//    Format workspace, macro test samples, test crates and the tasks script.
 fn fmt(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--check"]) {
         cmd_req("cargo", &["fmt", "--check"], &[]); // fast check for CI
@@ -985,14 +1000,6 @@ fn fmt(mut args: Vec<&str>) {
         let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
 
         cmd(&exe, &["zng", "fmt", "--check"], &args);
-        cmd(
-            &exe,
-            &["zng", "fmt", "--check", "--files", "tests/macro-tests/cases/**/*.rs"],
-            &args,
-        );
-        for tool_crate in top_cargo_toml("tools") {
-            cmd(&exe, &["zng", "fmt", "--check", "--manifest-path", &tool_crate], &args);
-        }
     } else {
         print("    building cargo-zng fmt ... ");
         cmd_req("cargo", &["build", "--quiet", "--package", "cargo-zng"], &[]);
@@ -1001,17 +1008,6 @@ fn fmt(mut args: Vec<&str>) {
 
         print("    fmt workspace ... ");
         cmd(&exe, &["zng", "fmt"], &args);
-        println("done");
-
-        // cargo zng fmt is now searching for all .rs inside workspace members already
-        // print("    fmt tests/macro-tests/cases/**/*.rs ... ");
-        // cmd(&exe, &["zng", "fmt", "--files", "tests/macro-tests/cases/**/*.rs"], &args);
-        // println("done");
-
-        print("    fmt tools ... ");
-        for tool_crate in top_cargo_toml("tools") {
-            cmd(&exe, &["zng", "fmt", "--manifest-path", &tool_crate], &args);
-        }
         println("done");
     }
 }
@@ -1130,7 +1126,7 @@ fn build_apk(mut args: Vec<&str>) {
     cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
     let cargo_zng = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
 
-    let src = std::path::Path::new("examples").join(&e).join("src");
+    let src = std::path::Path::new("examples").join(e).join("src");
     if src.exists() && !src.join("lib.rs").exists() {
         fatal(f!("example `{e}` does not support Android target"));
     }
@@ -1184,7 +1180,7 @@ fn build_apk(mut args: Vec<&str>) {
     std::fs::write(apk_dir.join("AndroidManifest.xml"), manifest.as_bytes()).unwrap();
     std::fs::write(apk_dir.join("build.zr-apk"), "# generated by 'cargo do build-apk'".as_bytes()).unwrap();
 
-    let example_res = std::path::Path::new("examples").join(&e).join("res");
+    let example_res = std::path::Path::new("examples").join(e).join("res");
     if example_res.exists() {
         let apk_assets = apk_dir.join("assets/");
         let _ = std::fs::create_dir_all(&apk_assets);
@@ -1274,7 +1270,7 @@ fn prebuild(mut args: Vec<&str>) {
     let target = format!(
         "crates/zng-view-prebuilt/lib/{}zng_view.{}{}",
         std::env::consts::DLL_PREFIX,
-        target_platform.unwrap_or_else(|| do_build_target.as_str()),
+        target_platform.unwrap_or(do_build_target.as_str()),
         std::env::consts::DLL_SUFFIX,
     );
     if let Err(e) = std::fs::copy(&file, &target) {
@@ -1286,11 +1282,9 @@ fn prebuild(mut args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zng-view-prebuilt", "--release"], &[]);
 }
 
-// do clean [--tools] [--workspace] [--release-lto] [--prebuild] [<cargo-clean-args>]
+// do clean [--workspace] [--release-lto] [--prebuild] [<cargo-clean-args>]
 //    Remove workspace, test crates, profile crates and tools target directories.
 // USAGE:
-//    clean --tools
-//       Remove only the target directories in ./tools.
 //    clean --workspace
 //       Remove only the target directory of the root workspace.
 //    clean --doc
@@ -1300,10 +1294,9 @@ fn prebuild(mut args: Vec<&str>) {
 //    clean --temp, --tmp
 //       Remove the temp files from the target workspace target directory.
 fn clean(mut args: Vec<&str>) {
-    let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
     let temp = take_flag(&mut args, &["--temp", "--tmp"]);
-    let all = !tools && !workspace && !temp;
+    let all = !workspace && !temp;
 
     let release_lto = take_flag(&mut args, &["--release-lto"]);
     let prebuild = take_flag(&mut args, &["--prebuild"]);
@@ -1328,24 +1321,6 @@ fn clean(mut args: Vec<&str>) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => println("did not find `target/tmp`"),
             Err(e) => error(f!("failed to cleanup temp, {e}")),
         }
-    }
-
-    if all || tools {
-        for tool_ in top_cargo_toml("test-crates") {
-            if tool_.contains("/cargo-do/") {
-                continue;
-            }
-            cmd("cargo", &["clean", "--manifest-path", &tool_], &args);
-        }
-
-        // external because it will delete self.
-        let manifest_path = dunce::canonicalize(std::env::current_exe().unwrap())
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("../../Cargo.toml");
-        let manifest_path = dunce::canonicalize(manifest_path).unwrap().display().to_string();
-        cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
 
     if all || prebuild {
@@ -1449,10 +1424,10 @@ fn ra_check(mut args: Vec<&str>) {
     };
 
     if enable {
-        if let Err(e) = std::fs::remove_file(path) {
-            if e.kind() != std::io::ErrorKind::NotFound {
-                panic!("{e:?}")
-            }
+        if let Err(e) = std::fs::remove_file(path)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            panic!("{e:?}")
         }
         println("rust-analyzer check is enabled");
     } else {
@@ -1553,10 +1528,9 @@ fn publish(mut args: Vec<&str>) {
             let mut search = crates.clone();
             loop {
                 for member in &members {
-                    if member.dependencies.iter().any(|d| search.iter().any(|n| *n == &d.name)) {
-                        if !crates.iter().any(|c| c == &member.name) {
-                            crates.push(&member.name);
-                        }
+                    if member.dependencies.iter().any(|d| search.iter().any(|n| *n == d.name)) && !crates.iter().any(|c| c == &member.name)
+                    {
+                        crates.push(&member.name);
                     }
                 }
                 if dependents_start == crates.len() {
@@ -1614,10 +1588,10 @@ fn publish(mut args: Vec<&str>) {
         let all = take_flag(&mut args, &["--all"]);
 
         for line in git_diff.lines() {
-            if let Some(g) = &glob {
-                if !g.matches(line) {
-                    continue;
-                }
+            if let Some(g) = &glob
+                && !g.matches(line)
+            {
+                continue;
             }
 
             if let Some(name) = line.strip_prefix("crates/") {
@@ -1812,12 +1786,12 @@ fn comment_feature(mut args: Vec<&str>) {
                 } else if line.starts_with('[') && line.ends_with(']') {
                     in_features = false;
                 } else if in_features && line.starts_with(find) {
-                    write!(&mut out, "{replace}{}\n", &line[find.len()..]).unwrap();
+                    writeln!(&mut out, "{replace}{}", &line[find.len()..]).unwrap();
                     replaced = true;
                     continue;
                 }
 
-                write!(&mut out, "{line}\n").unwrap();
+                writeln!(&mut out, "{line}").unwrap();
             }
 
             if !replaced {

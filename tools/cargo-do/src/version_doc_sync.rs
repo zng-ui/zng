@@ -32,7 +32,7 @@ pub fn check() {
         let rgx = Regex::new(&format!(r#"{crate_} =.+(?:version = )?"(\d+\.\d+(?:.\d+)?)".*"#)).unwrap();
 
         for file in *files {
-            let contents = read_to_string(&format!("{manifest_dir}/../../{file}")).expect(&file);
+            let contents = read_to_string(format!("{manifest_dir}/../../{file}")).expect(file);
             let caps = rgx
                 .captures(&contents)
                 .unwrap_or_else(|| panic!("expected Cargo.toml example in `{file}`"));
@@ -58,16 +58,16 @@ pub fn fix() {
 
         for file in *files {
             let file_path = format!("{manifest_dir}/../../{file}");
-            let mut contents = read_to_string(&file_path).expect(&file);
+            let mut contents = read_to_string(&file_path).expect(file);
             let caps = rgx
                 .captures(&contents)
                 .unwrap_or_else(|| panic!("expected Cargo.toml example in `{file}`"));
 
-            if let Some(cap1) = caps.get(1) {
-                if cap1.as_str() != version {
-                    contents.replace_range(cap1.range(), &version);
-                    std::fs::write(file_path, contents.as_bytes()).expect(&file);
-                }
+            if let Some(cap1) = caps.get(1)
+                && cap1.as_str() != version
+            {
+                contents.replace_range(cap1.range(), &version);
+                std::fs::write(file_path, contents.as_bytes()).expect(file);
             }
         }
     }

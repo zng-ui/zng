@@ -9,7 +9,7 @@ pub fn generate(args: Vec<&str>) {
 
         let readme = PathBuf::from(format!("crates/{}/README.md", member.name));
 
-        println(&format!("crates/{}/Cargo.toml", member.name));
+        println(format!("crates/{}/Cargo.toml", member.name));
 
         let previous = if readme.exists() {
             Cow::from(std::fs::read_to_string(&readme).unwrap())
@@ -26,19 +26,19 @@ pub fn generate(args: Vec<&str>) {
             match line {
                 "<!--do doc --readme header-->" => {
                     writeln!(&mut s, "{HEADER}").unwrap();
-                    while let Some(l) = lines.next() {
+                    for l in lines.by_ref() {
                         if l.trim().is_empty() {
                             break;
                         }
                     }
                 }
                 "<!--do doc --readme features-->" => {
-                    if let Some(l) = lines.peek() {
-                        if l.trim() == FEATURES_HEADER {
-                            while let Some(l) = lines.next() {
-                                if l == SECTION_END {
-                                    break;
-                                }
+                    if let Some(l) = lines.peek()
+                        && l.trim() == FEATURES_HEADER
+                    {
+                        for l in lines.by_ref() {
+                            if l == SECTION_END {
+                                break;
                             }
                         }
                     }
@@ -77,36 +77,36 @@ pub fn generate(args: Vec<&str>) {
                     }
                 }
                 l => {
-                    if let Some(run) = l.strip_prefix("<!--do doc --readme do zng") {
-                        if let Some(args) = run.strip_suffix("-->") {
-                            let args = args.trim();
-                            let output = std::process::Command::new("cargo")
-                                .args(&["do", "zng"])
-                                .args(args.split(' '))
-                                .env("NO_COLOR", "")
-                                .output()
-                                .unwrap_or_else(|e| crate::util::fatal(format_args!("failed to run `{run}`, {e}")));
-                            let output = String::from_utf8(output.stdout).unwrap();
-                            writeln!(&mut s, "```console\n$ cargo zng {args}\n").unwrap();
+                    if let Some(run) = l.strip_prefix("<!--do doc --readme do zng")
+                        && let Some(args) = run.strip_suffix("-->")
+                    {
+                        let args = args.trim();
+                        let output = std::process::Command::new("cargo")
+                            .args(["do", "zng"])
+                            .args(args.split(' '))
+                            .env("NO_COLOR", "")
+                            .output()
+                            .unwrap_or_else(|e| crate::util::fatal(format_args!("failed to run `{run}`, {e}")));
+                        let output = String::from_utf8(output.stdout).unwrap();
+                        writeln!(&mut s, "```console\n$ cargo zng {args}\n").unwrap();
 
-                            let mut out_lines = output.trim_end().lines();
-                            out_lines.next().unwrap(); // skip do header
+                        let mut out_lines = output.trim_end().lines();
+                        out_lines.next().unwrap(); // skip do header
 
-                            while let Some(line) = out_lines.next() {
-                                let line = line.trim_end().replace("@ target/debug/cargo-zng", "@ cargo-zng");
-                                if line == ".zr-tool-crate @ cargo-zng-res-tool-crate" {
-                                    out_lines.next().unwrap(); // skip help
-                                    out_lines.next().unwrap(); // skip empty line
-                                } else {
-                                    writeln!(&mut s, "{line}").unwrap();
-                                }
+                        while let Some(line) = out_lines.next() {
+                            let line = line.trim_end().replace("@ target/debug/cargo-zng", "@ cargo-zng");
+                            if line == ".zr-tool-crate @ cargo-zng-res-tool-crate" {
+                                out_lines.next().unwrap(); // skip help
+                                out_lines.next().unwrap(); // skip empty line
+                            } else {
+                                writeln!(&mut s, "{line}").unwrap();
                             }
+                        }
 
-                            writeln!(&mut s, "```").unwrap();
-                            while let Some(l) = lines.next() {
-                                if l == "```" {
-                                    break;
-                                }
+                        writeln!(&mut s, "```").unwrap();
+                        for l in lines.by_ref() {
+                            if l == "```" {
+                                break;
                             }
                         }
                     }
@@ -153,14 +153,13 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
                 break;
             }
 
-            if line.starts_with('#') {
-                let mut docs = &line[1..];
+            if let Some(mut docs) = line.strip_prefix('#') {
                 if docs.starts_with(' ') {
                     docs = &docs[1..];
                 }
                 writeln!(&mut next_docs, "{docs}").unwrap();
             } else {
-                if let Some(caps) = rgx.captures(&line) {
+                if let Some(caps) = rgx.captures(line) {
                     let name = caps.get(1).unwrap().as_str();
                     if name == "default" {
                         let s = line.find('[').unwrap();
@@ -169,7 +168,7 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
                             defaults.push_str(&line[s + 1..e]);
                         } else {
                             defaults.push_str(&line[s + 1..]);
-                            while let Some(line) = lines.next() {
+                            for line in lines.by_ref() {
                                 if let Some(e) = line.find(']') {
                                     defaults.push_str(&line[..e]);
                                     break;
@@ -178,7 +177,7 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
                             }
                         }
                         for dft in defaults.split(',') {
-                            rd.insert(dft.trim_matches(&['"', ' ']).to_owned());
+                            rd.insert(dft.trim_matches(['"', ' ']).to_owned());
                         }
                     } else {
                         r.push(Feature {

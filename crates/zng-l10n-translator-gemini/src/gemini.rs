@@ -52,11 +52,13 @@ pub async fn translate(
     );
 
     if std::env::var("GEMINI_TRANSLATOR_TEST").is_ok() {
-        return Ok(format!(r"
+        return Ok(format!(
+            r"
 ### GEMINI_TRANSLATOR_TEST enabled
 ### prompt: {system_prompt}
 
-{input}"));
+{input}"
+        ));
     }
 
     use zng_task::http::*;

@@ -57,7 +57,7 @@ fn parse_task_line(mut task_line: &str) -> (Vec<&str>, &str) {
     let mut names = Vec::with_capacity(1);
 
     let mut rest_is_name = true;
-    while let Some(i) = task_line.find(|c| c == ' ' || c == ',') {
+    while let Some(i) = task_line.find([' ', ',']) {
         names.push(&task_line[..i]);
         task_line = &task_line[i..];
         if task_line.starts_with(',') {

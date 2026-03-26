@@ -31,7 +31,7 @@ fn cmd_impl(mut cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&
         .iter()
         .chain(user_args.iter())
         .filter(|a| !a.is_empty())
-        .map(|s| *s)
+        .copied()
         .collect();
 
     if cfg!(windows) && cmd == "cargo" && default_args.first() == Some(&"+nightly") {
@@ -84,33 +84,6 @@ fn cmd_impl(mut cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&
                 set_exit_with_error();
             }
         }
-    }
-}
-
-// Like [`cmd`] but runs after a small delay and does not block.
-// Use this for commands that need write access to the self executable.
-pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    #[cfg(windows)]
-    {
-        let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
-        // We use ping to cause a slight delay that gives time for the current
-        // executable to close because the subsequent command is expected to affect
-        // the current executable file.
-        Command::new("cmd")
-            .args(&["/C", "ping", "localhost", "-n", "3", ">", "nul", "&"])
-            .arg(cmd)
-            .args(&args)
-            .spawn()
-            .ok();
-    }
-
-    #[cfg(not(windows))]
-    {
-        // We assume that if not on Windows we are in a Unix based system.
-        //
-        // We don't need a delay in Unix because it naturally permits repainting
-        // or removing a file name without affecting the current running file.
-        self::cmd(cmd, default_args, user_args);
     }
 }
 
@@ -292,7 +265,7 @@ pub fn examples() -> Vec<String> {
             .collect(),
         Err(e) => {
             error(e);
-            return vec![];
+            vec![]
         }
     }
 }
@@ -349,7 +322,7 @@ pub fn glob(pattern: &str) -> Vec<String> {
             .collect(),
         Err(e) => {
             error(e);
-            return vec![];
+            vec![]
         }
     }
 }
@@ -426,7 +399,7 @@ fn ansi_enabled() -> bool {
 
         return match ENABLED.load(Ordering::Relaxed) {
             0 => {
-                let enabled = ansi_term::enable_ansi_support().is_ok();
+                let enabled = ansiterm::enable_ansi_support().is_ok();
                 ENABLED.store(if enabled { 1 } else { 2 }, Ordering::Relaxed);
                 enabled
             }
@@ -447,7 +420,7 @@ pub fn settings_path() -> PathBuf {
 
 pub fn git_modified() -> Vec<PathBuf> {
     let output = Command::new("git")
-        .args(&["ls-files", "-m"])
+        .args(["ls-files", "-m"])
         .output()
         .expect("failed to run `git ls-files -m`");
     let output = String::from_utf8(output.stdout).unwrap();
@@ -485,7 +458,7 @@ pub fn crate_version(name: &str) -> String {
 
 pub fn git_tag_exists(tag: &str) -> bool {
     let output = Command::new("git")
-        .args(&["tag", "--list", tag])
+        .args(["tag", "--list", tag])
         .output()
         .expect("failed to run `git ls-files -m`");
     let output = String::from_utf8(output.stdout).unwrap();
@@ -538,25 +511,25 @@ pub fn publish_members() -> Vec<PublishMember> {
                             }
                         }
                         Section::Features => {
-                            if let Some((feat, _)) = line.split_once(" = [") {
-                                if feat != "default" {
-                                    member.features.push(feat.trim_end().to_owned());
-                                }
+                            if let Some((feat, _)) = line.split_once(" = [")
+                                && feat != "default"
+                            {
+                                member.features.push(feat.trim_end().to_owned());
                             }
                         }
                         Section::Dependencies => {
-                            if line.contains(r#"path = "../"#) {
-                                if let Some((name, rest)) = line.split_once(" = ") {
-                                    let version_match = r#"version = ""#;
-                                    if let Some(i) = rest.find(version_match) {
-                                        let rest = &rest[i + version_match.len()..];
-                                        let i = rest.find('"').unwrap();
+                            if line.contains(r#"path = "../"#)
+                                && let Some((name, rest)) = line.split_once(" = ")
+                            {
+                                let version_match = r#"version = ""#;
+                                if let Some(i) = rest.find(version_match) {
+                                    let rest = &rest[i + version_match.len()..];
+                                    let i = rest.find('"').unwrap();
 
-                                        member.dependencies.push(PublishDependency {
-                                            name: name.to_owned(),
-                                            version: parse_publish_version(&rest[..i]),
-                                        });
-                                    }
+                                    member.dependencies.push(PublishDependency {
+                                        name: name.to_owned(),
+                                        version: parse_publish_version(&rest[..i]),
+                                    });
                                 }
                             }
                         }
@@ -597,7 +570,7 @@ fn parse_publish_version(version: &str) -> (u32, u32, u32) {
 
     (parse(parts.next()), parse(parts.next()), parse(parts.next()))
 }
-fn topological_sort(members: &mut Vec<PublishMember>) {
+fn topological_sort(members: &mut [PublishMember]) {
     let mut sort = topological_sort::TopologicalSort::<String>::new();
     for member in members.iter() {
         sort.insert(member.name.clone());
@@ -682,47 +655,37 @@ impl PublishMember {
 
             match section {
                 Section::Package => {
-                    if line_edit.starts_with("version = ") {
-                        if let Some(v) = versions.get(self.name.as_str()) {
-                            write!(&mut output, "version = \"{}.{}.{}\"\n", v.0, v.1, v.2).unwrap();
+                    if line_edit.starts_with("version = ")
+                        && let Some(v) = versions.get(self.name.as_str())
+                    {
+                        writeln!(&mut output, "version = \"{}.{}.{}\"", v.0, v.1, v.2).unwrap();
 
-                            print(f!(
-                                "{} {}.{}.{} -> {}.{}.{}\n",
-                                self.name,
-                                self.version.0,
-                                self.version.1,
-                                self.version.2,
-                                v.0,
-                                v.1,
-                                v.2,
-                            ));
+                        print(f!(
+                            "{} {}.{}.{} -> {}.{}.{}\n",
+                            self.name,
+                            self.version.0,
+                            self.version.1,
+                            self.version.2,
+                            v.0,
+                            v.1,
+                            v.2,
+                        ));
 
-                            continue 'line;
-                        }
+                        continue 'line;
                     }
                 }
                 Section::Dependencies => {
-                    if line_edit.contains(r#"path = "../"#) {
-                        if let Some((name, _)) = line_edit.split_once(" = ") {
-                            if let Some(v) = versions.get(name) {
-                                let version_match = r#"version = ""#;
-                                if let Some(s) = line_edit.find(version_match) {
-                                    let rest = &line_edit[s + version_match.len()..];
-                                    let e = rest.find('"').unwrap();
+                    if line_edit.contains(r#"path = "../"#)
+                        && let Some((name, _)) = line_edit.split_once(" = ")
+                        && let Some(v) = versions.get(name)
+                    {
+                        let version_match = r#"version = ""#;
+                        if let Some(s) = line_edit.find(version_match) {
+                            let rest = &line_edit[s + version_match.len()..];
+                            let e = rest.find('"').unwrap();
 
-                                    write!(
-                                        &mut output,
-                                        "{}version = \"{}.{}.{}{}\n",
-                                        &line_edit[..s],
-                                        v.0,
-                                        v.1,
-                                        v.2,
-                                        &rest[e..]
-                                    )
-                                    .unwrap();
-                                    continue 'line;
-                                }
-                            }
+                            writeln!(&mut output, "{}version = \"{}.{}.{}{}", &line_edit[..s], v.0, v.1, v.2, &rest[e..]).unwrap();
+                            continue 'line;
                         }
                     }
                 }
@@ -733,10 +696,8 @@ impl PublishMember {
             output.push('\n');
         }
 
-        if !dry_run {
-            if let Err(e) = std::fs::write(cargo_path, output) {
-                error(e);
-            }
+        if !dry_run && let Err(e) = std::fs::write(cargo_path, output) {
+            error(e);
         }
     }
 }
