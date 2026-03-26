@@ -566,9 +566,10 @@ fn l10n(mut args: Vec<&str>) {
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
     for manifest_path in crates {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
+        let template = output.join("template");
 
         if !check
-            && let Err(e) = remove_dir_all::remove_dir_all(output.join("template"))
+            && let Err(e) = remove_dir_all::remove_dir_all(&template)
             && !matches!(e.kind(), std::io::ErrorKind::NotFound)
         {
             error(f!("cannot clear `{}`, {e}", output.display()));
@@ -580,7 +581,14 @@ fn l10n(mut args: Vec<&str>) {
             &args,
         );
         if translate {
-            // cmd_env()
+            let translator_exe = format!("target/debug/zng-l10n-translator-gemini{}", std::env::consts::EXE_SUFFIX);
+            let template = template.display().to_string();
+            cmd_env(
+                &exe,
+                &["zng", "l10n", "--translate", template.as_str()],
+                if translate_replace { &["--translate-replace"] } else { &[] },
+                &[("ZNG_L10N_TRANSLATOR", translator_exe.as_str())],
+            );
         }
     }
 }
