@@ -51,6 +51,14 @@ pub async fn translate(
         lang_name(to_lang)
     );
 
+    if std::env::var("GEMINI_TRANSLATOR_TEST").is_ok() {
+        return Ok(format!(r"
+### GEMINI_TRANSLATOR_TEST enabled
+### prompt: {system_prompt}
+
+{input}"));
+    }
+
     use zng_task::http::*;
 
     let uri = Uri::try_from(format!(
