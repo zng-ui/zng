@@ -580,7 +580,7 @@ fn l10n(mut args: Vec<&str>) {
             &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()],
             &args,
         );
-        if translate {
+        if translate && template.exists() {
             let translator_exe = format!("target/debug/zng-l10n-translator-gemini{}", std::env::consts::EXE_SUFFIX);
             let template = template.display().to_string();
             cmd_env(

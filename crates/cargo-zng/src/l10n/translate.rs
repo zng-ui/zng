@@ -12,6 +12,10 @@ use crate::util;
 
 pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, verbose: bool) {
     let dir_path = Path::new(dir);
+    if !dir_path.exists() {
+        fatal!("dir `{dir}` does not exist")
+    }
+
     let from = if from.is_empty() {
         let name = dir_path.file_name().unwrap().to_string_lossy();
         let name = &*name;
@@ -62,10 +66,10 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
     for entry in glob::glob(&pattern.display().to_string()).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}"));
         let relative_entry = entry.strip_prefix(dir_path).unwrap();
-        let mut file = String::new();
-        if let Err(e) = std::fs::read_to_string(&mut file) {
-            fatal!("cannot read `{}`, {}", entry.display(), e);
-        }
+        let file = match std::fs::read_to_string(&entry) {
+            Ok(f) => f,
+            Err(e) => fatal!("cannot read `{}`, {}", entry.display(), e),
+        };
         let mut hasher = sha2::Sha256::new();
         hasher.update(file.as_bytes());
         let hash = format!("{:x}", hasher.finalize());

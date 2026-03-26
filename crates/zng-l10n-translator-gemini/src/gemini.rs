@@ -46,7 +46,7 @@ pub async fn translate(
         code
     }
     let system_prompt = format!(
-        "Translate this Fluent file text from {} to {}. Only output the translated file text",
+        "Translate this Fluent file text from `{}` to `{}`. Only output the translated file text",
         lang_name(from_lang),
         lang_name(to_lang)
     );

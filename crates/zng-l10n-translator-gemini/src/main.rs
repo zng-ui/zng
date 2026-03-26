@@ -30,7 +30,9 @@ mod gemini;
 /// Call `cargo zng l10n --translate gemini --from-lang en --to-lang ja "l10n/path/"`
 #[derive(Parser, Debug)]
 struct Cli {
+    #[arg(long)]
     from_lang: Lang,
+    #[arg(long)]
     to_lang: Lang,
 }
 macro_rules! fatal {
