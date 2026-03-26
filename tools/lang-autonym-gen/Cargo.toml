@@ -6,3 +6,4 @@ edition = "2024"
 
 [dependencies]
 icu = { version = "2.1", default-features = false, features = ["compiled_data", "experimental"] }
+unic-langid = { version = "0.9", default-features = false }

@@ -423,6 +423,7 @@ impl Lang {
             ("fi", "", "") => ("Suomi", ""),
             ("fil", "", "") => ("Filipino", ""),
             ("fr", "", "") => ("Français", ""),
+            ("fr", "", "FR") => ("Français", "France"),
             ("fr", "", "CA") => ("Français", "Canada"),
             ("ga", "", "") => ("Gaeilge", ""),
             ("gd", "", "") => ("Gàidhlig", ""),
