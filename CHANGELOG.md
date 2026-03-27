@@ -2,6 +2,7 @@
 
 * Add `cargo zng l10n --translate` to generate machine translations.
     - Added `docs/machine-translation.md` guide.
+    - Added machine translated l10n resources for many languages.
 
 * Fix http task response parsing.
 * Fix http post task hanging.
