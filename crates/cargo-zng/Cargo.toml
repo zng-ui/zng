@@ -26,6 +26,8 @@ litrs = { version = "1.0", features = ["proc-macro2"], default-features = false 
 serde = { version = "1.0", features = ["std", "derive"], default-features = false }
 serde_json = { version = "1.0", features = ["std", "preserve_order"], default-features = false }
 semver = { version = "1.0", features = ["std"], default-features = false }
+unic-langid = { version = "0.9", default-features = false }
+leaky-bucket-lite = { version = "0.5.2", default-features = false, features = ["parking_lot", "sync-threadsafe"] }
 
 # new
 convert_case = { version = "0.11", default-features = false }

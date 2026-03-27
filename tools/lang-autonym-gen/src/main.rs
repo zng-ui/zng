@@ -3,16 +3,107 @@
 use icu::{
     casemap::{TitlecaseMapper, options::TitlecaseOptions},
     experimental::displaynames::{DisplayNamesOptions, LanguageDisplayNames, RegionDisplayNames},
-    locale::LanguageIdentifier,
 };
+use unic_langid::LanguageIdentifier;
+// this does not support "pseudo" language
+use icu::locale::LanguageIdentifier as StrictLanguageIdentifier;
 
 fn main() {
     let locales = [
-        "af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "en-GB", "en-US", "es", "es-419",
-        "es-ES", "et", "eu", "fa", "fi", "fil", "fr", "fr-CA", "ga", "gd", "gl", "gu", "he", "hi", "hr", "hu", "hy", "id", "is", "it",
-        "ja", "ka", "kk", "km", "kn", "ko", "ky", "lo", "lt", "lv", "mk", "ml", "mn", "mr", "ms", "my", "nb", "ne", "nl", "nn", "or", "pa",
-        "pl", "ps", "pt", "pt-BR", "pt-PT", "ro", "ru", "si", "sk", "sl", "sq", "sr", "sr-Latn", "sv", "sw", "ta", "te", "th", "tr", "uk",
-        "ur", "uz", "vi", "zh", "zh-Hans", "zh-Hant", "zh-TW", "zu",
+        "af",
+        "am",
+        "ar",
+        "as",
+        "az",
+        "be",
+        "bg",
+        "bn",
+        "bs",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "en-GB",
+        "en-US",
+        "es",
+        "es-419",
+        "es-ES",
+        "et",
+        "eu",
+        "fa",
+        "fi",
+        "fil",
+        "fr",
+        "fr-FR",
+        "fr-CA",
+        "ga",
+        "gd",
+        "gl",
+        "gu",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "hy",
+        "id",
+        "is",
+        "it",
+        "ja",
+        "ka",
+        "kk",
+        "km",
+        "kn",
+        "ko",
+        "ky",
+        "lo",
+        "lt",
+        "lv",
+        "mk",
+        "ml",
+        "mn",
+        "mr",
+        "ms",
+        "my",
+        "nb",
+        "ne",
+        "nl",
+        "nn",
+        "or",
+        "pa",
+        "pl",
+        "ps",
+        "pt",
+        "pt-BR",
+        "pt-PT",
+        "ro",
+        "ru",
+        "si",
+        "sk",
+        "sl",
+        "sq",
+        "sr",
+        "sr-Latn",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "th",
+        "tr",
+        "uk",
+        "ur",
+        "uz",
+        "vi",
+        "zh",
+        "zh-Hans",
+        "zh-Hant",
+        "zh-TW",
+        "zu",
+        "pseudo",
+        "pseudo-Mirr",
+        "pseudo-Wide",
     ];
 
     if std::env::args().any(|a| a == "--locales") {
@@ -30,8 +121,7 @@ fn main() {
     let tc_options = TitlecaseOptions::default();
 
     for l_str in locales {
-        let l_id: LanguageIdentifier = l_str.parse().unwrap();
-
+        let l_id: LanguageIdentifier = l_str.parse().unwrap_or_else(|e| panic!("{e}, {l_str}"));
         print!(
             r#"("{}", "{}", "{}") => "#,
             l_id.language.as_str(),
@@ -45,7 +135,12 @@ fn main() {
             "zh-Hant" => print!(r#"("繁體中文", "")"#),
             // Hant implied for Taiwan
             "zh-TW" => print!(r#"("繁體中文", "台灣")"#),
+            // pseudo
+            "pseudo" => print!(r#"("Ƥşeuḓo", "")"#),
+            "pseudo-Mirr" => print!(r#"("Ԁsǝnpo-Wıɹɹoɹǝp", "")"#),
+            "pseudo-Wide" => print!(r#"("Ƥşeeuuḓoo-Ẇiḓee", "")"#),
             _ => {
+                let l_id: StrictLanguageIdentifier = l_str.parse().unwrap_or_else(|e| panic!("{e}, {l_str}"));
                 let lang_dn = LanguageDisplayNames::try_new(l_id.clone().into(), options).unwrap();
                 let name = lang_dn.of(l_id.language).unwrap_or(l_id.language.as_str());
 

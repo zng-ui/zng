@@ -2,7 +2,7 @@
 DO_CMD = "cargo do"
 
 [alias]
-do = ["run", "--manifest-path", "tools/cargo-do/Cargo.toml", "--release", "--quiet", "--"]
+do = ["run", "--manifest-path", "tools/cargo-do/Cargo.toml", "--quiet", "--"]
 
 [build]
 # false positives in 1.92, fix will release only in 1.95 (16 April, 2026)
