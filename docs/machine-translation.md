@@ -7,9 +7,17 @@ translations by it self, for that you must install a translator plugin.
 
 ## Translator
 
-The translator plugin must be an executable installed beside the `cargo-zng` executable, it must have a name with prefix `zng-l10n-translator-`, 
-it must receive two [`Lang`] args `--from-lang` and `--to-lang`, it must read Fluent code from *stdin* and output only the translated code to *stdout*.
-The plugin is instantiated for each file.
+The translator plugin must be an executable installed beside the `cargo-zng` executable.
+
+* It must have a name with prefix `zng-l10n-translator-`.
+* It must receive two [`Lang`] args `--from-lang` and `--to-lang`.
+* It must read Fluent code from *stdin* and output only the translated code to *stdout*.
+
+The plugin is instantiated for each file, multiple instances in parallel.
+
+* It must handle an action arg `--limits` that instead of translating outputs to *stdout* a JSON that defines usage rates.
+    - JSON format: `{ "requests-per-minute": 15 }`.
+    - If this request outputs an empty JSON the requests are not rate limited.
 
 [`Lang`]: https://zng-ui.github.io/doc/zng/l10n/struct.Lang.html
 
@@ -38,6 +46,14 @@ export GEMINI_TRANSLATOR_MODEL=gemini-3.1-pro-preview
 ```
 
 The default model is `gemini-3.1-flash-lite-preview`.
+
+You can also optionally set the requests-per-minute (RPM):
+
+```console
+export GEMINI_TRANSLATOR_RPM=300
+```
+
+The default is `15`.
 
 ## Command
 

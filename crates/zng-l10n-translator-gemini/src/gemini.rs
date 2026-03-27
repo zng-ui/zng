@@ -1,4 +1,4 @@
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use zng_ext_l10n::Lang;
@@ -73,28 +73,42 @@ pub async fn translate(
 
     use zng_task::http::*;
 
-    let uri = Uri::try_from(format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    ))?;
-    let request = Request::new(Method::POST, uri)
-        .header("x-goog-api-key", api_key)?
-        .body_json(&GeminiRequest {
-            system_instruction: Content {
-                parts: vec![Part { text: system_prompt }],
-            },
-            contents: vec![Content {
-                parts: vec![Part { text: input }],
-            }],
-        })?;
-    let mut response = send(request).await?;
-    let mut gemini_response = match response.body_json::<GeminiResponse>().await {
-        Ok(r) => r,
-        Err(_) => {
-            if let Ok(gemini_error) = response.body_json::<GeminiErrorResponse>().await {
-                return Err(e(gemini_error.error));
+    let mut retries = 0;
+    let mut gemini_response = loop {
+        let uri = Uri::try_from(format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        ))?;
+        let request = Request::new(Method::POST, uri)
+            .header("x-goog-api-key", &api_key)?
+            .body_json(&GeminiRequest {
+                system_instruction: Content {
+                    parts: vec![Part {
+                        text: system_prompt.clone(),
+                    }],
+                },
+                contents: vec![Content {
+                    parts: vec![Part { text: input.clone() }],
+                }],
+            })?;
+
+        let mut response = send(request).await?;
+        match response.body_json::<GeminiResponse>().await {
+            Ok(r) => break r,
+            Err(_) => {
+                if let Ok(gemini_error) = response.body_json::<GeminiErrorResponse>().await {
+                    if gemini_error.error.code == 429 {
+                        // too many requests
+                        if retries < 5 {
+                            retries += 1;
+                            zng_task::deadline(Duration::from_mins(1)).await;
+                            continue;
+                        }
+                    }
+                    return Err(e(gemini_error.error));
+                }
+                let other_error = response.body_text().await.unwrap_or_default();
+                return Err(e(UnknownGeminiError(other_error.into())));
             }
-            let other_error = response.body_text().await.unwrap_or_default();
-            return Err(e(UnknownGeminiError(other_error.into())));
         }
     };
 

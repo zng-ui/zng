@@ -575,7 +575,7 @@ fn l10n(mut args: Vec<&str>) {
             error(f!("cannot clear `{}`, {e}", output.display()));
             continue;
         }
-        cmd(
+        cmd_req(
             &exe,
             &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()],
             &args,
@@ -583,11 +583,20 @@ fn l10n(mut args: Vec<&str>) {
         if translate && template.exists() {
             let translator_exe = format!("target/debug/zng-l10n-translator-gemini{}", std::env::consts::EXE_SUFFIX);
             let template = template.display().to_string();
-            cmd_env(
+            cmd_env_req(
                 &exe,
-                &["zng", "l10n", "--translate", template.as_str()],
-                if translate_replace { &["--translate-replace"] } else { &[] },
-                &[("ZNG_L10N_TRANSLATOR", translator_exe.as_str())],
+                &[
+                    "zng",
+                    "l10n",
+                    "--translate",
+                    template.as_str(),
+                    if translate_replace { "--translate-replace" } else { "" },
+                ],
+                &args,
+                &[
+                    ("ZNG_L10N_TRANSLATOR", translator_exe.as_str()),
+                    // ("GEMINI_TRANSLATOR_TEST", "on"),
+                ],
             );
         }
     }

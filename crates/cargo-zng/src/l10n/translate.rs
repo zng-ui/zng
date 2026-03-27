@@ -2,8 +2,10 @@ use std::{
     fs,
     io::{self, BufRead, Read, Write},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
+use leaky_bucket_lite::sync_threadsafe::LeakyBucket;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use sha2::Digest;
 use unic_langid::LanguageIdentifier;
@@ -86,7 +88,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
 
     let translator = Translator::default();
     if verbose {
-        println!("using `{}`", translator.0.display());
+        println!("using `{}`, RPM: {}", translator.path.display(), translator.rpm);
     }
 
     to.into_par_iter().for_each(|to| {
@@ -105,7 +107,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
         files.par_iter().for_each(|(relative_path, file, hash)| {
             let file_to = dir_to.join(relative_path);
             if verbose {
-                println!("  {}", relative_path.display());
+                println!("  {}", file_to.display());
             }
 
             let _ = util::check_or_create_dir_all(check, file_to.parent().unwrap());
@@ -139,7 +141,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
             }
 
             if !check && (replace || stale || !file_to.exists()) {
-                let r = translator.translate(&from, &to, file);
+                let r = translator.translate(&from, &to, file, verbose);
                 let write = || -> io::Result<()> {
                     let mut f = fs::File::create(&file_to)?;
                     f.write_all(HEADER_PREFIX.as_bytes())?;
@@ -156,13 +158,18 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
     });
 }
 
-struct Translator(PathBuf);
+struct Translator {
+    path: PathBuf,
+    rpm: u64,
+    limiter: LeakyBucket,
+}
 impl Default for Translator {
     fn default() -> Self {
         let install_dir = std::env::current_exe().unwrap();
         let install_dir = install_dir.parent().unwrap();
 
-        if let Ok(translator) = std::env::var("ZNG_L10N_TRANSLATOR") {
+        // find translator
+        let mut t = if let Ok(translator) = std::env::var("ZNG_L10N_TRANSLATOR") {
             let p = if translator.contains('/') || translator.contains('\\') {
                 PathBuf::from(&translator)
             } else {
@@ -171,7 +178,11 @@ impl Default for Translator {
             if !p.exists() {
                 fatal!("cannot find translator `{translator}`");
             }
-            Translator(p)
+            Translator {
+                path: p,
+                rpm: 0,
+                limiter: LeakyBucket::builder().build(),
+            }
         } else {
             let translators_pattern = install_dir.join("zng-l10n-translator-*").display().to_string();
             let mut options = vec![];
@@ -196,13 +207,59 @@ impl Default for Translator {
                 let names = names.join(", ");
                 fatal!("multiple translators installed\n    set ZNG_L10N_TRANSLATOR to one of: {names}");
             }
-            Translator(options.remove(0))
-        }
+            Translator {
+                path: options.remove(0),
+                rpm: 0,
+                limiter: LeakyBucket::builder().build(),
+            }
+        };
+
+        // request limits
+        t.read_limits();
+
+        t
     }
 }
 impl Translator {
-    fn translate(&self, from: &LanguageIdentifier, to: &LanguageIdentifier, file: &str) -> String {
-        let mut cmd = std::process::Command::new(&self.0)
+    fn read_limits(&mut self) {
+        #[derive(serde::Deserialize)]
+        struct Limits {
+            #[serde(rename = "requests-per-minute")]
+            rpm: u64,
+        }
+
+        let output = std::process::Command::new(&self.path).arg("--limits").output().unwrap();
+        if output.status.success() {
+            match serde_json::from_slice::<Limits>(&output.stdout) {
+                Ok(l) => {
+                    self.rpm = l.rpm;
+                    let t: u32 = self.rpm.try_into().unwrap();
+                    self.limiter = LeakyBucket::builder()
+                        .max(t)
+                        .tokens(t)
+                        .refill_amount(t)
+                        .refill_interval(Duration::from_mins(1))
+                        .build();
+                }
+                Err(e) => {
+                    let limits = String::from_utf8_lossy(&output.stdout);
+                    fatal!("invalid response to --limits, {e}\n{limits}")
+                }
+            }
+        } else {
+            let error = String::from_utf8_lossy(&output.stderr);
+            fatal!(
+                "{error}\n{} exited with code {}",
+                self.path.file_name().unwrap().to_string_lossy(),
+                output.status.code().unwrap_or(0)
+            );
+        }
+    }
+
+    fn translate(&self, from: &LanguageIdentifier, to: &LanguageIdentifier, file: &str, _verbose: bool) -> String {
+        self.limiter.acquire_one();
+
+        let mut cmd = std::process::Command::new(&self.path)
             .arg("--from-lang")
             .arg(from.to_string())
             .arg("--to-lang")
@@ -224,7 +281,7 @@ impl Translator {
             cmd.stderr.unwrap().read_to_string(&mut error).unwrap();
             fatal!(
                 "{error}\n{} exited with code {}",
-                self.0.file_name().unwrap().to_string_lossy(),
+                self.path.file_name().unwrap().to_string_lossy(),
                 s.code().unwrap_or(0)
             );
         }

@@ -27,6 +27,8 @@ mod gemini;
 ///
 /// Optionally define `GEMINI_TRANSLATOR_MODEL`, is "gemini-3.1-flash-lite-preview" by default
 ///
+/// Optionally define `GEMINI_TRANSLATOR_RPM`, is 15 by default
+///
 /// Call `cargo zng l10n --translate gemini --from-lang en --to-lang ja "l10n/path/"`
 #[derive(Parser, Debug)]
 struct Cli {
@@ -45,6 +47,18 @@ macro_rules! fatal {
 }
 
 fn main() {
+    if std::env::args().any(|a| a == "--limits") {
+        let mut rpm = 15u64;
+        if let Ok(r) = std::env::var("GEMINI_TRANSLATOR_RPM")
+            && let Ok(r) = r.parse::<u64>()
+        {
+            rpm = r;
+        }
+        let limits_json = r#"{ "requests-per-minute": <<RPM>> }"#.replace("<<RPM>>", &rpm.to_string());
+        println!("{limits_json}");
+        return;
+    }
+
     let key = match std::env::var("GEMINI_API_KEY") {
         Ok(k) => {
             if k.is_empty() {
