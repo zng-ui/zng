@@ -313,6 +313,28 @@ Options:
       --pseudo-w <PATH>
           Generate pseudo wide locale
 
+      --translate <PATH>
+          Machine translate locale from dir/lang
+
+          EXAMPLE
+
+          "l10n/template" translates from "l10n/template/**/*.ftl" to a folder for each --translate-to language
+
+      --translate-from <LANG>
+          Explicit source language for --translate
+
+          By default is the source folder name, or English for `template`
+
+      --translate-to <LANGS>
+          Target languages for --translate
+
+          [default: ar,bg,ca,cs,da,de,el,en,es-419,es-ES,et,eu,fi,fr-CA,fr-FR,gl,he,hi,hr,hu,id,it,ja,ko,lt,lv,nb,nl,pl,pt-BR,pt-PT,ro,ru,sk,sl,sr-Latn,sv,th,tr,uk,vi,zh-Hans,zh-Hant]
+
+      --translate-replace
+          Replace all existing machine translations with --translate
+
+          By default only replaces stale translations
+
       --check
           Verify that packages are scrapped and validate Fluent files
 
