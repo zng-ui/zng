@@ -84,7 +84,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do check
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo do clean
+      - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run:  cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -107,7 +107,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do check
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo do clean
+      - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run:  cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -469,7 +469,7 @@ jobs:
         uses: coactions/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         with:
           run: cargo do test --render
-      - run: cargo do clean
+      - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -516,7 +516,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - run: cargo do clean
+      - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -559,7 +559,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - run: cargo do clean
+      - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do build -e focus --release
         if: ${{ github.event.inputs.skip_tests != 'true' }}
