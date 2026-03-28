@@ -1,7 +1,11 @@
-## Gestore Crash Debug
+### Machine translated by `cargo zng l10n`, d71191013144b142e5eaea12b0fca3409e50c6d718fac39611285128494e9ee4
+
+### Generato automaticamente da `cargo zng l10n`
+
+## Gestore crash di debug
 
 window =
-    .title = {$app} - App Arrestata
+    .title = {$app} - L'app è andata in crash
 
 ## Pannelli
 
@@ -14,13 +18,13 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Salva Copia
+    .save-copy-title = Salva copia
     .save-error = Impossibile salvare la copia del minidump.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panic
+    .title = Panico
 
 stderr =
     .title = Stderr
@@ -34,7 +38,7 @@ summary =
         Segnale: {$signal}
         Stderr: {$stderr_len} byte
         Stdout: {$stdout_len} byte
-        Panic: {$is_panic}
+        Panico: {$is_panic}
         Minidump: {$minidump_path}
         
         Argomenti: {$args}

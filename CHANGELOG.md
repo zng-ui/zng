@@ -5,7 +5,9 @@
 
 * Add `cargo zng l10n --translate` to generate machine translations.
     - Added `docs/machine-translation.md` guide.
+    - Added machine translated l10n resources for many languages.
 
+* Fix http task response parsing.
 * Fix http post task hanging.
 * Fix panic when http task response is missing code.
 * Surface http task API `CacheMode` in `zng::task::http`.

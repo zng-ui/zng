@@ -4,7 +4,7 @@ use crate::{
     http::{Error, HttpClient, Metrics, Request, Response},
     io::{BufReader, ReadLimited},
 };
-use futures_lite::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _};
+use futures_lite::{AsyncBufReadExt as _, AsyncReadExt, AsyncWriteExt as _, io::Cursor};
 use http::Uri;
 use once_cell::sync::Lazy;
 use zng_unit::{ByteLength, ByteUnits as _};
@@ -107,60 +107,61 @@ async fn run(request: Request) -> Result<Response, Error> {
     };
 
     let mut response_bytes = Vec::with_capacity(1024);
+    let mut buffer = [0u8; 1024];
     let mut effective_uri = request.uri;
-
     loop {
-        let len = stdout.read_until(b'\r', &mut response_bytes).await?;
-        if len == 0 {
-            let mut response_headers = [httparse::EMPTY_HEADER; 64];
-            let mut response = httparse::Response::new(&mut response_headers);
-            response.parse(&response_bytes)?;
-            return run_response(
-                response,
-                effective_uri,
-                #[cfg(feature = "http_compression")]
-                request.auto_decompress,
-                request.require_length,
-                request.max_length,
-                metrics,
-                stdout,
-            );
+        let bytes_read = stdout.read(&mut buffer).await?;
+        if bytes_read == 0 && response_bytes.is_empty() {
+            Err(Box::new(UnexpectedPartialError))?;
         }
 
-        let mut b = [0u8; 1];
-        stdout.read_exact(&mut b).await?;
-        if b[0] == b'\n' {
-            response_bytes.push(b'\n');
-            let mut b = [0u8; 2];
-            stdout.read_exact(&mut b).await?;
-            if b == [b'\r', b'\n'] {
-                let mut response_headers = [httparse::EMPTY_HEADER; 64];
-                let mut response = httparse::Response::new(&mut response_headers);
-                response.parse(&response_bytes)?;
-                let code = http::StatusCode::from_u16(response.code.unwrap_or(0))?;
+        response_bytes.extend_from_slice(&buffer[..bytes_read]);
+
+        let mut response_headers = [httparse::EMPTY_HEADER; 64];
+        let mut response = httparse::Response::new(&mut response_headers);
+
+        match response.parse(&response_bytes)? {
+            httparse::Status::Complete(header_length) => {
+                let code = http::StatusCode::from_u16(response.code.unwrap_or(502))?;
+
                 if code.is_redirection()
                     && let Some(l) = response.headers.iter().find(|h| h.name.eq_ignore_ascii_case("Location"))
-                    && let Ok(l) = str::from_utf8(l.value)
+                    && let Ok(l) = std::str::from_utf8(l.value)
                     && let Ok(l) = l.parse::<Uri>()
                 {
                     effective_uri = l;
-                    response_bytes.clear();
-                    continue; // to next header
-                } else {
-                    return run_response(
-                        response,
-                        effective_uri,
-                        #[cfg(feature = "http_compression")]
-                        request.auto_decompress,
-                        request.require_length,
-                        request.max_length,
-                        metrics,
-                        stdout,
-                    );
+
+                    let content_length = response
+                        .headers
+                        .iter()
+                        .find(|h| h.name.eq_ignore_ascii_case("Content-Length"))
+                        .and_then(|h| std::str::from_utf8(h.value).ok())
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .unwrap_or(0);
+                    let redirect_rsp_len = header_length + content_length;
+                    if response_bytes.len() > redirect_rsp_len {
+                        response_bytes.drain(..redirect_rsp_len);
+                    }
+
+                    continue;
                 }
-            } else {
-                response_bytes.push(b[0]);
-                response_bytes.push(b[1]);
+
+                let initial_body_chunk = &response_bytes[header_length..];
+
+                return run_response(
+                    response,
+                    effective_uri,
+                    #[cfg(feature = "http_compression")]
+                    request.auto_decompress,
+                    request.require_length,
+                    request.max_length,
+                    metrics,
+                    initial_body_chunk,
+                    stdout,
+                );
+            }
+            httparse::Status::Partial => {
+                continue;
             }
         }
     }
@@ -244,9 +245,11 @@ fn run_response(
     require_length: bool,
     max_length: ByteLength,
     metrics: Var<Metrics>,
+    initial_body_chunk: &[u8],
     reader: BufReader<crate::process::ChildStdout>,
 ) -> Result<Response, Error> {
-    let code = http::StatusCode::from_u16(response.code.unwrap_or(0))?;
+    let reader = Cursor::new(initial_body_chunk.to_owned()).chain(reader);
+    let code = http::StatusCode::from_u16(response.code.unwrap_or(502))?;
 
     let mut header = http::header::HeaderMap::new();
     for r in response.headers {
@@ -320,3 +323,12 @@ impl fmt::Display for ContentLengthExceedsMaxError {
     }
 }
 impl std::error::Error for ContentLengthExceedsMaxError {}
+
+#[derive(Debug)]
+struct UnexpectedPartialError;
+impl fmt::Display for UnexpectedPartialError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unexpected partial response from curl")
+    }
+}
+impl std::error::Error for UnexpectedPartialError {}

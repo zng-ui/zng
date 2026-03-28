@@ -328,11 +328,11 @@ fn sprite() -> UiNode {
 }
 
 fn large_image() -> UiNode {
-    let title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB";
+    let title = "Wikimedia - Starry Night - 44,567 × 35,291 pixels, file size: 663.94 MB, decoded: 6.29 GB";
     let source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-    let thumbnail_source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+    let thumbnail_source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/960px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
     Button! {
-        child = Text!("Large Image (205MB download)");
+        child = Text!("Large Image (664MB download)");
         on_click = hn!(|_| {
             WINDOWS.focus_or_open("large_image", async move {
                 let mouse_pan = var(false);
@@ -348,8 +348,8 @@ fn large_image() -> UiNode {
                             source;
                             img_limits = Some(
                                 ImageLimits::none()
-                                    .with_max_encoded_len(300.megabytes())
-                                    .with_max_decoded_len(3.gigabytes()),
+                                    .with_max_encoded_len(700.megabytes())
+                                    .with_max_decoded_len(7.gigabytes()),
                             );
 
                             on_error = hn!(|args| {

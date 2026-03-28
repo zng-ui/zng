@@ -1,35 +1,39 @@
+### Machine translated by `cargo zng l10n`, ab0682936292139ef046e822c139586a33986c3522951ecb20715ef0c900db4b
+
+### Auto generato da `cargo zng l10n`
+
 FOCUS_ALT_CMD =
-    .info = Metti a fuoco l'ambito alternativo
-    .name = Fuoco Alt
+    .info = Focus sull'ambito alternativo
+    .name = Focus alternativo
 
 FOCUS_DOWN_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile più vicino in basso
-    .name = Fuoco Giù
+    .info = Focus sull'elemento selezionabile più vicino verso il basso
+    .name = Focus in basso
 
 FOCUS_ENTER_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile figlio
-    .name = Fuoco Entra
+    .info = Focus sull'elemento figlio selezionabile
+    .name = Focus in entrata
 
 FOCUS_EXIT_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile padre, o ripristina il fuoco
-    .name = Fuoco Esci
+    .info = Focus sull'elemento genitore selezionabile, o ritorno del focus
+    .name = Focus in uscita
 
 FOCUS_LEFT_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile più vicino a sinistra
-    .name = Fuoco Sinistra
+    .info = Focus sull'elemento selezionabile più vicino a sinistra
+    .name = Focus a sinistra
 
 FOCUS_NEXT_CMD =
-    .info = Metti a fuoco il prossimo elemento focalizzabile
-    .name = Fuoco Successivo
+    .info = Focus sul prossimo elemento selezionabile
+    .name = Focus successivo
 
 FOCUS_PREV_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile precedente
-    .name = Fuoco Precedente
+    .info = Focus sull'elemento selezionabile precedente
+    .name = Focus precedente
 
 FOCUS_RIGHT_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile più vicino a destra
-    .name = Fuoco Destra
+    .info = Focus sull'elemento selezionabile più vicino a destra
+    .name = Focus a destra
 
 FOCUS_UP_CMD =
-    .info = Metti a fuoco l'elemento focalizzabile più vicino in alto
-    .name = Fuoco Su
+    .info = Focus sull'elemento selezionabile più vicino verso l'alto
+    .name = Focus in alto
