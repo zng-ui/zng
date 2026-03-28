@@ -1,5 +1,8 @@
 # Unreleased
 
+* Implement `Window::movable`.
+    - Disabling now works in all windowed platforms except Wayland.
+
 * Add `cargo zng l10n --translate` to generate machine translations.
     - Added `docs/machine-translation.md` guide.
 
