@@ -774,6 +774,16 @@ impl Window {
             }
         };
         if self.prev_pos != new_pos {
+            if !self.movable {
+                // reset position
+                let outer_pos = self.window.outer_position().unwrap_or_default();
+                let inner_pos = self.window.inner_position().unwrap_or_default();
+                let inner_offset = PxVector::new(Px(outer_pos.x - inner_pos.x), Px(outer_pos.y - inner_pos.y));
+                let pos = self.prev_pos + inner_offset;
+                self.window.set_outer_position(pos.to_winit());
+                return None;
+            }
+
             self.prev_pos = new_pos;
 
             let monitor_offset = if let Some(m) = self.window.current_monitor() {
