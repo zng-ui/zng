@@ -11,6 +11,5 @@ fn main() {
         single_instance: { all(feature = "single_instance", not(any(android, wasm))) },
         crash_handler: { all(feature = "crash_handler", not(any(android, wasm))) },
         trace_recorder: { all(feature = "trace_recorder", not(any(android, wasm))) },
-        memory_profiler: { all(feature = "memory_profiler", not(any(android, wasm))) },
     }
 }
