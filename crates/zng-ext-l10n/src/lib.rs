@@ -95,11 +95,13 @@ on_process_start!(|args: &zng_env::ProcessStartArgs| {
 /// The message string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
 ///
 /// ```
+/// # fn demo() {
 /// # use zng_ext_l10n::*;
 /// # use zng_var::*;
 /// # let _scope = zng_app::APP.minimal();
 /// let name = var("World");
 /// let msg = l10n!("file/id.attribute", "Hello {$name}!");
+/// # }
 /// ```
 ///
 /// ## Key
