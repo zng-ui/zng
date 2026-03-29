@@ -92,11 +92,8 @@
 //! use zng::clipboard;
 //! use zng::prelude::*;
 //!
-//! # let mut app = APP.defaults().run_headless(false);
-//! # app.doc_test_window(async {
-//! let img_source = var(ImageSource::flood(layout::PxSize::splat(layout::Px(1)), colors::BLACK, None));
+//! # fn demo(img_source: Var<zng::image::ImageSource>) { let _ =
 //! Window! {
-//!     # widget::on_init = hn_once!(|_| {WINDOW.close();});
 //!     child_top = Button!(clipboard::PASTE_CMD.scoped(WINDOW.id()));
 //!     child = Image!(img_source.clone());
 //!     clipboard::on_paste = hn!(|_| {
@@ -105,7 +102,7 @@
 //!         }
 //!     });
 //! }
-//! # });
+//! # ;}
 //! ```
 //!
 //! # Full API

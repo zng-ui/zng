@@ -631,8 +631,18 @@ pub mod trace_recorder {
 ///
 /// # Full API
 ///
-/// See [`zng_app::memory_profiler`] for the full API.
-#[cfg(memory_profiler)]
+/// See `zng_app::memory_profiler` for the full API.
 pub mod memory_profiler {
+    #[cfg(all(
+        feature = "memory_profiler",
+        not(any(
+            target_arch = "wasm32",
+            target_os = "android",
+            target_os = "ios",
+            test,
+            feature = "test_util",
+            doctest
+        ))
+    ))]
     pub use zng_app::memory_profiler::stop_recording;
 }

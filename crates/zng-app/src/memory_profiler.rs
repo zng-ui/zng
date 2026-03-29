@@ -1,6 +1,13 @@
 #![cfg(all(
     feature = "memory_profiler",
-    not(any(target_arch = "wasm32", target_os = "android", target_os = "ios", test, doc))
+    not(any(
+        target_arch = "wasm32",
+        target_os = "android",
+        target_os = "ios",
+        test,
+        feature = "test_util",
+        doctest
+    ))
 ))]
 
 //! Memory profiler.
