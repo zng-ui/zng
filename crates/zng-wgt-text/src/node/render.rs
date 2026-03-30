@@ -493,12 +493,13 @@ pub fn render_text() -> UiNode {
         UiNodeOp::RenderUpdate { update } => {
             TEXT.layout().render_info.transform = *update.transform();
 
-            if let Some(key) = color_key {
+            if let Some(key) = color_key
+                && let Some(mut r) = rendered
+            {
                 let color = FONT_COLOR_VAR.get();
 
                 update.update_color(key.update(color, FONT_COLOR_VAR.is_animating()));
 
-                let mut r = rendered.unwrap();
                 r.color = color;
                 rendered = Some(r);
             }

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix panic in `Text!` when an incorrect `render_update` happens before first `render` after view-process respawn.
 
 # 0.21.11
 
