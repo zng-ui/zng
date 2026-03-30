@@ -461,7 +461,7 @@ Tools are configured using environment variables:
 * `ZR_REQUEST` — Request file that called the tool.
 * `ZR_REQUEST_DD` — Parent dir of the request file.
 * `ZR_TARGET` — Target file implied by the request file name. That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
-* `ZR_TARGET_DD` — Parent dir of thr target file.
+* `ZR_TARGET_DD` — Parent dir of the target file.
 * `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
 * `ZR_HELP` — Print help text for `cargo zng res --tools`. If this is set the other vars will not be set.
 
