@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `"system-ui"` fonts for Hindi on Windows, fixes Hindi rendering.
 * Fix panic in `Text!` when an incorrect `render_update` happens before first `render` after view-process respawn.
 
 # 0.21.11

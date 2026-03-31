@@ -2185,6 +2185,10 @@ impl GenericFontsService {
                 lang!("ko"),
                 ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into(),
             );
+            system_ui.insert(
+                lang!("hi"),
+                ["Segoe UI", "Nirmala UI", "Mangal", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
             system_ui.insert(lang!(und), ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into());
         } else if cfg!(target_os = "macos") {
             system_ui.insert(
