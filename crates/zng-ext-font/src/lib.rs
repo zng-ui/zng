@@ -2165,9 +2165,6 @@ impl GenericFontsService {
 
         let mut system_ui = LangMap::with_capacity(5);
 
-        // source: VSCode
-        // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
-
         if cfg!(windows) {
             system_ui.insert(
                 lang!("zh-Hans"),
@@ -2185,10 +2182,35 @@ impl GenericFontsService {
                 lang!("ko"),
                 ["Segoe UI", "Malgun Gothic", "Dotom", "Segoe Ui Emoji", "sans-serif"].into(),
             );
-            system_ui.insert(
+            for lang in [
                 lang!("hi"),
-                ["Segoe UI", "Nirmala UI", "Mangal", "Segoe Ui Emoji", "sans-serif"].into(),
+                lang!("bn"),
+                lang!("te"),
+                lang!("as"),
+                lang!("gu"),
+                lang!("kn"),
+                lang!("mr"),
+                lang!("ne"),
+                lang!("or"),
+                lang!("pa"),
+                lang!("si"),
+            ] {
+                system_ui.insert(lang, ["Segoe UI", "Nirmala UI", "Mangal", "Segoe Ui Emoji", "sans-serif"].into());
+            }
+            system_ui.insert(lang!("am"), ["Segoe UI", "Nyala", "Ebrima", "Segoe Ui Emoji", "sans-serif"].into());
+            system_ui.insert(
+                lang!("km"),
+                ["Segoe UI", "Khmer UI", "Leelawadee UI", "Segoe Ui Emoji", "sans-serif"].into(),
             );
+            system_ui.insert(
+                lang!("lo"),
+                ["Segoe UI", "lao UI", "Leelawadee UI", "Segoe Ui Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(lang!("th"), ["Segoe UI", "Leelawadee UI", "Segoe Ui Emoji", "sans-serif"].into());
+            for lang in [lang!("ml"), lang!("ta")] {
+                system_ui.insert(lang, ["Segoe UI", "Nirmala UI", "Segoe Ui Emoji", "sans-serif"].into());
+            }
+            system_ui.insert(lang!("my"), ["Segoe UI", "Myanmar Text", "Segoe Ui Emoji", "sans-serif"].into());
             system_ui.insert(lang!(und), ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into());
         } else if cfg!(target_os = "macos") {
             system_ui.insert(
