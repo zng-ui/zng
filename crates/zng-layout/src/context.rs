@@ -793,6 +793,9 @@ pub enum TextSegmentKind {
     /// Commas, colons, and slashes.
     CommonSeparator,
     /// Any non-spacing mark.
+    ///
+    /// Note that segmentation already merges non-spacing marks with the previous segment assuming
+    /// it is the modification target, this will only appear at the text start in segmented text.
     NonSpacingMark,
     /// Most format characters, control codes, or non-characters.
     BoundaryNeutral,
