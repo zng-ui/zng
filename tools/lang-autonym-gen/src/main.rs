@@ -9,107 +9,13 @@ use unic_langid::LanguageIdentifier;
 use icu::locale::LanguageIdentifier as StrictLanguageIdentifier;
 
 fn main() {
-    let locales = [
-        "af",
-        "am",
-        "ar",
-        "as",
-        "az",
-        "be",
-        "bg",
-        "bn",
-        "bs",
-        "ca",
-        "cs",
-        "cy",
-        "da",
-        "de",
-        "el",
-        "en",
-        "en-GB",
-        "en-US",
-        "es",
-        "es-419",
-        "es-ES",
-        "et",
-        "eu",
-        "fa",
-        "fi",
-        "fil",
-        "fr",
-        "fr-FR",
-        "fr-CA",
-        "ga",
-        "gd",
-        "gl",
-        "gu",
-        "he",
-        "hi",
-        "hr",
-        "hu",
-        "hy",
-        "id",
-        "is",
-        "it",
-        "ja",
-        "ka",
-        "kk",
-        "km",
-        "kn",
-        "ko",
-        "ky",
-        "lo",
-        "lt",
-        "lv",
-        "mk",
-        "ml",
-        "mn",
-        "mr",
-        "ms",
-        "my",
-        "nb",
-        "ne",
-        "nl",
-        "nn",
-        "or",
-        "pa",
-        "pl",
-        "ps",
-        "pt",
-        "pt-BR",
-        "pt-PT",
-        "ro",
-        "ru",
-        "si",
-        "sk",
-        "sl",
-        "sq",
-        "sr",
-        "sr-Latn",
-        "sv",
-        "sw",
-        "ta",
-        "te",
-        "th",
-        "tr",
-        "uk",
-        "ur",
-        "uz",
-        "vi",
-        "zh",
-        "zh-Hans",
-        "zh-Hant",
-        "zh-TW",
-        "zu",
-        "pseudo",
-        "pseudo-Mirr",
-        "pseudo-Wide",
-    ];
+    let locales = include_str!("locales.txt");
 
     if std::env::args().any(|a| a == "--locales") {
-        for l in locales {
-            println!("{l:?},");
+        for l in locales.lines() {
+            print!("{l:?},");
         }
+        println!();
         return;
     }
 
@@ -120,7 +26,7 @@ fn main() {
     let tc_mapper = TitlecaseMapper::new();
     let tc_options = TitlecaseOptions::default();
 
-    for l_str in locales {
+    for l_str in locales.lines() {
         let l_id: LanguageIdentifier = l_str.parse().unwrap_or_else(|e| panic!("{e}, {l_str}"));
         print!(
             r#"("{}", "{}", "{}") => "#,
