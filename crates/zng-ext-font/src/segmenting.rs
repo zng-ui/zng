@@ -126,13 +126,23 @@ impl SegmentedText {
             let (c_kind, c_level) = if is_emoji {
                 (TextSegmentKind::Emoji, level)
             } else {
-                let k = match TextSegmentKind::from(bidi.original_classes[start + i]) {
-                    TextSegmentKind::OtherNeutral if unicode_bidi::HardcodedBidiData.bidi_matched_opening_bracket(c).is_some() => {
-                        TextSegmentKind::Bracket(c)
+                let raw_k = TextSegmentKind::from(bidi.original_classes[start + i]);
+                if i > 0
+                    && let TextSegmentKind::NonSpacingMark = raw_k
+                {
+                    // special char that modifies the previous char (depending on font)
+                    // we just assume it is placed after a valid base char here, there is no
+                    // Unicode data that validates this
+                    (kind, level)
+                } else {
+                    let mut k = raw_k;
+                    if let TextSegmentKind::OtherNeutral = raw_k
+                        && unicode_bidi::HardcodedBidiData.bidi_matched_opening_bracket(c).is_some()
+                    {
+                        k = TextSegmentKind::Bracket(c);
                     }
-                    k => k,
-                };
-                (k, bidi.levels[start + i])
+                    (k, bidi.levels[start + i])
+                }
             };
 
             if c_kind != kind || c_level != level || !c_kind.can_merge() {
