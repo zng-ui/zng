@@ -3,7 +3,7 @@
 * Fix non-spacing marks rendering disconnected in text width ligatures disabled.
     - Non-spacing marks now are merged with previous segment, always uses segment level ligatures.
     - `TextSegmentKind::NonSpacingMark` can now only appear at the start of texts and may be removed in future releases.
-* Add `"system-ui"` fonts for Hindi on Windows, fixes Hindi rendering.
+* Add `"system-ui"` font names on Windows for hi, bn, te, as, gu, kn, mr, ta, ne, or, pa, si, ta.
 * Fix panic in `Text!` when an incorrect `render_update` happens before first `render` after view-process respawn.
 
 # 0.21.11
