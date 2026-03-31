@@ -58,6 +58,14 @@ fn main() {
             icon = WindowIcon::render(window_icon);
             child_top = locale_menu();
             child = window_content();
+            child_bottom = Stack! {
+                direction = StackDirection::top_to_bottom();
+                spacing = 5;
+                layout::margin = 20;
+                align = Align::BOTTOM_RIGHT;
+                children_align = Align::RIGHT;
+                children = ui_vec![autonyms()];
+            };
         }
     })
 }
@@ -315,5 +323,58 @@ fn shortcut_input_dialog(output: Var<gesture::Shortcuts>) -> UiNode {
             _ => colors::WHITE.with_alpha(90.pct()),
         });
         padding = 20;
+    }
+}
+
+fn autonyms() -> UiNode {
+    Button! {
+        child = Text!("Autonyms");
+        style_fn = zng::button::LinkStyle!();
+        on_click = hn!(|_| {
+            WINDOWS.focus_or_open("autonym-list", async { autonym_list() });
+        });
+    }
+}
+fn autonym_list() -> window::WindowRoot {
+    Window! {
+        title = "Localize - Autonyms";
+        child = Scroll! {
+            mode = zng::scroll::ScrollMode::VERTICAL;
+            child = Grid! {
+                spacing = 5;
+                columns = ui_vec![grid::Column!(), grid::Column!()];
+                cells =
+                    ui_vec![
+                        Text! {
+                            font_weight = FontWeight::BOLD;
+                            txt = "id";
+                            grid::cell::at = (0, 0);
+                        },
+                        Text! {
+                            font_weight = FontWeight::BOLD;
+                            txt = "autonym";
+                            grid::cell::at = (1, 0);
+                        },
+                    ]
+                    .chain({
+                        let mut samples = ui_vec![];
+                        for (i, l_str) in include_str!("../../../tools/lang-autonym-gen/src/locales.txt").lines().enumerate() {
+                            let row = i + 1;
+                            let l: zng::l10n::Lang = l_str.parse().unwrap();
+                            samples.push(Text! {
+                                txt = formatx!("{l:?}");
+                                grid::cell::at = (0, row);
+                            });
+                            samples.push(Text! {
+                                txt = formatx!("{l:#}");
+                                lang = l;
+                                grid::cell::at = (1, row);
+                            });
+                        }
+                        samples
+                    }),
+                ;
+            };
+        };
     }
 }
