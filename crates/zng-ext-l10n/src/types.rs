@@ -309,6 +309,14 @@ pub struct Lang(pub unic_langid::LanguageIdentifier);
 impl Lang {
     /// Returns character direction of the language.
     pub fn direction(&self) -> LayoutDirection {
+        if self == &lang!("ms") {
+            // Malay should default to "ms-Latn" that LTR, but unic_langid is matching "ms-Arab"
+            return LayoutDirection::LTR;
+        }
+        if self == &lang!("uz") {
+            // Uzbek should default to "uz-Latn"
+            return LayoutDirection::LTR;
+        }
         crate::from_unic_char_direction(self.0.character_direction())
     }
 
