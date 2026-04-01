@@ -2211,38 +2211,155 @@ impl GenericFontsService {
                 system_ui.insert(lang, ["Segoe UI", "Nirmala UI", "Segoe Ui Emoji", "sans-serif"].into());
             }
             system_ui.insert(lang!("my"), ["Segoe UI", "Myanmar Text", "Segoe Ui Emoji", "sans-serif"].into());
+
             system_ui.insert(lang!(und), ["Segoe UI", "Segoe Ui Emoji", "sans-serif"].into());
         } else if cfg!(target_os = "macos") {
             system_ui.insert(
                 lang!("zh-Hans"),
-                ["PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into(),
+                ["system-ui", "PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into(),
             );
-            system_ui.insert(lang!("zh-Hant"), ["PingFang TC", "Apple Color Emoji", "sans-serif"].into());
-            system_ui.insert(lang!("ja"), ["Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into());
             system_ui.insert(
-                lang!("ko"),
+                lang!("zh-Hant"),
+                ["system-ui", "PingFang TC", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("ja"),
                 [
-                    "Nanum Gothic",
-                    "Apple SD Gothic Neo",
-                    "AppleGothic",
+                    "system-ui",
+                    "Hiragino Sans",
+                    "Hiragino Kaku Gothic ProN",
                     "Apple Color Emoji",
                     "sans-serif",
                 ]
                 .into(),
             );
             system_ui.insert(
+                lang!("ko"),
+                ["system-ui", "Apple SD Gothic Neo", "NanumGothic", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            for lang in [lang!("hi"), lang!("mr"), lang!("ne")] {
+                system_ui.insert(
+                    lang,
+                    [
+                        "system-ui",
+                        "Kohinoor Devanagari",
+                        "Devanagari Sangam MN",
+                        "Apple Color Emoji",
+                        "sans-serif",
+                    ]
+                    .into(),
+                );
+            }
+            for lang in [lang!("bn"), lang!("as")] {
+                system_ui.insert(
+                    lang,
+                    [
+                        "system-ui",
+                        "Kohinoor Bangla",
+                        "Bangla Sangam MN",
+                        "Apple Color Emoji",
+                        "sans-serif",
+                    ]
+                    .into(),
+                );
+            }
+            system_ui.insert(
+                lang!("te"),
+                [
+                    "system-ui",
+                    "Kohinoor Telugu",
+                    "Telugu Sangam MN",
+                    "Apple Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("gu"),
+                [
+                    "system-ui",
+                    "Kohinoor Gujarati",
+                    "Gujarati Sangam MN",
+                    "Apple Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("kn"),
+                ["system-ui", "Kannada Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("or"),
+                ["system-ui", "Oriya Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("pa"),
+                ["system-ui", "Mukta Mahee", "Gurmukhi Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("si"),
+                ["system-ui", "Sinhala Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(lang!("am"), ["system-ui", "Kefa", "Apple Color Emoji", "sans-serif"].into());
+            system_ui.insert(
+                lang!("km"),
+                ["system-ui", "Khmer Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("lo"),
+                ["system-ui", "Lao Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("th"),
+                ["system-ui", "Thonburi", "Ayuthaya", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("my"),
+                ["system-ui", "Myanmar Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
+                lang!("ml"),
+                ["system-ui", "Malayalam Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+            system_ui.insert(
+                lang!("ta"),
+                ["system-ui", "Kohinoor Tamil", "Tamil Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            for lang in [lang!("ar"), lang!("fa"), lang!("ps")] {
+                system_ui.insert(lang, ["system-ui", "Geeza Pro", "Apple Color Emoji", "sans-serif"].into());
+            }
+
+            system_ui.insert(lang!("he"), ["system-ui", "Arial Hebrew", "Apple Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(lang!("hy"), ["system-ui", "Mshtakan", "Apple Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(
+                lang!("ka"),
+                ["system-ui", "Helvetica Neue", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
+                lang!("ur"),
+                ["system-ui", "SF Arabic", "Geeza Pro", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
                 lang!(und),
-                ["Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into(),
+                ["system-ui", "Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into(),
             );
         } else if cfg!(target_os = "linux") {
             system_ui.insert(
                 lang!("zh-Hans"),
                 [
+                    "system-ui",
                     "Ubuntu",
-                    "Droid Sans",
+                    "Noto Sans CJK SC",
                     "Source Han Sans SC",
-                    "Source Han Sans CN",
-                    "Source Han Sans",
                     "Noto Color Emoji",
                     "sans-serif",
                 ]
@@ -2251,11 +2368,10 @@ impl GenericFontsService {
             system_ui.insert(
                 lang!("zh-Hant"),
                 [
+                    "system-ui",
                     "Ubuntu",
-                    "Droid Sans",
+                    "Noto Sans CJK TC",
                     "Source Han Sans TC",
-                    "Source Han Sans TW",
-                    "Source Han Sans",
                     "Noto Color Emoji",
                     "sans-serif",
                 ]
@@ -2266,10 +2382,8 @@ impl GenericFontsService {
                 [
                     "system-ui",
                     "Ubuntu",
-                    "Droid Sans",
-                    "Source Han Sans J",
+                    "Noto Sans CJK JP",
                     "Source Han Sans JP",
-                    "Source Han Sans",
                     "Noto Color Emoji",
                     "sans-serif",
                 ]
@@ -2280,23 +2394,237 @@ impl GenericFontsService {
                 [
                     "system-ui",
                     "Ubuntu",
-                    "Droid Sans",
-                    "Source Han Sans K",
-                    "Source Han Sans JR",
-                    "Source Han Sans",
+                    "Noto Sans CJK KR",
+                    "Source Han Sans KR",
                     "UnDotum",
-                    "FBaekmuk Gulim",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            for lang in [lang!("hi"), lang!("mr"), lang!("ne")] {
+                system_ui.insert(
+                    lang,
+                    [
+                        "system-ui",
+                        "Ubuntu",
+                        "Noto Sans Devanagari",
+                        "Lohit Devanagari",
+                        "Noto Color Emoji",
+                        "sans-serif",
+                    ]
+                    .into(),
+                );
+            }
+            for lang in [lang!("bn"), lang!("as")] {
+                system_ui.insert(
+                    lang,
+                    [
+                        "system-ui",
+                        "Ubuntu",
+                        "Noto Sans Bengali",
+                        "Lohit Bengali",
+                        "Noto Color Emoji",
+                        "sans-serif",
+                    ]
+                    .into(),
+                );
+            }
+            system_ui.insert(
+                lang!("te"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Telugu",
+                    "Lohit Telugu",
                     "Noto Color Emoji",
                     "sans-serif",
                 ]
                 .into(),
             );
             system_ui.insert(
+                lang!("gu"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Gujarati",
+                    "Lohit Gujarati",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("kn"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Kannada",
+                    "Lohit Kannada",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("or"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Oriya",
+                    "Lohit Odia",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("pa"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Gurmukhi",
+                    "Lohit Gurmukhi",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("si"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Sinhala",
+                    "LKLUG",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            system_ui.insert(
+                lang!("am"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Ethiopic",
+                    "Abyssinica SIL",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("km"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Khmer",
+                    "Hanuman",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("lo"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Lao",
+                    "Phetsarath OT",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("th"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Thai",
+                    "Kinnari",
+                    "Garuda",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("my"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Myanmar",
+                    "Padauk",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            system_ui.insert(
+                lang!("ml"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Malayalam",
+                    "Lohit Malayalam",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+            system_ui.insert(
+                lang!("ta"),
+                [
+                    "system-ui",
+                    "Ubuntu",
+                    "Noto Sans Tamil",
+                    "Lohit Tamil",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            for lang in [lang!("ar"), lang!("fa"), lang!("ps"), lang!("ur")] {
+                system_ui.insert(lang, ["system-ui", "Noto Sans Arabic", "Noto Color Emoji", "sans-serif"].into());
+            }
+
+            system_ui.insert(
+                lang!("he"),
+                ["system-ui", "Noto Sans Hebrew", "Noto Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
+                lang!("hy"),
+                ["system-ui", "Noto Sans Armenian", "Noto Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(lang!("ka"), ["system-ui", "DejaVu Sans", "Noto Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(
+                lang!("ur"),
+                [
+                    "system-ui",
+                    "Noto Naskh Arabic",
+                    "Noto Sans Arabic",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            system_ui.insert(
                 lang!(und),
-                ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into(),
+                ["system-ui", "Ubuntu", "Droid Sans", "Noto Sans", "Noto Color Emoji", "sans-serif"].into(),
             );
         } else {
-            system_ui.insert(lang!(und), ["system-ui"].into());
+            system_ui.insert(lang!(und), ["system-ui", "sans-serif"].into());
         }
 
         GenericFontsService {

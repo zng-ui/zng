@@ -137,7 +137,10 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
     fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
         let lock = self.app_lock();
         let mut read = lock.read();
-        if read.is_none() {
+        loop {
+            if read.is_some() {
+                return RwLockReadGuard::map(read, |o| o.as_ref().unwrap());
+            }
             drop(read);
             let mut write = lock.write();
             if write.is_none() {
@@ -147,13 +150,15 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
             drop(write);
             read = lock.read();
         }
-        RwLockReadGuard::map(read, |o| o.as_ref().unwrap())
     }
 
     fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
         let lock = self.app_lock();
         let mut read = lock.try_read()?;
-        if read.is_none() {
+        loop {
+            if read.is_some() {
+                return Some(RwLockReadGuard::map(read, |o| o.as_ref().unwrap()));
+            }
             drop(read);
             let mut write = lock.try_write()?;
             if write.is_none() {
@@ -163,7 +168,6 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
             drop(write);
             read = lock.read();
         }
-        Some(RwLockReadGuard::map(read, |o| o.as_ref().unwrap()))
     }
 
     fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
