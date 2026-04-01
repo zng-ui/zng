@@ -4,7 +4,9 @@
 * Fix non-spacing marks rendering disconnected in text width ligatures disabled.
     - Non-spacing marks now are merged with previous segment, always uses segment level ligatures.
     - `TextSegmentKind::NonSpacingMark` can now only appear at the start of texts and may be removed in future releases.
-* Add `"system-ui"` font names for hi, bn, te, as, gu, kn, mr, ta, ne, or, pa, si, ta.
+* Add `"system-ui"` font names for: hi, bn, te, as, gu, kn, mr, ta, ne, or, pa, si, ta.
+    - In macOS and Ubuntu also adds font names for: ar, fa, he, hy, ka, ps, ur.
+    - All supported desktop platforms now cover the full range of languages that have a defined `Lang::autonym`.
 * Fix panic in `Text!` when an incorrect `render_update` happens before first `render` after view-process respawn.
 
 # 0.21.11

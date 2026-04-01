@@ -2330,6 +2330,24 @@ impl GenericFontsService {
                 ["system-ui", "Kohinoor Tamil", "Tamil Sangam MN", "Apple Color Emoji", "sans-serif"].into(),
             );
 
+            for lang in [lang!("ar"), lang!("fa"), lang!("ps")] {
+                system_ui.insert(lang, ["system-ui", "Geeza Pro", "Apple Color Emoji", "sans-serif"].into());
+            }
+
+            system_ui.insert(lang!("he"), ["system-ui", "Arial Hebrew", "Apple Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(lang!("hy"), ["system-ui", "Mshtakan", "Apple Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(
+                lang!("ka"),
+                ["system-ui", "Helvetica Neue", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
+                lang!("ur"),
+                ["system-ui", "SF Arabic", "Geeza Pro", "Apple Color Emoji", "sans-serif"].into(),
+            );
+
             system_ui.insert(
                 lang!(und),
                 ["system-ui", "Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into(),
@@ -2567,6 +2585,34 @@ impl GenericFontsService {
                     "Ubuntu",
                     "Noto Sans Tamil",
                     "Lohit Tamil",
+                    "Noto Color Emoji",
+                    "sans-serif",
+                ]
+                .into(),
+            );
+
+            for lang in [lang!("ar"), lang!("fa"), lang!("ps"), lang!("ur")] {
+                system_ui.insert(lang, ["system-ui", "Noto Sans Arabic", "Noto Color Emoji", "sans-serif"].into());
+            }
+
+            system_ui.insert(
+                lang!("he"),
+                ["system-ui", "Noto Sans Hebrew", "Noto Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(
+                lang!("hy"),
+                ["system-ui", "Noto Sans Armenian", "Noto Color Emoji", "sans-serif"].into(),
+            );
+
+            system_ui.insert(lang!("ka"), ["system-ui", "DejaVu Sans", "Noto Color Emoji", "sans-serif"].into());
+
+            system_ui.insert(
+                lang!("ur"),
+                [
+                    "system-ui",
+                    "Noto Naskh Arabic",
+                    "Noto Sans Arabic",
                     "Noto Color Emoji",
                     "sans-serif",
                 ]
