@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.21.12
+
 * Fix Malay and Uzbek languages defaulting to RTL when no script tag is given.
 * Fix non-spacing marks rendering disconnected in text width ligatures disabled.
     - Non-spacing marks now are merged with previous segment, always uses segment level ligatures.
