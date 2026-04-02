@@ -53,14 +53,6 @@ enum IpcBytesData {
     #[cfg(ipc)]
     MemMap(IpcMemMap),
 }
-#[cfg(ipc)]
-struct IpcMemMap {
-    name: PathBuf,
-    range: ops::Range<usize>,
-    is_custom: bool,
-    map: Option<memmap2::Mmap>,
-    read_handle: Option<fs::File>,
-}
 impl fmt::Debug for IpcBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IpcBytes(<{} bytes>)", self.len())
@@ -75,7 +67,7 @@ impl ops::Deref for IpcBytes {
             #[cfg(ipc)]
             IpcBytesData::AnonMemMap(m) => m,
             #[cfg(ipc)]
-            IpcBytesData::MemMap(f) => f.map.as_ref().unwrap(),
+            IpcBytesData::MemMap(f) => &f.map.as_ref().unwrap().0,
         }
     }
 }
@@ -609,9 +601,8 @@ impl IpcBytes {
         Ok(Self(Arc::new(IpcBytesData::MemMap(IpcMemMap {
             name: file,
             range,
-            read_handle: Some(read_handle),
+            map: Some((map, read_handle)),
             is_custom: true,
-            map: Some(map),
         }))))
     }
 }
@@ -633,6 +624,14 @@ impl PartialEq for IpcBytes {
 }
 impl Eq for IpcBytes {}
 #[cfg(ipc)]
+struct IpcMemMap {
+    name: PathBuf,
+    range: ops::Range<usize>,
+    is_custom: bool,
+    map: Option<(memmap2::Mmap, fs::File)>,
+}
+
+#[cfg(ipc)]
 impl IpcMemMap {
     fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
         let read_handle = fs::File::open(&name)?;
@@ -646,8 +645,7 @@ impl IpcMemMap {
             name,
             range,
             is_custom: false,
-            read_handle: Some(read_handle),
-            map: Some(map),
+            map: Some((map, read_handle)),
         })
     }
 }
@@ -674,7 +672,6 @@ impl<'de> Deserialize<'de> for IpcMemMap {
 impl Drop for IpcMemMap {
     fn drop(&mut self) {
         self.map.take();
-        self.read_handle.take();
         if !self.is_custom {
             std::fs::remove_file(&self.name).ok();
         }
@@ -1246,8 +1243,7 @@ impl IpcBytesMut {
             name,
             range: 0..len,
             is_custom: false,
-            map: Some(map),
-            read_handle: Some(read_handle),
+            map: Some((map, read_handle)),
         }))
     }
 }
