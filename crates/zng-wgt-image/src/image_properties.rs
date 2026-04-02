@@ -652,8 +652,8 @@ pub fn on_load_size_layout(child: impl IntoUiNode, handler: Handler<ImgLoadingAr
         UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 let s = new_img.size();
-                update = s != size;
-                if update {
+                if s != size {
+                    update = true;
                     size = s;
                     WIDGET.layout();
                 }
