@@ -1,5 +1,8 @@
 # Unreleased
 
+* Change `IpcBytes` to not block on IO when deserializing named memmap.
+    - Memmap reconnection now runs in parallel, only blocks on first read if not ready yet.
+    - Reconnection errors are now panic on first read.
 * Fix view-process not responding when handling memory pressure event.
 * Add `Image::on_load_size_layout`.
 * Fix panic on raw image and audio events without handle.

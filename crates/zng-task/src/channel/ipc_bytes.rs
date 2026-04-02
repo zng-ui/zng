@@ -52,6 +52,8 @@ enum IpcBytesData {
     AnonMemMap(IpcSharedMemory),
     #[cfg(ipc)]
     MemMap(IpcMemMap),
+    #[cfg(ipc)]
+    MemMapAsyncDeserialize(std::sync::OnceLock<IpcMemMap>),
 }
 impl fmt::Debug for IpcBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -67,7 +69,9 @@ impl ops::Deref for IpcBytes {
             #[cfg(ipc)]
             IpcBytesData::AnonMemMap(m) => m,
             #[cfg(ipc)]
-            IpcBytesData::MemMap(f) => &f.map.as_ref().unwrap().0,
+            IpcBytesData::MemMap(f) => f,
+            #[cfg(ipc)]
+            IpcBytesData::MemMapAsyncDeserialize(f) => f.wait(),
         }
     }
 }
@@ -601,7 +605,7 @@ impl IpcBytes {
         Ok(Self(Arc::new(IpcBytesData::MemMap(IpcMemMap {
             name: file,
             range,
-            map: Some((map, read_handle)),
+            map: IpcMemMapData::Connected(map, read_handle),
             is_custom: true,
         }))))
     }
@@ -628,25 +632,56 @@ struct IpcMemMap {
     name: PathBuf,
     range: ops::Range<usize>,
     is_custom: bool,
-    map: Option<(memmap2::Mmap, fs::File)>,
+    map: IpcMemMapData,
 }
+#[cfg(ipc)]
+enum IpcMemMapData {
+    #[allow(unused)] // its holding the file handle
+    Connected(memmap2::Mmap, fs::File),
+    AsyncDeserializing,
+    AsyncDeserializeError(io::Error),
+    Dropped,
+}
+#[cfg(ipc)]
+impl ops::Deref for IpcMemMap {
+    type Target = [u8];
 
+    fn deref(&self) -> &[u8] {
+        match &self.map {
+            IpcMemMapData::Connected(mmap, _) => &mmap[self.range.clone()],
+            IpcMemMapData::AsyncDeserializeError(e) => panic!("IpcBytes failed to reconnect with deserialized memmap file, {e}"),
+            IpcMemMapData::AsyncDeserializing => unreachable!(), // only accessed from an OnceLock that locks until result is set
+            IpcMemMapData::Dropped => unreachable!(),
+        }
+    }
+}
 #[cfg(ipc)]
 impl IpcMemMap {
-    fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
-        let read_handle = fs::File::open(&name)?;
+    fn read_map(name: &Path) -> io::Result<(memmap2::Mmap, fs::File)> {
+        let read_handle = fs::File::open(name)?;
         read_handle.lock_shared()?;
         // SAFETY: File is marked read-only and a read lock is held for it.
         let map = unsafe { memmap2::Mmap::map(&read_handle) }?;
 
-        let range = range.unwrap_or_else(|| 0..map.len());
+        Ok((map, read_handle))
+    }
 
+    fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+        let r = Self::read_map(&name)?;
+        let range = range.unwrap_or_else(|| 0..r.0.len());
         Ok(IpcMemMap {
             name,
             range,
             is_custom: false,
-            map: Some((map, read_handle)),
+            map: IpcMemMapData::Connected(r.0, r.1),
         })
+    }
+
+    fn finish_deserialize(&mut self) {
+        self.map = match Self::read_map(&self.name) {
+            Ok(r) => IpcMemMapData::Connected(r.0, r.1),
+            Err(e) => IpcMemMapData::AsyncDeserializeError(e),
+        };
     }
 }
 #[cfg(ipc)]
@@ -665,13 +700,18 @@ impl<'de> Deserialize<'de> for IpcMemMap {
         D: serde::Deserializer<'de>,
     {
         let (name, range) = <(PathBuf, ops::Range<usize>)>::deserialize(deserializer)?;
-        IpcMemMap::read(name, Some(range)).map_err(|e| serde::de::Error::custom(format!("cannot load ipc memory map file, {e}")))
+        Ok(IpcMemMap {
+            name,
+            range,
+            is_custom: false,
+            map: IpcMemMapData::AsyncDeserializing,
+        })
     }
 }
 #[cfg(ipc)]
 impl Drop for IpcMemMap {
     fn drop(&mut self) {
-        self.map.take();
+        self.map = IpcMemMapData::Dropped;
         if !self.is_custom {
             std::fs::remove_file(&self.name).ok();
         }
@@ -689,7 +729,12 @@ impl Serialize for IpcBytes {
                 match &*self.0 {
                     IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
                     IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
-                    IpcBytesData::MemMap(b) => {
+                    IpcBytesData::MemMap(_) | IpcBytesData::MemMapAsyncDeserialize(_) => {
+                        let b = match &*self.0 {
+                            IpcBytesData::MemMap(b) => b,
+                            IpcBytesData::MemMapAsyncDeserialize(b) => b.wait(),
+                            _ => unreachable!(),
+                        };
                         // need to keep alive until other process is also holding it, so we send
                         // a sender for the other process to signal received.
                         let (sender, mut recv) = crate::channel::ipc_unbounded::<()>()
@@ -697,12 +742,13 @@ impl Serialize for IpcBytes {
 
                         let r = serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", &(b, sender))?;
                         let hold = self.clone();
-                        crate::spawn_wait(move || {
+                        blocking::unblock(move || {
                             if let Err(e) = recv.recv_blocking() {
                                 tracing::error!("IpcBytes memmap completion signal not received, {e}")
                             }
                             drop(hold);
-                        });
+                        })
+                        .detach();
                         Ok(r)
                     }
                 }
@@ -749,11 +795,28 @@ impl<'de> Deserialize<'de> for IpcBytes {
                     VariantId::AnonMemMap => Ok(IpcBytes(Arc::new(IpcBytesData::AnonMemMap(access.newtype_variant()?)))),
                     #[cfg(ipc)]
                     VariantId::MemMap => {
-                        let (memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
-                        completion_sender.send_blocking(()).map_err(|e| {
-                            serde::de::Error::custom(format!("cannot deserialize memmap bytes, completion signal failed, {e}"))
-                        })?;
-                        Ok(IpcBytes(Arc::new(IpcBytesData::MemMap(memmap))))
+                        let (mut memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
+
+                        let ipc_bytes = IpcBytes(Arc::new(IpcBytesData::MemMapAsyncDeserialize(std::sync::OnceLock::new())));
+                        let ipc_bytes_sender = ipc_bytes.0.clone();
+                        blocking::unblock(move || {
+                            memmap.finish_deserialize();
+                            if let IpcMemMapData::AsyncDeserializeError(e) = &memmap.map {
+                                tracing::error!("failed to reconnect with deserialized memmap file, will panic on first read, {e}");
+                            }
+                            if let Err(e) = completion_sender.send_blocking(()) {
+                                tracing::error!("failed to send memmap deserialize completion signal, {e}");
+                            }
+                            match &*ipc_bytes_sender {
+                                IpcBytesData::MemMapAsyncDeserialize(r) => {
+                                    r.get_or_init(|| memmap);
+                                }
+                                _ => unreachable!(),
+                            }
+                        })
+                        .detach();
+
+                        Ok(ipc_bytes)
                     }
                 }
             }
@@ -1243,7 +1306,7 @@ impl IpcBytesMut {
             name,
             range: 0..len,
             is_custom: false,
-            map: Some((map, read_handle)),
+            map: IpcMemMapData::Connected(map, read_handle),
         }))
     }
 }
