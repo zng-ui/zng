@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `Image::on_load_size_layout`.
 * Fix panic on raw image and audio events without handle.
 
 # 0.21.12
