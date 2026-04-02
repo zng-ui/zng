@@ -453,16 +453,18 @@ pub fn img_loading_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ImgL
     with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)
 }
 
-/// Arguments for [`img_loading_fn`].
+/// Arguments for [`img_loading_fn`] and [`on_load_size_layout`].
 ///
 /// [`img_loading_fn`]: fn@img_loading_fn
+/// [`on_load_size_layout`]: fn@on_load_size_layout
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ImgLoadingArgs {}
 
-/// Arguments for [`on_load`].
+/// Arguments for [`on_load`] and [`on_load_layout`].
 ///
 /// [`on_load`]: fn@on_load
+/// [`on_load_layout`]: fn@on_load_layout
 #[derive(Clone, Default, Debug)]
 #[non_exhaustive]
 pub struct ImgLoadArgs {}
@@ -606,9 +608,9 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
     })
 }
 
-/// Image loaded and layout event.
+/// Image loaded size metadata and layout event.
 ///
-/// This property calls `handler` every first layout after [`on_load`] in a loaded window. If the window
+/// This property calls `handler` every first layout after the image changes size in a loaded window. If the window
 /// is loading the call is delayed until it is loaded.
 ///
 /// # Handlers
@@ -626,6 +628,95 @@ pub fn on_load(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode 
 /// [`async_hn!`]: zng_wgt::prelude::async_hn!
 /// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 /// [`on_load`]: fn@on_load
+#[property(EVENT, widget_impl(Image))]
+pub fn on_load_size_layout(child: impl IntoUiNode, handler: Handler<ImgLoadingArgs>) -> UiNode {
+    let mut handler = handler.into_wgt_runner();
+    let mut size = PxSize::zero();
+    let mut update = false;
+    let mut window_load = VarHandle::dummy();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
+
+            size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
+            update = !size.is_empty();
+            if update {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Deinit => {
+            handler.deinit();
+            window_load = VarHandle::dummy();
+        }
+        UiNodeOp::Update { .. } => {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
+                let s = new_img.size();
+                update = s != size;
+                if update {
+                    size = s;
+                    WIDGET.layout();
+                }
+            }
+
+            handler.update();
+        }
+        UiNodeOp::Layout { .. } => {
+            if std::mem::take(&mut update) {
+                let win_state = WINDOW.vars().instance_state();
+                let has_renderer = WINDOW.mode().has_renderer();
+                if let WindowInstanceState::Loaded { has_view } = win_state.get()
+                    && (!has_renderer || has_view)
+                {
+                    handler.event(&ImgLoadingArgs {});
+                } else if window_load.is_dummy() {
+                    // wait window load, this is because its common for window to change size
+                    // on open as the OS sets the state and `on_load_size_layout` primary use is getting
+                    // an "initial" presentation state for scale to fit for example
+                    update = true;
+                    let id = WIDGET.id();
+                    window_load = win_state.hook(move |a| match a.value() {
+                        zng_ext_window::WindowInstanceState::Loaded { has_view } => {
+                            if !has_renderer || *has_view {
+                                UPDATES.layout(id);
+                                false
+                            } else {
+                                true
+                            }
+                        }
+                        zng_ext_window::WindowInstanceState::Closed => false,
+                        _ => true,
+                    });
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Image loaded and layout event.
+///
+/// This property calls `handler` every first layout after [`on_load`] in a loaded window. If the window
+/// is loading the call is delayed until it is loaded.
+///
+/// See also [`on_load_size_layout`] that notifies as soon as the image size metadata decodes.
+///
+/// # Handlers
+///
+/// This property accepts any [`Handler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+///
+/// # Route
+///
+/// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
+///
+/// [`Handler`]: zng_wgt::prelude::Handler
+/// [`hn!`]: zng_wgt::prelude::hn!
+/// [`hn_once!`]: zng_wgt::prelude::hn_once!
+/// [`async_hn!`]: zng_wgt::prelude::async_hn!
+/// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
+/// [`on_load`]: fn@on_load
+/// [`on_load_size_layout`]: fn@on_load_size_layout
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load_layout(child: impl IntoUiNode, handler: Handler<ImgLoadArgs>) -> UiNode {
     let mut handler = handler.into_wgt_runner();
