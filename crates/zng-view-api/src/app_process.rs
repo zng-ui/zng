@@ -617,6 +617,7 @@ impl Drop for Controller {
 }
 
 const VIEW_TIMEOUT: &str = "ZNG_VIEW_TIMEOUT";
+const VIEW_TIMEOUT_DEFAULT: u64 = 20;
 /// Timeout in seconds.
 pub(crate) fn view_timeout() -> u64 {
     match std::env::var(VIEW_TIMEOUT) {
@@ -627,9 +628,9 @@ pub(crate) fn view_timeout() -> u64 {
                     return u64::MAX;
                 }
                 tracing::error!("invalid {VIEW_TIMEOUT:?} value, {e}");
-                10
+                VIEW_TIMEOUT_DEFAULT
             }
         },
-        _ => 10,
+        _ => VIEW_TIMEOUT_DEFAULT,
     }
 }
