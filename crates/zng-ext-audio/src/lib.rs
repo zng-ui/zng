@@ -625,7 +625,9 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_AUDIO_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
+            if let Some(handle) = args.handle.upgrade()
+                && r.with(|aud| aud.view_handle() == &handle)
+            {
                 r.set(AudioTrack::new_error(args.error.clone()));
                 false
             } else {
@@ -639,7 +641,11 @@ fn audio_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_AUDIO_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
+            let handle = match args.handle.upgrade() {
+                Some(h) => h,
+                None => return r.with(AudioTrack::is_loading),
+            };
+            if r.with(|aud| aud.view_handle() == &handle) {
                 let meta = args.meta.clone();
                 r.modify(move |i| i.meta = meta);
             } else if let Some(p) = &args.meta.parent
@@ -648,14 +654,9 @@ fn audio_view(
                 // discovered an track for this audio, start tracking it
                 let mut decoded = AudioDecoded::default();
                 decoded.id = args.meta.id;
-                let track = var(AudioTrack::new(
-                    None,
-                    args.handle.upgrade().unwrap(),
-                    args.meta.clone(),
-                    decoded.clone(),
-                ));
+                let track = var(AudioTrack::new(None, handle.clone(), args.meta.clone(), decoded.clone()));
                 r.modify(clmv!(track, |i| i.insert_track(track)));
-                audio_view(None, args.handle.upgrade().unwrap(), args.meta.clone(), decoded, None, track);
+                audio_view(None, handle, args.meta.clone(), decoded, None, track);
             }
             r.with(AudioTrack::is_loading)
         }
@@ -669,7 +670,9 @@ fn audio_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|aud| aud.view_handle() == &args.handle.upgrade().unwrap()) {
+                    if let Some(handle) = args.handle.upgrade()
+                        && r.with(|aud| aud.view_handle() == &handle)
+                    {
                         let data = args.audio.upgrade().unwrap();
                         let is_loading = !data.is_full;
                         r.modify(move |i| i.data = (*data.0).clone());
