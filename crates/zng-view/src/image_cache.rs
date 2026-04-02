@@ -915,7 +915,17 @@ impl ImageCache {
     pub(crate) fn on_low_memory(&mut self) {
         // app-process controls what images are dropped so hopefully it will respond the
         // memory pressure event
-        self.resizer.lock().reset_internal_buffers();
+
+        if let Some(mut r) = self.resizer.try_lock() {
+            r.reset_internal_buffers();
+        } else {
+            // not great blocking a rayon thread, but its better than spawning
+            // a new thread when we are trying to free memory
+            let r = self.resizer.clone();
+            rayon::spawn(move || {
+                r.lock().reset_internal_buffers();
+            });
+        }
     }
 
     pub(crate) fn clear(&mut self) {

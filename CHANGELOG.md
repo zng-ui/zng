@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix view-process not responding when handling memory pressure event.
 * Add `Image::on_load_size_layout`.
 * Fix panic on raw image and audio events without handle.
 

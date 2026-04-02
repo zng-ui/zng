@@ -23,7 +23,7 @@ impl ImageCache {
         let img = self.get(id).cloned();
         let entries: Vec<_> = entries.into_iter().map(|(id, kind)| (id, self.get(id).cloned(), kind)).collect();
 
-        zng_task::spawn_wait(move || Self::encode_impl(app_sender, format, task_id, id, img, entries));
+        rayon::spawn(move || Self::encode_impl(app_sender, format, task_id, id, img, entries));
 
         task_id
     }
