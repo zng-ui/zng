@@ -662,7 +662,9 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_error_handle = RAW_IMAGE_DECODE_ERROR_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
+            if let Some(handle) = args.handle.upgrade()
+                && r.with(|img| img.view_handle() == &handle)
+            {
                 tracing::debug!("image view error, {}", args.error);
                 r.set(ImageEntry::new_error(args.error.clone()));
                 false
@@ -677,7 +679,11 @@ fn image_view(
     let r_weak = r.downgrade();
     let decode_meta_handle = RAW_IMAGE_METADATA_DECODED_EVENT.hook(move |args| match r_weak.upgrade() {
         Some(r) => {
-            if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
+            let handle = match args.handle.upgrade() {
+                Some(h) => h,
+                None => return r.with(ImageEntry::is_loading),
+            };
+            if r.with(|img| img.view_handle() == &handle) {
                 let meta = args.meta.clone();
                 tracing::trace!("image view metadata decoded for request");
                 r.modify(move |i| i.data.meta = meta);
@@ -688,9 +694,9 @@ fn image_view(
                 tracing::trace!("image view metadata decoded for entry of request");
                 let mut entry_d = ImageDecoded::default();
                 entry_d.meta = args.meta.clone();
-                let entry = var(ImageEntry::new(None, args.handle.upgrade().unwrap(), entry_d.clone()));
+                let entry = var(ImageEntry::new(None, handle.clone(), entry_d.clone()));
                 r.modify(clmv!(entry, |i| i.insert_entry(entry)));
-                image_view(None, args.handle.upgrade().unwrap(), entry_d, None, entry);
+                image_view(None, handle, entry_d, None, entry);
             }
             r.with(ImageEntry::is_loading)
         }
@@ -704,7 +710,9 @@ fn image_view(
             let _hold = [&decoding_respawn_handle, &decode_error_handle, &decode_meta_handle];
             match r_weak.upgrade() {
                 Some(r) => {
-                    if r.with(|img| img.view_handle() == &args.handle.upgrade().unwrap()) {
+                    if let Some(handle) = args.handle.upgrade()
+                        && r.with(|img| img.view_handle() == &handle)
+                    {
                         let data = args.image.upgrade().unwrap();
                         let is_loading = data.partial.is_some();
                         tracing::trace!("image view decoded, partial={:?}", is_loading);
