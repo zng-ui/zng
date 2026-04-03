@@ -1055,6 +1055,8 @@ fn run_process(
     let stdout = capture_and_print(app_process.stdout.take().unwrap(), false);
     let stderr = capture_and_print(app_process.stderr.take().unwrap(), true);
 
+    zng_task::channel::cleanup_memmap_storage();
+
     let status = app_process.wait()?;
 
     let stdout = match stdout.join() {

@@ -1,5 +1,8 @@
 # Unreleased
 
+* Better cleanup of leftover memmap files after crash.
+    - Now the crash-handler-process runs the cleanup after spawning the app-process.
+    - Add `zng_task::channel::cleanup_memmap_storage` for manual cleanup in advanced scenarios where the crash-handler is not used.
 * Fix `is_mouse_active` stops updating.
 * Change `IpcBytes` to not block on IO when deserializing named memmap.
     - Memmap reconnection now runs in parallel, only blocks on first read if not ready yet.
