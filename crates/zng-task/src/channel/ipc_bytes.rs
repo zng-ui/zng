@@ -531,7 +531,10 @@ impl IpcBytes {
         let mut count = MEMMAP_DIR.lock();
 
         if *count == 0 {
+            // cleanup any leftover after crash
+            IpcBytes::cleanup_memmap_storage();
             zng_env::on_process_exit(|_| {
+                // cleanup own resources and any leftover of other instances
                 IpcBytes::cleanup_memmap_storage();
             });
         }
@@ -554,7 +557,7 @@ impl IpcBytes {
             }
         };
 
-        // read because some callers create a MmapMut
+        // read(true) because some callers create a MmapMut
         let file = fs::OpenOptions::new()
             .create(true)
             .read(true)

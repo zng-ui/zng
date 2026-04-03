@@ -1,5 +1,6 @@
 # Unreleased
 
+* Now also cleans old memmap files not removed due to crash on first memmap usage, not just on exit.
 * Fix `is_mouse_active` stops updating.
 * Change `IpcBytes` to not block on IO when deserializing named memmap.
     - Memmap reconnection now runs in parallel, only blocks on first read if not ready yet.
