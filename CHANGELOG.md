@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `is_mouse_active` stops updating.
 * Change `IpcBytes` to not block on IO when deserializing named memmap.
     - Memmap reconnection now runs in parallel, only blocks on first read if not ready yet.
     - Reconnection errors are now panic on first read.
