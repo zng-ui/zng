@@ -511,6 +511,9 @@ impl Controller {
             }
         };
 
+        // cleanup any memmap from view-process
+        zng_task::channel::cleanup_memmap_storage();
+
         // try print stdout/err and exit code.
         if let Some(c) = exit_status {
             tracing::info!(target: "vp_respawn", "view-process killed");
