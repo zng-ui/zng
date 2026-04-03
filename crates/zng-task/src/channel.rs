@@ -38,7 +38,7 @@ pub use ipc::{IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender
 mod ipc_bytes;
 pub use ipc_bytes::{
     IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesIntoIter, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter, IpcBytesWriterBlocking,
-    WeakIpcBytes,
+    WeakIpcBytes, cleanup_memmap_storage,
 };
 
 #[cfg(ipc)]

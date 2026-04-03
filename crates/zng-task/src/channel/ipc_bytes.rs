@@ -532,10 +532,9 @@ impl IpcBytes {
 
         if *count == 0 {
             // cleanup any leftover after crash
-            IpcBytes::cleanup_memmap_storage();
             zng_env::on_process_exit(|_| {
                 // cleanup own resources and any leftover of other instances
-                IpcBytes::cleanup_memmap_storage();
+                cleanup_memmap_storage();
             });
         }
 
@@ -565,17 +564,6 @@ impl IpcBytes {
             .truncate(true)
             .open(&name)?;
         Ok((name, file))
-    }
-    #[cfg(ipc)]
-    fn cleanup_memmap_storage() {
-        if let Ok(dir) = fs::read_dir(zng_env::cache("zng-task-ipc-mem")) {
-            let entries: Vec<_> = dir.flatten().map(|e| e.path()).collect();
-            for entry in entries {
-                if entry.is_dir() {
-                    fs::remove_dir_all(entry).ok();
-                }
-            }
-        }
     }
 
     /// Memory map an existing file.
@@ -611,6 +599,22 @@ impl IpcBytes {
             map: IpcMemMapData::Connected(map, read_handle),
             is_custom: true,
         }))))
+    }
+}
+
+/// If built with `"ipc"` feature removes all leftover memmap files of crashed processes.
+///
+/// Note that this is already called on normal process exit if any memmap was created. It is also called
+/// by the crash handler process on startup after it spawns the app-process.
+pub fn cleanup_memmap_storage() {
+    #[cfg(ipc)]
+    if let Ok(dir) = fs::read_dir(zng_env::cache("zng-task-ipc-mem")) {
+        let entries: Vec<_> = dir.flatten().map(|e| e.path()).collect();
+        for entry in entries {
+            if entry.is_dir() {
+                fs::remove_dir_all(entry).ok();
+            }
+        }
     }
 }
 
