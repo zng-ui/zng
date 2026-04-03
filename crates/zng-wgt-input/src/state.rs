@@ -516,9 +516,16 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
 
             let id = WIDGET.id();
 
-            // activate on mouse move >= cfg.area
             let mut first_pos = None::<DipPoint>;
+
+            // update timer interval
+            let handle = cfg.hook(clmv!(activate, |_| {
+                activate.update();
+                true
+            }));
+            // activate on mouse move >= cfg.area
             let handle = MOUSE_MOVE_EVENT.hook(clmv!(activate, cfg, |args| {
+                let _hold = &handle;
                 if args.target.contains(id) {
                     let dist = if let Some(prev_pos) = first_pos {
                         (prev_pos - args.position).abs()
@@ -551,12 +558,7 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
                 }
                 true
             }));
-            // update timer interval
-            let handle = cfg.hook(move |_| {
-                let _hold = &handle;
-                activate.update();
-                true
-            });
+            // event always hooks, so its ok to chain handles like this
             WIDGET.push_var_handle(handle);
         }
         UiNodeOp::Deinit => {
