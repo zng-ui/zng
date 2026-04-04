@@ -170,7 +170,7 @@ impl ops::Mul<f32> for Px {
     type Output = Px;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        Px((self.0 as f32 * rhs).round() as i32)
+        Px((self.0 as f32 * rhs).round().min(i32::MAX as _) as i32)
     }
 }
 impl ops::MulAssign<f32> for Px {
@@ -182,7 +182,7 @@ impl ops::Mul<i32> for Px {
     type Output = Px;
 
     fn mul(self, rhs: i32) -> Self::Output {
-        Px(self.0 * rhs)
+        Px(self.0.saturating_mul(rhs))
     }
 }
 impl ops::MulAssign<i32> for Px {
