@@ -1,7 +1,9 @@
 # Unreleased
 
-* Refactor `ImageEntry::with_best_reduce` to not select entries more than twice the requested size.
+* Image widget now does not render large images when a better reduced alternate is loading.
     - Fixes low framerate when presenting partially loaded gigapixel images.
+    - Refactor `ImageEntry::with_best_reduce` to not select entries more than twice the requested size.
+    - Also applies to mask properties.
 * Better cleanup of leftover memmap files after crash.
     - Now crash-handler-process runs the cleanup after spawning the app-process.
     - Now app-process runs cleanup on view-process respawn.

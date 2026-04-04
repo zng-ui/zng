@@ -1,6 +1,6 @@
 //! UI nodes used for building the image widget.
 
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageEntryKind, ImageOptions, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
@@ -193,6 +193,7 @@ pub fn image_presenter() -> UiNode {
     let mut render_tile_spacing = PxSize::zero();
     let mut render_offset = PxVector::zero();
     let spatial_id = SpatialFrameId::new_unique();
+    let mut alternate_loading_handles = VarHandles::dummy();
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
@@ -209,6 +210,9 @@ pub fn image_presenter() -> UiNode {
                 .sub_var_render(&IMAGE_RENDERING_VAR);
 
             img_size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
+        }
+        UiNodeOp::Deinit => {
+            alternate_loading_handles = VarHandles::dummy();
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
@@ -403,7 +407,11 @@ pub fn image_presenter() -> UiNode {
                 return;
             }
             CONTEXT_IMAGE_VAR.with(|img| {
+                let mut ideal_match = false;
                 img.with_best_reduce(render_tile_size, |img| {
+                    let dist = img.size().width - render_tile_size.width;
+                    ideal_match = dist > Px(0) && dist < Px(400);
+
                     if render_offset != PxVector::zero() {
                         let transform = PxTransform::from(render_offset);
                         frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
@@ -426,7 +434,29 @@ pub fn image_presenter() -> UiNode {
                             IMAGE_RENDERING_VAR.get(),
                         );
                     }
-                })
+                });
+
+                if ideal_match {
+                    alternate_loading_handles = VarHandles::dummy();
+                } else if alternate_loading_handles.is_dummy() {
+                    // can not match if only a very large alternate is loaded,
+                    // in that case we will try render again on any Reduced alternate loaded, and if
+                    // the primary image is the one loading the normal Update handler already requests render
+                    let id = WIDGET.id();
+                    for entry in img.entries() {
+                        if entry.with(|e| matches!(e.entry_kind(), ImageEntryKind::Reduced { .. }) && e.is_loading()) {
+                            let handle = entry.hook(move |a| {
+                                if a.value().is_loaded() {
+                                    UPDATES.render(id);
+                                    true
+                                } else {
+                                    a.value().is_loading()
+                                }
+                            });
+                            alternate_loading_handles.push(handle);
+                        }
+                    }
+                }
             });
         }
         _ => {}
