@@ -1,5 +1,6 @@
 # Unreleased
 
+* Change impl `Mul<i32>` and `Mul<f32>` for `Px` to be saturating to match other operations.
 * Image widget now does not render large images when a better reduced alternate is loading.
     - Fixes low framerate when presenting partially loaded gigapixel images.
     - Refactor `ImageEntry::with_best_reduce` to not select entries more than twice the requested size.

@@ -435,8 +435,7 @@ impl ImageEntry {
 
         if best_i != usize::MAX {
             // found loaded match
-            let best_area = best_size.area();
-            if best_area < size.area() * 2 || best_loading_i == usize::MAX || best_loading_size.area() > best_area {
+            if best_size.height < size.height * 2 || best_loading_i == usize::MAX || best_loading_size.height > best_size.height {
                 // and is within twice the expected size or has no better loading entry
                 return if best_i == self.entries.len() {
                     Some(visit(self))
