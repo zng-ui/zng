@@ -1,5 +1,7 @@
 # Unreleased
 
+* Refactor `ImageEntry::with_best_reduce` to not select entries more than twice the requested size.
+    - Fixes low framerate when presenting partially loaded gigapixel images.
 * Better cleanup of leftover memmap files after crash.
     - Now crash-handler-process runs the cleanup after spawning the app-process.
     - Now app-process runs cleanup on view-process respawn.
