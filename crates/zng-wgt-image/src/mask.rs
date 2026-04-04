@@ -4,7 +4,8 @@
 //! [`mask_mode`]: fn@mask_mode
 
 use zng_ext_image::{
-    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageLimits, ImageMaskMode, ImageOptions, ImageRenderArgs, ImageSource,
+    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageLimits, ImageMaskMode, ImageOptions,
+    ImageRenderArgs, ImageSource,
 };
 use zng_wgt::prelude::*;
 
@@ -23,6 +24,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
     let mut img = None;
     let mut img_size = PxSize::zero();
     let mut rect = PxRect::zero();
+    let mut alternate_loading_handles = VarHandles::dummy();
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -61,6 +63,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
         UiNodeOp::Deinit => {
             c.deinit();
             img = None;
+            alternate_loading_handles = VarHandles::dummy();
         }
         UiNodeOp::Update { .. } => {
             // load
@@ -191,9 +194,33 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                 return;
             }
             img.as_ref().unwrap().0.with(|img| {
+                let mut ideal_match = false;
+
                 img.with_best_reduce(rect.size, |img| {
+                    let dist = img.size().width - rect.size.width;
+                    ideal_match = dist > Px(0) && dist < Px(400);
+
                     frame.push_mask(img, rect, |frame| c.render(frame));
                 });
+
+                if ideal_match {
+                    alternate_loading_handles = VarHandles::dummy();
+                } else if alternate_loading_handles.is_dummy() {
+                    let id = WIDGET.id();
+                    for entry in img.entries() {
+                        if entry.with(|e| matches!(e.entry_kind(), ImageEntryKind::Reduced { .. }) && e.is_loading()) {
+                            let handle = entry.hook(move |a| {
+                                if a.value().is_loaded() {
+                                    UPDATES.render(id);
+                                    true
+                                } else {
+                                    a.value().is_loading()
+                                }
+                            });
+                            alternate_loading_handles.push(handle);
+                        }
+                    }
+                }
             });
         }
         _ => {}

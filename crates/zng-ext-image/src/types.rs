@@ -363,7 +363,11 @@ impl ImageEntry {
 
     /// Calls `visit` with the image or [`ImageEntryKind::Reduced`] entry that is nearest to `size` and greater or equal to it.
     ///
-    /// Does not call `visit` if none of the images are loaded, returns `None` in that case.
+    /// Does not call `visit` if none of the images are loaded.
+    ///
+    /// Does not call `visit` if the only loaded entry is more than twice the `size` and there is a better entry loading.
+    ///
+    /// Returns `None` if `visit` is not called.
     pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
         fn cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
             let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
@@ -398,11 +402,16 @@ impl ImageEntry {
             }
         }
 
+        let mut best_loading_i = usize::MAX;
+        let mut best_loading_size = PxSize::zero();
         let mut best_i = usize::MAX;
         let mut best_size = PxSize::zero();
 
         if self.is_loaded() {
             best_i = self.entries.len();
+            best_size = self.size();
+        } else if self.is_loading() {
+            best_loading_i = self.entries.len();
             best_size = self.size();
         }
 
@@ -414,18 +423,29 @@ impl ImageEntry {
                         best_i = i;
                         best_size = entry_size;
                     }
+                } else if e.is_loading() {
+                    let entry_size = e.size();
+                    if cmp(size, entry_size, best_loading_size).is_lt() {
+                        best_loading_i = i;
+                        best_loading_size = entry_size;
+                    }
                 }
             })
         }
 
-        if best_i == usize::MAX {
-            // image and all reduced are smaller than `size`, return the largest to reduce upscaling
-            None
-        } else if best_i == self.entries.len() {
-            Some(visit(self))
-        } else {
-            Some(self.entries[best_i].with(visit))
+        if best_i != usize::MAX {
+            // found loaded match
+            let best_area = best_size.area();
+            if best_area < size.area() * 2 || best_loading_i == usize::MAX || best_loading_size.area() > best_area {
+                // and is within twice the expected size or has no better loading entry
+                return if best_i == self.entries.len() {
+                    Some(visit(self))
+                } else {
+                    Some(self.entries[best_i].with(visit))
+                };
+            }
         }
+        None
     }
 
     /// Connection to the image resource in the view-process.
