@@ -15,7 +15,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{any::Any, mem, path::PathBuf, pin::Pin};
+use std::{any::Any, path::PathBuf, pin::Pin};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -52,13 +52,13 @@ pub use types::*;
 
 app_local! {
     static IMAGES_SV: ImagesService = ImagesService::new();
+    static IMAGES_EXTENSIONS: Vec<Box<dyn ImagesExtension>> = vec![];
 }
 
 struct ImagesService {
     load_in_headless: Var<bool>,
     limits: Var<ImageLimits>,
 
-    extensions: Vec<Box<dyn ImagesExtension>>,
     render_windows: Option<Box<dyn ImageRenderWindowsService>>,
 
     cache: IdMap<ImageHash, ImageVar>,
@@ -69,7 +69,6 @@ impl ImagesService {
             load_in_headless: var(false),
             limits: var(ImageLimits::default()),
 
-            extensions: vec![],
             render_windows: None,
 
             cache: IdMap::new(),
@@ -311,7 +310,7 @@ impl IMAGES {
     /// See [`ImagesExtension`] for extension capabilities.
     pub fn extend(&self, extension: Box<dyn ImagesExtension>) {
         UPDATES.once_update("IMAGES.extend", move || {
-            IMAGES_SV.write().extensions.push(extension);
+            IMAGES_EXTENSIONS.write().push(extension);
         });
     }
 
@@ -319,13 +318,9 @@ impl IMAGES {
     pub fn available_formats(&self) -> Vec<ImageFormat> {
         let mut formats = VIEW_PROCESS.info().image.clone();
 
-        let mut exts = mem::take(&mut IMAGES_SV.write().extensions);
-        for ext in exts.iter_mut() {
+        for ext in IMAGES_EXTENSIONS.read().iter() {
             ext.available_formats(&mut formats);
         }
-        let mut s = IMAGES_SV.write();
-        exts.append(&mut s.extensions);
-        s.extensions = exts;
 
         formats
     }
@@ -347,22 +342,21 @@ impl IMAGES {
 }
 
 fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<ImageLimits>, r: Var<ImageEntry>) {
-    let mut s = IMAGES_SV.write();
-
-    let limits = limits.unwrap_or_else(|| s.limits.get());
+    let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
 
     // apply extensions
-    let mut exts = mem::take(&mut s.extensions);
-    drop(s); // drop because extensions may use the service
-    if !exts.is_empty() {
-        tracing::trace!("process image with {} extensions", exts.len());
+    {
+        let mut exts = IMAGES_EXTENSIONS.write();
+        if !exts.is_empty() {
+            tracing::trace!("process image with {} extensions", exts.len());
+        }
+        for ext in exts.iter_mut() {
+            ext.image(&limits, &mut source, &mut options);
+        }
     }
-    for ext in &mut exts {
-        ext.image(&limits, &mut source, &mut options);
-    }
+
+    // only lock service after extensions
     let mut s = IMAGES_SV.write();
-    exts.append(&mut s.extensions);
-    s.extensions = exts;
 
     if let ImageSource::Image(var) = source {
         // Image is passthrough, cache config is ignored
@@ -557,26 +551,15 @@ fn image_data(
     r: Var<ImageEntry>,
 ) {
     if !is_respawn && let Some(key) = cache_key {
-        let mut replaced = false;
-        let mut exts = mem::take(&mut IMAGES_SV.write().extensions);
+        let mut exts = IMAGES_EXTENSIONS.write();
         if !exts.is_empty() {
             tracing::trace!("process image_data with {} extensions", exts.len());
         }
-        for ext in &mut exts {
+        for ext in exts.iter_mut() {
             if let Some(replacement) = ext.image_data(limits.max_decoded_len, &key, &data, &format, &options) {
                 replacement.set_bind(&r).perm();
                 r.hold(replacement).perm();
 
-                replaced = true;
-                break;
-            }
-        }
-        {
-            let mut s = IMAGES_SV.write();
-            exts.append(&mut s.extensions);
-            s.extensions = exts;
-
-            if replaced {
                 tracing::trace!("extension replaced image_data");
                 return;
             }

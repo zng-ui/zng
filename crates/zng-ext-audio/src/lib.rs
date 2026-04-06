@@ -15,7 +15,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{mem, path::PathBuf, pin::Pin};
+use std::{path::PathBuf, pin::Pin};
 
 use zng_app::{
     update::UPDATES,
@@ -41,13 +41,12 @@ pub use output::*;
 
 app_local! {
     static AUDIOS_SV: AudiosService = AudiosService::new();
+    static AUDIOS_EXTENSIONS: Vec<Box<dyn AudiosExtension>> = vec![];
 }
 
 struct AudiosService {
     load_in_headless: Var<bool>,
     limits: Var<AudioLimits>,
-
-    extensions: Vec<Box<dyn AudiosExtension>>,
 
     cache: IdMap<AudioHash, AudioVar>,
     outputs: IdMap<AudioOutputId, WeakAudioOutput>,
@@ -58,8 +57,6 @@ impl AudiosService {
         Self {
             load_in_headless: var(false),
             limits: var(AudioLimits::default()),
-
-            extensions: vec![],
 
             cache: IdMap::new(),
             outputs: IdMap::new(),
@@ -290,7 +287,7 @@ impl AUDIOS {
     /// See [`AudiosExtension`] for extension capabilities.
     pub fn extend(&self, extension: Box<dyn AudiosExtension>) {
         UPDATES.once_update("AUDIOS.extend", move || {
-            AUDIOS_SV.write().extensions.push(extension);
+            AUDIOS_EXTENSIONS.write().push(extension);
         });
     }
 
@@ -298,13 +295,9 @@ impl AUDIOS {
     pub fn available_formats(&self) -> Vec<AudioFormat> {
         let mut formats = VIEW_PROCESS.info().audio.clone();
 
-        let mut exts = mem::take(&mut AUDIOS_SV.write().extensions);
-        for ext in exts.iter_mut() {
+        for ext in AUDIOS_EXTENSIONS.read().iter() {
             ext.available_formats(&mut formats);
         }
-        let mut s = AUDIOS_SV.write();
-        exts.append(&mut s.extensions);
-        s.extensions = exts;
 
         formats
     }
@@ -374,19 +367,21 @@ impl AUDIOS {
 }
 
 fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<AudioLimits>, r: Var<AudioTrack>) {
-    let mut s = AUDIOS_SV.write();
-
-    let limits = limits.unwrap_or_else(|| s.limits.get());
+    let limits = limits.unwrap_or_else(|| AUDIOS_SV.read().limits.get());
 
     // apply extensions
-    let mut exts = mem::take(&mut s.extensions);
-    drop(s); // drop because extensions may use the service
-    for ext in &mut exts {
-        ext.audio(&limits, &mut source, &mut options);
+    {
+        let mut exts = AUDIOS_EXTENSIONS.write();
+        if !exts.is_empty() {
+            tracing::trace!("process audio with {} extensions", exts.len());
+        }
+        for ext in exts.iter_mut() {
+            ext.audio(&limits, &mut source, &mut options);
+        }
     }
+
+    // only lock service after extensions
     let mut s = AUDIOS_SV.write();
-    exts.append(&mut s.extensions);
-    s.extensions = exts;
 
     if let AudioSource::Audio(var) = source {
         // Audio is passthrough, cache config is ignored
@@ -543,24 +538,16 @@ fn audio_data(
     r: Var<AudioTrack>,
 ) {
     if !is_respawn && let Some(key) = cache_key {
-        let mut replaced = false;
-        let mut exts = mem::take(&mut AUDIOS_SV.write().extensions);
-        for ext in &mut exts {
+        let mut exts = AUDIOS_EXTENSIONS.write();
+        if !exts.is_empty() {
+            tracing::trace!("process audio_data with {} extensions", exts.len());
+        }
+        for ext in exts.iter_mut() {
             if let Some(replacement) = ext.audio_data(limits.max_decoded_len, &key, &data, &format, &options) {
                 replacement.set_bind(&r).perm();
                 r.hold(replacement).perm();
 
-                replaced = true;
-                break;
-            }
-        }
-
-        {
-            let mut s = AUDIOS_SV.write();
-            exts.append(&mut s.extensions);
-            s.extensions = exts;
-
-            if replaced {
+                tracing::trace!("extension replaced audio_data");
                 return;
             }
         }
