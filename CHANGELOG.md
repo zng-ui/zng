@@ -1,10 +1,11 @@
 # Unreleased
 
+* Fix `IMAGES` and `AUDIOS` extensions not always applying.
 * Fix `IMAGES.limits` and `AUDIOS.limits` not filtering paths and uris.
 * Image widget now does not render large images when a better reduced alternate is loading.
     - **Deprecated**`ImageEntry::with_best_reduce`.
     - Added `ImageEntry::best_reduce`.
-    - Image widget now tracks loading state of the best sized entry and only presents that entry. !!: TODO
+    - Image widget now tracks loading state of the best sized entry and only presents that entry.
 
 * Change impl `Mul<i32>` and `Mul<f32>` for `Px` to be saturating to match other operations.
 * Better cleanup of leftover memmap files after crash.
