@@ -330,19 +330,18 @@ fn sprite() -> UiNode {
 fn large_image() -> UiNode {
     let title = "Wikimedia - Starry Night - 44,567 × 35,291 pixels, file size: 663.94 MB, decoded: 6.29 GB";
     let source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-    let thumbnail_source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/960px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
     Button! {
         child = Text!("Large Image (664MB download)");
         on_click = hn!(|_| {
             WINDOWS.focus_or_open("large_image", async move {
-                let mouse_pan = var(false);
-                let mode = var(ScrollMode::NONE);
+                let is_loading = var(true);
                 ImgWindow! {
                     title;
                     child_align = Align::FILL;
+                    child_over = is_loading.present(wgt_fn!(|is| if is { loading() } else { UiNode::nil() }));
                     child = Scroll! {
-                        mode = mode.clone();
-                        mouse_pan = mouse_pan.clone();
+                        mode = ScrollMode::ZOOM;
+                        mouse_pan = true;
                         ctrl_scroll = true;
                         child = Image! {
                             source;
@@ -351,26 +350,6 @@ fn large_image() -> UiNode {
                                     .with_max_encoded_len(700.megabytes())
                                     .with_max_decoded_len(7.gigabytes()),
                             );
-
-                            on_error = hn!(|args| {
-                                tracing::error!(target: "unexpected", "{}", args.error);
-                            });
-                            on_load = hn!(|_| {
-                                mode.set(ScrollMode::ZOOM);
-                                mouse_pan.set(true);
-                            });
-
-                            img_loading_fn = wgt_fn!(|_| {
-                                // thumbnail
-                                Stack! {
-                                    children = ui_vec![
-                                        Image! {
-                                            source = thumbnail_source;
-                                        },
-                                        loading(),
-                                    ];
-                                }
-                            });
 
                             // Generate mipmap pre-downscaled images to reduce GPU memory use
                             img_downscale = Some(zng::image::ImageDownscaleMode::mip_map());
@@ -381,6 +360,24 @@ fn large_image() -> UiNode {
 
                             // better for photo viewers
                             img_auto_scale = false;
+
+                            // initial scale to fit
+                            on_load_size_layout = hn!(|_| {
+                                use zng::scroll::*;
+                                let mut p = cmd::ZoomToFitRequest::default();
+                                p.skip_animation = true;
+                                cmd::ZOOM_TO_FIT_CMD.scoped(SCROLL.id()).notify_param(p);
+                            });
+
+                            img_loading_fn = WidgetFn::nil();
+
+                            on_error = hn!(is_loading, |args| {
+                                tracing::error!(target: "unexpected", "{}", args.error);
+                                is_loading.set(false);
+                            });
+                            on_load = hn_once!(|_| {
+                                is_loading.set(false);
+                            });
                         };
                     };
                 }

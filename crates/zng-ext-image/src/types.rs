@@ -182,7 +182,7 @@ impl ImageEntry {
 
     /// Returns `true` if the is still acquiring or decoding the image bytes.
     pub fn is_loading(&self) -> bool {
-        self.error.is_empty() && (self.data.pixels.is_empty() || self.data.partial.is_some())
+        self.error.is_empty() && (self.handle.is_dummy() || self.data.pixels.is_empty() || self.data.partial.is_some())
     }
 
     /// If the image has finished loading ok or due to error.
