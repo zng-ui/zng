@@ -1,6 +1,6 @@
 //! UI nodes used for building the image widget.
 
-use zng_ext_image::{IMAGES, ImageCacheMode, ImageEntryKind, ImageOptions, ImageRenderArgs};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageOptions, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes;
 
 use super::image_properties::{
@@ -12,8 +12,16 @@ use super::*;
 context_var! {
     /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
     ///
+    /// Note that if [`CONTEXT_IMAGE_REDUCED_VAR`] is set it is rendered, not this image.
+    ///
     /// [`image_source`]: fn@image_source
     pub static CONTEXT_IMAGE_VAR: ImageEntry = no_context_image();
+
+    /// Reduced alternate entry used for rendering instead of [`CONTEXT_IMAGE_VAR`].
+    ///
+    /// Context is set to a mutable variable in [`image_source`] and value is set by [`image_presenter`]
+    /// when the image has multiple entries.
+    pub static CONTEXT_IMAGE_REDUCED_VAR: Option<ImageEntry> = None;
 }
 fn no_context_image() -> ImageEntry {
     ImageEntry::new_error(Txt::from_static("no image source in context"))
@@ -32,6 +40,7 @@ fn no_context_image() -> ImageEntry {
 pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let ctx_img = var(ImageEntry::new_loading());
+    let child = with_context_var(child, CONTEXT_IMAGE_REDUCED_VAR, var(None));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
     let mut img = var(ImageEntry::new_loading()).read_only();
     let mut _ctx_binding = None;
@@ -146,23 +155,30 @@ pub fn image_error_presenter(child: impl IntoUiNode) -> UiNode {
     })
 }
 
-/// Presents the contextual [`IMAGE_LOADING_FN_VAR`] if the [`CONTEXT_IMAGE_VAR`] is loading.
+/// Presents the contextual [`IMAGE_LOADING_FN_VAR`] if [`is_loading`].
 ///
 /// The loading view is rendered under the `child`.
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
+///
+/// [`is_loading`]: fn@crate::is_loading
 pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
-    let view = CONTEXT_IMAGE_VAR
-        .map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None })
-        .present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
-            wgt_fn!(f, |a| {
-                if IN_LOADING_VIEW.get_clone() {
-                    UiNode::nil()
-                } else {
-                    with_context_local(f(a), &IN_LOADING_VIEW, true)
-                }
-            })
-        }));
+    let args = expr_var! {
+        let is_loading = match #{CONTEXT_IMAGE_REDUCED_VAR} {
+            Some(img) => img.is_loading(),
+            None => #{CONTEXT_IMAGE_VAR}.is_loading(),
+        };
+        if is_loading { Some(ImgLoadingArgs {}) } else { None }
+    };
+    let view = args.present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
+        wgt_fn!(f, |a| {
+            if IN_LOADING_VIEW.get_clone() {
+                UiNode::nil()
+            } else {
+                with_context_local(f(a), &IN_LOADING_VIEW, true)
+            }
+        })
+    }));
 
     stack_nodes(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
@@ -185,6 +201,7 @@ pub fn image_loading_presenter(child: impl IntoUiNode) -> UiNode {
 /// * [`IMAGE_ALIGN_VAR`]: Defines the image alignment in the presenter final size.
 /// * [`IMAGE_RENDERING_VAR`]: Defines the image resize algorithm used in the GPU.
 /// * [`IMAGE_OFFSET_VAR`]: Defines an offset applied to the image after all measure and arrange.
+/// * [`CONTEXT_IMAGE_REDUCED_VAR`]: Var set by this node to a reduced size alternate entry in multi entry images.
 pub fn image_presenter() -> UiNode {
     let mut img_size = PxSize::zero();
     let mut render_clip = PxRect::zero();
@@ -193,7 +210,7 @@ pub fn image_presenter() -> UiNode {
     let mut render_tile_spacing = PxSize::zero();
     let mut render_offset = PxVector::zero();
     let spatial_id = SpatialFrameId::new_unique();
-    let mut alternate_loading_handles = VarHandles::dummy();
+    let mut reduced_img = None;
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
@@ -212,15 +229,29 @@ pub fn image_presenter() -> UiNode {
             img_size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
         }
         UiNodeOp::Deinit => {
-            alternate_loading_handles = VarHandles::dummy();
+            if reduced_img.take().is_some() {
+                CONTEXT_IMAGE_REDUCED_VAR.set(None);
+            }
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
                 let ig_size = img.size();
                 if img_size != ig_size {
                     img_size = ig_size;
+                    if reduced_img.take().is_some() {
+                        CONTEXT_IMAGE_REDUCED_VAR.set(None);
+                    }
                     WIDGET.layout();
-                } else if img.is_loaded() {
+                } else {
+                    if img.has_entries() {
+                        // same size, means same tile size, means can rebound reduced here
+                        let r = img.best_reduce(render_tile_size);
+                        let h = r.subscribe(UpdateOp::Render, WIDGET.id());
+                        r.set_bind_map(&CONTEXT_IMAGE_REDUCED_VAR, |i| Some(i.clone())).perm();
+                        reduced_img = Some((r, h));
+                    } else if reduced_img.take().is_some() {
+                        CONTEXT_IMAGE_REDUCED_VAR.set(None);
+                    }
                     WIDGET.render();
                 }
             }
@@ -386,6 +417,17 @@ pub fn image_presenter() -> UiNode {
                 });
             }
 
+            if render_tile_size != r_tile_size {
+                CONTEXT_IMAGE_VAR.with(|img| {
+                    if img.has_entries() {
+                        let r = img.best_reduce(render_tile_size);
+                        let h = r.subscribe(UpdateOp::Render, WIDGET.id());
+                        r.set_bind_map(&CONTEXT_IMAGE_REDUCED_VAR, |i| Some(i.clone())).perm();
+                        reduced_img = Some((r, h));
+                    }
+                });
+            }
+
             if render_clip != r_clip
                 || render_img_size != r_img_size
                 || render_offset != r_offset
@@ -406,25 +448,11 @@ pub fn image_presenter() -> UiNode {
             if render_clip.is_empty() {
                 return;
             }
-            CONTEXT_IMAGE_VAR.with(|img| {
-                let mut ideal_match = false;
-                img.with_best_reduce(render_tile_size, |img| {
-                    let dist = img.size().width - render_tile_size.width;
-                    ideal_match = dist > Px(0) && dist < Px(400);
 
-                    if render_offset != PxVector::zero() {
-                        let transform = PxTransform::from(render_offset);
-                        frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
-                            frame.push_image(
-                                render_clip,
-                                render_img_size,
-                                render_tile_size,
-                                render_tile_spacing,
-                                img,
-                                IMAGE_RENDERING_VAR.get(),
-                            )
-                        });
-                    } else {
+            let render = |img: &ImageEntry| {
+                if render_offset != PxVector::zero() {
+                    let transform = PxTransform::from(render_offset);
+                    frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
                         frame.push_image(
                             render_clip,
                             render_img_size,
@@ -432,32 +460,25 @@ pub fn image_presenter() -> UiNode {
                             render_tile_spacing,
                             img,
                             IMAGE_RENDERING_VAR.get(),
-                        );
-                    }
-                });
-
-                if ideal_match {
-                    alternate_loading_handles = VarHandles::dummy();
-                } else if alternate_loading_handles.is_dummy() {
-                    // can not match if only a very large alternate is loaded,
-                    // in that case we will try render again on any Reduced alternate loaded, and if
-                    // the primary image is the one loading the normal Update handler already requests render
-                    let id = WIDGET.id();
-                    for entry in img.entries() {
-                        if entry.with(|e| matches!(e.entry_kind(), ImageEntryKind::Reduced { .. }) && e.is_loading()) {
-                            let handle = entry.hook(move |a| {
-                                if a.value().is_loaded() {
-                                    UPDATES.render(id);
-                                    true
-                                } else {
-                                    a.value().is_loading()
-                                }
-                            });
-                            alternate_loading_handles.push(handle);
-                        }
-                    }
+                        )
+                    });
+                } else {
+                    frame.push_image(
+                        render_clip,
+                        render_img_size,
+                        render_tile_size,
+                        render_tile_spacing,
+                        img,
+                        IMAGE_RENDERING_VAR.get(),
+                    );
                 }
-            });
+            };
+
+            if let Some((img, _)) = &reduced_img {
+                img.with(render);
+            } else {
+                CONTEXT_IMAGE_VAR.with(render);
+            }
         }
         _ => {}
     })

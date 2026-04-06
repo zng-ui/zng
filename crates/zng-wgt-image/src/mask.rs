@@ -4,8 +4,7 @@
 //! [`mask_mode`]: fn@mask_mode
 
 use zng_ext_image::{
-    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageEntryKind, ImageLimits, ImageMaskMode, ImageOptions,
-    ImageRenderArgs, ImageSource,
+    IMAGES, ImageCacheMode, ImageDownscaleMode, ImageEntriesMode, ImageLimits, ImageMaskMode, ImageOptions, ImageRenderArgs, ImageSource,
 };
 use zng_wgt::prelude::*;
 
@@ -22,9 +21,9 @@ use crate::ImageFit;
 pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> UiNode {
     let source = source.into_var();
     let mut img = None;
+    let mut best_reduce = None;
     let mut img_size = PxSize::zero();
     let mut rect = PxRect::zero();
-    let mut alternate_loading_handles = VarHandles::dummy();
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
@@ -63,7 +62,7 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
         UiNodeOp::Deinit => {
             c.deinit();
             img = None;
-            alternate_loading_handles = VarHandles::dummy();
+            best_reduce = None;
         }
         UiNodeOp::Update { .. } => {
             // load
@@ -118,8 +117,16 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
                 let s = img.size();
                 if s != img_size {
                     img_size = s;
+                    best_reduce = None;
                     WIDGET.layout().render();
                 } else {
+                    if img.has_entries() {
+                        let b = img.best_reduce(rect.size);
+                        let h = b.subscribe(UpdateOp::Render, WIDGET.id());
+                        best_reduce = Some((b, h));
+                    } else {
+                        best_reduce = None;
+                    }
                     WIDGET.render();
                 }
             }
@@ -184,6 +191,18 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
 
                 let new_rect = PxRect::new(img_origin, img_size);
                 if rect != new_rect {
+                    if rect.size != new_rect.size {
+                        img.as_ref().unwrap().0.with(|img| {
+                            if img.has_entries() {
+                                let b = img.best_reduce(new_rect.size);
+                                let h = b.subscribe(UpdateOp::Render, WIDGET.id());
+                                best_reduce = Some((b, h));
+                            } else {
+                                best_reduce = None;
+                            }
+                        });
+                    }
+
                     rect = new_rect;
                     WIDGET.render();
                 }
@@ -193,33 +212,9 @@ pub fn mask_image(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -> 
             if rect.size.is_empty() {
                 return;
             }
-            img.as_ref().unwrap().0.with(|img| {
-                let mut ideal_match = false;
-
-                img.with_best_reduce(rect.size, |img| {
-                    let dist = img.size().width - rect.size.width;
-                    ideal_match = dist > Px(0) && dist < Px(400);
-
+            best_reduce.as_ref().or(img.as_ref()).unwrap().0.with(|img| {
+                if img.is_loaded() && !img.is_error() {
                     frame.push_mask(img, rect, |frame| c.render(frame));
-                });
-
-                if ideal_match {
-                    alternate_loading_handles = VarHandles::dummy();
-                } else if alternate_loading_handles.is_dummy() {
-                    let id = WIDGET.id();
-                    for entry in img.entries() {
-                        if entry.with(|e| matches!(e.entry_kind(), ImageEntryKind::Reduced { .. }) && e.is_loading()) {
-                            let handle = entry.hook(move |a| {
-                                if a.value().is_loaded() {
-                                    UPDATES.render(id);
-                                    true
-                                } else {
-                                    a.value().is_loading()
-                                }
-                            });
-                            alternate_loading_handles.push(handle);
-                        }
-                    }
                 }
             });
         }

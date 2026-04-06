@@ -447,7 +447,7 @@ impl ImageEntry {
     }
 
     /// Calls `visit` on [`best_reduce`].
-    /// 
+    ///
     /// [`best_reduce`]: Self::best_reduce
     #[deprecated = "use `best_reduce`"]
     pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
