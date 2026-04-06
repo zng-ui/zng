@@ -53,7 +53,11 @@ enum IpcBytesData {
     #[cfg(ipc)]
     MemMap(IpcMemMap),
     #[cfg(ipc)]
-    MemMapAsyncDeserialize(std::sync::OnceLock<IpcMemMap>),
+    MemMapAsyncDeserialize {
+        map: std::sync::OnceLock<IpcMemMap>,
+        // len copy to avoid OnceLock load blocking early in some common use cases (ImageEntry::is_loaded for example)
+        len: usize,
+    },
 }
 impl fmt::Debug for IpcBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -71,7 +75,7 @@ impl ops::Deref for IpcBytes {
             #[cfg(ipc)]
             IpcBytesData::MemMap(f) => f,
             #[cfg(ipc)]
-            IpcBytesData::MemMapAsyncDeserialize(f) => f.wait(),
+            IpcBytesData::MemMapAsyncDeserialize { map, .. } => map.wait(),
         }
     }
 }
@@ -602,6 +606,34 @@ impl IpcBytes {
     }
 }
 
+impl IpcBytes {
+    /// Returns the number of bytes.
+    pub fn len(&self) -> usize {
+        match &*self.0 {
+            IpcBytesData::Heap(b) => b.len(),
+            #[cfg(ipc)]
+            IpcBytesData::AnonMemMap(b) => b.len(),
+            #[cfg(ipc)]
+            IpcBytesData::MemMap(b) => b.len(),
+            #[cfg(ipc)]
+            IpcBytesData::MemMapAsyncDeserialize { len, .. } => *len,
+        }
+    }
+
+    /// Returns `true` if contains no bytes.
+    pub fn is_empty(&self) -> bool {
+        match &*self.0 {
+            IpcBytesData::Heap(b) => b.is_empty(),
+            #[cfg(ipc)]
+            IpcBytesData::AnonMemMap(b) => b.is_empty(),
+            #[cfg(ipc)]
+            IpcBytesData::MemMap(b) => b.is_empty(),
+            #[cfg(ipc)]
+            IpcBytesData::MemMapAsyncDeserialize { len, .. } => *len == 0,
+        }
+    }
+}
+
 /// If built with `"ipc"` feature removes all leftover memmap files of crashed processes.
 ///
 /// Note that this is already called on normal process exit if any memmap was created. It is also called
@@ -736,10 +768,10 @@ impl Serialize for IpcBytes {
                 match &*self.0 {
                     IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
                     IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
-                    IpcBytesData::MemMap(_) | IpcBytesData::MemMapAsyncDeserialize(_) => {
+                    IpcBytesData::MemMap(_) | IpcBytesData::MemMapAsyncDeserialize { .. } => {
                         let b = match &*self.0 {
                             IpcBytesData::MemMap(b) => b,
-                            IpcBytesData::MemMapAsyncDeserialize(b) => b.wait(),
+                            IpcBytesData::MemMapAsyncDeserialize { map, .. } => map.wait(),
                             _ => unreachable!(),
                         };
                         // need to keep alive until other process is also holding it, so we send
@@ -804,7 +836,10 @@ impl<'de> Deserialize<'de> for IpcBytes {
                     VariantId::MemMap => {
                         let (mut memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
 
-                        let ipc_bytes = IpcBytes(Arc::new(IpcBytesData::MemMapAsyncDeserialize(std::sync::OnceLock::new())));
+                        let ipc_bytes = IpcBytes(Arc::new(IpcBytesData::MemMapAsyncDeserialize {
+                            map: std::sync::OnceLock::new(),
+                            len: memmap.range.len(),
+                        }));
                         let ipc_bytes_sender = ipc_bytes.0.clone();
                         blocking::unblock(move || {
                             memmap.finish_deserialize();
@@ -815,8 +850,8 @@ impl<'de> Deserialize<'de> for IpcBytes {
                                 tracing::error!("failed to send memmap deserialize completion signal, {e}");
                             }
                             match &*ipc_bytes_sender {
-                                IpcBytesData::MemMapAsyncDeserialize(r) => {
-                                    r.get_or_init(|| memmap);
+                                IpcBytesData::MemMapAsyncDeserialize { map, .. } => {
+                                    map.get_or_init(|| memmap);
                                 }
                                 _ => unreachable!(),
                             }
