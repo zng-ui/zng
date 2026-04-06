@@ -1,3 +1,5 @@
+use crate::node::CONTEXT_IMAGE_REDUCED_VAR;
+
 use super::*;
 use std::fmt;
 
@@ -405,25 +407,67 @@ pub fn img_entries_mode(child: impl IntoUiNode, mode: impl IntoVar<ImageEntriesM
     with_context_var(child, IMAGE_ENTRIES_MODE_VAR, mode)
 }
 
-/// If the [`CONTEXT_IMAGE_VAR`] is an error.
+/// If the image has an error.
+///
+/// Binds the [`ImageEntry::is_error`] of the [`CONTEXT_IMAGE_VAR`].
 #[property(LAYOUT, widget_impl(Image))]
 pub fn is_error(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
-/// If the [`CONTEXT_IMAGE_VAR`] has successfully loaded.
+/// If the image is loading.
+///
+/// This binds the [`ImageEntry::is_loading`] of the [`CONTEXT_IMAGE_VAR`] or of the [`CONTEXT_IMAGE_REDUCED_VAR`]
+/// if it is set.
+///
+/// [`is_error`]: fn@is_error
 #[property(LAYOUT, widget_impl(Image))]
-pub fn is_loaded(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
-    bind_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
+pub fn is_loading(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
+    bind_state(
+        child,
+        expr_var! {
+            match #{CONTEXT_IMAGE_REDUCED_VAR} {
+                Some(img) => img.is_loading(),
+                None => #{CONTEXT_IMAGE_VAR}.is_loading(),
+            }
+        },
+        state,
+    )
 }
 
-/// Gets the [`CONTEXT_IMAGE_VAR`].
+/// If the image has finished loading.
+///
+/// Note that if [`is_error`] it has also finished loaded.
+///
+/// This binds the [`ImageEntry::is_loaded`] of the [`CONTEXT_IMAGE_VAR`] or of the [`CONTEXT_IMAGE_REDUCED_VAR`]
+/// if it is set.
+///
+/// [`is_error`]: fn@is_error
+#[property(LAYOUT, widget_impl(Image))]
+pub fn is_loaded(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiNode {
+    bind_state(
+        child,
+        expr_var! {
+            match #{CONTEXT_IMAGE_REDUCED_VAR} {
+                Some(img) => img.is_loaded(),
+                None => #{CONTEXT_IMAGE_VAR}.is_loaded(),
+            }
+        },
+        state,
+    )
+}
+
+/// Gets the source image.
+///
+/// Binds the [`CONTEXT_IMAGE_VAR`].
 #[property(LAYOUT, widget_impl(Image))]
 pub fn get_img(child: impl IntoUiNode, state: impl IntoVar<Option<ImageEntry>>) -> UiNode {
     bind_state(child, CONTEXT_IMAGE_VAR.map_into(), state)
 }
 
-/// Gets the [`CONTEXT_IMAGE_VAR`] ideal size.
+/// Gets the source image ideal size.
+///
+/// Binds the [`ImageEntry::layout_size`] of [`CONTEXT_IMAGE_VAR`].
 #[property(LAYOUT, widget_impl(Image))]
 pub fn get_img_layout_size(child: impl IntoUiNode, state: impl IntoVar<PxSize>) -> UiNode {
     let state = state.into_var();

@@ -361,90 +361,98 @@ impl ImageEntry {
         }
     }
 
-    /// Calls `visit` with the image or [`ImageEntryKind::Reduced`] entry that is nearest to `size` and greater or equal to it.
+    /// Gets this entry or the [`ImageEntryKind::Reduced`] that is nearest to `size`, prefers greater size.
     ///
-    /// Does not call `visit` if none of the images are loaded.
+    /// Returns a variable that is always the best alternate, if an entry updates with different size the output might change.
     ///
-    /// Does not call `visit` if the only loaded entry is more than twice the `size` and there is a better entry loading.
+    /// If this entry (`self`) is selected a clone of the entry without [`entries`] is returned.
     ///
-    /// Returns `None` if `visit` is not called.
-    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
-        fn cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
-            let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
-            let a_ratio = a.width.0 as f32 / b.height.0 as f32;
-            let b_ratio = b.width.0 as f32 / b.height.0 as f32;
-
-            let a_distortion = (target_ratio - a_ratio).abs();
-            let b_distortion = (target_ratio - b_ratio).abs();
-
-            if !about_eq(a_distortion, b_distortion, 0.01) && a_distortion < b_distortion {
-                // prefer a, has less distortion
-                return std::cmp::Ordering::Less;
+    /// [`entries`]: Self::entries
+    pub fn best_reduce(&self, size: PxSize) -> Var<ImageEntry> {
+        let mut reduced: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|e| e.with(|e| matches!(e.entry_kind(), ImageEntryKind::Reduced { .. })))
+            .collect();
+        match reduced.len() {
+            0 => zng_var::const_var(self.clone_no_entries()),
+            1 => {
+                let primary = self.clone_no_entries();
+                reduced
+                    .remove(0)
+                    .map(move |entry| match Self::best_reduce_cmp(size, primary.size(), entry.size()) {
+                        std::cmp::Ordering::Less => primary.clone(),
+                        _ => entry.clone(),
+                    })
             }
-
-            let a_dist = a - target_size;
-            let b_dist = b - target_size;
-
-            if a_dist.width < Px(0) || a_dist.height < Px(0) {
-                if b_dist.width < Px(0) || b_dist.height < Px(0) {
-                    // a and b need upscaling, prefer near target_size
-                    a_dist.width.abs().cmp(&b_dist.width.abs())
-                } else {
-                    // prefer b, a needs upscaling
-                    std::cmp::Ordering::Greater
+            _ => {
+                let mut b = zng_var::MergeVarBuilder::new();
+                b.push(zng_var::const_var(self.clone_no_entries()));
+                for entry in reduced {
+                    b.push(entry.0.clone());
                 }
-            } else if b_dist.width < Px(0) || b_dist.height < Px(0) {
-                // prefer a, b needs upscaling
-                std::cmp::Ordering::Less
+                b.build(move |entries| {
+                    let mut best = &entries[0];
+                    for entry in entries.iter().skip(1) {
+                        if Self::best_reduce_cmp(size, entry.size(), best.size()).is_lt() {
+                            best = entry;
+                        }
+                    }
+                    best.clone()
+                })
+            }
+        }
+    }
+    fn clone_no_entries(&self) -> Self {
+        Self {
+            cache_key: self.cache_key,
+            handle: self.handle.clone(),
+            data: self.data.clone(),
+            entries: vec![],
+            error: self.error.clone(),
+            img_mut: self.img_mut.clone(),
+        }
+    }
+    /// `Less` is best
+    fn best_reduce_cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
+        let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
+        let a_ratio = a.width.0 as f32 / b.height.0 as f32;
+        let b_ratio = b.width.0 as f32 / b.height.0 as f32;
+
+        let a_distortion = (target_ratio - a_ratio).abs();
+        let b_distortion = (target_ratio - b_ratio).abs();
+
+        if !about_eq(a_distortion, b_distortion, 0.01) && a_distortion < b_distortion {
+            // prefer a, has less distortion
+            return std::cmp::Ordering::Less;
+        }
+
+        let a_dist = a - target_size;
+        let b_dist = b - target_size;
+
+        if a_dist.width < Px(0) || a_dist.height < Px(0) {
+            if b_dist.width < Px(0) || b_dist.height < Px(0) {
+                // a and b need upscaling, prefer near target_size
+                a_dist.width.abs().cmp(&b_dist.width.abs())
             } else {
-                // a and b need downscaling, prefer near target_size
-                a_dist.width.cmp(&b_dist.width)
+                // prefer b, a needs upscaling
+                std::cmp::Ordering::Greater
             }
+        } else if b_dist.width < Px(0) || b_dist.height < Px(0) {
+            // prefer a, b needs upscaling
+            std::cmp::Ordering::Less
+        } else {
+            // a and b need downscaling, prefer near target_size
+            a_dist.width.cmp(&b_dist.width)
         }
+    }
 
-        let mut best_loading_i = usize::MAX;
-        let mut best_loading_size = PxSize::zero();
-        let mut best_i = usize::MAX;
-        let mut best_size = PxSize::zero();
-
-        if self.is_loaded() {
-            best_i = self.entries.len();
-            best_size = self.size();
-        } else if self.is_loading() {
-            best_loading_i = self.entries.len();
-            best_size = self.size();
-        }
-
-        for (i, entry) in self.entries.iter().enumerate() {
-            entry.with(|e| {
-                if e.is_loaded() {
-                    let entry_size = e.size();
-                    if cmp(size, entry_size, best_size).is_lt() {
-                        best_i = i;
-                        best_size = entry_size;
-                    }
-                } else if e.is_loading() {
-                    let entry_size = e.size();
-                    if cmp(size, entry_size, best_loading_size).is_lt() {
-                        best_loading_i = i;
-                        best_loading_size = entry_size;
-                    }
-                }
-            })
-        }
-
-        if best_i != usize::MAX {
-            // found loaded match
-            if best_size.height < size.height * 2 || best_loading_i == usize::MAX || best_loading_size.height > best_size.height {
-                // and is within twice the expected size or has no better loading entry
-                return if best_i == self.entries.len() {
-                    Some(visit(self))
-                } else {
-                    Some(self.entries[best_i].with(visit))
-                };
-            }
-        }
-        None
+    /// Calls `visit` on [`best_reduce`].
+    ///
+    /// [`best_reduce`]: Self::best_reduce
+    #[deprecated = "use `best_reduce`"]
+    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
+        Some(self.best_reduce(size).with(visit))
     }
 
     /// Connection to the image resource in the view-process.
