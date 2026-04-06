@@ -467,19 +467,24 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
 
     match source {
         AudioSource::Read(path) => {
-            fn read(path: PathBuf, limit: ByteLength) -> std::io::Result<IpcBytes> {
+            fn read(path: &PathBuf, limit: (&AudioSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<IpcBytes> {
+                if !limit.0.allows(path) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "file path no allowed by limit",
+                    ));
+                }
                 let file = std::fs::File::open(path)?;
-                if file.metadata()?.len() > limit.bytes() as u64 {
+                if file.metadata()?.len() > limit.1.bytes() as u64 {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
                 IpcBytes::from_file_blocking(file)
             }
-            let limit = limits.max_encoded_len;
             let data_format = match path.extension() {
                 Some(ext) => AudioDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
                 None => AudioDataFormat::Unknown,
             };
-            zng_task::spawn_wait(move || match read(path, limit) {
+            zng_task::spawn_wait(move || match read(&path, (&limits.allow_path, limits.max_encoded_len)) {
                 Ok(data) => audio_data(false, Some(key), data_format, data, options, limits, r),
                 Err(e) => {
                     r.set(AudioTrack::new_error(e.to_txt()));
@@ -491,8 +496,18 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
             let accept = accept.unwrap_or_else(|| AUDIOS.http_accept());
 
             use zng_task::http::*;
-            async fn download(uri: Uri, accept: zng_txt::Txt, limit: ByteLength) -> Result<(AudioDataFormat, IpcBytes), Error> {
-                let request = Request::get(uri)?.max_length(limit).header(header::ACCEPT, accept.as_str())?;
+            async fn download(
+                uri: Uri,
+                accept: zng_txt::Txt,
+                limit: (AudioSourceFilter<Uri>, ByteLength),
+            ) -> Result<(AudioDataFormat, IpcBytes), Error> {
+                if !limit.0.allows(&uri) {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "uri no allowed by limit",
+                    )));
+                }
+                let request = Request::get(uri)?.max_length(limit.1).header(header::ACCEPT, accept.as_str())?;
                 let mut response = send(request).await?;
                 let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {
                     Some(m) => AudioDataFormat::MimeType(m.to_txt()),
@@ -503,9 +518,8 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
                 Ok((data_format, data))
             }
 
-            let limit = limits.max_encoded_len;
             zng_task::spawn(async move {
-                match download(uri, accept, limit).await {
+                match download(uri, accept, (limits.allow_uri.clone(), limits.max_encoded_len)).await {
                     Ok((fmt, data)) => {
                         audio_data(false, Some(key), fmt, data, options, limits, r);
                     }

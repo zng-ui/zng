@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `IMAGES.limits` and `AUDIOS.limits` not filtering paths and uris.
 * Image widget now does not render large images when a better reduced alternate is loading.
     - **Deprecated**`ImageEntry::with_best_reduce`.
     - Added `ImageEntry::best_reduce`.
