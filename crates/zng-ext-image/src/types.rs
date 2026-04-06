@@ -381,8 +381,8 @@ impl ImageEntry {
                 reduced
                     .remove(0)
                     .map(move |entry| match Self::best_reduce_cmp(size, primary.size(), entry.size()) {
-                        std::cmp::Ordering::Less => entry.clone(),
-                        _ => primary.clone(),
+                        std::cmp::Ordering::Less => primary.clone(),
+                        _ => entry.clone(),
                     })
             }
             _ => {
@@ -394,7 +394,7 @@ impl ImageEntry {
                 b.build(move |entries| {
                     let mut best = &entries[0];
                     for entry in entries.iter().skip(1) {
-                        if Self::best_reduce_cmp(size, best.size(), entry.size()).is_lt() {
+                        if Self::best_reduce_cmp(size, entry.size(), best.size()).is_lt() {
                             best = entry;
                         }
                     }
@@ -413,6 +413,7 @@ impl ImageEntry {
             img_mut: self.img_mut.clone(),
         }
     }
+    /// `Less` is best
     fn best_reduce_cmp(target_size: PxSize, a: PxSize, b: PxSize) -> std::cmp::Ordering {
         let target_ratio = target_size.width.0 as f32 / target_size.height.0 as f32;
         let a_ratio = a.width.0 as f32 / b.height.0 as f32;
