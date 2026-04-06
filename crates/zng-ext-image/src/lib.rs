@@ -15,12 +15,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{
-    any::Any,
-    mem,
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use std::{any::Any, mem, path::PathBuf, pin::Pin};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -476,19 +471,24 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
 
     match source {
         ImageSource::Read(path) => {
-            fn read(path: &Path, limit: ByteLength) -> std::io::Result<IpcBytes> {
+            fn read(path: &PathBuf, limit: (&ImageSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<IpcBytes> {
+                if !limit.0.allows(path) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "file path no allowed by limit",
+                    ));
+                }
                 let file = std::fs::File::open(path)?;
-                if file.metadata()?.len() > limit.bytes() as u64 {
+                if file.metadata()?.len() > limit.1.bytes() as u64 {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
                 IpcBytes::from_file_blocking(file)
             }
-            let limit = limits.max_encoded_len;
             let data_format = match path.extension() {
                 Some(ext) => ImageDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
                 None => ImageDataFormat::Unknown,
             };
-            zng_task::spawn_wait(move || match read(&path, limit) {
+            zng_task::spawn_wait(move || match read(&path, (&limits.allow_path, limits.max_encoded_len)) {
                 Ok(data) => {
                     tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", data.len().bytes());
                     image_data(false, Some(key), data_format, data, options, limits, r)
@@ -504,8 +504,19 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
             let accept = accept.unwrap_or_else(|| IMAGES.http_accept());
 
             use zng_task::http::*;
-            async fn download(uri: Uri, accept: zng_txt::Txt, limit: ByteLength) -> Result<(ImageDataFormat, IpcBytes), Error> {
-                let request = Request::get(uri)?.max_length(limit).header(header::ACCEPT, accept.as_str())?;
+            async fn download(
+                uri: Uri,
+                accept: zng_txt::Txt,
+                limit: (ImageSourceFilter<Uri>, ByteLength),
+            ) -> Result<(ImageDataFormat, IpcBytes), Error> {
+                if !limit.0.allows(&uri) {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "uri no allowed by limit",
+                    )));
+                }
+
+                let request = Request::get(uri)?.max_length(limit.1).header(header::ACCEPT, accept.as_str())?;
                 let mut response = send(request).await?;
                 let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {
                     Some(m) => ImageDataFormat::MimeType(m.to_txt()),
@@ -516,9 +527,8 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                 Ok((data_format, data))
             }
 
-            let limit = limits.max_encoded_len;
             zng_task::spawn(async move {
-                match download(uri.clone(), accept, limit).await {
+                match download(uri.clone(), accept, (limits.allow_uri.clone(), limits.max_encoded_len)).await {
                     Ok((fmt, data)) => {
                         tracing::trace!("download {uri:?}, len: {:?}, fmt: {fmt:?}", data.len().bytes());
                         image_data(false, Some(key), fmt, data, options, limits, r);
