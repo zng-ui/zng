@@ -211,7 +211,7 @@ impl AnyVar {
         map: impl FnOnce(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
     ) -> Result<(), VarIsReadOnlyError> {
         if other.capabilities().is_const() {
-            self.try_set(other.get())
+            self.try_set(other.with(map))
         } else if self.capabilities().is_read_only() {
             Err(VarIsReadOnlyError {})
         } else {
