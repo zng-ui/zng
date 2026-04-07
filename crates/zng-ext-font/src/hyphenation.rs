@@ -119,7 +119,7 @@ pub trait HyphenationDataSource: Send + 'static {
 /// Represents a hyphenation data source that searches a directory.
 ///
 /// The file names must follow a pattern that includes the language display print, the pattern mut be defined
-/// with a replacement `{lang}`. For example the file `dir/en-us.bincode` is matched by `"{lang}.bincode"`.
+/// with a replacement `{lang}`. For example the file `dir/en-us.bin` is matched by `"{lang}.bin"`.
 ///
 /// See the [hyphenation](https://github.com/tapeinosyne/hyphenation) crate docs for more details about the data files.
 pub struct HyphenationDataDir {
