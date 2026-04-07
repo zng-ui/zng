@@ -69,12 +69,10 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> UiNode {
 }
 
 fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> UiNode {
+    let mut cursor = mouse::CursorImg::new(img, fallback);
+    cursor.hotspot = hotspot.into();
     widgets::DemoEntry! {
-        mouse::cursor = mouse::CursorImg {
-            source: img.into(),
-            hotspot: hotspot.into(),
-            fallback,
-        };
+        mouse::cursor;
 
         widget::background = Image! {
             source = img;

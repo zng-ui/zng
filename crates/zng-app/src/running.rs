@@ -163,7 +163,7 @@ impl RunningApp {
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|id| VIEW_PROCESS.monitor_id(id));
-                let mut args = RawWindowChangedArgs::now(
+                let args = RawWindowChangedArgs::now(
                     window_id(c.window),
                     c.state,
                     c.position,
@@ -172,9 +172,9 @@ impl RunningApp {
                     c.safe_padding,
                     c.cause,
                     c.frame_wait_id,
+                    c.scale_factor,
+                    c.refresh_rate,
                 );
-                args.scale_factor = c.scale_factor;
-                args.refresh_rate = c.refresh_rate;
                 RAW_WINDOW_CHANGED_EVENT.notify(args);
             }
             Event::DragHovered { window, data, allowed } => {

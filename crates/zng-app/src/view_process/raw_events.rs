@@ -135,7 +135,59 @@ event_args! {
         }
     }
 
-    // TODO(breaking) return RawWindowChangedArgs here
+    /// Arguments for the [`RAW_WINDOW_CHANGED_EVENT`].
+    pub struct RawWindowChangedArgs {
+        /// Window that has moved, resized or has a state change.
+        pub window_id: WindowId,
+
+        /// New state if any part of it has changed.
+        pub state: Option<WindowStateAll>,
+
+        /// New window position if it was moved.
+        ///
+        /// The values are `(global_position, position_in_monitor)`.
+        pub position: Option<(PxPoint, DipPoint)>,
+
+        /// New window monitor.
+        ///
+        /// The window's monitor change when it is moved enough so that most of the
+        /// client area is in the new monitor screen.
+        pub monitor: Option<MonitorId>,
+
+        /// New window size if it was resized.
+        pub size: Option<DipSize>,
+
+        /// New window safe padding.
+        pub safe_padding: Option<DipSideOffsets>,
+
+        /// If the app or operating system caused the change.
+        pub cause: EventCause,
+
+        /// If the view-process is blocking the event loop for a time waiting for a frame for the new `size` this
+        /// ID must be send with the frame to signal that it is the frame for the new size.
+        ///
+        /// Event loop implementations can use this to resize without visible artifacts
+        /// like the clear color flashing on the window corners, there is a timeout to this delay but it
+        /// can be a noticeable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
+        /// to continue the resize operation.
+        ///
+        /// [`render`]: crate::view_process::ViewRenderer::render
+        /// [`render_update`]: crate::view_process::ViewRenderer::render_update
+        pub frame_wait_id: Option<FrameWaitId>,
+
+        /// New window scale factor, if it changed.
+        pub scale_factor: Option<Factor>,
+
+        /// New window refresh rate, if it changed.
+        pub refresh_rate: Option<Frequency>,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn is_in_target(&self, id: WidgetId) -> bool {
+            true
+        }
+    }
 
     /// Arguments for the [`RAW_WINDOW_OPEN_EVENT`].
     pub struct RawWindowOpenArgs {
@@ -770,135 +822,6 @@ event_args! {
         }
     }
 }
-
-/// Arguments for the [`RAW_WINDOW_CHANGED_EVENT`].
-#[derive(Debug, Clone, PartialEq)]
-pub struct RawWindowChangedArgs {
-    /// Window that has moved, resized or has a state change.
-    pub window_id: WindowId,
-
-    /// New state if any part of it has changed.
-    pub state: Option<WindowStateAll>,
-
-    /// New window position if it was moved.
-    ///
-    /// The values are `(global_position, position_in_monitor)`.
-    pub position: Option<(PxPoint, DipPoint)>,
-
-    /// New window monitor.
-    ///
-    /// The window's monitor change when it is moved enough so that most of the
-    /// client area is in the new monitor screen.
-    pub monitor: Option<MonitorId>,
-
-    /// New window size if it was resized.
-    pub size: Option<DipSize>,
-
-    /// New window safe padding.
-    pub safe_padding: Option<DipSideOffsets>,
-
-    /// If the app or operating system caused the change.
-    pub cause: EventCause,
-
-    /// If the view-process is blocking the event loop for a time waiting for a frame for the new `size` this
-    /// ID must be send with the frame to signal that it is the frame for the new size.
-    ///
-    /// Event loop implementations can use this to resize without visible artifacts
-    /// like the clear color flashing on the window corners, there is a timeout to this delay but it
-    /// can be a noticeable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
-    /// to continue the resize operation.
-    ///
-    /// [`render`]: crate::view_process::ViewRenderer::render
-    /// [`render_update`]: crate::view_process::ViewRenderer::render_update
-    pub frame_wait_id: Option<FrameWaitId>,
-
-    /// New window scale factor, if it changed.
-    pub scale_factor: Option<Factor>,
-
-    /// New window refresh rate, if it changed.
-    pub refresh_rate: Option<Frequency>,
-
-    #[doc = r" Instant the event happened."]
-    pub timestamp: crate::DInstant,
-    #[doc = r" Propagation handle associated with this event instance."]
-    #[doc = r""]
-    #[doc = r" Cloned arguments share the same handle, some arguments may also share the handle"]
-    #[doc = r" of another event if they share the same cause."]
-    pub propagation: crate::event::EventPropagationHandle,
-}
-impl RawWindowChangedArgs {
-    #[doc = r" New args from values that convert [into](Into) the argument types."]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        timestamp: impl Into<crate::DInstant>,
-        propagation: crate::event::EventPropagationHandle,
-        window_id: impl Into<WindowId>,
-        state: impl Into<Option<WindowStateAll>>,
-        position: impl Into<Option<(PxPoint, DipPoint)>>,
-        monitor: impl Into<Option<MonitorId>>,
-        size: impl Into<Option<DipSize>>,
-        safe_padding: impl Into<Option<DipSideOffsets>>,
-        cause: impl Into<EventCause>,
-        frame_wait_id: impl Into<Option<FrameWaitId>>,
-    ) -> Self {
-        RawWindowChangedArgs {
-            timestamp: timestamp.into(),
-            window_id: window_id.into(),
-            state: state.into(),
-            position: position.into(),
-            monitor: monitor.into(),
-            size: size.into(),
-            safe_padding: safe_padding.into(),
-            scale_factor: None,
-            refresh_rate: None,
-            cause: cause.into(),
-            frame_wait_id: frame_wait_id.into(),
-            propagation,
-        }
-    }
-    #[doc = r" Arguments for event that happened now (`INSTANT.now`)."]
-    #[allow(clippy::too_many_arguments)]
-    pub fn now(
-        window_id: impl Into<WindowId>,
-        state: impl Into<Option<WindowStateAll>>,
-        position: impl Into<Option<(PxPoint, DipPoint)>>,
-        monitor: impl Into<Option<MonitorId>>,
-        size: impl Into<Option<DipSize>>,
-        safe_padding: impl Into<Option<DipSideOffsets>>,
-        cause: impl Into<EventCause>,
-        frame_wait_id: impl Into<Option<FrameWaitId>>,
-    ) -> Self {
-        Self::new(
-            crate::INSTANT.now(),
-            crate::event::EventPropagationHandle::new(),
-            window_id,
-            state,
-            position,
-            monitor,
-            size,
-            safe_padding,
-            cause,
-            frame_wait_id,
-        )
-    }
-}
-impl crate::event::AnyEventArgs for RawWindowChangedArgs {
-    fn timestamp(&self) -> crate::DInstant {
-        self.timestamp
-    }
-    #[doc = r" Broadcast to all widgets."]
-    fn is_in_target(&self, id: crate::widget::WidgetId) -> bool {
-        let _ = id;
-        true
-    }
-    fn propagation(&self) -> &crate::event::EventPropagationHandle {
-        &self.propagation
-    }
-    fn clone_boxed(&self) -> std::boxed::Box<dyn crate::event::AnyEventArgs> {
-        Box::new(self.clone())
-    }
-}
-impl crate::event::EventArgs for RawWindowChangedArgs {}
 
 event! {
     /// A key press or release targeting a window.
