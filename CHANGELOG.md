@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Upgrade `VideoMode::refresh_rate` to use `Frequency` unit type.
 * **Breaking** Add `use FrequencyUnits as _` in preludes.
 
 # 0.21.13

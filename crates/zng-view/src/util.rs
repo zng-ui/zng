@@ -415,7 +415,7 @@ pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoModeHandle
     VideoMode::new(
         PxSize::new(Px(size.width as i32), Px(size.height as i32)),
         v.bit_depth(),
-        v.refresh_rate_millihertz(),
+        Frequency::from_millihertz(v.refresh_rate_millihertz() as _),
     )
 }
 

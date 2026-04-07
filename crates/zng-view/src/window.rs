@@ -1173,7 +1173,7 @@ impl Window {
                 if m.size().width <= mode.size.width.0 as u32
                     && m.size().height <= mode.size.height.0 as u32
                     && m.bit_depth() <= mode.bit_depth
-                    && m.refresh_rate_millihertz() <= mode.refresh_rate
+                    && m.refresh_rate_millihertz() as u64 <= mode.refresh_rate.millihertz()
                 {
                     // select closest match to the requested video mode
                     if let Some(c) = &candidate {
