@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-progress"
-version = "0.10.12"
+version = "0.10.13"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,19 +12,19 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.14.11", default-features = false }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.13.12", default-features = false }
-zng-ext-font = { path = "../zng-ext-font", version = "0.13.12", default-features = false }
-zng-layout = { path = "../zng-layout", version = "0.10.6", default-features = false }
-zng-app = { path = "../zng-app", version = "0.22.11", default-features = false }
-zng-task = { path = "../zng-task", version = "0.12.8", default-features = false }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.12.11", default-features = false }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.13.11", default-features = false }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.11.11", default-features = false }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.11.11", default-features = false }
-zng-var = { path = "../zng-var", version = "0.13.6", default-features = false }
-zng-wgt-image = { path = "../zng-wgt-image", version = "0.12.12", default-features = false }
-zng-ext-image = { path = "../zng-ext-image", version = "0.11.11", default-features = false }
-zng-view-api = { path = "../zng-view-api", version = "0.19.10", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.14.12", default-features = false }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.13.13", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.13.13", default-features = false }
+zng-layout = { path = "../zng-layout", version = "0.10.7", default-features = false }
+zng-app = { path = "../zng-app", version = "0.22.12", default-features = false }
+zng-task = { path = "../zng-task", version = "0.12.9", default-features = false }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.12.12", default-features = false }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.13.12", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.11.12", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.11.12", default-features = false }
+zng-var = { path = "../zng-var", version = "0.13.7", default-features = false }
+zng-wgt-image = { path = "../zng-wgt-image", version = "0.12.13", default-features = false }
+zng-ext-image = { path = "../zng-ext-image", version = "0.11.12", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.19.11", default-features = false }
 
 tracing = { version = "0.1", default-features = false }
