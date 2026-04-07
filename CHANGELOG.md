@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `AnyVar::try_set_from_map` panic when the other variable is const.
 * Fix `IMAGES` and `AUDIOS` extensions not always applying.
 * Fix `IMAGES.limits` and `AUDIOS.limits` not filtering paths and uris.
 * Image widget now does not render large images when a better reduced alternate is loading.

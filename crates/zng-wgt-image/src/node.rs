@@ -420,7 +420,7 @@ pub fn image_presenter() -> UiNode {
             if render_tile_size != r_tile_size {
                 CONTEXT_IMAGE_VAR.with(|img| {
                     if img.has_entries() {
-                        let r = img.best_reduce(render_tile_size);
+                        let r = img.best_reduce(r_tile_size);
                         let h = r.subscribe(UpdateOp::Render, WIDGET.id());
                         r.set_bind_map(&CONTEXT_IMAGE_REDUCED_VAR, |i| Some(i.clone())).perm();
                         reduced_img = Some((r, h));
