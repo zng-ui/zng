@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Add `use FrequencyUnits as _` in preludes.
 
 # 0.21.13
 
