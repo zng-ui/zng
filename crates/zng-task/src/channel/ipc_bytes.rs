@@ -560,13 +560,15 @@ impl IpcBytes {
             }
         };
 
-        // read(true) because some callers create a MmapMut
-        let file = fs::OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(true)
-            .open(&name)?;
+        let mut opt = fs::OpenOptions::new();
+        opt.create(true).read(true).write(true).truncate(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt as _;
+            const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x00000100;
+            opt.attributes(FILE_ATTRIBUTE_TEMPORARY);
+        }
+        let file = opt.open(&name)?;
         Ok((name, file))
     }
 
