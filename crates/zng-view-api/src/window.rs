@@ -203,8 +203,8 @@ pub struct VideoMode {
     /// This is generally 24 bits or 32 bits on modern systems,
     /// depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
-    /// The refresh rate of this video mode, in millihertz.
-    pub refresh_rate: u32, // TODO(breaking) use Frequency unit
+    /// The refresh rate of this video mode.
+    pub refresh_rate: Frequency,
 }
 impl Default for VideoMode {
     fn default() -> Self {
@@ -213,7 +213,7 @@ impl Default for VideoMode {
 }
 impl VideoMode {
     /// New video mode.
-    pub fn new(size: PxSize, bit_depth: u16, refresh_rate: u32) -> Self {
+    pub fn new(size: PxSize, bit_depth: u16, refresh_rate: Frequency) -> Self {
         Self {
             size,
             bit_depth,
@@ -225,7 +225,7 @@ impl VideoMode {
     pub const MAX: VideoMode = VideoMode {
         size: PxSize::new(Px::MAX, Px::MAX),
         bit_depth: u16::MAX,
-        refresh_rate: u32::MAX,
+        refresh_rate: Frequency::from_millihertz(u64::MAX),
     };
 }
 impl fmt::Display for VideoMode {
@@ -235,11 +235,8 @@ impl fmt::Display for VideoMode {
         } else {
             write!(
                 f,
-                "{}x{}, {}, {}hz",
-                self.size.width.0,
-                self.size.height.0,
-                self.bit_depth,
-                (self.refresh_rate as f32 * 0.001).round()
+                "{}x{}, {}, {}",
+                self.size.width.0, self.size.height.0, self.bit_depth, self.refresh_rate
             )
         }
     }
