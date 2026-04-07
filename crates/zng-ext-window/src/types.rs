@@ -361,6 +361,7 @@ impl_from_and_into_var! {
 
 /// Window custom cursor.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 #[cfg(feature = "image")]
 pub struct CursorImg {
     /// Cursor image source.
@@ -374,11 +375,21 @@ pub struct CursorImg {
 
     /// Icon to use if the image cannot be displayed.
     pub fallback: CursorIcon,
-    // TODO(breaking) add size
 }
 #[cfg(feature = "image")]
 impl_from_and_into_var! {
     fn from(img: CursorImg) -> Option<CursorImg>;
+}
+#[cfg(feature = "image")]
+impl CursorImg {
+    /// New with default hotspot.
+    pub fn new(source: impl Into<ImageSource>, fallback: CursorIcon) -> Self {
+        Self {
+            source: source.into(),
+            hotspot: Point::zero(),
+            fallback,
+        }
+    }
 }
 
 /// Window cursor source.
