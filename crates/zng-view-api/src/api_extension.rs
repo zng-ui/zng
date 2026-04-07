@@ -15,8 +15,8 @@ use zng_txt::Txt;
 pub struct ApiExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
 impl ApiExtensionPayload {
     /// Serialize the payload.
-    pub fn serialize<T: Serialize>(payload: &T) -> Result<Self, bincode::Error> {
-        bincode::serialize(payload).map(Self)
+    pub fn serialize<T: Serialize>(payload: &T) -> Result<Self, postcard::Error> {
+        postcard::to_allocvec(payload).map(Self)
     }
 
     /// Deserialize the payload.
@@ -29,7 +29,7 @@ impl ApiExtensionPayload {
         } else if let Some(id) = self.parse_unknown_extension() {
             Err(ApiExtensionRecvError::UnknownExtension { extension_id: id })
         } else {
-            match bincode::deserialize::<T>(&self.0) {
+            match postcard::from_bytes::<T>(&self.0) {
                 Ok(r) => Ok(r),
                 Err(e) => Err(ApiExtensionRecvError::Deserialize(e)),
             }
@@ -318,7 +318,7 @@ pub enum ApiExtensionRecvError {
         error: Txt,
     },
     /// Failed to deserialize to the expected response type.
-    Deserialize(bincode::Error),
+    Deserialize(postcard::Error),
 }
 impl fmt::Display for ApiExtensionRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
