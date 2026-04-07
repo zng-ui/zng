@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Upgrade `ipc-channel` dependency.
 * **Breaking** `CursorImg` is now `non_exhaustive`.
 * **Breaking** Upgrade `VideoMode::refresh_rate` to use `Frequency` unit type.
 * **Breaking** Add `use FrequencyUnits as _` in preludes.

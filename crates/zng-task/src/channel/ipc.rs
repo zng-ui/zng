@@ -181,8 +181,8 @@ impl<T: IpcValue> IpcReceiver<T> {
                         Ok(r)
                     }
                     Err(e) => match e {
-                        ipc_channel::ipc::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
-                        ipc_channel::ipc::TryRecvError::Empty => {
+                        ipc_channel::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
+                        ipc_channel::TryRecvError::Empty => {
                             self.recv = Some(recv);
                             Err(ChannelError::Timeout)
                         }
@@ -226,8 +226,8 @@ impl<T: IpcValue> IpcReceiver<T> {
                     Ok(Some(r))
                 }
                 Err(e) => match e {
-                    ipc_channel::ipc::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
-                    ipc_channel::ipc::TryRecvError::Empty => Ok(None),
+                    ipc_channel::TryRecvError::IpcError(e) => Err(ChannelError::disconnected_by(e)),
+                    ipc_channel::TryRecvError::Empty => Ok(None),
                 },
             }
         }
@@ -529,20 +529,20 @@ pub trait IpcValue: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send
 impl<T: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static> IpcValue for T {}
 
 #[cfg(ipc)]
-impl From<ipc_channel::ipc::IpcError> for ChannelError {
-    fn from(value: ipc_channel::ipc::IpcError) -> Self {
+impl From<ipc_channel::IpcError> for ChannelError {
+    fn from(value: ipc_channel::IpcError) -> Self {
         match value {
-            ipc_channel::ipc::IpcError::Disconnected => ChannelError::disconnected(),
+            ipc_channel::IpcError::Disconnected => ChannelError::disconnected(),
             e => ChannelError::disconnected_by(e),
         }
     }
 }
 #[cfg(ipc)]
-impl From<ipc_channel::ipc::TryRecvError> for ChannelError {
-    fn from(value: ipc_channel::ipc::TryRecvError) -> Self {
+impl From<ipc_channel::TryRecvError> for ChannelError {
+    fn from(value: ipc_channel::TryRecvError) -> Self {
         match value {
-            ipc_channel::ipc::TryRecvError::IpcError(ipc_channel::ipc::IpcError::Disconnected) => ChannelError::disconnected(),
-            ipc_channel::ipc::TryRecvError::Empty => ChannelError::Timeout,
+            ipc_channel::TryRecvError::IpcError(ipc_channel::IpcError::Disconnected) => ChannelError::disconnected(),
+            ipc_channel::TryRecvError::Empty => ChannelError::Timeout,
             e => ChannelError::disconnected_by(e),
         }
     }
