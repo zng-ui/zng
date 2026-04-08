@@ -9,7 +9,8 @@ use crate::channel::is_ipc_serialization;
 /// # File
 ///
 /// This type can be converted  from and to [`std::fs::File`]. This type does not
-/// implement IO traits, it will only close the handle on drop if it was not sent or converted.
+/// implement IO traits, it must be converted to read/write. The file handle is only closed on drop
+/// if it was not sent or converted.
 ///
 /// # Serialization
 ///
@@ -17,10 +18,10 @@ use crate::channel::is_ipc_serialization;
 /// serialize or deserialize it outside of [`with_ipc_serialization`] context will panic.
 ///
 /// [`with_ipc_serialization`]: crate::channel::with_ipc_serialization
-pub struct IpcFile {
+pub struct IpcFileHandle {
     handle: AtomicUsize,
 }
-impl From<std::fs::File> for IpcFile {
+impl From<std::fs::File> for IpcFileHandle {
     fn from(file: std::fs::File) -> Self {
         #[cfg(not(any(windows, unix)))]
         compile_error!("ipc_file mod should not be compiled in this os");
@@ -34,15 +35,15 @@ impl From<std::fs::File> for IpcFile {
         }
     }
 }
-impl From<IpcFile> for std::fs::File {
-    fn from(mut f: IpcFile) -> Self {
+impl From<IpcFileHandle> for std::fs::File {
+    fn from(mut f: IpcFileHandle) -> Self {
         let handle = mem::take(f.handle.get_mut());
         assert!(handle != 0, "cannot access file, already moved");
         // SAFETY: handle was not moved (not zero) and was converted from File
         unsafe { into_file(handle) }
     }
 }
-impl Drop for IpcFile {
+impl Drop for IpcFileHandle {
     fn drop(&mut self) {
         let handle = mem::take(self.handle.get_mut());
         if handle != 0 {
@@ -61,7 +62,7 @@ unsafe fn into_file(handle: usize) -> std::fs::File {
         std::os::fd::FromRawHandleFd::from_raw_fd(handle as _)
     }
 }
-impl Serialize for IpcFile {
+impl Serialize for IpcFileHandle {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -115,7 +116,7 @@ impl Serialize for IpcFile {
         }
     }
 }
-impl<'de> Deserialize<'de> for IpcFile {
+impl<'de> Deserialize<'de> for IpcFileHandle {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

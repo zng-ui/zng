@@ -45,7 +45,7 @@ pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};
 #[cfg(all(ipc, any(windows, unix)))]
 mod ipc_file;
 #[cfg(all(ipc, any(windows, unix)))]
-pub use ipc_file::IpcFile;
+pub use ipc_file::IpcFileHandle;
 
 use zng_txt::ToTxt;
 
