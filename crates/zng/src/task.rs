@@ -145,8 +145,8 @@
 
 pub use zng_task::{
     DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all,
-    all_ok, all_some, any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn,
-    respond, run, run_catch, scope, set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
+    all_ok, all_some, any, any_ok, any_some, block_on, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond,
+    run, run_catch, scope, set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
 
 #[cfg(any(doc, feature = "test_util"))]
@@ -187,6 +187,48 @@ pub mod http {
             zng_task::http::http_cache().purge().await;
         }
     }
+}
+
+/// Communication channels.
+///
+/// Use [`bounded`], [`unbounded`] and [`rendezvous`] to create channels for use across threads in the same process.
+/// Use [`ipc_unbounded`] to create channels that work across processes.
+///
+/// # Examples
+///
+/// ```no_run
+/// use zng::task::{self, channel};
+///
+/// let (sender, receiver) = channel::bounded(5);
+///
+/// task::spawn(async move {
+///     task::deadline(5.secs()).await;
+///     if let Err(e) = sender.send("Data!").await {
+///         eprintln!("no receiver connected, did not send message: '{e}'")
+///     }
+/// });
+/// task::spawn(async move {
+///     match receiver.recv().await {
+///         Ok(msg) => println!("{msg}"),
+///         Err(_) => eprintln!("no message in channel and no sender connected"),
+///     }
+/// });
+/// ```
+///
+/// [`bounded`]: crate::task::channel::bounded
+/// [`unbounded`]: crate::task::channel::unbounded
+/// [`rendezvous`]: crate::task::channel::rendezvous
+/// [`ipc_unbounded`]: crate::task::channel::ipc_unbounded
+///
+/// # Full API
+///
+/// See [`zng_task::channel`] for the full API.
+pub mod channel {
+    pub use zng_task::channel::{ChannelError, Receiver, Sender, bounded, rendezvous, unbounded};
+    pub use zng_task::channel::{
+        IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesIntoIter, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter,
+        IpcBytesWriterBlocking, IpcFile, IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, WeakIpcBytes, ipc_unbounded,
+    };
 }
 
 #[cfg(ipc)]

@@ -24,9 +24,6 @@
 //!     }
 //! });
 //! ```
-//!
-//! [`flume`]: https://docs.rs/flume
-//! [`ipc-channel`]: https://docs.rs/ipc-channel
 
 use std::{fmt, sync::Arc, time::Duration};
 
@@ -44,6 +41,12 @@ pub use ipc_bytes_mut::{IpcBytesMut, IpcBytesWriter, IpcBytesWriterBlocking};
 
 #[cfg(ipc)]
 pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};
+
+#[cfg(all(ipc, any(windows, unix)))]
+mod ipc_file;
+#[cfg(all(ipc, any(windows, unix)))]
+pub use ipc_file::IpcFile;
+
 use zng_txt::ToTxt;
 
 /// The transmitting end of a channel.

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::task::channel::IpcFile` for sending file handles across IPC channels.
 * **Breaking** Upgrade IPC dependencies.
     - Upgrade `ipc-channel`.
     - Replace `bincode` with `postcard`.
