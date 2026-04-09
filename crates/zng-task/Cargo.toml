@@ -19,7 +19,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Enables real worker processes and IPC channels.
 #
 # Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
-ipc = ["dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2", "dep:windows-sys"]
+ipc = ["dep:ipc-channel", "dep:zng-unique-id", "dep:memmap2", "dep:windows-sys", "dep:sendfd"]
 
 # Enables HTTP client tasks.
 http = [
@@ -101,7 +101,13 @@ async-process = { version = "2.5", default-features = false }
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.52"
+default-features = false
 features = ["Win32_Foundation", "Win32_System_Threading"]
+optional = true
+
+[target.'cfg(unix)'.dependencies.sendfd]
+version = "0.4"
+default-features = false
 optional = true
 
 [build-dependencies]

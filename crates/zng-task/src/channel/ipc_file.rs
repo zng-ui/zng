@@ -62,7 +62,7 @@ unsafe fn into_file(handle: usize) -> std::fs::File {
     }
     #[cfg(unix)]
     unsafe {
-        std::os::fd::FromRawHandleFd::from_raw_fd(handle as _)
+        std::os::fd::FromRawFd::from_raw_fd(handle as _)
     }
 }
 impl Serialize for IpcFileHandle {
@@ -112,7 +112,35 @@ impl Serialize for IpcFileHandle {
         }
         #[cfg(unix)]
         {
-            todo!("https://github.com/standard-ai/sendfd/blob/master/src/lib.rs")
+            // -> Sends a channel sender to get a socket name from target process and a sender to continue the protocol
+            // <- Receives socket name and and connects UnixDatagram
+            // ~> Sends the FD using datagram
+            // <- Receives confirmation, drops this handle
+
+            // ->
+            let (s, mut r) = super::ipc_unbounded::<(String, super::IpcReceiver<bool>)>().map_err(serde::ser::Error::custom)?;
+            let ok = Serialize::serialize(&s, serializer)?;
+
+            // <-
+            blocking::unblock(move || {
+                let _hold = &handle;
+
+                if let Ok((socket, mut confirm_rcv)) = r.recv_blocking()
+                    && let Ok(datagram) = std::os::unix::net::UnixDatagram::unbound()
+                    && datagram.connect(socket).is_ok()
+                {
+                    // ~>
+                    use sendfd::SendWithFd as _;
+                    use std::os::fd::AsRawFd as _;
+                    if datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]).is_ok() {
+                        // <-
+                        let _ = confirm_rcv.recv_blocking();
+                    }
+                }
+            })
+            .detach();
+
+            Ok(ok)
         }
 
         #[cfg(not(any(windows, unix)))]
@@ -152,7 +180,29 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
 
         #[cfg(unix)]
         {
-            todo!()
+            let mut socket_sender = <super::IpcSender<(String, super::IpcReceiver<bool>)> as Deserialize<'de>>::deserialize(deserializer)?;
+
+            static SOCKET_ID: AtomicUsize = AtomicUsize::new(0);
+            let socket = format!(
+                "\0zng_task-ipc_file-{}-{}",
+                std::process::id(),
+                SOCKET_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            );
+            let fd_recv = std::os::unix::net::UnixDatagram::bind(socket.clone()).map_err(serde::de::Error::custom)?;
+
+            let (mut confirm_sender, r) = super::ipc_unbounded().map_err(serde::de::Error::custom)?;
+            socket_sender.send_blocking((socket, r)).map_err(serde::de::Error::custom)?;
+
+            use sendfd::RecvWithFd as _;
+            let mut ignore = [b'z', b'n', b'g'];
+            let mut fd = [0 as std::os::fd::RawFd];
+            fd_recv.recv_with_fd(&mut ignore, &mut fd).map_err(serde::de::Error::custom)?;
+
+            use std::os::fd::FromRawFd as _;
+            let handle = unsafe { std::fs::File::from_raw_fd(fd[0]) };
+            let _ = confirm_sender.send_blocking(true);
+
+            Ok(handle.into())
         }
 
         #[cfg(not(any(windows, unix)))]
