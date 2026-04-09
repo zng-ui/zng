@@ -306,13 +306,14 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 return Err(RunError::Other(Arc::new(e)));
             }
 
+            println!("!!: SEND OK");
             match rx.recv().await {
                 Ok(r) => Ok(r),
                 Err(e) => match e {
                     ChannelError::Disconnected { cause } => {
                         let cause = match cause {
                             Some(e) => format!(", {e}"),
-                            None => String::new()
+                            None => String::new(),
                         };
                         tracing::error!("cannot receive response, disconnected{cause}, more info in `crash_error`");
                         requests.lock().remove(&id);
@@ -400,7 +401,13 @@ where
                     })),
                 },
                 Err(e) => match e {
-                    ChannelError::Disconnected { .. } => break,
+                    ChannelError::Disconnected { cause } => {
+                        match cause {
+                            Some(e) => tracing::error!("exit worker, disconnected, {e}"),
+                            None => tracing::debug!("exit worker, disconnected"),
+                        }
+                        break;
+                    }
                     ChannelError::Timeout => unreachable!(),
                 },
             }

@@ -125,17 +125,26 @@ impl Serialize for IpcFileHandle {
             blocking::unblock(move || {
                 let _hold = &handle;
 
-                if let Ok((socket, mut confirm_rcv)) = r.recv_blocking()
-                    && let Ok(datagram) = std::os::unix::net::UnixDatagram::unbound()
-                    && datagram.connect(socket).is_ok()
-                {
-                    // ~>
-                    use sendfd::SendWithFd as _;
-                    use std::os::fd::AsRawFd as _;
-                    if datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]).is_ok() {
-                        // <-
-                        let _ = confirm_rcv.recv_blocking();
-                    }
+                match r.recv_blocking() {
+                    Ok((socket, mut confirm_rcv)) => match std::os::unix::net::UnixDatagram::unbound() {
+                        Ok(datagram) => match datagram.connect(&socket) {
+                            Ok(()) => {
+                                // ~>
+                                use sendfd::SendWithFd as _;
+                                use std::os::fd::AsRawFd as _;
+                                match datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]) {
+                                    Ok(_) => {
+                                        // <-
+                                        let _ = confirm_rcv.recv_blocking();
+                                    }
+                                    Err(e) => tracing::error!("cannot send IpcFileHandle, {e}"),
+                                }
+                            }
+                            Err(e) => tracing::error!("cannot send IpcFileHandle, cannot connect socket, {e}"),
+                        },
+                        Err(e) => tracing::error!("cannot send IpcFileHandle, cannot create unbound datagram, {e}"),
+                    },
+                    Err(e) => tracing::error!("cannot send IpcFileHandle, side channel disconnected, {e}"),
                 }
             })
             .detach();
@@ -145,7 +154,7 @@ impl Serialize for IpcFileHandle {
 
         #[cfg(not(any(windows, unix)))]
         {
-            panic!("IpcFile not implemented for {}", std::env::consts::OS);
+            panic!("IpcFileHandle not implemented for {}", std::env::consts::OS);
         }
     }
 }
