@@ -2,8 +2,6 @@ use std::{mem, sync::atomic::AtomicUsize};
 
 use serde::{Deserialize, Serialize};
 
-use crate::channel::is_ipc_serialization;
-
 /// File handle that can be transferred to another process.
 ///
 /// # File
@@ -15,7 +13,7 @@ use crate::channel::is_ipc_serialization;
 /// # Serialization
 ///
 /// This type implements serialization only for compatibility with IPC channel, attempting to
-/// serialize or deserialize it outside of [`with_ipc_serialization`] context will panic.
+/// serialize it outside of [`with_ipc_serialization`] context will return an error.
 ///
 /// [`with_ipc_serialization`]: crate::channel::with_ipc_serialization
 pub struct IpcFileHandle {
@@ -43,6 +41,11 @@ impl From<IpcFileHandle> for std::fs::File {
         unsafe { into_file(handle) }
     }
 }
+impl From<IpcFileHandle> for crate::fs::File {
+    fn from(f: IpcFileHandle) -> Self {
+        crate::fs::File::from(std::fs::File::from(f))
+    }
+}
 impl Drop for IpcFileHandle {
     fn drop(&mut self) {
         let handle = mem::take(self.handle.get_mut());
@@ -67,7 +70,9 @@ impl Serialize for IpcFileHandle {
     where
         S: serde::Serializer,
     {
-        assert!(is_ipc_serialization(), "IpcFile can only be serialized inside IPC channels");
+        if !crate::channel::is_ipc_serialization() {
+            return Err(serde::ser::Error::custom("cannot serialize `IpcFileHandle` outside IPC"));
+        }
         let handle = self.handle.swap(0, std::sync::atomic::Ordering::Relaxed);
         assert!(handle != 0, "IpcFile already moved");
         // SAFETY: handle was not moved (not zero) and was converted from File
@@ -121,8 +126,6 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
     where
         D: serde::Deserializer<'de>,
     {
-        assert!(is_ipc_serialization(), "IpcFile can only be deserialized inside IPC channels");
-
         #[cfg(windows)]
         {
             type Confirm = bool;
