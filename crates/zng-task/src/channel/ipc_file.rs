@@ -93,18 +93,24 @@ impl Serialize for IpcFileHandle {
             // <-
             blocking::unblock(move || {
                 let _hold = &handle;
-                if let Ok((process_id, mut shared_sender)) = r.recv_blocking() {
-                    use std::os::windows::io::AsRawHandle as _;
-                    if let Some(handle) = duplicate_handle(process_id, handle.as_raw_handle() as usize) {
-                        // ->
-                        if let Ok((s, mut r)) = super::ipc_unbounded()
-                            && shared_sender.send_blocking((handle, s)).is_ok()
-                        {
-                            // <-
-                            let _ = r.recv_blocking();
+                match r.recv_blocking() {
+                    Ok((process_id, mut shared_sender)) => {
+                        use std::os::windows::io::AsRawHandle as _;
+                        if let Some(handle) = duplicate_handle(process_id, handle.as_raw_handle() as usize) {
+                            // ->
+                            match super::ipc_unbounded() {
+                                Ok((s, mut r)) => match shared_sender.send_blocking((handle, s)) {
+                                    Ok(()) => {
+                                        // <-
+                                        let _ = r.recv_blocking();
+                                    }
+                                    Err(e) => tracing::error!("cannot send IpcFileHandle, side channel disconnected, {e}"),
+                                },
+                                Err(e) => tracing::error!("cannot send IpcFileHandle, side channel disconnected, {e}"),
+                            }
                         }
                     }
-                    // else sender will disconnect
+                    Err(e) => tracing::error!("cannot send IpcFileHandle, side channel disconnected, {e}"),
                 }
             })
             .detach();
