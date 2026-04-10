@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::{mem, sync::atomic::AtomicUsize};
 
 use serde::{Deserialize, Serialize};
@@ -17,12 +19,22 @@ use serde::{Deserialize, Serialize};
 ///
 /// [`with_ipc_serialization`]: crate::channel::with_ipc_serialization
 pub struct IpcFileHandle {
+    #[cfg(ipc)]
     handle: AtomicUsize,
+    #[cfg(not(ipc))]
+    handle: std::fs::File,
 }
+#[cfg(not(ipc))]
+impl From<std::fs::File> for IpcFileHandle {
+    fn from(file: std::fs::File) -> Self {
+        Self { handle: file }
+    }
+}
+#[cfg(ipc)]
 impl From<std::fs::File> for IpcFileHandle {
     fn from(file: std::fs::File) -> Self {
         #[cfg(not(any(windows, unix)))]
-        compile_error!("ipc_file mod should not be compiled in this os");
+        panic!("IpcFileHandle not implemented for {}", std::env::consts::OS);
 
         #[cfg(windows)]
         let handle = std::os::windows::io::IntoRawHandle::into_raw_handle(file) as usize;
@@ -33,6 +45,13 @@ impl From<std::fs::File> for IpcFileHandle {
         }
     }
 }
+#[cfg(not(ipc))]
+impl From<IpcFileHandle> for std::fs::File {
+    fn from(f: IpcFileHandle) -> Self {
+        f.handle
+    }
+}
+#[cfg(ipc)]
 impl From<IpcFileHandle> for std::fs::File {
     fn from(mut f: IpcFileHandle) -> Self {
         let handle = mem::take(f.handle.get_mut());
@@ -41,11 +60,19 @@ impl From<IpcFileHandle> for std::fs::File {
         unsafe { into_file(handle) }
     }
 }
+#[cfg(not(ipc))]
+impl From<IpcFileHandle> for crate::fs::File {
+    fn from(f: IpcFileHandle) -> Self {
+        crate::fs::File::from(f.handle)
+    }
+}
+#[cfg(ipc)]
 impl From<IpcFileHandle> for crate::fs::File {
     fn from(f: IpcFileHandle) -> Self {
         crate::fs::File::from(std::fs::File::from(f))
     }
 }
+#[cfg(ipc)]
 impl Drop for IpcFileHandle {
     fn drop(&mut self) {
         let handle = mem::take(self.handle.get_mut());
@@ -55,6 +82,7 @@ impl Drop for IpcFileHandle {
         }
     }
 }
+#[cfg(ipc)]
 unsafe fn into_file(handle: usize) -> std::fs::File {
     #[cfg(windows)]
     unsafe {
@@ -64,7 +92,23 @@ unsafe fn into_file(handle: usize) -> std::fs::File {
     unsafe {
         std::os::fd::FromRawFd::from_raw_fd(handle as _)
     }
+
+    #[cfg(not(any(windows, unix)))]
+    {
+        let _ = handle;
+        panic!("IpcFileHandle not implemented for {}", std::env::consts::OS)
+    }
 }
+#[cfg(not(ipc))]
+impl Serialize for IpcFileHandle {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        return Err(serde::ser::Error::custom("cannot serialize `IpcFileHandle` outside IPC"));
+    }
+}
+#[cfg(ipc)]
 impl Serialize for IpcFileHandle {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -179,6 +223,16 @@ impl Serialize for IpcFileHandle {
         }
     }
 }
+#[cfg(not(ipc))]
+impl<'de> Deserialize<'de> for IpcFileHandle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        return Err(serde::de::Error::custom("cannot deserialize `IpcFileHandle` outside IPC"));
+    }
+}
+#[cfg(ipc)]
 impl<'de> Deserialize<'de> for IpcFileHandle {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -281,7 +335,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
     }
 }
 
-#[cfg(windows)]
+#[cfg(all(ipc, windows))]
 fn duplicate_handle(process_id: u32, handle: usize) -> Option<usize> {
     unsafe {
         use windows_sys::Win32::Foundation::{DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE};
