@@ -301,6 +301,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
         Box::pin(async move {
             if let Err(e) = send_r.await {
+                tracing::error!("cannot send request, {e}");
                 requests.lock().remove(&id);
                 return Err(RunError::Other(Arc::new(e)));
             }
@@ -308,7 +309,12 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             match rx.recv().await {
                 Ok(r) => Ok(r),
                 Err(e) => match e {
-                    ChannelError::Disconnected { .. } => {
+                    ChannelError::Disconnected { cause } => {
+                        let cause = match cause {
+                            Some(e) => format!(", {e}"),
+                            None => String::new(),
+                        };
+                        tracing::error!("cannot receive response, disconnected{cause}, more info in `crash_error`");
                         requests.lock().remove(&id);
                         Err(RunError::Disconnected)
                     }
@@ -370,7 +376,7 @@ pub fn run_worker<I, O, F>(worker_name: impl Into<Txt>, handler: impl Fn(Request
 where
     I: IpcValue,
     O: IpcValue,
-    F: Future<Output = O> + Send + Sync + 'static,
+    F: Future<Output = O> + Send + 'static,
 {
     let name = worker_name.into();
     if let Some(server_name) = run_worker_server(&name) {
@@ -394,7 +400,13 @@ where
                     })),
                 },
                 Err(e) => match e {
-                    ChannelError::Disconnected { .. } => break,
+                    ChannelError::Disconnected { cause } => {
+                        match cause {
+                            Some(e) => tracing::error!("exit worker, disconnected, {e}"),
+                            None => tracing::debug!("exit worker, disconnected"),
+                        }
+                        break;
+                    }
                     ChannelError::Timeout => unreachable!(),
                 },
             }
