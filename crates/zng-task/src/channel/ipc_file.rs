@@ -127,21 +127,36 @@ impl Serialize for IpcFileHandle {
 
                 match r.recv_blocking() {
                     Ok((socket, mut confirm_rcv)) => match std::os::unix::net::UnixDatagram::unbound() {
-                        Ok(datagram) => match datagram.connect(&socket) {
-                            Ok(()) => {
-                                // ~>
-                                use sendfd::SendWithFd as _;
-                                use std::os::fd::AsRawFd as _;
-                                match datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]) {
-                                    Ok(_) => {
-                                        // <-
-                                        let _ = confirm_rcv.recv_blocking();
+                        Ok(datagram) => {
+                            #[cfg(target_os = "linux")]
+                            let result = if let Some(socket) = socket.strip_prefix('\0') {
+                                use std::os::{linux::net::SocketAddrExt as _, unix::net::SocketAddr};
+                                datagram.connect_addr(&SocketAddr::from_abstract_name(socket.as_bytes()).unwrap())
+                            } else {
+                                let socket = std::path::PathBuf::from("/tmp/").join(socket);
+                                datagram.connect(&socket)
+                            };
+                            #[cfg(not(target_os = "linux"))]
+                            let result = {
+                                let socket = std::path::PathBuf::from("/tmp/").join(socket);
+                                datagram.connect(&socket)
+                            };
+                            match result {
+                                Ok(()) => {
+                                    // ~>
+                                    use sendfd::SendWithFd as _;
+                                    use std::os::fd::AsRawFd as _;
+                                    match datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]) {
+                                        Ok(_) => {
+                                            // <-
+                                            let _ = confirm_rcv.recv_blocking();
+                                        }
+                                        Err(e) => tracing::error!("cannot send IpcFileHandle, {e}"),
                                     }
-                                    Err(e) => tracing::error!("cannot send IpcFileHandle, {e}"),
                                 }
+                                Err(e) => tracing::error!("cannot send IpcFileHandle, cannot connect socket, {e}"),
                             }
-                            Err(e) => tracing::error!("cannot send IpcFileHandle, cannot connect socket, {e}"),
-                        },
+                        }
                         Err(e) => tracing::error!("cannot send IpcFileHandle, cannot create unbound datagram, {e}"),
                     },
                     Err(e) => tracing::error!("cannot send IpcFileHandle, side channel disconnected, {e}"),
@@ -192,12 +207,50 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
             let mut socket_sender = <super::IpcSender<(String, super::IpcReceiver<bool>)> as Deserialize<'de>>::deserialize(deserializer)?;
 
             static SOCKET_ID: AtomicUsize = AtomicUsize::new(0);
-            let socket = format!(
-                "\0zng_task-ipc_file-{}-{}",
+            let mut socket = format!(
+                "zng_task-ipc_file-{}-{}",
                 std::process::id(),
                 SOCKET_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             );
-            let fd_recv = std::os::unix::net::UnixDatagram::bind(socket.clone()).map_err(serde::de::Error::custom)?;
+            let mut socket_tmp = None;
+
+            use std::os::unix::net::UnixDatagram;
+            #[cfg(target_os = "linux")]
+            let fd_recv = {
+                // try abstract name first
+                use std::os::{linux::net::SocketAddrExt as _, unix::net::SocketAddr};
+                match UnixDatagram::bind_addr(&SocketAddr::from_abstract_name(socket.as_bytes()).unwrap()) {
+                    Ok(r) => {
+                        socket = format!("\0{socket}");
+                        r
+                    }
+                    Err(e) => {
+                        if matches!(e.kind(), std::io::ErrorKind::InvalidInput) {
+                            // fallback to tmp file socket
+                            let socket = std::path::PathBuf::from("/tmp/").join(&socket);
+                            let _ = std::fs::remove_file(&socket);
+                            let r = UnixDatagram::bind(&socket).map_err(serde::de::Error::custom)?;
+                            socket_tmp = Some(socket);
+                            r
+                        } else {
+                            return Err(serde::de::Error::custom(e));
+                        }
+                    }
+                }
+            };
+            #[cfg(not(target_os = "linux"))]
+            let fd_recv = {
+                let socket = std::path::PathBuf::from("/tmp/").join(&socket);
+                let _ = std::fs::remove_file(&socket);
+                let r = nixDatagram::bind(socket).map_err(serde::de::Error::custom)?;
+                socket_tmp = Some(socket);
+                r
+            };
+            let _cleanup = zng_app_context::RunOnDrop::new(move || {
+                if let Some(socket) = socket_tmp {
+                    let _ = std::fs::remove_file(socket);
+                }
+            });
 
             let (mut confirm_sender, r) = super::ipc_unbounded().map_err(serde::de::Error::custom)?;
             socket_sender.send_blocking((socket, r)).map_err(serde::de::Error::custom)?;

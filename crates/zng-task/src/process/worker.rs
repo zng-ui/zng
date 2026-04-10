@@ -306,7 +306,6 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 return Err(RunError::Other(Arc::new(e)));
             }
 
-            println!("!!: SEND OK");
             match rx.recv().await {
                 Ok(r) => Ok(r),
                 Err(e) => match e {
