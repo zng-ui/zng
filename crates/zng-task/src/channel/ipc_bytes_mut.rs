@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::{
     fmt,
     io::{self, Write as _},
@@ -12,7 +14,6 @@ use std::{fs, path::PathBuf};
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 
-#[cfg(ipc)]
 use crate::channel::IpcBytes;
 use crate::channel::ipc_bytes::IpcBytesData;
 

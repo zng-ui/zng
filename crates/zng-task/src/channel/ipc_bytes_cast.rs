@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::{fmt, io, iter::FusedIterator, marker::PhantomData, ops};
 
 use crate::channel::{IpcBytes, IpcBytesIntoIter, IpcBytesMut};
@@ -210,6 +212,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
     /// is used, if it continues after the given maximum it is clipped.
     ///
     /// [`size_hint`]: Iterator::size_hint
+    /// [`IpcBytesWriter`]: crate::channel::IpcBytesWriter
     pub async fn from_iter(iter: impl Iterator<Item = T>) -> io::Result<Self> {
         #[cfg(ipc)]
         {
@@ -265,6 +268,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
     /// is used, if it continues after the given maximum it is clipped.
     ///
     /// [`size_hint`]: Iterator::size_hint
+    /// [`IpcBytesWriterBlocking`]: crate::channel::IpcBytesWriterBlocking
     pub fn from_iter_blocking(mut iter: impl Iterator<Item = T>) -> io::Result<Self> {
         #[cfg(ipc)]
         {

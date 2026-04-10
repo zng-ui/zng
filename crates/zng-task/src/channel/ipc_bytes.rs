@@ -100,6 +100,7 @@ impl IpcBytes {
     /// is used, if it continues after the given maximum it is clipped.
     ///
     /// [`size_hint`]: Iterator::size_hint
+    /// [`IpcBytesWriter`]: crate::channel::IpcBytesWriter
     pub async fn from_iter(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
         #[cfg(ipc)]
         {
@@ -344,6 +345,8 @@ impl IpcBytes {
     /// is used, if it continues after the given maximum it is clipped.
     ///
     /// [`size_hint`]: Iterator::size_hint
+    ///
+    /// [`IpcBytesWriterBlocking`]: crate::channel::IpcBytesWriterBlocking
     pub fn from_iter_blocking(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
         #[cfg(ipc)]
         {

@@ -213,6 +213,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
             let mut socket_sender = <super::IpcSender<(String, super::IpcReceiver<bool>)> as Deserialize<'de>>::deserialize(deserializer)?;
 
             static SOCKET_ID: AtomicUsize = AtomicUsize::new(0);
+            #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
             let mut socket = format!(
                 "zng_task-ipc_file-{}-{}",
                 std::process::id(),
@@ -248,7 +249,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
             let fd_recv = {
                 let socket = std::path::PathBuf::from("/tmp/").join(&socket);
                 let _ = std::fs::remove_file(&socket);
-                let r = nixDatagram::bind(socket).map_err(serde::de::Error::custom)?;
+                let r = UnixDatagram::bind(&socket).map_err(serde::de::Error::custom)?;
                 socket_tmp = Some(socket);
                 r
             };

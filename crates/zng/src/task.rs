@@ -197,9 +197,9 @@ pub mod http {
 /// # Examples
 ///
 /// ```no_run
-/// use zng::task::{self, channel};
+/// use zng::prelude::*;
 ///
-/// let (sender, receiver) = channel::bounded(5);
+/// let (sender, receiver) = task::channel::bounded(5);
 ///
 /// task::spawn(async move {
 ///     task::deadline(5.secs()).await;
@@ -227,9 +227,11 @@ pub mod channel {
     pub use zng_task::channel::{ChannelError, Receiver, Sender, bounded, rendezvous, unbounded};
     pub use zng_task::channel::{
         IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesIntoIter, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter,
-        IpcBytesWriterBlocking, IpcFileHandle, IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, WeakIpcBytes,
-        ipc_unbounded,
+        IpcBytesWriterBlocking, IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, WeakIpcBytes, ipc_unbounded,
     };
+
+    #[cfg(ipc)]
+    pub use zng_task::channel::IpcFileHandle;
 }
 
 #[cfg(ipc)]
