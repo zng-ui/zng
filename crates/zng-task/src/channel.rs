@@ -34,6 +34,7 @@ pub use ipc::{IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender
 
 mod ipc_bytes;
 mod ipc_bytes_cast;
+mod ipc_bytes_memmap;
 mod ipc_bytes_mut;
 pub use ipc_bytes::{IpcBytes, IpcBytesIntoIter, WeakIpcBytes, cleanup_memmap_storage};
 pub use ipc_bytes_cast::{IpcBytesCast, IpcBytesCastIntoIter, IpcBytesMutCast};
