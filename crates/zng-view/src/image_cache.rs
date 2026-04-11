@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "image_any"), allow(unused))]
 
 use std::{fmt, sync::Arc};
-use zng_task::parking_lot::Mutex;
+use zng_task::{channel::IpcBytesMut, parking_lot::Mutex};
 
 use webrender::api::ImageDescriptor;
 #[cfg(feature = "image_any")]
@@ -858,7 +858,7 @@ impl ImageCache {
             px_type,
         )
         .unwrap();
-        let mut dest_buf = IpcBytes::new_mut_blocking(entry.size.width.0 as usize * entry.size.height.0 as usize * px_type.size()).ok()?;
+        let mut dest_buf = IpcBytesMut::new_blocking(entry.size.width.0 as usize * entry.size.height.0 as usize * px_type.size()).ok()?;
         let mut dest_img =
             fr::images::Image::from_slice_u8(entry.size.width.0 as _, entry.size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
 

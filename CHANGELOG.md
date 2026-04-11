@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Remove `IpcBytesMut` constructors from `IpcBytes`.
+    - Removed `new_mut` and `new_mut_blocking` from `IpcBytes` and `IpcBytesCast`. 
 * Refactor `IpcBytes` memory map backend.
     - More robust and safe implementation using `IpcFileHandle`.
     - **Breaking** Removed `zng_task::channel::cleanup_memmap_storage`, no longer needed.

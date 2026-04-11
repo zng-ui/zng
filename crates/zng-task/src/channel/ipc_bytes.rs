@@ -96,11 +96,48 @@ impl IpcBytes {
         IpcBytes(Arc::new(IpcBytesData::Heap(vec![])))
     }
 }
-/// Async constructors.
+
+/// Constructors.
+///
+/// See also [`IpcBytesMut`](crate::channel::IpcBytesMut).
 impl IpcBytes {
     /// Copy or move data from vector.
     pub async fn from_vec(data: Vec<u8>) -> io::Result<Self> {
         blocking::unblock(move || Self::from_vec_blocking(data)).await
+    }
+
+    /// Copy or move data from vector.
+    pub fn from_vec_blocking(data: Vec<u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            if data.len() <= Self::INLINE_MAX {
+                Ok(Self(Arc::new(IpcBytesData::Heap(data))))
+            } else {
+                Self::from_slice_blocking(&data)
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(data))))
+        }
+    }
+
+    /// Copy data from slice.
+    pub fn from_slice_blocking(data: &[u8]) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            if data.len() <= Self::INLINE_MAX {
+                Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
+            } else if data.len() <= Self::UNNAMED_MAX {
+                Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(data)))))
+            } else {
+                Self::new_memmap_blocking(|m| m.write_all(data))
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
+        }
     }
 
     /// Copy data from the iterator.
@@ -121,7 +158,7 @@ impl IpcBytes {
                 if max <= Self::INLINE_MAX {
                     return Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))));
                 } else if max == min {
-                    let mut r = IpcBytes::new_mut(max).await?;
+                    let mut r = super::IpcBytesMut::new(max).await?;
                     let mut actual_len = 0;
                     for (i, b) in r.iter_mut().zip(iter) {
                         *i = b;
@@ -139,6 +176,48 @@ impl IpcBytes {
             writer.finish().await
         }
 
+        #[cfg(not(ipc))]
+        {
+            Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))))
+        }
+    }
+
+    /// Copy data from the iterator.
+    ///
+    /// This is most efficient if the [`size_hint`] indicates an exact length (min equals max), otherwise this
+    /// will collect to an [`IpcBytesWriterBlocking`] that can reallocate multiple times as the buffer grows.
+    ///
+    /// Note that if the iterator gives an exact length that is the maximum taken, if it ends early the smaller length
+    /// is used, if it continues after the given maximum it is clipped.
+    ///
+    /// [`size_hint`]: Iterator::size_hint
+    ///
+    /// [`IpcBytesWriterBlocking`]: crate::channel::IpcBytesWriterBlocking
+    pub fn from_iter_blocking(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            let (min, max) = iter.size_hint();
+            if let Some(max) = max {
+                if max <= Self::INLINE_MAX {
+                    return Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))));
+                } else if max == min {
+                    let mut r = super::IpcBytesMut::new_blocking(max)?;
+                    let mut actual_len = 0;
+                    for (i, b) in r.iter_mut().zip(iter) {
+                        *i = b;
+                        actual_len += 1;
+                    }
+                    r.truncate(actual_len);
+                    return r.finish_blocking();
+                }
+            }
+
+            let mut writer = Self::new_writer_blocking();
+            for b in iter {
+                writer.write_all(&[b])?;
+            }
+            writer.finish()
+        }
         #[cfg(not(ipc))]
         {
             Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))))
@@ -221,174 +300,6 @@ impl IpcBytes {
         .await
     }
 
-    /// Read `path` into shared memory.
-    pub async fn from_path(path: PathBuf) -> io::Result<Self> {
-        let file = crate::fs::File::open(path).await?;
-        Self::from_file(file).await
-    }
-    /// Read `file` into shared memory.
-    pub async fn from_file(mut file: crate::fs::File) -> io::Result<Self> {
-        #[cfg(ipc)]
-        {
-            let len = file.metadata().await?.len();
-            if len <= Self::UNNAMED_MAX as u64 {
-                let mut buf = vec![0u8; len as usize];
-                file.read_exact(&mut buf).await?;
-                Self::from_vec_blocking(buf)
-            } else {
-                Self::new_memmap(async move |m| {
-                    crate::io::copy(&mut file, m).await?;
-                    Ok(())
-                })
-                .await
-            }
-        }
-        #[cfg(not(ipc))]
-        {
-            let mut buf = vec![];
-            file.read_to_end(&mut buf).await?;
-            Self::from_vec_blocking(buf)
-        }
-    }
-
-    /// Create a memory mapped file.
-    ///
-    /// Note that the `from_` functions select optimized backing storage depending on data length, this function
-    /// always selects the slowest options, a file backed memory map.
-    #[cfg(ipc)]
-    pub async fn new_memmap(write: impl AsyncFnOnce(&mut crate::fs::File) -> io::Result<()>) -> io::Result<Self> {
-        use crate::channel::ipc_bytes_memmap::MemmapMut;
-
-        let file = blocking::unblock(MemmapMut::begin_write).await?;
-        let mut file = crate::fs::File::from(file);
-        write(&mut file).await?;
-
-        match file.try_unwrap().await {
-            Ok(f) => {
-                let map = blocking::unblock(move || Memmap::end_write(f)).await?;
-                Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
-            }
-            Err(_) => Err(io::Error::new(
-                io::ErrorKind::ResourceBusy,
-                "no all tasks started by `write` awaited before return",
-            )),
-        }
-    }
-
-    /// Memory map an existing file.
-    ///
-    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`]
-    // if the file does not have enough bytes. Returns [`io::ErrorKind::FileTooLarge`] if the range length or file length is
-    // greater than `usize::MAX`.
-    ///
-    /// # Safety
-    ///
-    /// Caller must ensure the `file` is not modified while all clones of the `IpcBytes` exists in the current process and others.
-    ///
-    /// Note that the safe [`new_memmap`] function assures safety by retaining a read lock (Windows) and restricting access rights (Unix)
-    /// so that the file data is as read-only as the static data in the current executable file.
-    ///
-    /// [`new_memmap`]: Self::new_memmap
-    #[cfg(ipc)]
-    pub async unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<u64>>) -> io::Result<Self> {
-        blocking::unblock(move || {
-            // SAFETY: up to the caller
-            unsafe { Self::open_memmap_blocking(file, range) }
-        })
-        .await
-    }
-
-    /// Gets if both point to the same memory.
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        let a = &self[..];
-        let b = &other[..];
-        (std::ptr::eq(a, b) && a.len() == b.len()) || (a.is_empty() && b.is_empty())
-    }
-
-    #[cfg(ipc)]
-    pub(super) const INLINE_MAX: usize = 64 * 1024; // 64KB
-    #[cfg(ipc)]
-    pub(super) const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
-}
-
-/// Blocking constructors.
-impl IpcBytes {
-    /// Copy data from slice.
-    pub fn from_slice_blocking(data: &[u8]) -> io::Result<Self> {
-        #[cfg(ipc)]
-        {
-            if data.len() <= Self::INLINE_MAX {
-                Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
-            } else if data.len() <= Self::UNNAMED_MAX {
-                Ok(Self(Arc::new(IpcBytesData::AnonMemMap(IpcSharedMemory::from_bytes(data)))))
-            } else {
-                Self::new_memmap_blocking(|m| m.write_all(data))
-            }
-        }
-        #[cfg(not(ipc))]
-        {
-            Ok(Self(Arc::new(IpcBytesData::Heap(data.to_vec()))))
-        }
-    }
-
-    /// Copy or move data from vector.
-    pub fn from_vec_blocking(data: Vec<u8>) -> io::Result<Self> {
-        #[cfg(ipc)]
-        {
-            if data.len() <= Self::INLINE_MAX {
-                Ok(Self(Arc::new(IpcBytesData::Heap(data))))
-            } else {
-                Self::from_slice_blocking(&data)
-            }
-        }
-        #[cfg(not(ipc))]
-        {
-            Ok(Self(Arc::new(IpcBytesData::Heap(data))))
-        }
-    }
-
-    /// Copy data from the iterator.
-    ///
-    /// This is most efficient if the [`size_hint`] indicates an exact length (min equals max), otherwise this
-    /// will collect to an [`IpcBytesWriterBlocking`] that can reallocate multiple times as the buffer grows.
-    ///
-    /// Note that if the iterator gives an exact length that is the maximum taken, if it ends early the smaller length
-    /// is used, if it continues after the given maximum it is clipped.
-    ///
-    /// [`size_hint`]: Iterator::size_hint
-    ///
-    /// [`IpcBytesWriterBlocking`]: crate::channel::IpcBytesWriterBlocking
-    pub fn from_iter_blocking(iter: impl Iterator<Item = u8>) -> io::Result<Self> {
-        #[cfg(ipc)]
-        {
-            let (min, max) = iter.size_hint();
-            if let Some(max) = max {
-                if max <= Self::INLINE_MAX {
-                    return Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))));
-                } else if max == min {
-                    let mut r = IpcBytes::new_mut_blocking(max)?;
-                    let mut actual_len = 0;
-                    for (i, b) in r.iter_mut().zip(iter) {
-                        *i = b;
-                        actual_len += 1;
-                    }
-                    r.truncate(actual_len);
-                    return r.finish_blocking();
-                }
-            }
-
-            let mut writer = Self::new_writer_blocking();
-            for b in iter {
-                writer.write_all(&[b])?;
-            }
-            writer.finish()
-        }
-        #[cfg(not(ipc))]
-        {
-            Ok(Self(Arc::new(IpcBytesData::Heap(iter.collect()))))
-        }
-    }
-
     /// Read `data` into shared memory.
     pub fn from_read_blocking(data: &mut dyn io::Read) -> io::Result<Self> {
         #[cfg(ipc)]
@@ -462,6 +373,36 @@ impl IpcBytes {
     }
 
     /// Read `path` into shared memory.
+    pub async fn from_path(path: PathBuf) -> io::Result<Self> {
+        let file = crate::fs::File::open(path).await?;
+        Self::from_file(file).await
+    }
+    /// Read `file` into shared memory.
+    pub async fn from_file(mut file: crate::fs::File) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            let len = file.metadata().await?.len();
+            if len <= Self::UNNAMED_MAX as u64 {
+                let mut buf = vec![0u8; len as usize];
+                file.read_exact(&mut buf).await?;
+                Self::from_vec_blocking(buf)
+            } else {
+                Self::new_memmap(async move |m| {
+                    crate::io::copy(&mut file, m).await?;
+                    Ok(())
+                })
+                .await
+            }
+        }
+        #[cfg(not(ipc))]
+        {
+            let mut buf = vec![];
+            file.read_to_end(&mut buf).await?;
+            Self::from_vec_blocking(buf)
+        }
+    }
+
+    /// Read `path` into shared memory.
     pub fn from_path_blocking(path: &Path) -> io::Result<Self> {
         let file = fs::File::open(path)?;
         Self::from_file_blocking(file)
@@ -495,6 +436,48 @@ impl IpcBytes {
     /// Note that the `from_` functions select optimized backing storage depending on data length, this function
     /// always selects the slowest options, a file backed memory map.
     #[cfg(ipc)]
+    pub async fn new_memmap(write: impl AsyncFnOnce(&mut crate::fs::File) -> io::Result<()>) -> io::Result<Self> {
+        use crate::channel::ipc_bytes_memmap::MemmapMut;
+
+        let file = blocking::unblock(MemmapMut::begin_write).await?;
+        let mut file = crate::fs::File::from(file);
+        write(&mut file).await?;
+
+        match file.try_unwrap().await {
+            Ok(f) => {
+                let map = blocking::unblock(move || Memmap::end_write(f)).await?;
+                Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
+            }
+            Err(_) => Err(io::Error::new(
+                io::ErrorKind::ResourceBusy,
+                "no all tasks started by `write` awaited before return",
+            )),
+        }
+    }
+
+    /// Memory map an existing file.
+    ///
+    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`]
+    // if the file does not have enough bytes. Returns [`io::ErrorKind::FileTooLarge`] if the range length or file length is
+    // greater than `usize::MAX`.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure the `file` is not modified while all clones of the `IpcBytes` exists in the current process and others.
+    #[cfg(ipc)]
+    pub async unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<u64>>) -> io::Result<Self> {
+        blocking::unblock(move || {
+            // SAFETY: up to the caller
+            unsafe { Self::open_memmap_blocking(file, range) }
+        })
+        .await
+    }
+
+    /// Create a memory mapped file.
+    ///
+    /// Note that the `from_` functions select optimized backing storage depending on data length, this function
+    /// always selects the slowest options, a file backed memory map.
+    #[cfg(ipc)]
     pub fn new_memmap_blocking(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
         use crate::channel::ipc_bytes_memmap::MemmapMut;
 
@@ -521,6 +504,18 @@ impl IpcBytes {
 
         Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
     }
+
+    /// Gets if both point to the same memory.
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        let a = &self[..];
+        let b = &other[..];
+        (std::ptr::eq(a, b) && a.len() == b.len()) || (a.is_empty() && b.is_empty())
+    }
+
+    #[cfg(ipc)]
+    pub(super) const INLINE_MAX: usize = 64 * 1024; // 64KB
+    #[cfg(ipc)]
+    pub(super) const UNNAMED_MAX: usize = 128 * 1024 * 1024; // 128MB
 }
 
 impl AsRef<[u8]> for IpcBytes {

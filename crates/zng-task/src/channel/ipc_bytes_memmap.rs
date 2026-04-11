@@ -1,7 +1,5 @@
 use std::{
-    fs,
-    io::{self, Seek},
-    ops,
+    fs, io, ops,
     path::PathBuf,
     sync::{
         OnceLock,
@@ -231,49 +229,6 @@ impl Memmap {
             handle: IpcFileHandle::from(file),
             map,
         })
-    }
-
-    pub(super) fn read_copy(path: PathBuf, range: Option<ops::Range<u64>>) -> io::Result<Self> {
-        // Windows lock is enforced so we can skip copy if we can determinate that the `path`
-        // is not in a disk that can be removed while the app is running
-        #[cfg(windows)]
-        if let Ok(exe) = std::env::current_exe()
-            && let Ok(path) = path.canonicalize()
-            && (exe.components().next() == path.components().next() || std::env::temp_dir().components().next() == exe.components().next())
-        {
-            // SAFETY: file will be locked and it is in the system disk or on the exe disk
-            return unsafe { Self::read_user_file(path, range) };
-        }
-
-        let mut read = fs::File::open(path)?;
-        Self::read_file(&mut read, range)
-    }
-
-    pub(super) fn read_file(file: &mut fs::File, range: Option<ops::Range<u64>>) -> io::Result<Self> {
-        let len = file.metadata()?.len();
-        let range = match range {
-            Some(r) => {
-                if len < r.end - r.start {
-                    return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "cannot read range, file to small"));
-                } else {
-                    r
-                }
-            }
-            None => 0..len,
-        };
-        let len = match usize::try_from(range.end - range.start) {
-            Ok(l) => l,
-            Err(_) => return Err(io::Error::new(io::ErrorKind::FileTooLarge, "cannot map more than usize::MAX")),
-        };
-        file.seek(io::SeekFrom::Start(range.start))?;
-
-        Self::copy_stream(len, file)
-    }
-
-    pub(super) fn copy_stream(len: usize, stream: &mut impl io::Read) -> io::Result<Self> {
-        let mut map = MemmapMut::new(len)?;
-        stream.read_exact(&mut map)?;
-        map.into_read_only()
     }
 
     pub(super) fn end_write(file: fs::File) -> io::Result<Self> {
