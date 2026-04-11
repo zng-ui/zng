@@ -99,18 +99,19 @@ impl MemmapMut {
                 // * Goal is to avoid a disk that can be unmounted while the app is executing.
 
                 let mut path = if let Ok(exe) = std::env::current_exe()
-                    && let Some(exe_p) = exe.parent()
+                    && let Ok(exe) = exe.canonicalize()
+                    && let Some(exe) = exe.parent()
+                    && let Ok(mut p) = zng_env::cache("").canonicalize()
                 {
-                    let mut p = zng_env::cache("");
                     #[cfg(windows)]
-                    if p.components().next() != exe_p.components().next() {
+                    if p.components().next() != exe.components().next() {
                         p = std::env::temp_dir();
                     }
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::MetadataExt as _;
                         if let Ok(m1) = fs::metadata(&p)
-                            && let Ok(m2) = fs::metadata(&exe_p)
+                            && let Ok(m2) = fs::metadata(&exe)
                             && m1.dev() == m2.dev()
                         {
                             // same disk, ok
@@ -123,7 +124,7 @@ impl MemmapMut {
                     std::env::temp_dir()
                 };
 
-                path.push(format!("zng-memmap-{}", std::process::id()));
+                path.push(format!("zng-task-channel-{}", std::process::id()));
                 path
             })
             .with_added_extension(format!("{}.mmap", TMP_ID.fetch_add(1, Ordering::Relaxed)));
