@@ -68,7 +68,9 @@ blocking = { version = "1.5", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 futures-timer = { version = "3.0", default-features = false }
 futures-lite = { version = "2.3", default-features = false }
-async-fs = { version = "2.1", default-features = false }
+# TODO(breaking) remove this and when async-fs can be used again
+async-lock = "3.0.0"
+# async-fs = { version = "2.1", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = [
     "std",
