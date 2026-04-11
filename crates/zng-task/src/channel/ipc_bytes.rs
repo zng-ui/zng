@@ -14,9 +14,11 @@ use std::{
 use futures_lite::{AsyncReadExt, AsyncWriteExt as _};
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
-use parking_lot::Mutex;
-use serde::{Deserialize, Serialize, de::VariantAccess};
+use serde::{Deserialize, Serialize};
 use zng_app_context::RunOnDrop;
+
+#[cfg(ipc)]
+use crate::channel::ipc_bytes_memmap::Memmap;
 
 /// Immutable bytes vector that can be can be shared fast over IPC.
 ///
@@ -44,18 +46,30 @@ use zng_app_context::RunOnDrop;
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct IpcBytes(pub(super) Arc<IpcBytesData>);
+impl Serialize for IpcBytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Serialize::serialize(&*self.0, serializer)
+    }
+}
+impl<'de> Deserialize<'de> for IpcBytes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let b = <IpcBytesData as Deserialize>::deserialize(deserializer)?;
+        Ok(Self(Arc::new(b)))
+    }
+}
+#[derive(Serialize, Deserialize)]
 pub(super) enum IpcBytesData {
     Heap(Vec<u8>),
     #[cfg(ipc)]
     AnonMemMap(IpcSharedMemory),
     #[cfg(ipc)]
-    MemMap(IpcMemMap),
-    #[cfg(ipc)]
-    MemMapAsyncDeserialize {
-        map: std::sync::OnceLock<IpcMemMap>,
-        // len copy to avoid OnceLock load blocking early in some common use cases (ImageEntry::is_loaded for example)
-        len: usize,
-    },
+    MemMap(Memmap),
 }
 impl fmt::Debug for IpcBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -72,8 +86,6 @@ impl ops::Deref for IpcBytes {
             IpcBytesData::AnonMemMap(m) => m,
             #[cfg(ipc)]
             IpcBytesData::MemMap(f) => f,
-            #[cfg(ipc)]
-            IpcBytesData::MemMapAsyncDeserialize { map, .. } => map.wait(),
         }
     }
 }
@@ -245,30 +257,29 @@ impl IpcBytes {
     /// always selects the slowest options, a file backed memory map.
     #[cfg(ipc)]
     pub async fn new_memmap(write: impl AsyncFnOnce(&mut crate::fs::File) -> io::Result<()>) -> io::Result<Self> {
-        let (name, file) = blocking::unblock(Self::create_memmap).await?;
+        use crate::channel::ipc_bytes_memmap::MemmapMut;
+
+        let file = blocking::unblock(MemmapMut::begin_write).await?;
         let mut file = crate::fs::File::from(file);
         write(&mut file).await?;
 
-        let mut permissions = file.metadata().await?.permissions();
-        permissions.set_readonly(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            permissions.set_mode(0o400);
+        match file.try_unwrap().await {
+            Ok(f) => {
+                let map = blocking::unblock(move || Memmap::end_write(f)).await?;
+                Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
+            }
+            Err(_) => Err(io::Error::new(
+                io::ErrorKind::ResourceBusy,
+                "no all tasks started by `write` awaited before return",
+            )),
         }
-        file.set_permissions(permissions).await?;
-
-        blocking::unblock(move || {
-            drop(file);
-            let map = IpcMemMap::read(name, None)?;
-            Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
-        })
-        .await
     }
 
     /// Memory map an existing file.
     ///
-    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`] if the file does not have enough bytes.
+    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`]
+    // if the file does not have enough bytes. Returns [`io::ErrorKind::FileTooLarge`] if the range length or file length is
+    // greater than `usize::MAX`.
     ///
     /// # Safety
     ///
@@ -279,7 +290,7 @@ impl IpcBytes {
     ///
     /// [`new_memmap`]: Self::new_memmap
     #[cfg(ipc)]
-    pub async unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
+    pub async unsafe fn open_memmap(file: PathBuf, range: Option<ops::Range<u64>>) -> io::Result<Self> {
         blocking::unblock(move || {
             // SAFETY: up to the caller
             unsafe { Self::open_memmap_blocking(file, range) }
@@ -485,141 +496,30 @@ impl IpcBytes {
     /// always selects the slowest options, a file backed memory map.
     #[cfg(ipc)]
     pub fn new_memmap_blocking(write: impl FnOnce(&mut fs::File) -> io::Result<()>) -> io::Result<Self> {
-        let (name, mut file) = Self::create_memmap()?;
+        use crate::channel::ipc_bytes_memmap::MemmapMut;
+
+        let mut file = MemmapMut::begin_write()?;
         write(&mut file)?;
-        let mut permissions = file.metadata()?.permissions();
-        permissions.set_readonly(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            permissions.set_mode(0o400);
-        }
-        file.set_permissions(permissions)?;
+        let map = Memmap::end_write(file)?;
 
-        drop(file);
-        let map = IpcMemMap::read(name, None)?;
         Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
-    }
-    #[cfg(ipc)]
-    pub(super) fn create_memmap() -> io::Result<(PathBuf, fs::File)> {
-        static MEMMAP_DIR: Mutex<usize> = Mutex::new(0);
-        let mut count = MEMMAP_DIR.lock();
-
-        if *count == 0 {
-            // cleanup any leftover after crash
-            zng_env::on_process_exit(|_| {
-                // cleanup own resources and any leftover of other instances
-                cleanup_memmap_storage();
-            });
-        }
-
-        let dir = zng_env::cache("zng-task-ipc-mem").join(std::process::id().to_string());
-        fs::create_dir_all(&dir)?;
-        let mut name = dir.join(count.to_string());
-        if *count < usize::MAX {
-            *count += 1;
-        } else {
-            // very cold path, in practice the running process will die long before this
-            for i in 0..usize::MAX {
-                name = dir.join(i.to_string());
-                if !name.exists() {
-                    break;
-                }
-            }
-            if name.exists() {
-                return Err(io::Error::new(io::ErrorKind::StorageFull, ""));
-            }
-        };
-
-        let mut opt = fs::OpenOptions::new();
-        opt.create(true).read(true).write(true).truncate(true);
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::OpenOptionsExt as _;
-            const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x00000100;
-            opt.attributes(FILE_ATTRIBUTE_TEMPORARY);
-        }
-        let file = opt.open(&name)?;
-        Ok((name, file))
     }
 
     /// Memory map an existing file.
     ///
-    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`] if the file does not have enough bytes.
+    /// The `range` defines the slice of the `file` that will be mapped. Returns [`io::ErrorKind::UnexpectedEof`]
+    // if the file does not have enough bytes. Returns [`io::ErrorKind::FileTooLarge`] if the range length or file length is
+    // greater than `usize::MAX`.
     ///
     /// # Safety
     ///
-    /// Caller must ensure the `file` is not modified while all clones of the `IpcBytes` exists in the current process and others.
-    ///
-    /// Note that the safe [`new_memmap`] function assures safety by retaining a read lock (Windows) and restricting access rights (Unix)
-    /// so that the file data is as read-only as the static data in the current executable file.
-    ///
-    /// [`new_memmap`]: Self::new_memmap
+    /// Caller must ensure the `file` is not modified or removed while all clones of the `IpcBytes` exists in the current process and others.
     #[cfg(ipc)]
-    pub unsafe fn open_memmap_blocking(file: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
-        let read_handle = fs::File::open(&file)?;
-        read_handle.lock_shared()?;
-        let len = read_handle.metadata()?.len();
-        if let Some(range) = &range
-            && len < range.end as u64
-        {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "file length < range.end"));
-        }
-        // SAFETY: up to the caller.
-        let map = unsafe { memmap2::Mmap::map(&read_handle) }?;
+    pub unsafe fn open_memmap_blocking(file: PathBuf, range: Option<ops::Range<u64>>) -> io::Result<Self> {
+        // SAFETY: up to the caller
+        let map = unsafe { Memmap::read_user_file(file, range) }?;
 
-        let range = range.unwrap_or_else(|| 0..map.len());
-
-        Ok(Self(Arc::new(IpcBytesData::MemMap(IpcMemMap {
-            name: file,
-            range,
-            map: IpcMemMapData::Connected(map, read_handle),
-            is_custom: true,
-        }))))
-    }
-}
-
-impl IpcBytes {
-    /// Returns the number of bytes.
-    pub fn len(&self) -> usize {
-        match &*self.0 {
-            IpcBytesData::Heap(b) => b.len(),
-            #[cfg(ipc)]
-            IpcBytesData::AnonMemMap(b) => b.len(),
-            #[cfg(ipc)]
-            IpcBytesData::MemMap(b) => b.len(),
-            #[cfg(ipc)]
-            IpcBytesData::MemMapAsyncDeserialize { len, .. } => *len,
-        }
-    }
-
-    /// Returns `true` if contains no bytes.
-    pub fn is_empty(&self) -> bool {
-        match &*self.0 {
-            IpcBytesData::Heap(b) => b.is_empty(),
-            #[cfg(ipc)]
-            IpcBytesData::AnonMemMap(b) => b.is_empty(),
-            #[cfg(ipc)]
-            IpcBytesData::MemMap(b) => b.is_empty(),
-            #[cfg(ipc)]
-            IpcBytesData::MemMapAsyncDeserialize { len, .. } => *len == 0,
-        }
-    }
-}
-
-/// If built with `"ipc"` feature removes all leftover memmap files of crashed processes.
-///
-/// Note that this is already called on normal process exit if any memmap was created. It is also called
-/// by the crash handler process on startup after it spawns the app-process.
-pub fn cleanup_memmap_storage() {
-    #[cfg(ipc)]
-    if let Ok(dir) = fs::read_dir(zng_env::cache("zng-task-ipc-mem")) {
-        let entries: Vec<_> = dir.flatten().map(|e| e.path()).collect();
-        for entry in entries {
-            if entry.is_dir() {
-                fs::remove_dir_all(entry).ok();
-            }
-        }
+        Ok(Self(Arc::new(IpcBytesData::MemMap(map))))
     }
 }
 
@@ -639,253 +539,6 @@ impl PartialEq for IpcBytes {
     }
 }
 impl Eq for IpcBytes {}
-#[cfg(ipc)]
-pub(super) struct IpcMemMap {
-    pub(super) name: PathBuf,
-    pub(super) range: ops::Range<usize>,
-    pub(super) is_custom: bool,
-    pub(super) map: IpcMemMapData,
-}
-#[cfg(ipc)]
-pub(super) enum IpcMemMapData {
-    #[allow(unused)] // its holding the file handle
-    Connected(memmap2::Mmap, fs::File),
-    AsyncDeserializing,
-    AsyncDeserializeError(io::Error),
-    Dropped,
-}
-#[cfg(ipc)]
-impl ops::Deref for IpcMemMap {
-    type Target = [u8];
-
-    fn deref(&self) -> &[u8] {
-        match &self.map {
-            IpcMemMapData::Connected(mmap, _) => &mmap[self.range.clone()],
-            IpcMemMapData::AsyncDeserializeError(e) => panic!("IpcBytes failed to reconnect with deserialized memmap file, {e}"),
-            IpcMemMapData::AsyncDeserializing => unreachable!(), // only accessed from an OnceLock that locks until result is set
-            IpcMemMapData::Dropped => unreachable!(),
-        }
-    }
-}
-#[cfg(ipc)]
-impl IpcMemMap {
-    fn read_map(name: &Path) -> io::Result<(memmap2::Mmap, fs::File)> {
-        let read_handle = fs::File::open(name)?;
-        read_handle.lock_shared()?;
-        // SAFETY: File is marked read-only and a read lock is held for it.
-        let map = unsafe { memmap2::Mmap::map(&read_handle) }?;
-
-        Ok((map, read_handle))
-    }
-
-    fn read(name: PathBuf, range: Option<ops::Range<usize>>) -> io::Result<Self> {
-        let r = Self::read_map(&name)?;
-        let range = range.unwrap_or_else(|| 0..r.0.len());
-        Ok(IpcMemMap {
-            name,
-            range,
-            is_custom: false,
-            map: IpcMemMapData::Connected(r.0, r.1),
-        })
-    }
-
-    fn finish_deserialize(&mut self) {
-        self.map = match Self::read_map(&self.name) {
-            Ok(r) => IpcMemMapData::Connected(r.0, r.1),
-            Err(e) => IpcMemMapData::AsyncDeserializeError(e),
-        };
-    }
-}
-#[cfg(ipc)]
-impl Serialize for IpcMemMap {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        (&self.name, self.range.clone()).serialize(serializer)
-    }
-}
-#[cfg(ipc)]
-impl<'de> Deserialize<'de> for IpcMemMap {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let (name, range) = <(PathBuf, ops::Range<usize>)>::deserialize(deserializer)?;
-        Ok(IpcMemMap {
-            name,
-            range,
-            is_custom: false,
-            map: IpcMemMapData::AsyncDeserializing,
-        })
-    }
-}
-#[cfg(ipc)]
-impl Drop for IpcMemMap {
-    fn drop(&mut self) {
-        self.map = IpcMemMapData::Dropped;
-        if !self.is_custom {
-            std::fs::remove_file(&self.name).ok();
-        }
-    }
-}
-
-impl Serialize for IpcBytes {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[cfg(ipc)]
-        {
-            if is_ipc_serialization() {
-                match &*self.0 {
-                    IpcBytesData::Heap(b) => serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&b[..])),
-                    IpcBytesData::AnonMemMap(b) => serializer.serialize_newtype_variant("IpcBytes", 1, "AnonMemMap", b),
-                    IpcBytesData::MemMap(_) | IpcBytesData::MemMapAsyncDeserialize { .. } => {
-                        let b = match &*self.0 {
-                            IpcBytesData::MemMap(b) => b,
-                            IpcBytesData::MemMapAsyncDeserialize { map, .. } => map.wait(),
-                            _ => unreachable!(),
-                        };
-                        // need to keep alive until other process is also holding it, so we send
-                        // a sender for the other process to signal received.
-                        let (sender, mut recv) = crate::channel::ipc_unbounded::<()>()
-                            .map_err(|e| serde::ser::Error::custom(format!("cannot serialize memmap bytes for ipc, {e}")))?;
-
-                        let r = serializer.serialize_newtype_variant("IpcBytes", 2, "MemMap", &(b, sender))?;
-                        let hold = self.clone();
-                        blocking::unblock(move || {
-                            if let Err(e) = recv.recv_blocking() {
-                                tracing::error!("IpcBytes memmap completion signal not received, {e}")
-                            }
-                            drop(hold);
-                        })
-                        .detach();
-                        Ok(r)
-                    }
-                }
-            } else {
-                serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&self[..]))
-            }
-        }
-        #[cfg(not(ipc))]
-        {
-            serializer.serialize_newtype_variant("IpcBytes", 0, "Heap", serde_bytes::Bytes::new(&self[..]))
-        }
-    }
-}
-impl<'de> Deserialize<'de> for IpcBytes {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        enum VariantId {
-            Heap,
-            #[cfg(ipc)]
-            AnonMemMap,
-            #[cfg(ipc)]
-            MemMap,
-        }
-
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IpcBytes;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "IpcBytes variant")
-            }
-
-            fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::EnumAccess<'de>,
-            {
-                let (variant, access) = data.variant::<VariantId>()?;
-                match variant {
-                    VariantId::Heap => access.newtype_variant_seed(ByteSliceVisitor),
-                    #[cfg(ipc)]
-                    VariantId::AnonMemMap => Ok(IpcBytes(Arc::new(IpcBytesData::AnonMemMap(access.newtype_variant()?)))),
-                    #[cfg(ipc)]
-                    VariantId::MemMap => {
-                        let (mut memmap, mut completion_sender): (IpcMemMap, crate::channel::IpcSender<()>) = access.newtype_variant()?;
-
-                        let ipc_bytes = IpcBytes(Arc::new(IpcBytesData::MemMapAsyncDeserialize {
-                            map: std::sync::OnceLock::new(),
-                            len: memmap.range.len(),
-                        }));
-                        let ipc_bytes_sender = ipc_bytes.0.clone();
-                        blocking::unblock(move || {
-                            memmap.finish_deserialize();
-                            if let IpcMemMapData::AsyncDeserializeError(e) = &memmap.map {
-                                tracing::error!("failed to reconnect with deserialized memmap file, will panic on first read, {e}");
-                            }
-                            if let Err(e) = completion_sender.send_blocking(()) {
-                                tracing::error!("failed to send memmap deserialize completion signal, {e}");
-                            }
-                            match &*ipc_bytes_sender {
-                                IpcBytesData::MemMapAsyncDeserialize { map, .. } => {
-                                    map.get_or_init(|| memmap);
-                                }
-                                _ => unreachable!(),
-                            }
-                        })
-                        .detach();
-
-                        Ok(ipc_bytes)
-                    }
-                }
-            }
-        }
-        struct ByteSliceVisitor;
-        impl<'de> serde::de::Visitor<'de> for ByteSliceVisitor {
-            type Value = IpcBytes;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "byte buffer")
-            }
-
-            fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                IpcBytes::from_slice_blocking(v).map_err(serde::de::Error::custom)
-            }
-
-            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                IpcBytes::from_slice_blocking(v).map_err(serde::de::Error::custom)
-            }
-
-            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                IpcBytes::from_vec_blocking(v).map_err(serde::de::Error::custom)
-            }
-        }
-        impl<'de> serde::de::DeserializeSeed<'de> for ByteSliceVisitor {
-            type Value = IpcBytes;
-
-            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                deserializer.deserialize_bytes(ByteSliceVisitor)
-            }
-        }
-
-        #[cfg(ipc)]
-        {
-            deserializer.deserialize_enum("IpcBytes", &["Heap", "AnonMemMap", "MemMap"], EnumVisitor)
-        }
-        #[cfg(not(ipc))]
-        {
-            deserializer.deserialize_enum("IpcBytes", &["Heap"], EnumVisitor)
-        }
-    }
-}
 
 /// Enables special serialization of memory mapped files for the `serialize` call.
 ///

@@ -88,8 +88,7 @@ impl MemmapMut {
         })
     }
 
-    /// Create a new safe memory map.
-    pub(super) fn new(len: usize) -> io::Result<Self> {
+    pub(super) fn begin_write() -> io::Result<fs::File> {
         static TMP: OnceLock<PathBuf> = OnceLock::new();
         static TMP_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -139,28 +138,41 @@ impl MemmapMut {
         }
         let file = opt.read(true).write(true).create_new(true).open(file_path)?;
         file.lock()?;
-        file.set_len(len as u64)?;
         #[cfg(unix)]
         {
             let _ = fs::remove_file(&file_path);
         }
+        Ok(file)
+    }
 
+    pub(super) fn end_write(file: fs::File) -> io::Result<Self> {
+        let len = file.metadata()?.len();
+        if len > usize::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::FileTooLarge, "cannot map more than usize::MAX"));
+        }
         let mut opt = memmap2::MmapOptions::new();
-        opt.len(len);
+        opt.len(len as usize);
         // SAFETY:
         //  - No other user process can access the file.
         //  - We selected the disk least likely to be unmounted.
         let map = unsafe { opt.map_mut(&file) }?;
 
         Ok(Self {
-            range: 0..len as u64,
+            range: 0..len,
             handle: file,
             map,
         })
     }
 
+    /// Create a new safe memory map.
+    pub(super) fn new(len: usize) -> io::Result<Self> {
+        let file = Self::begin_write()?;
+        file.set_len(len as u64)?;
+        Self::end_write(file)
+    }
+
     /// Downgrade lock to shared, convert memory map to immutable.
-    pub(super) fn to_read_only(self) -> io::Result<Memmap> {
+    pub(super) fn into_read_only(self) -> io::Result<Memmap> {
         self.handle.unlock()?;
         self.handle.lock_shared()?;
         let map = memmap2::MmapMut::make_read_only(self.map)?;
@@ -260,7 +272,11 @@ impl Memmap {
     pub(super) fn copy_stream(len: usize, stream: &mut impl io::Read) -> io::Result<Self> {
         let mut map = MemmapMut::new(len)?;
         stream.read_exact(&mut map)?;
-        map.to_read_only()
+        map.into_read_only()
+    }
+
+    pub(super) fn end_write(file: fs::File) -> io::Result<Self> {
+        MemmapMut::end_write(file)?.into_read_only()
     }
 }
 impl Serialize for Memmap {

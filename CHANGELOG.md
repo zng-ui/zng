@@ -1,5 +1,8 @@
 # Unreleased
 
+* Refactor `IpcBytes` memory map backend.
+    - More robust and safe implementation using `IpcFileHandle`.
+    - **Breaking** Removed `zng_task::channel::cleanup_memmap_storage`, no longer needed.
 * Add `zng::task::channel::IpcFileHandle` for sending file handles across IPC channels.
 * **Breaking** Upgrade IPC dependencies.
     - Upgrade `ipc-channel`.
