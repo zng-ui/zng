@@ -1,6 +1,6 @@
 #![cfg_attr(not(ipc), allow(unused))]
 
-use std::{mem, sync::atomic::AtomicUsize};
+use std::mem;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,17 +10,18 @@ use serde::{Deserialize, Serialize};
 ///
 /// This type can be converted  from and to [`std::fs::File`]. This type does not
 /// implement IO traits, it must be converted to read/write. The file handle is only closed on drop
-/// if it was not sent or converted.
+/// if it was not converted back.
 ///
 /// # Serialization
 ///
 /// This type implements serialization only for compatibility with IPC channel, attempting to
-/// serialize it outside of [`with_ipc_serialization`] context will return an error.
+/// serialize it outside of [`with_ipc_serialization`] context will return an error. On IPC serialization
+/// the handle is duplicated for the target process.
 ///
 /// [`with_ipc_serialization`]: crate::channel::with_ipc_serialization
 pub struct IpcFileHandle {
     #[cfg(ipc)]
-    handle: AtomicUsize,
+    handle: usize,
     #[cfg(not(ipc))]
     handle: std::fs::File,
 }
@@ -40,9 +41,7 @@ impl From<std::fs::File> for IpcFileHandle {
         let handle = std::os::windows::io::IntoRawHandle::into_raw_handle(file) as usize;
         #[cfg(unix)]
         let handle = std::os::fd::IntoRawFd::into_raw_fd(file) as usize;
-        Self {
-            handle: AtomicUsize::new(handle),
-        }
+        Self { handle }
     }
 }
 #[cfg(not(ipc))]
@@ -54,8 +53,8 @@ impl From<IpcFileHandle> for std::fs::File {
 #[cfg(ipc)]
 impl From<IpcFileHandle> for std::fs::File {
     fn from(mut f: IpcFileHandle) -> Self {
-        let handle = mem::take(f.handle.get_mut());
-        assert!(handle != 0, "cannot access file, already moved");
+        let handle = mem::take(&mut f.handle);
+        assert!(handle != 0);
         // SAFETY: handle was not moved (not zero) and was converted from File
         unsafe { into_file(handle) }
     }
@@ -75,7 +74,7 @@ impl From<IpcFileHandle> for crate::fs::File {
 #[cfg(ipc)]
 impl Drop for IpcFileHandle {
     fn drop(&mut self) {
-        let handle = mem::take(self.handle.get_mut());
+        let handle = mem::take(&mut self.handle);
         if handle != 0 {
             // SAFETY: handle was not moved (not zero) and was converted from File
             drop(unsafe { into_file(handle) });
@@ -117,8 +116,8 @@ impl Serialize for IpcFileHandle {
         if !crate::channel::is_ipc_serialization() {
             return Err(serde::ser::Error::custom("cannot serialize `IpcFileHandle` outside IPC"));
         }
-        let handle = self.handle.swap(0, std::sync::atomic::Ordering::Relaxed);
-        assert!(handle != 0, "IpcFile already moved");
+        let handle = self.handle;
+        assert!(handle != 0);
         // SAFETY: handle was not moved (not zero) and was converted from File
         let handle = unsafe { into_file(handle) };
 
