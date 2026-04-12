@@ -2,6 +2,7 @@
 
 use std::mem;
 
+use futures_lite::io;
 use serde::{Deserialize, Serialize};
 
 /// File handle that can be transferred to another process.
@@ -69,6 +70,35 @@ impl From<IpcFileHandle> for crate::fs::File {
 impl From<IpcFileHandle> for crate::fs::File {
     fn from(f: IpcFileHandle) -> Self {
         crate::fs::File::from(std::fs::File::from(f))
+    }
+}
+impl IpcFileHandle {
+    /// Duplicate file handle for the same process.
+    pub fn duplicate(&self) -> io::Result<Self> {
+        #[cfg(ipc)]
+        {
+            let handle = self.handle;
+            assert!(handle != 0);
+            // SAFETY: handle was not moved (not zero)
+            let file = unsafe { into_file(handle) };
+
+            // let std call duplicate
+            let handle: Self = file.try_clone()?.into();
+
+            // drop file without cleanup
+            #[cfg(windows)]
+            let _ = std::os::windows::io::IntoRawHandle::into_raw_handle(file) as usize;
+            #[cfg(unix)]
+            let _ = std::os::fd::IntoRawFd::into_raw_fd(file) as usize;
+
+            Ok(handle)
+        }
+        #[cfg(not(ipc))]
+        {
+            Ok(Self {
+                handle: self.handle.try_clone()?,
+            })
+        }
     }
 }
 #[cfg(ipc)]
@@ -263,6 +293,8 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
 
         #[cfg(unix)]
         {
+            use std::{os::unix::net::UnixDatagram, sync::atomic::AtomicUsize};
+
             let mut socket_sender = <super::IpcSender<(String, super::IpcReceiver<bool>)> as Deserialize<'de>>::deserialize(deserializer)?;
 
             static SOCKET_ID: AtomicUsize = AtomicUsize::new(0);
@@ -274,7 +306,6 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
             );
             let mut socket_tmp = None;
 
-            use std::os::unix::net::UnixDatagram;
             #[cfg(target_os = "linux")]
             let fd_recv = {
                 // try abstract name first
