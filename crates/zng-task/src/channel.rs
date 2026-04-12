@@ -37,9 +37,11 @@ mod ipc_bytes_cast;
 #[cfg(ipc)]
 mod ipc_bytes_memmap;
 mod ipc_bytes_mut;
+mod ipc_read;
 pub use ipc_bytes::{IpcBytes, IpcBytesIntoIter, WeakIpcBytes};
 pub use ipc_bytes_cast::{IpcBytesCast, IpcBytesCastIntoIter, IpcBytesMutCast};
 pub use ipc_bytes_mut::{IpcBytesMut, IpcBytesWriter, IpcBytesWriterBlocking};
+pub use ipc_read::{IpcRead, IpcReadBlocking, IpcReadHandle};
 
 #[cfg(ipc)]
 pub use ipc_bytes::{is_ipc_serialization, with_ipc_serialization};

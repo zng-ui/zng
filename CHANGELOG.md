@@ -1,5 +1,10 @@
 # Unreleased
 
+This release contains only advanced API breaking changes, it should not affect most use cases. The changes
+improve IPC performance and security.
+
+* Add `IpcReadHandle` and related types.
+    - **Breaking** View-process API now reads image and audio files directly.
 * **Breaking** Remove `IpcBytesMut` constructors from `IpcBytes`.
     - Removed `new_mut` and `new_mut_blocking` from `IpcBytes` and `IpcBytesCast`. 
 * Refactor `IpcBytes` memory map backend.
