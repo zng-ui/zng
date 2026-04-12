@@ -6,7 +6,7 @@ use crate::image_cache::ResizerCache;
 use crate::image_cache::dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::ImageDecoder as _;
-use zng_task::channel::{IpcBytes, IpcBytesMut};
+use zng_task::channel::IpcBytesMut;
 use zng_txt::ToTxt as _;
 use zng_txt::Txt;
 use zng_unit::PxDensityUnits as _;
@@ -420,7 +420,7 @@ impl ImageCache {
                     is_opaque = !raw.iter().any(|&a| a < 255);
                     raw
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
+                    let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
                     for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
                         p.copy_from_slice(&[l, l, l, 255])
                     }
@@ -447,7 +447,7 @@ impl ImageCache {
                     }
                     raw
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
+                    let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
                     for (p, la) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(2)) {
                         let a = la[1];
                         is_opaque &= a == 255;
@@ -487,7 +487,7 @@ impl ImageCache {
                     }
                     raw
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
+                    let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
                     for (p, rgb) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(3)) {
                         p.copy_from_slice(&[rgb[2], rgb[1], rgb[0], 255]);
                     }
@@ -547,7 +547,7 @@ impl ImageCache {
                     });
                     raw
                 } else {
-                    let mut bgra = IpcBytes::new_mut_blocking(pixels_len * 4)?;
+                    let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
                     for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
                         let l = (l as f32 / u16::MAX as f32 * 255.0) as u8;
                         p.copy_from_slice(&[l, l, l, 255]);
@@ -815,7 +815,7 @@ impl ImageCache {
                 Ok((size, pixels))
             }
             alloc_needed => {
-                let mut out = IpcBytes::new_mut_blocking(pixels.len())?;
+                let mut out = IpcBytesMut::new_blocking(pixels.len())?;
                 let out_slice = &mut out[..];
 
                 // iterate using loop tiling for better CPU cache perf
@@ -877,7 +877,7 @@ impl ImageCache {
         downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
-        let mut a = IpcBytes::new_mut_blocking(bgra8.len() / 4)?;
+        let mut a = IpcBytesMut::new_blocking(bgra8.len() / 4)?;
         let mut is_opaque = true;
         match mask {
             ImageMaskMode::Luminance => {
@@ -972,7 +972,7 @@ impl ImageCache {
         downscale: Option<PxSize>,
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
-        let mut bgra = IpcBytes::new_mut_blocking(a8.len() * 4)?;
+        let mut bgra = IpcBytesMut::new_blocking(a8.len() * 4)?;
         for (p, &l) in bgra.chunks_exact_mut(4).zip(a8) {
             p.copy_from_slice(&[l, l, l, 255])
         }
@@ -1006,7 +1006,7 @@ impl ImageCache {
 
             let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
             let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, pixels, px_type).unwrap();
-            let mut dest_buf = IpcBytes::new_mut_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
+            let mut dest_buf = IpcBytesMut::new_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
             let mut dest =
                 fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
 

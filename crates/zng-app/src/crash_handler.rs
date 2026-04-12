@@ -1055,9 +1055,6 @@ fn run_process(
     let stdout = capture_and_print(app_process.stdout.take().unwrap(), false);
     let stderr = capture_and_print(app_process.stderr.take().unwrap(), true);
 
-    // cleanup any leftover memmap files
-    zng_task::channel::cleanup_memmap_storage();
-
     let status = app_process.wait()?;
 
     let stdout = match stdout.join() {
@@ -1077,9 +1074,6 @@ fn run_process(
             Err(p) => std::panic::resume_unwind(p),
         };
     }
-
-    // cleanup any memmap files that where not dropped before exit
-    zng_task::channel::cleanup_memmap_storage();
 
     Ok((status, [stdout, stderr], dump_file))
 }

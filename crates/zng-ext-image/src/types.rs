@@ -536,14 +536,14 @@ impl ImageEntry {
         self.actual_pixels_and_size().and_then(|(size, pixels)| {
             let area = PxRect::from_size(size).intersection(&rect).unwrap_or_default();
             if area.size.width.0 == 0 || area.size.height.0 == 0 {
-                Some((area, IpcBytes::new_mut_blocking(0).unwrap()))
+                Some((area, IpcBytesMut::new_blocking(0).unwrap()))
             } else {
                 let x = area.origin.x.0 as usize;
                 let y = area.origin.y.0 as usize;
                 let width = area.size.width.0 as usize;
                 let height = area.size.height.0 as usize;
                 let pixel = if self.is_mask() { 1 } else { 4 };
-                let mut bytes = IpcBytes::new_mut_blocking(width * height * pixel).ok()?;
+                let mut bytes = IpcBytesMut::new_blocking(width * height * pixel).ok()?;
                 let mut write = &mut bytes[..];
                 let row_stride = self.size().width.0 as usize * pixel;
                 for l in y..y + height {
@@ -1166,7 +1166,7 @@ impl ImageSource {
     fn flood_impl(size: PxSize, color: Rgba, density: Option<PxDensity2d>) -> Self {
         let pixels = size.width.0 as usize * size.height.0 as usize;
         let bgra = color.to_bgra_bytes();
-        let mut b = IpcBytes::new_mut_blocking(pixels * 4).expect("cannot allocate IpcBytes");
+        let mut b = IpcBytesMut::new_blocking(pixels * 4).expect("cannot allocate IpcBytes");
         for b in b.chunks_exact_mut(4) {
             b.copy_from_slice(&bgra);
         }

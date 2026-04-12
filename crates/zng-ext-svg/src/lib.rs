@@ -13,7 +13,7 @@
 
 use zng_app::{APP, hn};
 use zng_ext_image::*;
-use zng_task::channel::IpcBytes;
+use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::{Txt, formatx};
 use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 use zng_var::const_var;
@@ -104,7 +104,7 @@ fn load_render(max_decoded_len: ByteLength, data: SvgData, downscale: Option<Ima
                 if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
                     return error(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
                 }
-                let mut data = match IpcBytes::new_mut_blocking(size.width() as usize * size.height() as usize * 4) {
+                let mut data = match IpcBytesMut::new_blocking(size.width() as usize * size.height() as usize * 4) {
                     Ok(b) => b,
                     Err(e) => return error(formatx!("can't allocate bytes for {size:?} svg, {e}")),
                 };

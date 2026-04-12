@@ -1,7 +1,7 @@
 // like image::DynamicImage, but with IpcBytesMut storage
 
 use image::{error::*, *};
-use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
+use zng_task::channel::{IpcBytesMut, IpcBytesMutCast};
 
 use crate::image_cache::decode::ContainerFormat;
 
@@ -182,7 +182,7 @@ impl IpcDynamicImage {
             return Err(ImageError::Limits(LimitError::from_kind(LimitErrorKind::InsufficientMemory)));
         }
 
-        let buf = IpcBytes::new_mut_blocking(len as usize)?;
+        let buf = IpcBytesMut::new_blocking(len as usize)?;
         Ok(buf)
     }
 

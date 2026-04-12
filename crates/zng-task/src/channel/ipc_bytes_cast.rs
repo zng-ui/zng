@@ -34,15 +34,43 @@ impl<T: bytemuck::AnyBitPattern> From<IpcBytesMutCast<T>> for IpcBytesMut {
         value.bytes
     }
 }
+fn item_len_to_bytes<T: 'static>(len: usize) -> io::Result<usize> {
+    match len.checked_mul(size_of::<T>()) {
+        Some(l) => Ok(l),
+        None => Err(io::Error::new(io::ErrorKind::FileTooLarge, "cannot map more than usize::MAX")),
+    }
+}
 impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
-    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    /// Allocate zeroed mutable memory.
     pub async fn new(len: usize) -> io::Result<Self> {
-        IpcBytesMut::new(len * size_of::<T>()).await.map(IpcBytesMut::cast)
+        IpcBytesMut::new(item_len_to_bytes::<T>(len)?).await.map(IpcBytesMut::cast)
     }
 
-    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
+    /// Allocate zeroed mutable memory.
     pub fn new_blocking(len: usize) -> io::Result<Self> {
-        IpcBytesMut::new_blocking(len * size_of::<T>()).map(IpcBytesMut::cast)
+        IpcBytesMut::new_blocking(item_len_to_bytes::<T>(len)?).map(IpcBytesMut::cast)
+    }
+
+    /// Allocate zeroed mutable memory in a memory map.
+    ///
+    /// Note that [`new`] automatically selects the best memory storage for the given `len`, this
+    /// function enforces the usage of a memory map, the slowest of the options.
+    ///
+    /// [`new`]: Self::new
+    #[cfg(ipc)]
+    pub async fn new_memmap(len: usize) -> io::Result<Self> {
+        IpcBytesMut::new_memmap(item_len_to_bytes::<T>(len)?).await.map(IpcBytesMut::cast)
+    }
+
+    /// Allocate zeroed mutable memory in a memory map.
+    ///
+    /// Note that [`new_blocking`] automatically selects the best memory storage for the given `len`, this
+    /// function enforces the usage of a memory map, the slowest of the options.
+    ///
+    /// [`new_blocking`]: Self::new_blocking
+    #[cfg(ipc)]
+    pub fn new_memmap_blocking(len: usize) -> io::Result<Self> {
+        IpcBytesMut::new_memmap_blocking(item_len_to_bytes::<T>(len)?).map(IpcBytesMut::cast)
     }
 
     /// Uses `buf` or copies it to exclusive mutable memory.
@@ -64,7 +92,8 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     pub fn as_bytes(&mut self) -> &mut IpcBytesMut {
         &mut self.bytes
     }
-
+}
+impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     /// Convert to immutable shareable [`IpcBytesCast`].
     pub async fn finish(self) -> io::Result<IpcBytesCast<T>> {
         self.bytes.finish().await.map(IpcBytes::cast)
@@ -188,16 +217,6 @@ impl<T: bytemuck::AnyBitPattern> PartialEq for IpcBytesCast<T> {
 }
 impl<T: bytemuck::AnyBitPattern> Eq for IpcBytesCast<T> {}
 impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
-    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytesCast` fast.
-    pub async fn new_mut(len: usize) -> io::Result<IpcBytesMutCast<T>> {
-        IpcBytesMut::new(len * size_of::<T>()).await.map(IpcBytesMut::cast)
-    }
-
-    /// Allocate zeroed mutable memory that can be written to and then converted to `IpcBytes` fast.
-    pub fn new_mut_blocking(len: usize) -> io::Result<IpcBytesMutCast<T>> {
-        IpcBytesMut::new_blocking(len * size_of::<T>()).map(IpcBytesMut::cast)
-    }
-
     /// Copy or move data from vector.
     pub async fn from_vec(data: Vec<T>) -> io::Result<Self> {
         IpcBytes::from_vec(bytemuck::cast_vec(data)).await.map(IpcBytes::cast)
@@ -224,7 +243,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
                 if max <= IpcBytes::INLINE_MAX {
                     return Self::from_vec(iter.collect()).await;
                 } else if max == min {
-                    let mut r = IpcBytes::new_mut(max).await?;
+                    let mut r = IpcBytesMut::new(max).await?;
                     let mut actual_len = 0;
                     for (i, f) in r.chunks_exact_mut(l).zip(iter) {
                         i.copy_from_slice(bytemuck::bytes_of(&f));
@@ -280,7 +299,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesCast<T> {
                 if max <= IpcBytes::INLINE_MAX {
                     return Self::from_vec_blocking(iter.collect());
                 } else if max == min {
-                    let mut r = IpcBytes::new_mut_blocking(max)?;
+                    let mut r = IpcBytesMut::new_blocking(max)?;
                     let mut actual_len = 0;
                     for (i, f) in r.chunks_exact_mut(l).zip(&mut iter) {
                         i.copy_from_slice(bytemuck::bytes_of(&f));

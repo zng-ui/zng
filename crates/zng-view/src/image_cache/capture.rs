@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use zng_task::{channel::IpcBytes, parking_lot::Mutex};
+use zng_task::{channel::IpcBytesMut, parking_lot::Mutex};
 use zng_txt::formatx;
 use zng_unit::{Factor, PxDensity2d, PxDensityUnits as _, PxRect};
 use zng_view_api::{
@@ -80,7 +80,7 @@ impl ImageCache {
             format,
             gleam::gl::UNSIGNED_BYTE,
         );
-        let mut buf = IpcBytes::new_mut_blocking(pixels_flipped.len())?;
+        let mut buf = IpcBytesMut::new_blocking(pixels_flipped.len())?;
         assert_eq!(rect.size.width.0 as usize * rect.size.height.0 as usize * 4, buf.len());
         let stride = 4 * rect.size.width.0 as usize;
         for (px, buf) in pixels_flipped.chunks_exact(stride).rev().zip(buf.chunks_exact_mut(stride)) {
