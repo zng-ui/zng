@@ -227,8 +227,8 @@ pub mod channel {
     pub use zng_task::channel::{ChannelError, Receiver, Sender, bounded, rendezvous, unbounded};
     pub use zng_task::channel::{
         IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcBytesIntoIter, IpcBytesMut, IpcBytesMutCast, IpcBytesWriter,
-        IpcBytesWriterBlocking, IpcFileHandle, IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver, NamedIpcSender, WeakIpcBytes,
-        ipc_unbounded,
+        IpcBytesWriterBlocking, IpcFileHandle, IpcRead, IpcReadBlocking, IpcReadHandle, IpcReceiver, IpcSender, IpcValue, NamedIpcReceiver,
+        NamedIpcSender, WeakIpcBytes, ipc_unbounded,
     };
 }
 

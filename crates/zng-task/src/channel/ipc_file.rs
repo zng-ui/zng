@@ -1,6 +1,6 @@
 #![cfg_attr(not(ipc), allow(unused))]
 
-use std::mem;
+use std::{fmt, mem};
 
 use futures_lite::io;
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,11 @@ pub struct IpcFileHandle {
     handle: usize,
     #[cfg(not(ipc))]
     handle: std::fs::File,
+}
+impl fmt::Debug for IpcFileHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IpcFileHandle").field("handle", &self.handle).finish()
+    }
 }
 #[cfg(not(ipc))]
 impl From<std::fs::File> for IpcFileHandle {
