@@ -4,11 +4,27 @@ use crate::channel::{IpcBytes, IpcFileHandle};
 
 /// File handle or allocated bytes that can be read after sending to another process.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum IpcReadHandle {
     /// Read directly from disk.
     File(IpcFileHandle),
     /// Read from allocated bytes.
     Bytes(IpcBytes),
+}
+impl From<IpcFileHandle> for IpcReadHandle {
+    fn from(f: IpcFileHandle) -> Self {
+        IpcReadHandle::File(f)
+    }
+}
+impl From<IpcBytes> for IpcReadHandle {
+    fn from(b: IpcBytes) -> Self {
+        IpcReadHandle::Bytes(b)
+    }
+}
+impl From<fs::File> for IpcReadHandle {
+    fn from(f: fs::File) -> Self {
+        IpcReadHandle::File(f.into())
+    }
 }
 impl IpcReadHandle {
     /// Duplicate file handle or clone reference to bytes.
@@ -54,6 +70,7 @@ impl IpcReadHandle {
 
 /// Blocking read implementer for [`IpcReadHandle::read_blocking`].
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum IpcReadBlocking {
     /// Buffered reader from file.
     File(io::BufReader<fs::File>),
@@ -129,6 +146,7 @@ impl io::BufRead for IpcReadBlocking {
 
 /// Async read implementer for [`IpcReadHandle::read`]
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum IpcRead {
     /// Buffered reader from file.
     File(crate::io::BufReader<crate::fs::File>),
