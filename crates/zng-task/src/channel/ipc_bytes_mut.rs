@@ -129,6 +129,7 @@ impl IpcBytesMut {
     /// function enforces the usage of a memory map, the slowest of the options.
     ///
     /// [`new`]: Self::new
+    #[cfg(ipc)]
     pub async fn new_memmap(len: usize) -> io::Result<Self> {
         blocking::unblock(move || Self::new_memmap_blocking(len)).await
     }
@@ -139,6 +140,7 @@ impl IpcBytesMut {
     /// function enforces the usage of a memory map, the slowest of the options.
     ///
     /// [`new_blocking`]: Self::new_blocking
+    #[cfg(ipc)]
     pub fn new_memmap_blocking(len: usize) -> io::Result<Self> {
         Ok(Self {
             len,

@@ -57,6 +57,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     /// function enforces the usage of a memory map, the slowest of the options.
     ///
     /// [`new`]: Self::new
+    #[cfg(ipc)]
     pub async fn new_memmap(len: usize) -> io::Result<Self> {
         IpcBytesMut::new_memmap(item_len_to_bytes::<T>(len)?).await.map(IpcBytesMut::cast)
     }
@@ -67,6 +68,7 @@ impl<T: bytemuck::AnyBitPattern + bytemuck::NoUninit> IpcBytesMutCast<T> {
     /// function enforces the usage of a memory map, the slowest of the options.
     ///
     /// [`new_blocking`]: Self::new_blocking
+    #[cfg(ipc)]
     pub fn new_memmap_blocking(len: usize) -> io::Result<Self> {
         IpcBytesMut::new_memmap_blocking(item_len_to_bytes::<T>(len)?).map(IpcBytesMut::cast)
     }

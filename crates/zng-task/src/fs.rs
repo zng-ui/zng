@@ -7,7 +7,7 @@
 // TODO(breaking) replace with reexport again after  https://github.com/smol-rs/async-fs/pull/55 is released
 //
 // #[doc(inline)]
-// pub use async_fs::*;
+// pub use zng_task::fs::*;
 
 //! Async filesystem primitives.
 //!
@@ -24,8 +24,8 @@
 //! Create a new file and write some bytes to it:
 //!
 //! ```no_run
-//! use async_fs::File;
 //! use futures_lite::io::AsyncWriteExt;
+//! use zng_task::fs::File;
 //!
 //! # futures_lite::future::block_on(async {
 //! let mut file = File::create("a.txt").await?;
@@ -216,7 +216,7 @@ pub async fn create_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::hard_link("a.txt", "b.txt").await?;
+/// zng_task::fs::hard_link("a.txt", "b.txt").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn hard_link<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
@@ -559,7 +559,7 @@ pub async fn read_to_string<P: AsRef<Path>>(path: P) -> io::Result<String> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::remove_dir("./some/directory").await?;
+/// zng_task::fs::remove_dir("./some/directory").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
@@ -581,7 +581,7 @@ pub async fn remove_dir<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::remove_dir_all("./some/directory").await?;
+/// zng_task::fs::remove_dir_all("./some/directory").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
@@ -603,7 +603,7 @@ pub async fn remove_dir_all<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::remove_file("a.txt").await?;
+/// zng_task::fs::remove_file("a.txt").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
@@ -629,7 +629,7 @@ pub async fn remove_file<P: AsRef<Path>>(path: P) -> io::Result<()> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::rename("a.txt", "b.txt").await?;
+/// zng_task::fs::rename("a.txt", "b.txt").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn rename<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
@@ -654,7 +654,7 @@ pub async fn rename<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Resul
 /// # futures_lite::future::block_on(async {
 /// let mut perm = async_fs::metadata("a.txt").await?.permissions();
 /// perm.set_readonly(true);
-/// async_fs::set_permissions("a.txt", perm).await?;
+/// zng_task::fs::set_permissions("a.txt", perm).await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn set_permissions<P: AsRef<Path>>(path: P, perm: Permissions) -> io::Result<()> {
@@ -704,7 +704,7 @@ pub async fn symlink_metadata<P: AsRef<Path>>(path: P) -> io::Result<Metadata> {
 ///
 /// ```no_run
 /// # futures_lite::future::block_on(async {
-/// async_fs::write("a.txt", b"Hello world!").await?;
+/// zng_task::fs::write("a.txt", b"Hello world!").await?;
 /// # std::io::Result::Ok(()) });
 /// ```
 pub async fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> io::Result<()> {
@@ -735,7 +735,7 @@ impl DirBuilder {
     /// # Examples
     ///
     /// ```
-    /// use async_fs::DirBuilder;
+    /// use zng_task::fs::DirBuilder;
     ///
     /// let builder = DirBuilder::new();
     /// ```
@@ -762,7 +762,7 @@ impl DirBuilder {
     /// # Examples
     ///
     /// ```
-    /// use async_fs::DirBuilder;
+    /// use zng_task::fs::DirBuilder;
     ///
     /// let mut builder = DirBuilder::new();
     /// builder.recursive(true);
@@ -787,7 +787,7 @@ impl DirBuilder {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::DirBuilder;
+    /// use zng_task::fs::DirBuilder;
     ///
     /// # futures_lite::future::block_on(async {
     /// DirBuilder::new().recursive(true).create("./some/directory").await?;
@@ -836,8 +836,8 @@ impl unix::DirBuilderExt for DirBuilder {
 /// Create a new file and write some bytes to it:
 ///
 /// ```no_run
-/// use async_fs::File;
 /// use futures_lite::io::AsyncWriteExt;
+/// use zng_task::fs::File;
 ///
 /// # futures_lite::future::block_on(async {
 /// let mut file = File::create("a.txt").await?;
@@ -850,8 +850,8 @@ impl unix::DirBuilderExt for DirBuilder {
 /// Read the contents of a file into a vector of bytes:
 ///
 /// ```no_run
-/// use async_fs::File;
 /// use futures_lite::io::AsyncReadExt;
+/// use zng_task::fs::File;
 ///
 /// # futures_lite::future::block_on(async {
 /// let mut file = File::open("a.txt").await?;
@@ -907,7 +907,7 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = File::open("a.txt").await?;
@@ -938,7 +938,7 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = File::create("a.txt").await?;
@@ -960,8 +960,8 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
     /// use futures_lite::io::AsyncWriteExt;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let mut file = File::create("a.txt").await?;
@@ -991,8 +991,8 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
     /// use futures_lite::io::AsyncWriteExt;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let mut file = File::create("a.txt").await?;
@@ -1020,7 +1020,7 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let mut file = File::create("a.txt").await?;
@@ -1039,7 +1039,7 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = File::open("a.txt").await?;
@@ -1063,7 +1063,7 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::File;
+    /// use zng_task::fs::File;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = File::create("a.txt").await?;
@@ -1260,7 +1260,7 @@ impl io::Seek for ArcFile {
 /// Open a file for reading:
 ///
 /// ```no_run
-/// use async_fs::OpenOptions;
+/// use zng_task::fs::OpenOptions;
 ///
 /// # futures_lite::future::block_on(async {
 /// let file = OpenOptions::new().read(true).open("a.txt").await?;
@@ -1270,7 +1270,7 @@ impl io::Seek for ArcFile {
 /// Open a file for both reading and writing, and create it if it doesn't exist yet:
 ///
 /// ```no_run
-/// use async_fs::OpenOptions;
+/// use zng_task::fs::OpenOptions;
 ///
 /// # futures_lite::future::block_on(async {
 /// let file = OpenOptions::new().read(true).write(true).create(true).open("a.txt").await?;
@@ -1287,7 +1287,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().read(true).open("a.txt").await?;
@@ -1304,7 +1304,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().read(true).open("a.txt").await?;
@@ -1325,7 +1325,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().write(true).open("a.txt").await?;
@@ -1344,7 +1344,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().append(true).open("a.txt").await?;
@@ -1365,7 +1365,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().write(true).truncate(true).open("a.txt").await?;
@@ -1386,7 +1386,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().write(true).create(true).open("a.txt").await?;
@@ -1408,7 +1408,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().write(true).create_new(true).open("a.txt").await?;
@@ -1444,7 +1444,7 @@ impl OpenOptions {
     /// # Examples
     ///
     /// ```no_run
-    /// use async_fs::OpenOptions;
+    /// use zng_task::fs::OpenOptions;
     ///
     /// # futures_lite::future::block_on(async {
     /// let file = OpenOptions::new().read(true).open("a.txt").await?;
@@ -1507,6 +1507,7 @@ impl windows::OpenOptionsExt for OpenOptions {
     }
 }
 
+#[cfg_attr(not(any(windows, unix)), allow(dead_code))]
 mod __private {
     #[doc(hidden)]
     pub trait Sealed {}
@@ -1534,7 +1535,7 @@ pub mod unix {
     ///
     /// ```no_run
     /// # futures_lite::future::block_on(async {
-    /// async_fs::unix::symlink("a.txt", "b.txt").await?;
+    /// zng_task::fs::unix::symlink("a.txt", "b.txt").await?;
     /// # std::io::Result::Ok(()) });
     /// ```
     pub async fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
@@ -1552,7 +1553,7 @@ pub mod unix {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{DirBuilder, unix::DirBuilderExt};
+        /// use zng_task::fs::{DirBuilder, unix::DirBuilderExt};
         ///
         /// let mut builder = DirBuilder::new();
         /// builder.mode(0o755);
@@ -1567,8 +1568,8 @@ pub mod unix {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::unix::DirEntryExt;
         /// use futures_lite::stream::StreamExt;
+        /// use zng_task::fs::unix::DirEntryExt;
         ///
         /// # futures_lite::future::block_on(async {
         /// let mut entries = async_fs::read_dir(".").await?;
@@ -1595,7 +1596,7 @@ pub mod unix {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, unix::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, unix::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// let mut options = OpenOptions::new();
@@ -1617,7 +1618,7 @@ pub mod unix {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, unix::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, unix::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// let mut options = OpenOptions::new();
@@ -1647,7 +1648,7 @@ pub mod windows {
     ///
     /// ```no_run
     /// # futures_lite::future::block_on(async {
-    /// async_fs::windows::symlink_dir("a", "b").await?;
+    /// zng_task::fs::windows::symlink_dir("a", "b").await?;
     /// # std::io::Result::Ok(()) });
     /// ```
     pub async fn symlink_dir<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
@@ -1664,7 +1665,7 @@ pub mod windows {
     ///
     /// ```no_run
     /// # futures_lite::future::block_on(async {
-    /// async_fs::windows::symlink_file("a.txt", "b.txt").await?;
+    /// zng_task::fs::windows::symlink_file("a.txt", "b.txt").await?;
     /// # std::io::Result::Ok(()) });
     /// ```
     pub async fn symlink_file<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
@@ -1686,7 +1687,7 @@ pub mod windows {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, windows::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, windows::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// // Open without read and write permission, for example if you only need
@@ -1711,7 +1712,7 @@ pub mod windows {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, windows::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, windows::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// // Do not allow others to read or modify this file while we have it open
@@ -1734,7 +1735,7 @@ pub mod windows {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, windows::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, windows::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// let file = OpenOptions::new()
@@ -1768,7 +1769,7 @@ pub mod windows {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, windows::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, windows::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// let file = OpenOptions::new()
@@ -1806,7 +1807,7 @@ pub mod windows {
         /// # Examples
         ///
         /// ```no_run
-        /// use async_fs::{OpenOptions, windows::OpenOptionsExt};
+        /// use zng_task::fs::{OpenOptions, windows::OpenOptionsExt};
         ///
         /// # futures_lite::future::block_on(async {
         /// let file = OpenOptions::new()

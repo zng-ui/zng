@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use futures_lite::{AsyncReadExt, AsyncWriteExt as _};
+use futures_lite::{AsyncReadExt as _, AsyncWriteExt as _};
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use serde::{Deserialize, Serialize};

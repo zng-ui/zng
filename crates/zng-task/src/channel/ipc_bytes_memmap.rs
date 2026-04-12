@@ -109,7 +109,7 @@ impl MemmapMut {
                     {
                         use std::os::unix::fs::MetadataExt as _;
                         if let Ok(m1) = fs::metadata(&p)
-                            && let Ok(m2) = fs::metadata(&exe)
+                            && let Ok(m2) = fs::metadata(exe)
                             && m1.dev() == m2.dev()
                         {
                             // same disk, ok
@@ -135,7 +135,7 @@ impl MemmapMut {
 
             opt.attributes(FILE_ATTRIBUTE_TEMPORARY).custom_flags(FILE_FLAG_DELETE_ON_CLOSE);
         }
-        let file = opt.read(true).write(true).create_new(true).open(file_path)?;
+        let file = opt.read(true).write(true).create_new(true).open(&file_path)?;
         file.lock()?;
         #[cfg(unix)]
         {
