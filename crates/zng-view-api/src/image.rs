@@ -91,9 +91,10 @@ pub struct ImageRequest<D> {
     pub format: ImageDataFormat,
     /// Image data.
     ///
-    /// Bytes layout depends on the `format`, data structure is [`IpcBytes`] or [`IpcReceiver<IpcBytes>`] in the view API.
+    /// Bytes layout depends on the `format`, data structure is [`IpcReadHandle`] or [`IpcReceiver<IpcBytes>`] in the view API.
     ///
-    /// [`IpcReceiver<IpcBytes>`]: crate::IpcReceiver
+    /// [`IpcReadHandle``]: zng_task::channel::IpcReadHandle
+    /// [`IpcReceiver<IpcBytes>`]: zng_task::channel::IpcReceiver
     pub data: D,
     /// Maximum allowed decoded size.
     ///

@@ -11,11 +11,13 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+use std::io::{self, Read, Seek};
+
 use zng_app::{APP, hn};
 use zng_ext_image::*;
-use zng_task::channel::{IpcBytes, IpcBytesMut};
+use zng_task::channel::{IpcBytesMut, IpcReadBlocking, IpcReadHandle};
 use zng_txt::{Txt, formatx};
-use zng_unit::{ByteLength, Px, PxDensity2d, PxDensityUnits as _, PxSize};
+use zng_unit::{ByteLength, ByteUnits as _, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 use zng_var::const_var;
 
 zng_env::on_process_start!(|args| {
@@ -38,13 +40,13 @@ impl ImagesExtension for SvgRenderExtension {
         &mut self,
         max_decoded_len: zng_unit::ByteLength,
         _key: &ImageHash,
-        data: &IpcBytes,
+        data: &IpcReadHandle,
         format: &ImageDataFormat,
         options: &ImageOptions,
     ) -> Option<ImageVar> {
         let data = match format {
-            ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
-            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => SvgData::Raw(data.to_vec()),
+            ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.duplicate().ok()?),
+            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => SvgData::Raw(data.duplicate().ok()?),
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
@@ -63,14 +65,20 @@ impl ImagesExtension for SvgRenderExtension {
 }
 
 enum SvgData {
-    Raw(Vec<u8>),
+    Raw(IpcReadHandle),
     Str(String),
 }
 fn load_render(max_decoded_len: ByteLength, data: SvgData, downscale: Option<ImageDownscaleMode>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
-        SvgData::Raw(data) => resvg::usvg::Tree::from_data(&data, &options),
+        SvgData::Raw(data) => match data.read_to_bytes_blocking() {
+            Ok(data) => resvg::usvg::Tree::from_data(&data, &options),
+            Err(e) => {
+                tracing::error!("cannot read svg image data, {e}");
+                Err(resvg::usvg::Error::NotAnUtf8Str) // no custom error branch
+            }
+        },
         SvgData::Str(data) => resvg::usvg::Tree::from_str(&data, &options),
     };
     match tree {
@@ -156,20 +164,58 @@ fn error(error: Txt) -> ImageSource {
     ImageSource::Image(const_var(ImageEntry::new_error(error)))
 }
 
-fn svg_data_from_unknown(data: &[u8]) -> Option<String> {
-    if data.starts_with(&[0x1f, 0x8b]) {
+fn svg_data_from_unknown(data: &IpcReadHandle) -> Option<String> {
+    let mut data = data.duplicate().ok()?.read_blocking().ok()?;
+    let mut buf = [0u8; 2];
+    data.read_exact(&mut buf).ok()?;
+    data.seek(io::SeekFrom::Start(0)).ok()?;
+
+    // 3KB should allow for some comments at beginning before <svg
+    let header_len = 3.kilobytes().bytes();
+
+    if buf == [0x1f, 0x8b] {
         // gzip magic number
-        let data = resvg::usvg::decompress_svgz(data).ok()?;
-        uncompressed_data_is_svg(&data)
+        // resvg::usvg::decompress_svgz(&[u8]) uses flate2::read::GzDecoder
+
+        let mut data = flate2::read::GzDecoder::new(data);
+        let mut buf = vec![];
+
+        data.by_ref().take(header_len as u64).read_to_end(&mut buf).ok()?;
+        find_open_svg(&buf)?;
+        data.read_to_end(&mut buf).ok()?;
+        String::from_utf8(buf).ok()
     } else {
-        uncompressed_data_is_svg(data)
+        match data {
+            IpcReadBlocking::File(mut r) => {
+                let len = r.get_mut().metadata().ok()?.len();
+                let mut buf = String::with_capacity(usize::try_from(len).ok()?);
+                r.read_to_string(&mut buf).ok()?;
+                Some(buf)
+            }
+            IpcReadBlocking::Bytes(b) => {
+                let b = b.get_ref();
+                let header_len = b.len().min(header_len);
+                find_open_svg(&b[..header_len])?;
+                Some(str::from_utf8(b).ok()?.to_owned())
+            }
+            _ => None,
+        }
     }
 }
-fn uncompressed_data_is_svg(data: &[u8]) -> Option<String> {
-    let s = std::str::from_utf8(data).ok()?;
-    if s.contains("http://www.w3.org/2000/svg") {
-        Some(s.to_owned())
-    } else {
-        None
+fn find_open_svg(buf: &[u8]) -> Option<usize> {
+    let len = buf.len().saturating_sub(3);
+
+    for i in 0..len {
+        if buf[i] == b'<' {
+            // ASCII lowercase via OR 0x20
+            let b1 = buf[i + 1] | 0x20;
+            let b2 = buf[i + 2] | 0x20;
+            let b3 = buf[i + 3] | 0x20;
+            if b1 == b's' && b2 == b'v' && b3 == b'g' {
+                return Some(i);
+            }
+        }
     }
+
+    None
 }

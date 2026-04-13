@@ -79,6 +79,9 @@ impl From<IpcFileHandle> for crate::fs::File {
 }
 impl IpcFileHandle {
     /// Duplicate file handle for the same process.
+    ///
+    /// Note that the read/write offset is associated with the system handle, if you convert
+    /// multiple duplicates to `File` any read in one instance advances the position in all instances.
     pub fn duplicate(&self) -> io::Result<Self> {
         #[cfg(ipc)]
         {

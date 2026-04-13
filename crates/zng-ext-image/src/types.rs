@@ -21,7 +21,7 @@ use zng_layout::{
 };
 use zng_task::{
     self as task,
-    channel::{IpcBytes, IpcBytesMut},
+    channel::{IpcBytes, IpcBytesMut, IpcReadHandle},
 };
 use zng_txt::Txt;
 use zng_var::{Var, VarEq, animation::Transitionable, impl_from_and_into_var};
@@ -74,7 +74,7 @@ pub trait ImagesExtension: Send + Sync + Any {
         &mut self,
         max_decoded_len: ByteLength,
         key: &ImageHash,
-        data: &IpcBytes,
+        data: &IpcReadHandle,
         format: &ImageDataFormat,
         options: &ImageOptions,
     ) -> Option<ImageVar> {

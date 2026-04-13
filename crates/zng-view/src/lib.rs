@@ -108,7 +108,7 @@ use winit::{
     keyboard::ModifiersState,
     monitor::MonitorHandle,
 };
-use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver, Sender};
+use zng_task::channel::{self, ChannelError, IpcBytes, IpcReadHandle, IpcReceiver, Receiver, Sender};
 
 #[cfg(not(target_os = "android"))]
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -2194,7 +2194,7 @@ impl Api for App {
         self.with_window(id, |w| w.set_ime_area(area), || ())
     }
 
-    fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
+    fn add_image(&mut self, request: ImageRequest<IpcReadHandle>) -> ImageId {
         self.image_cache.add(request)
     }
 
@@ -2374,7 +2374,9 @@ impl Api for App {
 
                 let id = self.image_cache.add(ImageRequest::new(
                     image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
-                    IpcBytes::from_vec_blocking(bitmap).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
+                    IpcBytes::from_vec_blocking(bitmap)
+                        .map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?
+                        .into(),
                     u64::MAX,
                     None,
                     None,

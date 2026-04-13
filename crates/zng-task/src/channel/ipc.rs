@@ -524,9 +524,21 @@ impl<T: IpcValue> IpcReceiver<T> {
 /// Types need to be `serde::Serialize + serde::de::Deserialize + Send + 'static` to auto-implement this trait,
 /// if you want to send an external type in that does not implement all the traits
 /// you may need to declare a *newtype* wrapper.
+///
+/// Note that in builds without `"ipc"` feature this is relaxed to only `Send + 'static`, this is to support types
+/// that only implement serialization for IPC.
+#[cfg(ipc)]
 #[diagnostic::on_unimplemented(note = "`IpcValue` is implemented for all `T: Serialize + Deserialize + Send + 'static`")]
 pub trait IpcValue: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static {}
+#[cfg(ipc)]
 impl<T: serde::Serialize + for<'d> serde::de::Deserialize<'d> + Send + 'static> IpcValue for T {}
+
+/// Build with "ipc" feature to read docs
+#[cfg(not(ipc))]
+#[diagnostic::on_unimplemented(note = "`IpcValue` is implemented for all `T: Send + 'static`")]
+pub trait IpcValue: Send + 'static {}
+#[cfg(not(ipc))]
+impl<T: Send + 'static> IpcValue for T {}
 
 #[cfg(ipc)]
 impl From<ipc_channel::IpcError> for ChannelError {

@@ -1,7 +1,14 @@
 #![cfg_attr(not(feature = "image_any"), allow(unused))]
 
-use std::{fmt, sync::Arc};
-use zng_task::{channel::IpcBytesMut, parking_lot::Mutex};
+use std::{
+    fmt,
+    io::{self, Seek as _, SeekFrom, Write as _},
+    sync::Arc,
+};
+use zng_task::{
+    channel::{IpcBytesMut, IpcReadBlocking, IpcReadHandle},
+    parking_lot::Mutex,
+};
 
 use webrender::api::ImageDescriptor;
 #[cfg(feature = "image_any")]
@@ -136,7 +143,7 @@ impl ImageCache {
             entries,
             parent,
             ..
-        }: ImageRequest<IpcBytes>,
+        }: ImageRequest<IpcReadHandle>,
     ) -> ImageId {
         let id = self.image_id_gen.lock().incr();
         let id_gen = self.image_id_gen.clone();
@@ -202,7 +209,7 @@ impl ImageCache {
 
             let mut notified_header = false;
 
-            let mut all_data = match data.recv_blocking() {
+            let first_chunk = match data.recv_blocking() {
                 Ok(f) => f,
                 Err(e) => {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
@@ -212,14 +219,16 @@ impl ImageCache {
                     return;
                 }
             };
-            if let Ok(n) = data.recv_blocking() {
-                // try parse header early at least
-                #[cfg(feature = "image_any")]
-                if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
-                    && let Ok((fmt, entries)) = Self::decode_container(&format, &all_data[..])
-                    && entries.first() == Some(&(0, ImageEntryKind::Page))
-                    && let Ok(h) = Self::decode_metadata(&all_data[..], fmt, 0)
-                {
+
+            // try parse header early at least
+            let mut header_reader = IpcReadBlocking::Bytes(io::Cursor::new(first_chunk.clone()));
+            #[cfg(feature = "image_any")]
+            if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
+                && let Ok((fmt, entries)) = Self::decode_container(&format, &mut header_reader)
+                && entries.first() == Some(&(0, ImageEntryKind::Page))
+            {
+                header_reader.seek(SeekFrom::Start(0)).unwrap();
+                if let Ok(h) = Self::decode_metadata(&mut header_reader, fmt, 0) {
                     let mut size = h.size;
                     let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
                     if decoded_len > max_decoded_len {
@@ -260,28 +269,27 @@ impl ImageCache {
                         notified_header = true;
                     }
                 }
-
-                let mut w = IpcBytes::new_writer_blocking();
-                let try_result = (|| -> std::io::Result<IpcBytes> {
-                    use std::io::Write as _;
-                    w.write_all(&all_data[..])?;
-                    w.write_all(&n[..])?;
-                    while let Ok(n) = data.recv_blocking() {
-                        w.write_all(&n[..])?;
-                    }
-                    w.finish()
-                })();
-                match try_result {
-                    Ok(d) => all_data = d,
-                    Err(e) => {
-                        let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
-                            image: id,
-                            error: formatx!("cannot receive image data, {e}"),
-                        }));
-                        return;
-                    }
-                }
             }
+
+            // receive all data
+            let mut w = IpcBytes::new_writer_blocking();
+            let try_result = (|| -> std::io::Result<IpcBytes> {
+                w.write_all(&first_chunk[..])?;
+                while let Ok(chunk) = data.recv_blocking() {
+                    w.write_all(&chunk[..])?;
+                }
+                w.finish()
+            })();
+            let data = match try_result {
+                Ok(d) => d,
+                Err(e) => {
+                    let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError {
+                        image: id,
+                        error: formatx!("cannot receive image data, {e}"),
+                    }));
+                    return;
+                }
+            };
 
             Self::add_impl(
                 id_gen,
@@ -296,7 +304,7 @@ impl ImageCache {
                 icc_ext_id,
                 id,
                 format,
-                all_data,
+                data.into(),
                 max_decoded_len,
                 downscale,
                 mask,
@@ -319,14 +327,13 @@ impl ImageCache {
 
         id: ImageId,
         format: ImageDataFormat,
-        data: IpcBytes,
+        data: IpcReadHandle,
         max_decoded_len: u64,
         downscale: Option<ImageDownscaleMode>,
         mask: Option<ImageMaskMode>,
         entries: ImageEntriesMode,
         parent: Option<ImageEntryMetadata>,
     ) {
-        let data_ref = &data[..];
         macro_rules! error {
             ($($tt:tt)*) => {{
                 let _ = app_sender.send(AppEvent::Notify(Event::ImageDecodeError { image: id, error: formatx!($($tt)*) }));
@@ -351,24 +358,33 @@ impl ImageCache {
             }};
         }
 
+        let mut data = match data.read_blocking() {
+            Ok(b) => b,
+            Err(e) => return error!("cannot read, {e}"),
+        };
+
         match format {
             ImageDataFormat::Bgra8 {
                 size,
                 density,
                 original_color_type,
             } => {
+                let data = match data.read_to_bytes() {
+                    Ok(b) => b,
+                    Err(e) => return error!("cannot read bgra8 data, {e}"),
+                };
                 let downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
 
                 let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
-                if data_ref.len() != expected_len {
+                if data.len() != expected_len {
                     return error!(
                         "pixels.len() is not width * height * 4, expected {expected_len}, found {}",
-                        data_ref.len()
+                        data.len()
                     );
                 }
 
                 if let Some(mask) = mask {
-                    match Self::convert_bgra8_to_mask(size, data_ref, mask, density, downscale_sizes.0, &resizer) {
+                    match Self::convert_bgra8_to_mask(size, &data, mask, density, downscale_sizes.0, &resizer) {
                         Ok(r) => {
                             if let Some(d) = decoded!(r, original_color_type, !downscale_sizes.1.is_empty()) {
                                 Self::add_downscale_entries(id_gen, app_sender, resizer, d, downscale_sizes.1);
@@ -377,10 +393,10 @@ impl ImageCache {
                         Err(e) => error!("{e}"),
                     }
                 } else {
-                    match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, data_ref) {
+                    match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, &data) {
                         Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
                             Ok(data) => {
-                                let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
+                                let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
                                 if let Some(d) = decoded!(
                                     (data, size, None, is_opaque, false),
                                     original_color_type,
@@ -392,7 +408,7 @@ impl ImageCache {
                             Err(e) => error!("{e}"),
                         },
                         Ok(None) => {
-                            let is_opaque = data_ref.chunks_exact(4).all(|c| c[3] == 255);
+                            let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
                             if let Some(d) = decoded!(
                                 (data, size, None, is_opaque, false),
                                 original_color_type,
@@ -406,6 +422,10 @@ impl ImageCache {
                 }
             }
             ImageDataFormat::A8 { size } => {
+                let data = match data.read_to_bytes() {
+                    Ok(b) => b,
+                    Err(e) => return error!("cannot read a8 data, {e}"),
+                };
                 let downscale_sizes = self::downscale_sizes(downscale.as_ref(), size, &[]);
 
                 let expected_len = size.width.0 as usize * size.height.0 as usize;
@@ -452,7 +472,7 @@ impl ImageCache {
             }
             #[cfg(feature = "image_any")]
             fmt => {
-                let (fmt, entries_kind) = match Self::decode_container(&fmt, data_ref) {
+                let (fmt, entries_kind) = match Self::decode_container(&fmt, &mut data) {
                     Ok(r) => r,
                     Err(e) => return error!("{e}"),
                 };
@@ -460,9 +480,12 @@ impl ImageCache {
                     return error!("empty container");
                 }
 
+                if let Err(e) = data.seek(io::SeekFrom::Start(0)) {
+                    return error!("cannot read image, {e}");
+                }
                 let mut headers = Vec::with_capacity(entries_kind.len());
                 for (i, kind) in entries_kind {
-                    let h = match Self::decode_metadata(data_ref, fmt, i) {
+                    let h = match Self::decode_metadata(&mut data, fmt, i) {
                         Ok(h) => h,
                         Err(e) => return error!("{e}"),
                     };
@@ -714,7 +737,6 @@ impl ImageCache {
                     others_meta.push(meta);
                 }
 
-                let data = &data[..];
                 let mut prev_size = PxSize::zero();
                 let mut prev_pixels = IpcBytes::default();
                 let mut prev_is_opaque = false;
@@ -725,53 +747,58 @@ impl ImageCache {
                             entry_header,
                             downscale,
                             ..
-                        } => match Self::decode_image(data, fmt, entry_index) {
-                            Ok(img) => match Self::convert_decoded(
-                                img,
-                                mask,
-                                entry_header.density,
-                                entry_header.icc_profile.as_ref(),
-                                downscale,
-                                entry_header.orientation,
-                                &resizer,
-                            ) {
-                                Ok((pixels, size, density, is_opaque, is_mask)) => {
-                                    meta.size = size;
-                                    meta.density = density;
-                                    meta.format_name = entry_header.format_name.clone();
-                                    meta.is_mask = is_mask;
-                                    #[cfg(feature = "image_meta_exif")]
-                                    if let Some(exif) = entry_header.exif
-                                        && !exif.is_empty()
-                                    {
-                                        meta.extensions
-                                            .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif)));
-                                    }
-                                    #[cfg(feature = "image_meta_icc")]
-                                    if let Some(icc) = &entry_header.icc_profile
-                                        && let Ok(icc) = icc.icc()
-                                    {
-                                        meta.extensions
-                                            .push((icc_ext_id, zng_view_api::api_extension::ApiExtensionPayload(icc)));
-                                    }
+                        } => {
+                            if let Err(e) = data.seek(SeekFrom::Start(0)) {
+                                return error!("{e}");
+                            }
+                            match Self::decode_image(&mut data, fmt, entry_index) {
+                                Ok(img) => match Self::convert_decoded(
+                                    img,
+                                    mask,
+                                    entry_header.density,
+                                    entry_header.icc_profile.as_ref(),
+                                    downscale,
+                                    entry_header.orientation,
+                                    &resizer,
+                                ) {
+                                    Ok((pixels, size, density, is_opaque, is_mask)) => {
+                                        meta.size = size;
+                                        meta.density = density;
+                                        meta.format_name = entry_header.format_name.clone();
+                                        meta.is_mask = is_mask;
+                                        #[cfg(feature = "image_meta_exif")]
+                                        if let Some(exif) = entry_header.exif
+                                            && !exif.is_empty()
+                                        {
+                                            meta.extensions
+                                                .push((exif_ext_id, zng_view_api::api_extension::ApiExtensionPayload(exif)));
+                                        }
+                                        #[cfg(feature = "image_meta_icc")]
+                                        if let Some(icc) = &entry_header.icc_profile
+                                            && let Ok(icc) = icc.icc()
+                                        {
+                                            meta.extensions
+                                                .push((icc_ext_id, zng_view_api::api_extension::ApiExtensionPayload(icc)));
+                                        }
 
-                                    #[cfg(feature = "image_cur")]
-                                    downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
+                                        #[cfg(feature = "image_cur")]
+                                        downscale_hotspot(image_cur_ext_id, size, &mut meta, entry_header.size, entry_header.cur_hotspot);
 
-                                    let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
-                                    if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
-                                        return;
+                                        let decoded = ImageDecoded::new(meta, pixels.clone(), is_opaque);
+                                        if app_sender.send(AppEvent::ImageCanRender(decoded)).is_err() {
+                                            return;
+                                        }
+                                        prev_pixels = pixels;
+                                        prev_size = size;
+                                        prev_is_opaque = is_opaque;
                                     }
-                                    prev_pixels = pixels;
-                                    prev_size = size;
-                                    prev_is_opaque = is_opaque;
-                                }
-                                Err(e) => {
-                                    return error!("{e}");
-                                }
-                            },
-                            Err(e) => return error!("{e}"),
-                        },
+                                    Err(e) => {
+                                        return error!("{e}");
+                                    }
+                                },
+                                Err(e) => return error!("{e}"),
+                            }
+                        }
                         Task::SynthReduced {
                             size,
                             #[cfg(feature = "image_cur")]

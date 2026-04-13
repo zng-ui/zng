@@ -18,7 +18,7 @@ use crate::{
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_app_context::app_local;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Frequency, Px, PxPoint, PxRect};
-use zng_task::channel::{self, ChannelError, IpcBytes, IpcReceiver, Receiver};
+use zng_task::channel::{self, ChannelError, IpcBytes, IpcReadHandle, IpcReceiver, Receiver};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{ArcEq, ResponderVar, Var, VarHandle, WeakEq};
@@ -192,7 +192,7 @@ impl VIEW_PROCESS {
     /// [`RAW_IMAGE_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_METADATA_DECODED_EVENT
     /// [`RAW_IMAGE_DECODED_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODED_EVENT
     /// [`RAW_IMAGE_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_IMAGE_DECODE_ERROR_EVENT
-    pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImageHandle> {
+    pub fn add_image(&self, request: ImageRequest<IpcReadHandle>) -> Result<ViewImageHandle> {
         let mut app = self.write();
 
         let id = app.process.add_image(request)?;
