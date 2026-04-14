@@ -74,7 +74,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
         };
         let mut hasher = sha2::Sha256::new();
         hasher.update(file.as_bytes());
-        let hash = format!("{:x}", hasher.finalize());
+        let hash = format!("{:x}", base16ct::HexDisplay(&hasher.finalize()));
         files.push((relative_entry.to_owned(), file, hash));
     }
     let files = files;

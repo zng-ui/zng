@@ -216,7 +216,7 @@ pub fn wasm_process_start(crate_closure: TokenStream) -> TokenStream {
     use sha2::Digest;
     let mut start_ident = sha2::Sha256::new();
     start_ident.update(closure.to_string().as_bytes());
-    let start_ident = format!("__zng_env_start_{:x}", start_ident.finalize());
+    let start_ident = format!("__zng_env_start_{:x}", base16ct::HexDisplay(&start_ident.finalize()));
     let start_ident = proc_macro2::Ident::new(&start_ident, proc_macro2::Span::call_site());
 
     quote! {
