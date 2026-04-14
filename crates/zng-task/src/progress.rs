@@ -34,7 +34,7 @@ impl Progress {
     }
 
     /// New with completed `n` of `total`.
-    pub fn from_n_of(n: usize, total: usize) -> Self {
+    pub fn from_n_of(n: u64, total: u64) -> Self {
         Self::new(Self::normalize_n_of(n, total))
     }
 
@@ -72,7 +72,7 @@ impl Progress {
     /// Combine the factor completed [`fct`] with another factor computed from `n` of `total`.
     ///
     /// [`fct`]: Self::fct
-    pub fn and_n_of(self, n: usize, total: usize) -> Self {
+    pub fn and_n_of(self, n: u64, total: u64) -> Self {
         self.and_fct(Self::normalize_n_of(n, total))
     }
 
@@ -87,7 +87,7 @@ impl Progress {
     /// Replace the [`fct`] value with a new factor computed from `n` of `total`.
     ///
     /// [`fct`]: Self::fct
-    pub fn with_n_of(mut self, n: usize, total: usize) -> Self {
+    pub fn with_n_of(mut self, n: u64, total: u64) -> Self {
         self.factor = Self::normalize_n_of(n, total);
         self
     }
@@ -139,13 +139,13 @@ impl Progress {
         value
     }
 
-    fn normalize_n_of(n: usize, total: usize) -> Factor {
+    fn normalize_n_of(n: u64, total: u64) -> Factor {
         if n > total {
             -1.fct() // invalid, indeterminate
         } else if total == 0 {
             1.fct() // 0 of 0, complete
         } else {
-            Self::normalize_factor(Factor(n as f32 / total as f32))
+            Self::normalize_factor(Factor((n as f64 / total as f64) as f32))
         }
     }
 
@@ -212,7 +212,7 @@ impl_from_and_into_var! {
     fn from(status: Progress) -> f32 {
         status.fct().0
     }
-    fn from(n_total: (usize, usize)) -> Progress {
+    fn from(n_total: (u64, u64)) -> Progress {
         Progress::from_n_of(n_total.0, n_total.1)
     }
     fn from(indeterminate_message: Txt) -> Progress {

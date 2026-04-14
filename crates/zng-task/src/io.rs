@@ -50,7 +50,7 @@ impl MeasureInner {
         }
     }
 
-    fn on_read(&mut self, bytes: usize) {
+    fn on_read(&mut self, bytes: u64) {
         if bytes == 0 {
             return;
         }
@@ -72,7 +72,7 @@ impl MeasureInner {
         });
     }
 
-    fn on_write(&mut self, bytes: usize) {
+    fn on_write(&mut self, bytes: u64) {
         if bytes == 0 {
             return;
         }
@@ -134,7 +134,7 @@ impl<T> Measure<T> {
 
 fn bytes_per_sec(bytes: ByteLength, elapsed: Duration) -> ByteLength {
     let bytes_per_sec = bytes.0 as u128 / elapsed.as_nanos() / Duration::from_secs(1).as_nanos();
-    ByteLength(bytes_per_sec as usize)
+    ByteLength(bytes_per_sec as u64)
 }
 
 impl<T: AsyncRead> AsyncRead for Measure<T> {
@@ -145,7 +145,7 @@ impl<T: AsyncRead> AsyncRead for Measure<T> {
         // SAFETY: we don't move task
         match unsafe { Pin::new_unchecked(&mut self_.task) }.poll_read(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
-                self_.inner.on_read(bytes);
+                self_.inner.on_read(bytes as u64);
                 Poll::Ready(Ok(bytes))
             }
             p => p,
@@ -160,7 +160,7 @@ impl<T: AsyncWrite> AsyncWrite for Measure<T> {
         // SAFETY: we don't move task
         match unsafe { Pin::new_unchecked(&mut self_.task) }.poll_write(cx, buf) {
             Poll::Ready(Ok(bytes)) => {
-                self_.inner.on_write(bytes);
+                self_.inner.on_write(bytes as u64);
                 Poll::Ready(Ok(bytes))
             }
             p => p,
@@ -197,14 +197,14 @@ impl<T: AsyncBufRead> AsyncBufRead for Measure<T> {
         let self_ = unsafe { self.get_unchecked_mut() };
         // SAFETY: we don't move task
         unsafe { Pin::new_unchecked(&mut self_.task) }.consume(amt);
-        self_.inner.on_read(amt);
+        self_.inner.on_read(amt as u64);
     }
 }
 impl<T: Read> Read for Measure<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         match self.task.read(buf) {
             Ok(bytes) => {
-                self.inner.on_read(bytes);
+                self.inner.on_read(bytes as u64);
                 Ok(bytes)
             }
             r => r,
@@ -215,7 +215,7 @@ impl<T: Write> Write for Measure<T> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         match self.task.write(buf) {
             Ok(bytes) => {
-                self.inner.on_write(bytes);
+                self.inner.on_write(bytes as u64);
                 Ok(bytes)
             }
             r => r,
@@ -233,7 +233,7 @@ impl<T: BufRead> BufRead for Measure<T> {
 
     fn consume(&mut self, amount: usize) {
         self.task.consume(amount);
-        self.inner.on_read(amount);
+        self.inner.on_read(amount as u64);
     }
 }
 
@@ -389,7 +389,7 @@ impl<S: AsyncRead> McBufReader<S> {
                 waker: McWaker::empty(),
                 lazy_wakers: vec![],
 
-                buf: Vec::with_capacity(10.kilobytes().0),
+                buf: Vec::with_capacity(10.kilobytes().0 as usize),
 
                 clones,
                 non_lazy_count: 1,
@@ -512,7 +512,7 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
 
                     let new_start = inner.buf.len();
 
-                    inner.buf.resize(inner.buf.len() + buf.len().max(10.kilobytes().0), 0);
+                    inner.buf.resize(inner.buf.len() + buf.len().max(10.kilobytes().0 as usize), 0);
 
                     let mut inner_cx = task::Context::from_waker(&waker);
 
@@ -647,7 +647,7 @@ impl<S> ReadLimited<S> {
     pub fn new(source: S, limit: ByteLength, on_limit: fn() -> std::io::Error) -> Self {
         Self {
             source,
-            limit: limit.0,
+            limit: limit.0.try_into().unwrap_or(usize::MAX),
             on_limit,
         }
     }
@@ -767,7 +767,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_parallel() {
-        let data = Data::new(60.kilobytes().0);
+        let data = Data::new(60.kilobytes().0 as _);
 
         let mut expected = vec![0; data.len];
         let _ = data.clone().blocking_read(&mut expected[..]);
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_single() {
-        let data = Data::new(60.kilobytes().0);
+        let data = Data::new(60.kilobytes().0 as _);
 
         let mut expected = vec![0; data.len];
         let _ = data.clone().blocking_read(&mut expected[..]);
@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_sequential() {
-        let data = Data::new(60.kilobytes().0);
+        let data = Data::new(60.kilobytes().0 as _);
 
         let mut expected = vec![0; data.len];
         let _ = data.clone().blocking_read(&mut expected[..]);
@@ -854,7 +854,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_completed() {
-        let data = Data::new(60.kilobytes().0);
+        let data = Data::new(60.kilobytes().0 as _);
         let mut buf = Vec::with_capacity(data.len);
         let mut a = McBufReader::new(data);
 
@@ -873,7 +873,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_error() {
-        let mut data = Data::new(20.kilobytes().0);
+        let mut data = Data::new(20.kilobytes().0 as _);
         data.set_error();
 
         let mut expected = vec![0; data.len];
@@ -901,7 +901,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_error_completed() {
-        let mut data = Data::new(20.kilobytes().0);
+        let mut data = Data::new(20.kilobytes().0 as _);
         data.set_error();
 
         let mut buf = Vec::with_capacity(data.len);
@@ -924,7 +924,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_parallel_with_delay1() {
-        let mut data = Data::new(60.kilobytes().0);
+        let mut data = Data::new(60.kilobytes().0 as _);
         data.enable_pending();
 
         let mut expected = vec![0; data.len];
@@ -961,7 +961,7 @@ mod tests {
 
     #[test]
     pub fn mc_buf_reader_parallel_with_delay2() {
-        let mut data = Data::new(60.kilobytes().0);
+        let mut data = Data::new(60.kilobytes().0 as _);
         data.enable_pending();
 
         let mut expected = vec![0; data.len];

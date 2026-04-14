@@ -44,7 +44,7 @@ impl IpcReadHandle {
     /// Either keep the handle or read to bytes, whichever is likely to be faster for
     /// the common usage pattern of sending to another process and a single full read with some seeking.
     pub fn best_read_blocking(mut file: std::fs::File) -> io::Result<Self> {
-        if file.metadata()?.len() > 5.megabytes().bytes() as u64 {
+        if file.metadata()?.len() > 5.megabytes().0 {
             Ok(file.into())
         } else {
             file.seek(io::SeekFrom::Start(0))?;
@@ -55,7 +55,7 @@ impl IpcReadHandle {
     /// Either keep the handle or read to bytes, whichever is likely to be faster for
     /// the common usage pattern of sending to another process and a single full read with some seeking.
     pub async fn best_read(mut file: crate::fs::File) -> io::Result<Self> {
-        if file.metadata().await?.len() > 5.megabytes().bytes() as u64 {
+        if file.metadata().await?.len() > 5.megabytes().0 {
             let file = file.try_unwrap().await.unwrap();
             Ok(file.into())
         } else {

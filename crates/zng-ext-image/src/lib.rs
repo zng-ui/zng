@@ -474,7 +474,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                 }
                 let file = std::fs::File::open(path)?;
                 let len = file.metadata()?.len();
-                if len > limit.1.bytes() as u64 {
+                if len > limit.1.bytes() {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
                 Ok((IpcReadHandle::best_read_blocking(file)?, len))
@@ -485,7 +485,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
             };
             zng_task::spawn_wait(move || match read(&path, (&limits.allow_path, limits.max_encoded_len)) {
                 Ok((data, len)) => {
-                    tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", (len as usize).bytes());
+                    tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", len.bytes());
                     image_data(false, Some(key), data_format, data, options, limits, r)
                 }
                 Err(e) => {
@@ -525,7 +525,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
             zng_task::spawn(async move {
                 match download(uri.clone(), accept, (limits.allow_uri.clone(), limits.max_encoded_len)).await {
                     Ok((fmt, data)) => {
-                        tracing::trace!("download {uri:?}, len: {:?}, fmt: {fmt:?}", data.len().bytes());
+                        tracing::trace!("download {uri:?}, len: {:?}, fmt: {fmt:?}", (data.len() as u64).bytes());
                         image_data(false, Some(key), fmt, data.into(), options, limits, r);
                     }
                     Err(e) => {
@@ -585,7 +585,7 @@ fn image_data(
     let mut request = ImageRequest::new(
         format.clone(),
         data_clone,
-        limits.max_decoded_len.bytes() as u64,
+        limits.max_decoded_len.bytes(),
         options.downscale.clone(),
         options.mask,
     );

@@ -524,14 +524,14 @@ impl Response {
     /// Get the body bytes length if it is downloaded or `Content-Length` value if it is present in the headers.
     pub fn content_len(&self) -> Option<ByteLength> {
         match &self.body {
-            ResponseBody::Done { bytes, .. } => Some(bytes.len().bytes()),
+            ResponseBody::Done { bytes, .. } => Some((bytes.len() as u64).bytes()),
             ResponseBody::Read { .. } => {
                 let len = self
                     .headers
                     .get(header::CONTENT_LENGTH)?
                     .to_str()
                     .ok()?
-                    .parse::<usize>()
+                    .parse::<u64>()
                     .ok()?
                     .bytes();
                 Some(len)

@@ -470,7 +470,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
                     ));
                 }
                 let file = std::fs::File::open(path)?;
-                if file.metadata()?.len() > limit.1.bytes() as u64 {
+                if file.metadata()?.len() > limit.1.bytes() {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
                 IpcReadHandle::best_read_blocking(file)
@@ -567,7 +567,7 @@ fn audio_data(
         }
     };
     let data = data;
-    let mut request = AudioRequest::new(format.clone(), data_clone, limits.max_decoded_len.bytes() as u64);
+    let mut request = AudioRequest::new(format.clone(), data_clone, limits.max_decoded_len.bytes());
     request.tracks = options.tracks;
 
     let try_gen = VIEW_PROCESS.generation();

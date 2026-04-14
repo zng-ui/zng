@@ -214,19 +214,19 @@ fn read_metrics(metrics: Var<Metrics>, stderr: crate::process::ChildStderr) {
 fn parse_curl_bytes(s: &str) -> ByteLength {
     // https://everything.curl.dev/cmdline/progressmeter.html#units
     let (s, scale) = if let Some(s) = s.strip_suffix("K") {
-        (s, 2usize.pow(10))
+        (s, 2u64.pow(10))
     } else if let Some(s) = s.strip_suffix("M") {
-        (s, 2usize.pow(20))
+        (s, 2u64.pow(20))
     } else if let Some(s) = s.strip_prefix("G") {
-        (s, 2usize.pow(30))
+        (s, 2u64.pow(30))
     } else if let Some(s) = s.strip_prefix("T") {
-        (s, 2usize.pow(40))
+        (s, 2u64.pow(40))
     } else if let Some(s) = s.strip_prefix("P") {
-        (s, 2usize.pow(50))
+        (s, 2u64.pow(50))
     } else {
         (s, 1)
     };
-    let l: usize = s.parse().unwrap_or(0);
+    let l: u64 = s.parse().unwrap_or(0);
     ByteLength::from_byte(l * scale)
 }
 fn parse_curl_duration(s: &str) -> Duration {
@@ -264,7 +264,7 @@ fn run_response(
     if require_length {
         if let Some(l) = header.get(http::header::CONTENT_LENGTH)
             && let Ok(l) = l.to_str()
-            && let Ok(l) = l.parse::<usize>()
+            && let Ok(l) = l.parse::<u64>()
         {
             if l < max_length.bytes() {
                 return Err(Box::new(ContentLengthExceedsMaxError));
