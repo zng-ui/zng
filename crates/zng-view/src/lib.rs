@@ -2230,7 +2230,7 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.delete_image(texture_id), || ())
     }
 
-    fn add_audio(&mut self, request: audio::AudioRequest<IpcBytes>) -> audio::AudioId {
+    fn add_audio(&mut self, request: audio::AudioRequest<IpcReadHandle>) -> audio::AudioId {
         self.audio_cache.add(request)
     }
 

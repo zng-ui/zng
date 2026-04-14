@@ -259,7 +259,7 @@ impl VIEW_PROCESS {
     /// [`RAW_AUDIO_METADATA_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_METADATA_DECODED_EVENT
     /// [`RAW_AUDIO_DECODED_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODED_EVENT
     /// [`RAW_AUDIO_DECODE_ERROR_EVENT`]: crate::view_process::raw_events::RAW_AUDIO_DECODE_ERROR_EVENT
-    pub fn add_audio(&self, request: AudioRequest<IpcBytes>) -> Result<ViewAudioHandle> {
+    pub fn add_audio(&self, request: AudioRequest<IpcReadHandle>) -> Result<ViewAudioHandle> {
         let mut app = self.write();
 
         let id = app.process.add_audio(request)?;
