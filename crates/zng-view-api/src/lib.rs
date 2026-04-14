@@ -70,7 +70,7 @@ use zng_unit::{DipPoint, DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
+#[cfg_attr(ipc, derive(Serialize, Deserialize))]
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request can only be made after the *init* event.
@@ -145,7 +145,7 @@ macro_rules! declare_api {
             ) $(-> $ResponseType:ty)?;
         )*
     ) => {
-        #[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
+        #[cfg_attr(ipc, derive(Serialize, Deserialize))]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]

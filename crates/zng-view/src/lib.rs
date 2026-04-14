@@ -2468,7 +2468,9 @@ impl Api for App {
                         density: None,
                         original_color_type: zng_view_api::image::ColorType::RGBA8,
                     },
-                    IpcBytes::from_vec_blocking(data).map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?,
+                    IpcBytes::from_vec_blocking(data)
+                        .map_err(|e| clipboard::ClipboardError::Other(e.to_txt()))?
+                        .into(),
                     u64::MAX,
                     None,
                     None,

@@ -1,7 +1,6 @@
 // like image::DynamicImage, but with IpcBytesMut storage
 
 use image::{error::*, *};
-#[cfg(feature = "image_jpeg")]
 use zng_task::channel::IpcReadBlocking;
 use zng_task::channel::{IpcBytesMut, IpcBytesMutCast};
 

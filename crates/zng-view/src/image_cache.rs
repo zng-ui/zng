@@ -480,11 +480,11 @@ impl ImageCache {
                     return error!("empty container");
                 }
 
-                if let Err(e) = data.seek(io::SeekFrom::Start(0)) {
-                    return error!("cannot read image, {e}");
-                }
                 let mut headers = Vec::with_capacity(entries_kind.len());
                 for (i, kind) in entries_kind {
+                    if let Err(e) = data.seek(io::SeekFrom::Start(0)) {
+                        return error!("cannot read image, {e}");
+                    }
                     let h = match Self::decode_metadata(&mut data, fmt, i) {
                         Ok(h) => h,
                         Err(e) => return error!("{e}"),
