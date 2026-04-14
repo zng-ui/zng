@@ -109,7 +109,7 @@ fn load_render(max_decoded_len: ByteLength, data: SvgData, downscale: Option<Ima
             }
 
             let render = |size: resvg::tiny_skia::IntSize| -> ImageSource {
-                if size.width() as usize * size.height() as usize * 4 > max_decoded_len.bytes() {
+                if size.width() as u64 * size.height() as u64 * 4 > max_decoded_len.bytes() {
                     return error(formatx!("cannot render svg, would exceed max {max_decoded_len} allowed"));
                 }
                 let mut data = match IpcBytesMut::new_blocking(size.width() as usize * size.height() as usize * 4) {
@@ -171,7 +171,7 @@ fn svg_data_from_unknown(data: &IpcReadHandle) -> Option<String> {
     data.seek(io::SeekFrom::Start(0)).ok()?;
 
     // 3KB should allow for some comments at beginning before <svg
-    let header_len = 3.kilobytes().bytes();
+    let header_len = 3.kilobytes().0 as usize;
 
     if buf == [0x1f, 0x8b] {
         // gzip magic number

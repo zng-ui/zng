@@ -39,7 +39,7 @@ impl LengthExpr {
     /// This includes the sum of all nested [`Length::Expr`] heap memory.
     pub fn memory_used(&self) -> ByteLength {
         use LengthExpr::*;
-        std::mem::size_of::<LengthExpr>().bytes()
+        (std::mem::size_of::<LengthExpr>() as u64).bytes()
             + match self {
                 Add(a, b) | Sub(a, b) | Max(a, b) | Min(a, b) | Lerp(a, b, _) => a.heap_memory_used() + b.heap_memory_used(),
                 Mul(a, _) | Div(a, _) | Abs(a) | Neg(a) | Unit(a) => a.heap_memory_used(),

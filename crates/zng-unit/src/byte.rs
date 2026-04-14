@@ -44,7 +44,7 @@ pub trait ByteUnits {
     /// See [`ByteLength::from_tera`] for more details.
     fn terabytes(self) -> ByteLength;
 }
-impl ByteUnits for usize {
+impl ByteUnits for u64 {
     fn bytes(self) -> ByteLength {
         ByteLength(self)
     }
@@ -125,9 +125,9 @@ impl ByteUnits for f64 {
 /// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
-pub struct ByteLength(pub usize); // TODO(breaking) use u64
-impl From<usize> for ByteLength {
-    fn from(value: usize) -> Self {
+pub struct ByteLength(pub u64);
+impl From<u64> for ByteLength {
+    fn from(value: u64) -> Self {
         Self(value)
     }
 }
@@ -159,7 +159,7 @@ impl ByteLength {
     /// Length in bytes.
     ///
     /// This is the same as `.0`.
-    pub fn bytes(&self) -> usize {
+    pub fn bytes(&self) -> u64 {
         self.0
     }
 
@@ -208,7 +208,7 @@ impl ByteLength {
     }
 
     /// Maximum representable byte length.
-    pub const MAX: ByteLength = ByteLength(usize::MAX);
+    pub const MAX: ByteLength = ByteLength(u64::MAX);
 
     /// Adds the two lengths without overflowing or wrapping.
     pub const fn saturating_add(self, rhs: ByteLength) -> ByteLength {
@@ -277,7 +277,7 @@ impl ByteLength {
     /// From bytes.
     ///
     /// This is the same as `ByteLength(bytes)`.
-    pub const fn from_byte(bytes: usize) -> Self {
+    pub const fn from_byte(bytes: u64) -> Self {
         ByteLength(bytes)
     }
 
@@ -288,7 +288,7 @@ impl ByteLength {
         ByteLength(bytes.round() as _)
     }
 
-    const fn new(value: usize, scale: usize) -> Self {
+    const fn new(value: u64, scale: u64) -> Self {
         ByteLength(value.saturating_mul(scale))
     }
 
@@ -299,7 +299,7 @@ impl ByteLength {
     /// From kibi-bytes.
     ///
     /// 1 kibi-byte equals 1024 bytes.
-    pub const fn from_kibi(kibi_bytes: usize) -> Self {
+    pub const fn from_kibi(kibi_bytes: u64) -> Self {
         Self::new(kibi_bytes, 1024)
     }
     /// From kibi-bytes.
@@ -312,7 +312,7 @@ impl ByteLength {
     /// From kilo-bytes.
     ///
     /// 1 kilo-byte equals 1000 bytes.
-    pub const fn from_kilo(kilo_bytes: usize) -> Self {
+    pub const fn from_kilo(kilo_bytes: u64) -> Self {
         Self::new(kilo_bytes, 1000)
     }
     /// From kilo-bytes.
@@ -325,8 +325,8 @@ impl ByteLength {
     /// From mebi-bytes.
     ///
     /// 1 mebi-byte equals 1024² bytes.
-    pub const fn from_mebi(mebi_bytes: usize) -> Self {
-        Self::new(mebi_bytes, 1024usize.pow(2))
+    pub const fn from_mebi(mebi_bytes: u64) -> Self {
+        Self::new(mebi_bytes, 1024u64.pow(2))
     }
     /// From mebi-bytes.
     ///
@@ -338,8 +338,8 @@ impl ByteLength {
     /// From mega-bytes.
     ///
     /// 1 mega-byte equals 1000² bytes.
-    pub const fn from_mega(mega_bytes: usize) -> Self {
-        Self::new(mega_bytes, 1000usize.pow(2))
+    pub const fn from_mega(mega_bytes: u64) -> Self {
+        Self::new(mega_bytes, 1000u64.pow(2))
     }
     /// From mega-bytes.
     ///
@@ -351,8 +351,8 @@ impl ByteLength {
     /// From gibi-bytes.
     ///
     /// 1 gibi-byte equals 1024³ bytes.
-    pub const fn from_gibi(gibi_bytes: usize) -> Self {
-        Self::new(gibi_bytes, 1024usize.pow(3))
+    pub const fn from_gibi(gibi_bytes: u64) -> Self {
+        Self::new(gibi_bytes, 1024u64.pow(3))
     }
     /// From gibi-bytes.
     ///
@@ -364,8 +364,8 @@ impl ByteLength {
     /// From giga-bytes.
     ///
     /// 1 giga-byte equals 1000³ bytes.
-    pub const fn from_giga(giga_bytes: usize) -> Self {
-        Self::new(giga_bytes, 1000usize.pow(3))
+    pub const fn from_giga(giga_bytes: u64) -> Self {
+        Self::new(giga_bytes, 1000u64.pow(3))
     }
     /// From giga-bytes.
     ///
@@ -377,8 +377,8 @@ impl ByteLength {
     /// From tebi-bytes.
     ///
     /// 1 tebi-byte equals 1024^4 bytes.
-    pub const fn from_tebi(tebi_bytes: usize) -> Self {
-        Self::new(tebi_bytes, 1024usize.pow(4))
+    pub const fn from_tebi(tebi_bytes: u64) -> Self {
+        Self::new(tebi_bytes, 1024u64.pow(4))
     }
     /// From tebi-bytes.
     ///
@@ -390,8 +390,8 @@ impl ByteLength {
     /// From tera-bytes.
     ///
     /// 1 tera-byte equals 1000^4 bytes.
-    pub const fn from_tera(tera_bytes: usize) -> Self {
-        Self::new(tera_bytes, 1000usize.pow(4))
+    pub const fn from_tera(tera_bytes: u64) -> Self {
+        Self::new(tera_bytes, 1000u64.pow(4))
     }
     /// From tera-bytes.
     ///
@@ -427,22 +427,22 @@ impl fmt::Debug for ByteLength {
 impl fmt::Display for ByteLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            if self.0 >= 1024usize.pow(4) {
+            if self.0 >= 1024u64.pow(4) {
                 write!(f, "{:.2}TiB", self.tebis())
-            } else if self.0 >= 1024usize.pow(3) {
+            } else if self.0 >= 1024u64.pow(3) {
                 write!(f, "{:.2}GiB", self.gibis())
-            } else if self.0 >= 1024usize.pow(2) {
+            } else if self.0 >= 1024u64.pow(2) {
                 write!(f, "{:.2}MiB", self.mebis())
             } else if self.0 >= 1024 {
                 write!(f, "{:.2}KiB", self.kibis())
             } else {
                 write!(f, "{}B", self.bytes())
             }
-        } else if self.0 >= 1000usize.pow(4) {
+        } else if self.0 >= 1000u64.pow(4) {
             write!(f, "{:.2}TB", self.teras())
-        } else if self.0 >= 1000usize.pow(3) {
+        } else if self.0 >= 1000u64.pow(3) {
             write!(f, "{:.2}GB", self.gigas())
-        } else if self.0 >= 1000usize.pow(2) {
+        } else if self.0 >= 1000u64.pow(2) {
             write!(f, "{:.2}MB", self.megas())
         } else if self.0 >= 1000 {
             write!(f, "{:.2}kB", self.kilos())
@@ -451,7 +451,7 @@ impl fmt::Display for ByteLength {
         }
     }
 }
-/// Parses `"##"`, `"##TiB"`, `"##GiB"`, `"##MiB"`, `"##KiB"`, `"##B"`, `"##TB"`, `"##GB"`, `"##MB"`, `"##kB"` and `"##B"` where `##` is an `usize`.
+/// Parses `"##"`, `"##TiB"`, `"##GiB"`, `"##MiB"`, `"##KiB"`, `"##B"`, `"##TB"`, `"##GB"`, `"##MB"`, `"##kB"` and `"##B"` where `##` is an `u64`.
 impl std::str::FromStr for ByteLength {
     type Err = std::num::ParseFloatError;
 
@@ -483,7 +483,7 @@ impl<S: Into<Factor>> ops::Mul<S> for ByteLength {
     type Output = Self;
 
     fn mul(mut self, rhs: S) -> Self {
-        self.0 = (self.0 as f64 * rhs.into().0 as f64) as usize;
+        self.0 = (self.0 as f64 * rhs.into().0 as f64) as u64;
         self
     }
 }
@@ -496,7 +496,7 @@ impl<S: Into<Factor>> ops::Div<S> for ByteLength {
     type Output = Self;
 
     fn div(mut self, rhs: S) -> Self {
-        self.0 = (self.0 as f64 / rhs.into().0 as f64) as usize;
+        self.0 = (self.0 as f64 / rhs.into().0 as f64) as u64;
         self
     }
 }

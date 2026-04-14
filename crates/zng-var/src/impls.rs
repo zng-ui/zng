@@ -213,7 +213,7 @@ impl_from_and_into_var! {
     fn from(d: DInstant) -> Deadline;
     fn from(d: Duration) -> Deadline;
 
-    fn from(b: usize) -> ByteLength;
+    fn from(b: u64) -> ByteLength;
 
     fn from(rad: AngleRadian) -> AngleTurn;
     fn from(grad: AngleGradian) -> AngleTurn;

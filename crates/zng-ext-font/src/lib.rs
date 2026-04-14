@@ -2977,7 +2977,7 @@ impl fmt::Debug for FontBytes {
                 FontBytesImpl::System(_) => "Mmap",
             },
         );
-        b.field(".len", &self.len().bytes());
+        b.field(".len", &(self.len() as u64).bytes());
         if let FontBytesImpl::System(m) = &self.0 {
             b.field(".path", &m.path);
         }

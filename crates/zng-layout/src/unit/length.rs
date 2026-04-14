@@ -819,7 +819,7 @@ impl Length {
     ///
     /// This includes the sum of all nested [`Length::Expr`] heap memory.
     pub fn memory_used(&self) -> ByteLength {
-        std::mem::size_of::<Length>().bytes() + self.heap_memory_used()
+        (std::mem::size_of::<Length>() as u64).bytes() + self.heap_memory_used()
     }
 
     /// Sum total memory used in nested [`Length::Expr`] heap memory.
