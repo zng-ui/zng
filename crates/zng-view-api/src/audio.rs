@@ -116,6 +116,11 @@ pub struct AudioRequest<D> {
     pub format: AudioDataFormat,
 
     /// Audio data.
+    ///
+    /// Bytes layout depends on the `format`, data structure is [`IpcReadHandle`] or [`IpcReceiver<IpcBytes>`] in the view API.
+    ///
+    /// [`IpcReadHandle`]: zng_task::channel::IpcReadHandle
+    /// [`IpcReceiver<IpcBytes>`]: zng_task::channel::IpcReceiver
     pub data: D,
 
     /// Maximum allowed decoded size in bytes.

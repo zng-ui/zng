@@ -436,7 +436,7 @@ declare_api! {
     /// the returned ID can be played as soon as it starts decoding.
     ///
     /// The events [`Event::AudioMetadataDecoded`], [`Event::AudioDecoded`] and [`Event::AudioDecodeError`] will be send while decoding.
-    pub fn add_audio(&mut self, request: audio::AudioRequest<IpcBytes>) -> audio::AudioId;
+    pub fn add_audio(&mut self, request: audio::AudioRequest<IpcReadHandle>) -> audio::AudioId;
 
     /// Cache an streaming audio resource.
     ///

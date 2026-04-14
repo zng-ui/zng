@@ -26,7 +26,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
-use zng_task::channel::IpcBytes;
+use zng_task::channel::{IpcBytes, IpcReadHandle};
 use zng_txt::ToTxt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_unit::ByteLength;
@@ -462,7 +462,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
 
     match source {
         AudioSource::Read(path) => {
-            fn read(path: &PathBuf, limit: (&AudioSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<IpcBytes> {
+            fn read(path: &PathBuf, limit: (&AudioSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<IpcReadHandle> {
                 if !limit.0.allows(path) {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::PermissionDenied,
@@ -473,7 +473,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
                 if file.metadata()?.len() > limit.1.bytes() as u64 {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
-                IpcBytes::from_file_blocking(file)
+                IpcReadHandle::best_read_blocking(file)
             }
             let data_format = match path.extension() {
                 Some(ext) => AudioDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
@@ -516,13 +516,13 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
             zng_task::spawn(async move {
                 match download(uri, accept, (limits.allow_uri.clone(), limits.max_encoded_len)).await {
                     Ok((fmt, data)) => {
-                        audio_data(false, Some(key), fmt, data, options, limits, r);
+                        audio_data(false, Some(key), fmt, data.into(), options, limits, r);
                     }
                     Err(e) => r.set(AudioTrack::new_error(e.to_txt())),
                 }
             });
         }
-        AudioSource::Data(_, data, format) => audio_data(false, Some(key), format, data, options, limits, r),
+        AudioSource::Data(_, data, format) => audio_data(false, Some(key), format, data.into(), options, limits, r),
         _ => unreachable!(),
     }
 }
@@ -532,7 +532,7 @@ fn audio_data(
     is_respawn: bool,
     cache_key: Option<AudioHash>,
     format: AudioDataFormat,
-    data: IpcBytes,
+    data: IpcReadHandle,
     options: AudioOptions,
     limits: AudioLimits,
     r: Var<AudioTrack>,
@@ -558,7 +558,16 @@ fn audio_data(
         return;
     }
 
-    let mut request = AudioRequest::new(format.clone(), data.clone(), limits.max_decoded_len.bytes() as u64);
+    let mut data = data;
+    let data_clone = match data.duplicate_or_read_blocking() {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::error!("audio data lost, {e}");
+            return;
+        }
+    };
+    let data = data;
+    let mut request = AudioRequest::new(format.clone(), data_clone, limits.max_decoded_len.bytes() as u64);
     request.tracks = options.tracks;
 
     let try_gen = VIEW_PROCESS.generation();
@@ -588,7 +597,7 @@ fn audio_view(
     handle: ViewAudioHandle,
     meta: AudioMetadata,
     decoded: AudioDecoded,
-    respawn_data: Option<(AudioDataFormat, IpcBytes, AudioOptions, AudioLimits)>,
+    respawn_data: Option<(AudioDataFormat, IpcReadHandle, AudioOptions, AudioLimits)>,
     r: Var<AudioTrack>,
 ) {
     let aud = AudioTrack::new(cache_key, handle, meta, decoded);
@@ -713,7 +722,7 @@ fn audio_decoded(r: Var<AudioTrack>) {
                     true,
                     aud.cache_key,
                     format,
-                    aud.chunk().into_inner(),
+                    aud.chunk().into_inner().into(),
                     options,
                     AudioLimits::none(),
                     r,

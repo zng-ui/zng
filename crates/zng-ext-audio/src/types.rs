@@ -7,7 +7,7 @@ use std::{
 };
 
 use zng_app::view_process::ViewAudioHandle;
-use zng_task::channel::{IpcBytes, IpcBytesCast};
+use zng_task::channel::{IpcBytes, IpcBytesCast, IpcReadHandle};
 use zng_txt::Txt;
 use zng_unit::{ByteLength, ByteUnits};
 use zng_var::{Var, VarEq, impl_from_and_into_var};
@@ -55,7 +55,7 @@ pub trait AudiosExtension: Send + Sync + Any {
         &mut self,
         max_decoded_len: ByteLength,
         key: &AudioHash,
-        data: &IpcBytes,
+        data: &IpcReadHandle,
         format: &AudioDataFormat,
         options: &AudioOptions,
     ) -> Option<AudioVar> {

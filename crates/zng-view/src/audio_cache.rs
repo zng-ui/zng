@@ -1,13 +1,17 @@
 #![cfg_attr(not(feature = "audio_any"), allow(unused))]
 
-use std::{fmt, io::Cursor, time::Duration};
+#[cfg(feature = "audio_any")]
+use std::io::{self, Read as _, Seek as _, SeekFrom};
+use std::{fmt, time::Duration};
 
 #[cfg(feature = "audio_any")]
 use rodio::Source as _;
 use rustc_hash::FxHashMap;
 #[cfg(feature = "audio_mp3")]
 use symphonia::core::probe::QueryDescriptor;
-use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcReceiver};
+#[cfg(feature = "audio_any")]
+use zng_task::channel::IpcReadBlocking;
+use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcReadHandle, IpcReceiver};
 use zng_txt::{ToTxt, formatx};
 use zng_view_api::{Event, audio::*};
 
@@ -35,7 +39,11 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
 ];
 
 #[cfg(feature = "audio_any")]
-fn symphonia_format(buf: &[u8]) -> Option<&'static AudioFormat> {
+fn symphonia_format(buf: &mut IpcReadBlocking) -> io::Result<&'static AudioFormat> {
+    let mut magic = vec![];
+    buf.by_ref().take(24).read_to_end(&mut magic)?;
+    buf.seek(SeekFrom::Start(0))?;
+
     let sf = std::iter::empty();
 
     #[cfg(feature = "audio_mp3")]
@@ -52,7 +60,7 @@ fn symphonia_format(buf: &[u8]) -> Option<&'static AudioFormat> {
     let mut found_mime = &[][..];
     'search: for f in sf {
         for m in f.markers {
-            if buf.len() >= m.len() && buf[..m.len()] == **m {
+            if magic.len() >= m.len() && magic[..m.len()] == **m {
                 found_mime = f.mime_types;
                 break 'search;
             }
@@ -61,18 +69,18 @@ fn symphonia_format(buf: &[u8]) -> Option<&'static AudioFormat> {
     if !found_mime.is_empty() {
         for f in FORMATS {
             if found_mime.iter().any(|m| f.matches(m)) {
-                return Some(f);
+                return Ok(f);
             }
         }
     }
 
     #[cfg(feature = "audio_mp3")]
-    if buf.len() > 3 && &buf[..3] == b"ID3" {
+    if magic.len() > 3 && &magic[..3] == b"ID3" {
         // ID3 tag, MP3 file have an ID3 header and after the MP3
-        return Some(FORMATS.iter().find(|f| f.matches("mp3")).unwrap());
+        return Ok(FORMATS.iter().find(|f| f.matches("mp3")).unwrap());
     }
 
-    None
+    Err(io::Error::new(io::ErrorKind::InvalidData, "unknown format"))
 }
 
 pub(crate) struct AudioCache {
@@ -100,7 +108,7 @@ impl AudioCache {
         }
     }
 
-    pub(crate) fn add(&mut self, request: AudioRequest<IpcBytes>) -> AudioId {
+    pub(crate) fn add(&mut self, request: AudioRequest<IpcReadHandle>) -> AudioId {
         let id = self.id_gen.incr();
         let app_sender = self.app_sender.clone();
         rayon::spawn(move || Self::add_impl(app_sender, id, request));
@@ -108,7 +116,7 @@ impl AudioCache {
     }
 
     #[cfg(not(feature = "audio_any"))]
-    fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
+    fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcReadHandle>) {
         app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
             audio: id,
             error: r#"not built with "audio_any""#.to_txt(),
@@ -116,8 +124,26 @@ impl AudioCache {
     }
 
     #[cfg(feature = "audio_any")]
-    fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcBytes>) {
-        let data = request.data;
+    fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcReadHandle>) {
+        macro_rules! error {
+            ($($msg:tt)+) => {
+                {
+                    let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
+                        audio: id,
+                        error: formatx!($($msg)+),
+                    }));
+                }
+            };
+        }
+
+        let mut data = match request.data.read_blocking() {
+            Ok(d) => d,
+            Err(e) => return error!("cannot read data, {e}"),
+        };
+        let data_len = match data.remaining_len() {
+            Ok(l) => l,
+            Err(e) => return error!("cannot read data, {e}"),
+        };
 
         if let AudioDataFormat::InterleavedF32 {
             channel_count,
@@ -126,27 +152,17 @@ impl AudioCache {
         } = request.format
         {
             // already decoded
-
-            if !data.len().is_multiple_of(4) {
-                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
-                    audio: id,
-                    error: formatx!("data cannot be cast to f32, not a multiple of 4"),
-                }));
-                return;
+            if !data_len.is_multiple_of(4) {
+                return error!("data cannot be cast to f32, not a multiple of 4");
             }
-            let data = data.cast::<f32>();
-            if !data.len().is_multiple_of(channel_count as usize) {
-                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
-                    audio: id,
-                    error: formatx!(
-                        "data not an interleaved sequence {0} channel samples, not not a multiple of {0}",
-                        channel_count
-                    ),
-                }));
-                return;
+            if !(data_len / 4).is_multiple_of(channel_count as _) {
+                return error!(
+                    "data not an interleaved sequence {0} channel samples, not not a multiple of {0}",
+                    channel_count
+                );
             }
 
-            let d = Duration::from_secs_f64(data.len() as f64 / channel_count as f64 / sample_rate as f64);
+            let d = Duration::from_secs_f64(data_len as f64 / channel_count as f64 / sample_rate as f64);
             if let Some(md) = total_duration
                 && (d.as_millis() != md.as_millis())
             {
@@ -156,6 +172,11 @@ impl AudioCache {
 
             let mut meta = AudioMetadata::new(id, channel_count, sample_rate);
             meta.total_duration = Some(total_duration);
+
+            let data = match data.read_to_bytes() {
+                Ok(d) => d.cast::<f32>(),
+                Err(e) => return error!("cannot read data, {e}"),
+            };
 
             let track = AudioTrack {
                 channel_count: meta.channel_count,
@@ -184,14 +205,17 @@ impl AudioCache {
 
         // symphonia does not provide the identified container type, but all it does it check
         // the magic number, so we do it again here, with the symphonia numbers
-        let format = symphonia_format(&data[..]).expect("cannot identify format from symphonia");
+        let format = match symphonia_format(&mut data) {
+            Ok(f) => f,
+            Err(e) => return error!("cannot determinate format, {e}"),
+        };
 
         // will read other metadata here in the future
 
         let decoder = rodio::decoder::DecoderBuilder::new()
-            .with_byte_len(data.len() as _)
+            .with_byte_len(data_len)
             .with_seekable(true)
-            .with_data(Cursor::new(data))
+            .with_data(data)
             .with_mime_type(&format.media_types().next().unwrap())
             .build();
         let decoder = match decoder {
@@ -206,13 +230,7 @@ impl AudioCache {
         };
         let total_duration = match decoder.total_duration() {
             Some(d) => d,
-            None => {
-                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
-                    audio: id,
-                    error: formatx!("only audio sources with known duration are currently supported"),
-                }));
-                return;
-            }
+            None => return error!("only audio sources with known duration are currently supported"),
         };
 
         let mut meta = AudioMetadata::new(id, decoder.channels().get(), decoder.sample_rate().get());
@@ -251,13 +269,7 @@ impl AudioCache {
         }
         match IpcBytesCast::<f32>::from_iter_blocking(SizeHint { iter: decoder, sample_len }) {
             Ok(d) => track.raw = d,
-            Err(e) => {
-                let _ = app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
-                    audio: id,
-                    error: formatx!("cannot allocate memory for decode, {e}"),
-                }));
-                return;
-            }
+            Err(e) => return error!("cannot allocate memory for decode, {e}"),
         }
 
         let mut decoded = AudioDecoded::new(id, track.raw.clone());

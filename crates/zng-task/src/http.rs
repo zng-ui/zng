@@ -566,7 +566,7 @@ impl Response {
     pub async fn body(&mut self) -> Result<IpcBytes, Error> {
         self.download().await?;
         match &self.body {
-            ResponseBody::Done { bytes, .. } => Ok(bytes.clone()),
+            ResponseBody::Done { bytes } => Ok(bytes.clone()),
             ResponseBody::Read { .. } => unreachable!(),
         }
     }

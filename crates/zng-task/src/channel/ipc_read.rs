@@ -189,6 +189,21 @@ impl IpcReadBlocking {
             }
         }
     }
+
+    /// Remaining bytes length.
+    pub fn remaining_len(&mut self) -> io::Result<u64> {
+        match self {
+            IpcReadBlocking::File(b) => {
+                let total_len = b.get_ref().metadata()?.len();
+                let position = b.stream_position()?;
+                Ok(total_len - position.min(total_len))
+            }
+            IpcReadBlocking::Bytes(b) => {
+                let total_len = b.get_ref().len() as u64;
+                Ok(total_len - b.position().min(total_len))
+            }
+        }
+    }
 }
 impl io::Read for IpcReadBlocking {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -283,6 +298,21 @@ impl IpcRead {
                 } else {
                     blocking::unblock(move || IpcBytes::from_slice_blocking(&b[start as usize..])).await
                 }
+            }
+        }
+    }
+
+    /// Remaining bytes length.
+    pub async fn remaining_len(&mut self) -> io::Result<u64> {
+        match self {
+            IpcRead::File(b) => {
+                let total_len = b.get_ref().metadata().await?.len();
+                let pos = b.seek(io::SeekFrom::Current(0)).await?;
+                Ok(total_len - pos.min(total_len))
+            }
+            IpcRead::Bytes(b) => {
+                let total_len = b.get_ref().len() as u64;
+                Ok(total_len - b.position().min(total_len))
             }
         }
     }
