@@ -65,11 +65,12 @@ use dialog::DialogId;
 use font::{FontFaceId, FontId, FontOptions, FontVariationName};
 use image::{ImageId, ImageMaskMode, ImageRequest, ImageTextureId};
 use window::WindowId;
-use zng_task::channel::{IpcBytes, IpcReceiver};
+use zng_task::channel::{IpcBytes, IpcReadHandle, IpcReceiver};
 use zng_unit::{DipPoint, DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(ipc, derive(Serialize, Deserialize))]
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request can only be made after the *init* event.
@@ -144,7 +145,7 @@ macro_rules! declare_api {
             ) $(-> $ResponseType:ty)?;
         )*
     ) => {
-        #[derive(Serialize, Deserialize)]
+        #[cfg_attr(ipc, derive(Serialize, Deserialize))]
         #[allow(non_camel_case_types)]
         #[allow(clippy::large_enum_variant)]
         #[repr(u32)]
@@ -380,7 +381,7 @@ declare_api! {
     /// this will register the image data with the renderer.
     ///
     /// [`use_image`]: Api::use_image
-    pub fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId;
+    pub fn add_image(&mut self, request: ImageRequest<IpcReadHandle>) -> ImageId;
 
     /// Cache an image from data that has not fully loaded.
     ///

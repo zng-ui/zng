@@ -1,9 +1,23 @@
-use std::{fs, io, pin::Pin};
+use futures_lite::AsyncSeekExt as _;
+use std::{
+    fs,
+    io::{self, Seek as _},
+    mem,
+    pin::{Pin, pin},
+};
+use zng_unit::ByteUnits as _;
 
 use crate::channel::{IpcBytes, IpcFileHandle};
 
 /// File handle or allocated bytes that can be read after sending to another process.
+///
+/// # Position
+///
+/// Read always starts from the beginning, the `read` methods seek the file start before returning. Note
+/// that the read position is associated with the system handle, if you create multiple duplicates of the
+/// same handle reading in one instance advances the position in all.
 #[derive(Debug)]
+#[cfg_attr(ipc, derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum IpcReadHandle {
     /// Read directly from disk.
@@ -27,6 +41,29 @@ impl From<fs::File> for IpcReadHandle {
     }
 }
 impl IpcReadHandle {
+    /// Either keep the handle or read to bytes, whichever is likely to be faster for
+    /// the common usage pattern of sending to another process and a single full read with some seeking.
+    pub fn best_read_blocking(mut file: std::fs::File) -> io::Result<Self> {
+        if file.metadata()?.len() > 5.megabytes().bytes() as u64 {
+            Ok(file.into())
+        } else {
+            file.seek(io::SeekFrom::Start(0))?;
+            IpcBytes::from_file_blocking(file).map(Into::into)
+        }
+    }
+
+    /// Either keep the handle or read to bytes, whichever is likely to be faster for
+    /// the common usage pattern of sending to another process and a single full read with some seeking.
+    pub async fn best_read(mut file: crate::fs::File) -> io::Result<Self> {
+        if file.metadata().await?.len() > 5.megabytes().bytes() as u64 {
+            let file = file.try_unwrap().await.unwrap();
+            Ok(file.into())
+        } else {
+            file.seek(io::SeekFrom::Start(0)).await?;
+            IpcBytes::from_file(file).await.map(Into::into)
+        }
+    }
+
     /// Duplicate file handle or clone reference to bytes.
     pub fn duplicate(&self) -> io::Result<Self> {
         match self {
@@ -36,25 +73,37 @@ impl IpcReadHandle {
     }
 
     /// Begin reading using the std blocking API.
-    pub fn read_blocking(self) -> IpcReadBlocking {
+    pub fn read_blocking(self) -> io::Result<IpcReadBlocking> {
         match self {
-            IpcReadHandle::File(h) => IpcReadBlocking::File(io::BufReader::new(h.into())),
-            IpcReadHandle::Bytes(b) => IpcReadBlocking::Bytes(io::Cursor::new(b)),
+            IpcReadHandle::File(h) => {
+                let mut file = std::fs::File::from(h);
+                file.seek(io::SeekFrom::Start(0))?;
+                Ok(IpcReadBlocking::File(io::BufReader::new(file)))
+            }
+            IpcReadHandle::Bytes(b) => Ok(IpcReadBlocking::Bytes(io::Cursor::new(b))),
         }
     }
 
     /// Begin reading using the async API.
-    pub fn read(self) -> IpcRead {
+    pub async fn read(self) -> io::Result<IpcRead> {
         match self {
-            IpcReadHandle::File(h) => IpcRead::File(crate::io::BufReader::new(h.into())),
-            IpcReadHandle::Bytes(b) => IpcRead::Bytes(crate::io::Cursor::new(b)),
+            IpcReadHandle::File(h) => {
+                let mut file = crate::fs::File::from(h);
+                file.seek(io::SeekFrom::Start(0)).await?;
+                Ok(IpcRead::File(crate::io::BufReader::new(file)))
+            }
+            IpcReadHandle::Bytes(b) => Ok(IpcRead::Bytes(crate::io::Cursor::new(b))),
         }
     }
 
     /// Read file to new [`IpcBytes`] or unwrap bytes.
     pub fn read_to_bytes_blocking(self) -> io::Result<IpcBytes> {
         match self {
-            IpcReadHandle::File(h) => IpcBytes::from_file_blocking(h.into()),
+            IpcReadHandle::File(h) => {
+                let mut file = std::fs::File::from(h);
+                file.seek(io::SeekFrom::Start(0))?;
+                IpcBytes::from_file_blocking(file)
+            }
             IpcReadHandle::Bytes(b) => Ok(b),
         }
     }
@@ -62,8 +111,52 @@ impl IpcReadHandle {
     /// Read file to new [`IpcBytes`] or unwrap bytes.
     pub async fn read_to_bytes(self) -> io::Result<IpcBytes> {
         match self {
-            IpcReadHandle::File(h) => IpcBytes::from_file(h.into()).await,
+            IpcReadHandle::File(h) => {
+                let mut file = crate::fs::File::from(h);
+                file.seek(io::SeekFrom::Start(0)).await?;
+                IpcBytes::from_file(file).await
+            }
             IpcReadHandle::Bytes(b) => Ok(b),
+        }
+    }
+
+    /// Attempts [`duplicate`] with read fallback.
+    ///
+    /// If duplicate fails attempts [`read_to_bytes`], if it succeeds replaces `self` with read bytes and returns a clone
+    /// if it fails replaces `self` with empty and returns the read error.
+    ///
+    /// [`duplicate`]: Self::duplicate
+    /// [`read_to_bytes`]: Self::read_to_bytes
+    pub async fn duplicate_or_read(&mut self) -> io::Result<Self> {
+        match self.duplicate() {
+            Ok(d) => Ok(d),
+            Err(e) => {
+                tracing::debug!("duplicate_or_read duplicate error, {e}");
+                let f = mem::replace(self, IpcReadHandle::Bytes(IpcBytes::empty()));
+                let b = f.read_to_bytes().await?;
+                *self = IpcReadHandle::Bytes(b);
+                self.duplicate()
+            }
+        }
+    }
+
+    /// Attempts [`duplicate`] with read fallback.
+    ///
+    /// If duplicate fails attempts [`read_to_bytes_blocking`], if it succeeds replaces `self` with read bytes and returns a clone
+    /// if it fails replaces `self` with empty and returns the read error.
+    ///
+    /// [`duplicate`]: Self::duplicate
+    /// [`read_to_bytes_blocking`]: Self::read_to_bytes_blocking
+    pub fn duplicate_or_read_blocking(&mut self) -> io::Result<Self> {
+        match self.duplicate() {
+            Ok(d) => Ok(d),
+            Err(e) => {
+                tracing::debug!("duplicate_or_read_blocking duplicate error, {e}");
+                let f = mem::replace(self, IpcReadHandle::Bytes(IpcBytes::empty()));
+                let b = f.read_to_bytes_blocking()?;
+                *self = IpcReadHandle::Bytes(b);
+                self.duplicate()
+            }
         }
     }
 }
@@ -76,6 +169,26 @@ pub enum IpcReadBlocking {
     File(io::BufReader<fs::File>),
     /// Bytes.
     Bytes(io::Cursor<IpcBytes>),
+}
+impl IpcReadBlocking {
+    /// Read all bytes until EOF to a new [`IpcBytes`].
+    ///
+    /// If the position is at 0 and is already `Bytes` returns it.
+    pub fn read_to_bytes(&mut self) -> io::Result<IpcBytes> {
+        match self {
+            IpcReadBlocking::File(f) => IpcBytes::from_read_blocking(f),
+            IpcReadBlocking::Bytes(c) => {
+                let start = c.position();
+                let len = c.get_ref().len();
+                c.set_position(len as u64);
+                if start == 0 {
+                    Ok(c.get_ref().clone())
+                } else {
+                    IpcBytes::from_slice_blocking(&c.get_ref()[start as usize..])
+                }
+            }
+        }
+    }
 }
 impl io::Read for IpcReadBlocking {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -152,6 +265,27 @@ pub enum IpcRead {
     File(crate::io::BufReader<crate::fs::File>),
     /// Bytes.
     Bytes(crate::io::Cursor<IpcBytes>),
+}
+impl IpcRead {
+    /// Read all bytes until EOF to a new [`IpcBytes`].
+    ///
+    /// If the position is at 0 and is already `Bytes` returns it.
+    pub async fn read_to_bytes(&mut self) -> io::Result<IpcBytes> {
+        match self {
+            IpcRead::File(f) => IpcBytes::from_read(pin!(f)).await,
+            IpcRead::Bytes(c) => {
+                let start = c.position();
+                let len = c.get_ref().len();
+                c.set_position(len as u64);
+                let b = c.get_ref().clone();
+                if start == 0 {
+                    Ok(b)
+                } else {
+                    blocking::unblock(move || IpcBytes::from_slice_blocking(&b[start as usize..])).await
+                }
+            }
+        }
+    }
 }
 impl crate::io::AsyncRead for IpcRead {
     fn poll_read(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut [u8]) -> std::task::Poll<io::Result<usize>> {

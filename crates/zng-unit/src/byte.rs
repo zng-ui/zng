@@ -125,7 +125,7 @@ impl ByteUnits for f64 {
 /// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
-pub struct ByteLength(pub usize);
+pub struct ByteLength(pub usize); // TODO(breaking) use u64
 impl From<usize> for ByteLength {
     fn from(value: usize) -> Self {
         Self(value)

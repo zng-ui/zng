@@ -38,7 +38,7 @@ use zng_app_context::app_local;
 use zng_clone_move::clmv;
 use zng_layout::unit::{ByteLength, ByteUnits};
 use zng_state_map::StateId;
-use zng_task::channel::IpcBytes;
+use zng_task::channel::{IpcBytes, IpcReadHandle};
 use zng_txt::ToTxt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{IntoVar, Var, VarHandle, var};
@@ -465,7 +465,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
 
     match source {
         ImageSource::Read(path) => {
-            fn read(path: &PathBuf, limit: (&ImageSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<IpcBytes> {
+            fn read(path: &PathBuf, limit: (&ImageSourceFilter<PathBuf>, ByteLength)) -> std::io::Result<(IpcReadHandle, u64)> {
                 if !limit.0.allows(path) {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::PermissionDenied,
@@ -473,18 +473,19 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                     ));
                 }
                 let file = std::fs::File::open(path)?;
-                if file.metadata()?.len() > limit.1.bytes() as u64 {
+                let len = file.metadata()?.len();
+                if len > limit.1.bytes() as u64 {
                     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "file length exceeds limit"));
                 }
-                IpcBytes::from_file_blocking(file)
+                Ok((IpcReadHandle::best_read_blocking(file)?, len))
             }
             let data_format = match path.extension() {
                 Some(ext) => ImageDataFormat::FileExtension(ext.to_string_lossy().to_txt()),
                 None => ImageDataFormat::Unknown,
             };
             zng_task::spawn_wait(move || match read(&path, (&limits.allow_path, limits.max_encoded_len)) {
-                Ok(data) => {
-                    tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", data.len().bytes());
+                Ok((data, len)) => {
+                    tracing::trace!("read {path:?}, len: {:?}, fmt: {data_format:?}", (len as usize).bytes());
                     image_data(false, Some(key), data_format, data, options, limits, r)
                 }
                 Err(e) => {
@@ -525,7 +526,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                 match download(uri.clone(), accept, (limits.allow_uri.clone(), limits.max_encoded_len)).await {
                     Ok((fmt, data)) => {
                         tracing::trace!("download {uri:?}, len: {:?}, fmt: {fmt:?}", data.len().bytes());
-                        image_data(false, Some(key), fmt, data, options, limits, r);
+                        image_data(false, Some(key), fmt, data.into(), options, limits, r);
                     }
                     Err(e) => {
                         tracing::debug!("cannot download {uri:?}, {e}");
@@ -534,7 +535,7 @@ fn image(mut source: ImageSource, mut options: ImageOptions, limits: Option<Imag
                 }
             });
         }
-        ImageSource::Data(_, data, format) => image_data(false, Some(key), format, data, options, limits, r),
+        ImageSource::Data(_, data, format) => image_data(false, Some(key), format, data.into(), options, limits, r),
         ImageSource::Render(render_fn, args) => image_render(Some(key), render_fn, args, options, r),
         _ => unreachable!(),
     }
@@ -545,7 +546,7 @@ fn image_data(
     is_respawn: bool,
     cache_key: Option<ImageHash>,
     format: ImageDataFormat,
-    data: IpcBytes,
+    data: IpcReadHandle,
     options: ImageOptions,
     limits: ImageLimits,
     r: Var<ImageEntry>,
@@ -571,9 +572,19 @@ fn image_data(
         return;
     }
 
+    let mut data = data;
+    let data_clone = match data.duplicate_or_read_blocking() {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::error!("image data lost, {e}");
+            return;
+        }
+    };
+    let data = data;
+
     let mut request = ImageRequest::new(
         format.clone(),
-        data.clone(),
+        data_clone,
         limits.max_decoded_len.bytes() as u64,
         options.downscale.clone(),
         options.mask,
@@ -612,7 +623,7 @@ fn image_view(
     cache_key: Option<ImageHash>,
     handle: ViewImageHandle,
     decoded: ImageDecoded,
-    respawn_data: Option<(ImageDataFormat, IpcBytes, ImageOptions, ImageLimits)>,
+    respawn_data: Option<(ImageDataFormat, IpcReadHandle, ImageOptions, ImageLimits)>,
     r: Var<ImageEntry>,
 ) {
     // reuse value to keep entry vars alive in case of respawn
@@ -753,7 +764,7 @@ fn image_decoded(r: Var<ImageEntry>) {
                     true,
                     img.cache_key,
                     format,
-                    img.data.pixels.clone(),
+                    img.data.pixels.clone().into(),
                     options,
                     ImageLimits::none(),
                     r,

@@ -1,6 +1,7 @@
 // like image::DynamicImage, but with IpcBytesMut storage
 
 use image::{error::*, *};
+use zng_task::channel::IpcReadBlocking;
 use zng_task::channel::{IpcBytesMut, IpcBytesMutCast};
 
 use crate::image_cache::decode::ContainerFormat;
@@ -97,7 +98,7 @@ macro_rules! dynamic_map(
 );
 
 impl IpcDynamicImage {
-    pub fn decode(buf: &[u8], format: ContainerFormat, entry: usize) -> image::ImageResult<Self> {
+    pub fn decode(buf: &mut IpcReadBlocking, format: ContainerFormat, entry: usize) -> image::ImageResult<Self> {
         let format = match format {
             ContainerFormat::Image(f) => match f {
                 #[cfg(feature = "image_ico")]
@@ -109,8 +110,6 @@ impl IpcDynamicImage {
             #[cfg(feature = "image_cur")]
             ContainerFormat::Cur => return Self::decode_ico(buf, entry),
         };
-
-        let buf = std::io::Cursor::new(buf);
 
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
@@ -128,9 +127,7 @@ impl IpcDynamicImage {
     }
 
     #[cfg(any(feature = "image_ico", feature = "image_cur"))]
-    fn decode_ico(buf: &[u8], entry: usize) -> image::ImageResult<Self> {
-        let buf = std::io::Cursor::new(buf);
-
+    fn decode_ico(buf: &mut IpcReadBlocking, entry: usize) -> image::ImageResult<Self> {
         let icon = ico::IconDir::read(buf)?;
 
         let entry = icon.entries()[entry].decode()?;
@@ -142,9 +139,7 @@ impl IpcDynamicImage {
     }
 
     #[cfg(feature = "image_tiff")]
-    fn decode_tiff(buf: &[u8], entry: usize) -> image::ImageResult<Self> {
-        let buf = std::io::Cursor::new(buf);
-
+    fn decode_tiff(buf: &mut IpcReadBlocking, entry: usize) -> image::ImageResult<Self> {
         let mut tiff = tiff::decoder::Decoder::new(buf).map_err(tiff_error)?;
         tiff.seek_to_image(entry).map_err(tiff_error)?;
 
@@ -301,39 +296,71 @@ pub(crate) fn tiff_exif<R: std::io::Read + std::io::Seek>(tiff: &mut tiff::decod
 }
 
 #[cfg(feature = "image_jpeg")]
-pub(crate) fn jpeg_density(data: &[u8]) -> Option<zng_unit::PxDensity2d> {
+pub(crate) fn jpeg_density(data: &mut IpcReadBlocking) -> Option<zng_unit::PxDensity2d> {
     use zng_unit::PxDensity2d;
     use zng_unit::PxDensityUnits as _;
 
     // `image` uses `zune-jpeg`, that decoder does not parse density correctly,
     // so we do it manually here
-    fn parse_density(data: &[u8]) -> Option<(u8, u16, u16)> {
-        let mut i = 0;
-        while i + 4 < data.len() {
-            // APP0
-            if data[i] == 0xFF && data[i + 1] == 0xE0 {
-                let len = u16::from_be_bytes([data[i + 2], data[i + 3]]) as usize;
-                if i + 2 + len > data.len() {
+    fn parse_density(reader: &mut IpcReadBlocking) -> Option<(u8, u16, u16)> {
+        use std::io::{Read as _, Seek as _, SeekFrom};
+
+        let mut buf = [0u8; 2];
+        if reader.read_exact(&mut buf[0..1]).is_err() {
+            return None;
+        }
+        loop {
+            if reader.read_exact(&mut buf[1..2]).is_err() {
+                break;
+            }
+
+            if buf[0] == 0xFF && buf[1] == 0xE0 {
+                // APP0 marker
+                let mut len_bytes = [0u8; 2];
+                if reader.read_exact(&mut len_bytes).is_err() {
+                    break;
+                }
+                let len = u16::from_be_bytes(len_bytes) as usize;
+
+                // 2 for length, 5 for "JFIF\0", 9 for the rest
+                if len >= 2 + 5 + 9 {
+                    let mut header = [0u8; 14];
+                    if reader.read_exact(&mut header).is_err() {
+                        break;
+                    }
+
+                    if header.starts_with(b"JFIF\0") {
+                        let unit = header[7];
+                        let x = u16::from_be_bytes([header[8], header[9]]);
+                        let y = u16::from_be_bytes([header[10], header[11]]);
+                        return Some((unit, x, y));
+                    }
+
+                    // not JFIF, skip
+                    if reader.seek(SeekFrom::Current((len - 16) as i64)).is_err() {
+                        break;
+                    }
+                } else if len >= 2 {
+                    // skip invalid APP0
+                    if reader.seek(SeekFrom::Current((len - 2) as i64)).is_err() {
+                        break;
+                    }
+                } else {
                     break;
                 }
 
-                // APP0 payload starts at i+4, identifier is 5 bytes: "JFIF\0"
-                let p = i + 4;
-                if &data[p..p + 5] == b"JFIF\0" && p + 14 <= data.len() {
-                    let unit = data[p + 7];
-                    let x = u16::from_be_bytes([data[p + 8], data[p + 9]]);
-                    let y = u16::from_be_bytes([data[p + 10], data[p + 11]]);
-                    return Some((unit, x, y));
+                if reader.read_exact(&mut buf[0..1]).is_err() {
+                    break;
                 }
-
-                i += 2 + len;
-            } else if data[i] == 0xFF && data[i + 1] == 0xDA {
-                // Start of Scan
+                continue;
+            } else if buf[0] == 0xFF && buf[1] == 0xDA {
+                // SOS marker
                 break;
-            } else {
-                i += 1;
             }
+
+            buf[0] = buf[1];
         }
+
         None
     }
     if let Some((unit, x, y)) = parse_density(data) {

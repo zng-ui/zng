@@ -6,7 +6,11 @@ use crate::image_cache::ResizerCache;
 use crate::image_cache::dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::ImageDecoder as _;
+#[cfg(feature = "image_any")]
+use std::io::{Read as _, Seek as _, SeekFrom};
 use zng_task::channel::IpcBytesMut;
+#[cfg(feature = "image_any")]
+use zng_task::channel::IpcReadBlocking;
 use zng_txt::ToTxt as _;
 use zng_txt::Txt;
 use zng_unit::PxDensityUnits as _;
@@ -62,7 +66,10 @@ impl ContainerFormat {
 impl ImageCache {
     /// Guess and verify the image format and get entries sorted by kind and size.
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_container(fmt: &ImageDataFormat, data: &[u8]) -> Result<(ContainerFormat, Vec<(usize, ImageEntryKind)>), Txt> {
+    pub(super) fn decode_container(
+        fmt: &ImageDataFormat,
+        data: &mut IpcReadBlocking,
+    ) -> Result<(ContainerFormat, Vec<(usize, ImageEntryKind)>), Txt> {
         let maybe_fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => ContainerFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(ContainerFormat::from_mime_type),
@@ -74,35 +81,43 @@ impl ImageCache {
 
         let fmt = match maybe_fmt {
             Some(f) => f,
-            // try magic number matching
-            None => match super::FORMATS.iter().find(|f| f.matches_magic(data)).and_then(|f| {
-                f.file_extensions_iter()
-                    .next()
-                    .and_then(ContainerFormat::from_extension)
-                    .or_else(|| f.media_types().next().and_then(|t| ContainerFormat::from_mime_type(&t)))
-            }) {
-                Some(f) => f,
-                None => {
-                    // try image crate magic number matching, in case an update added format?
-                    let guess = image::ImageReader::new(std::io::Cursor::new(data))
-                        .with_guessed_format()
-                        .map_err(|e| e.to_txt())?;
-                    match guess.format() {
-                        Some(f) => ContainerFormat::Image(f),
-                        None => return Err(Txt::from_static("unknown format")),
+            None => {
+                // try magic number matching
+                let mut magic = vec![];
+                data.by_ref().take(24).read_to_end(&mut magic).map_err(|e| e.to_txt())?;
+                match super::FORMATS.iter().find(|f| f.matches_magic(&magic)).and_then(|f| {
+                    f.file_extensions_iter()
+                        .next()
+                        .and_then(ContainerFormat::from_extension)
+                        .or_else(|| f.media_types().next().and_then(|t| ContainerFormat::from_mime_type(&t)))
+                }) {
+                    Some(f) => f,
+                    None => {
+                        // try image crate magic number matching, in case an update added format?
+                        data.seek(SeekFrom::Start(0)).map_err(|e| e.to_txt())?;
+
+                        let guess = image::ImageReader::new(&mut *data).with_guessed_format().map_err(|e| e.to_txt())?;
+                        match guess.format() {
+                            Some(f) => ContainerFormat::Image(f),
+                            None => return Err(Txt::from_static("unknown format")),
+                        }
                     }
                 }
-            },
+            }
         };
 
+        let mut retry_as_unknown = None;
         if let ContainerFormat::Image(f) = fmt
-            && let Err(e) = image::ImageReader::with_format(std::io::Cursor::new(data), f).into_decoder()
+            && let Err(e) = image::ImageReader::with_format(&mut *data, f).into_decoder()
+            && let image::ImageError::Decoding(_) = &e
+            && maybe_fmt.is_some()
         {
             // decoder error, try fallback to Unknown
-            if let image::ImageError::Decoding(_) = &e
-                && maybe_fmt.is_some()
-                && let Ok(r) = Self::decode_container(&ImageDataFormat::Unknown, data)
-            {
+            retry_as_unknown = Some(e);
+        }
+        data.seek(SeekFrom::Start(0)).map_err(|e| e.to_txt())?;
+        if let Some(e) = retry_as_unknown {
+            if let Ok(r) = Self::decode_container(&ImageDataFormat::Unknown, data) {
                 return Ok(r);
             }
             return Err(e.to_txt());
@@ -111,7 +126,7 @@ impl ImageCache {
         match fmt {
             #[cfg(any(feature = "image_ico", feature = "image_cur"))]
             ContainerFormat::Image(image::ImageFormat::Ico) | ContainerFormat::Cur => {
-                if let Ok(ico) = ico::IconDir::read(std::io::Cursor::new(data)) {
+                if let Ok(ico) = ico::IconDir::read(data) {
                     // largest entry is the `Page` others are `Reduced`.
                     let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
                     entry_sizes.sort_by_key(|t| t.1);
@@ -135,7 +150,7 @@ impl ImageCache {
             }
             #[cfg(feature = "image_tiff")]
             ContainerFormat::Image(image::ImageFormat::Tiff) => {
-                if let Ok(mut tiff) = tiff::decoder::Decoder::new(std::io::Cursor::new(data)) {
+                if let Ok(mut tiff) = tiff::decoder::Decoder::new(data) {
                     let mut r = vec![];
 
                     let mut index = 0usize;
@@ -191,7 +206,7 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_metadata(data: &[u8], fmt: ContainerFormat, entry: usize) -> Result<ImageHeader, Txt> {
+    pub(super) fn decode_metadata(data: &mut IpcReadBlocking, fmt: ContainerFormat, entry: usize) -> Result<ImageHeader, Txt> {
         // multi entry containers
         match fmt {
             #[cfg(any(feature = "image_ico", feature = "image_cur"))]
@@ -208,16 +223,8 @@ impl ImageCache {
             ContainerFormat::Cur => unreachable!(),
         };
 
-        let mut decoder = image::ImageReader::with_format(std::io::Cursor::new(data), fmt)
-            .into_decoder()
-            .unwrap();
-
-        // metadata generalized by image crate
-        let og_color_type = decoder.original_color_type();
-        let (mut w, mut h) = decoder.dimensions();
-        let mut orientation = decoder.orientation().unwrap_or(NoTransforms);
+        let mut orientation = NoTransforms;
         let mut density = None;
-        let mut icc_profile = None;
 
         // metadata patches
         #[cfg(feature = "image_png")]
@@ -228,12 +235,13 @@ impl ImageCache {
             #[cfg(feature = "image_jpeg")]
             image::ImageFormat::Jpeg => {
                 // jpeg built-in density
-                density = crate::image_cache::dyn_image::jpeg_density(data);
+                density = crate::image_cache::dyn_image::jpeg_density(&mut *data);
+                data.seek(SeekFrom::Start(0)).map_err(|e| e.to_txt())?;
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
                 // png built-in density and color management
-                let d = png::Decoder::new_with_limits(std::io::Cursor::new(data), png::Limits { bytes: usize::MAX });
+                let d = png::Decoder::new_with_limits(&mut *data, png::Limits { bytes: usize::MAX });
                 let d = d.read_info().map_err(|e| e.to_txt())?;
                 let info = d.info();
                 if let Some(d) = info.pixel_dims {
@@ -251,9 +259,17 @@ impl ImageCache {
                 }
                 png_gamma = info.gama_chunk;
                 png_chromaticities = info.chrm_chunk;
+                data.seek(SeekFrom::Start(0)).map_err(|e| e.to_txt())?;
             }
             _ => {}
         }
+        let mut decoder = image::ImageReader::with_format(&mut *data, fmt).into_decoder().unwrap();
+
+        // metadata generalized by image crate
+        let og_color_type = decoder.original_color_type();
+        let (mut w, mut h) = decoder.dimensions();
+        orientation = decoder.orientation().unwrap_or(NoTransforms);
+        let mut icc_profile = None;
 
         // exif fallback
         if (density.is_none() || matches!(orientation, NoTransforms))
@@ -294,12 +310,17 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_ico")]
-    fn decode_metadata_ico(data: &[u8], entry: usize) -> Result<ImageHeader, Txt> {
-        let ico = ico::IconDir::read(std::io::Cursor::new(data)).map_err(|e| e.to_txt())?;
+    fn decode_metadata_ico(data: &mut IpcReadBlocking, entry: usize) -> Result<ImageHeader, Txt> {
+        let ico = ico::IconDir::read(data).map_err(|e| e.to_txt())?;
 
         let entry = &ico.entries()[entry];
         let mut r = if entry.is_png() {
-            Self::decode_metadata(entry.data(), ContainerFormat::Image(image::ImageFormat::Png), 0)?
+            use std::io;
+            use zng_task::channel::IpcBytes;
+
+            let png = IpcBytes::from_slice_blocking(entry.data()).map_err(|e| e.to_txt())?;
+            let mut png = IpcReadBlocking::Bytes(io::Cursor::new(png));
+            Self::decode_metadata(&mut png, ContainerFormat::Image(image::ImageFormat::Png), 0)?
         } else {
             ImageHeader {
                 size: PxSize::new(Px(entry.width() as _), Px(entry.height() as _)),
@@ -325,8 +346,8 @@ impl ImageCache {
         Ok(r)
     }
     #[cfg(feature = "image_tiff")]
-    fn decode_metadata_tiff(data: &[u8], entry: usize) -> Result<ImageHeader, Txt> {
-        let mut tiff = tiff::decoder::Decoder::new(std::io::Cursor::new(data)).map_err(|e| e.to_txt())?;
+    fn decode_metadata_tiff(data: &mut IpcReadBlocking, entry: usize) -> Result<ImageHeader, Txt> {
+        let mut tiff = tiff::decoder::Decoder::new(data).map_err(|e| e.to_txt())?;
         tiff.seek_to_image(entry).map_err(|e| e.to_txt())?;
         let (w, h) = tiff.dimensions().map_err(|e| e.to_txt())?;
         let color_type = crate::image_cache::dyn_image::tiff_color_type(&mut tiff).map_err(|e| e.to_txt())?;
@@ -394,7 +415,7 @@ impl ImageCache {
     }
 
     #[cfg(feature = "image_any")]
-    pub(super) fn decode_image(buf: &[u8], format: ContainerFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
+    pub(super) fn decode_image(buf: &mut IpcReadBlocking, format: ContainerFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
         IpcDynamicImage::decode(buf, format, entry)
     }
 

@@ -827,6 +827,7 @@ pub mod windows {
         /// ```
         ///
         /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+        /// [`OpenOptions`]: crate::fs::OpenOptions
         fn access_mode(&mut self, access: u32) -> &mut Self;
 
         /// Overrides the `dwShareMode` argument to the call to [`CreateFile`] with

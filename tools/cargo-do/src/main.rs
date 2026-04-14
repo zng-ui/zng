@@ -77,7 +77,7 @@ fn install(mut args: Vec<&str>) {
             for arg in args.iter() {
                 print!(" {arg}");
             }
-            println!();
+            println("");
         }
     }
 }
@@ -225,6 +225,7 @@ fn doc(mut args: Vec<&str>) {
             }
         }
 
+        println(f!("doc {}", member.name));
         cmd_env_req(
             "cargo",
             &["doc", "--all-features", "--no-deps", "--package", member.name.as_str()],
@@ -1293,7 +1294,7 @@ fn prebuild(mut args: Vec<&str>) {
     if let Err(e) = std::fs::copy(&file, &target) {
         error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
     }
-    println!("prebuilt to {target}");
+    println(f!("prebuilt to {target}"));
 
     // test build
     cmd("cargo", &["build", "-p", "zng-view-prebuilt", "--release"], &[]);
@@ -1349,7 +1350,7 @@ fn clean(mut args: Vec<&str>) {
                 count += 1;
             }
         }
-        println!("     Removed {count} prebuild files")
+        println(f!("     Removed {count} prebuild files"))
     }
 }
 
@@ -1866,7 +1867,7 @@ fn just(_: Vec<&str>) {
 
     #[cfg(not(windows))]
     {
-        println!("$ chmod u+x do");
+        println("$ chmod u+x do");
         let chmod = std::process::Command::new("chmod")
             .arg("u+x")
             .arg("do")
@@ -1898,10 +1899,10 @@ fn version(args: Vec<&str>) {
 }
 
 fn ls(args: Vec<&str>) {
-    println!("ls {:?}", args);
+    println(f!("ls {:?}", args));
 
     for p in util::glob(&format!("{}/**", args[0])) {
-        println!("{p}");
+        println(f!("{p}"));
     }
 }
 

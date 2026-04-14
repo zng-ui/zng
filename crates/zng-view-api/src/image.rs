@@ -84,16 +84,18 @@ zng_var::impl_from_and_into_var! {
 }
 
 /// Represent a image load/decode request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(ipc, derive(Serialize, Deserialize))]
 #[non_exhaustive]
 pub struct ImageRequest<D> {
     /// Image data format.
     pub format: ImageDataFormat,
     /// Image data.
     ///
-    /// Bytes layout depends on the `format`, data structure is [`IpcBytes`] or [`IpcReceiver<IpcBytes>`] in the view API.
+    /// Bytes layout depends on the `format`, data structure is [`IpcReadHandle`] or [`IpcReceiver<IpcBytes>`] in the view API.
     ///
-    /// [`IpcReceiver<IpcBytes>`]: crate::IpcReceiver
+    /// [`IpcReadHandle`]: zng_task::channel::IpcReadHandle
+    /// [`IpcReceiver<IpcBytes>`]: zng_task::channel::IpcReceiver
     pub data: D,
     /// Maximum allowed decoded size.
     ///
