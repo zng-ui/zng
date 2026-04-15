@@ -154,10 +154,7 @@ impl Serialize for IpcFileHandle {
         if !crate::channel::is_ipc_serialization() {
             return Err(serde::ser::Error::custom("cannot serialize `IpcFileHandle` outside IPC"));
         }
-        let handle = self.handle;
-        assert!(handle != 0);
-        // SAFETY: handle was not moved (not zero) and was converted from File
-        let handle = unsafe { into_file(handle) };
+        let handle = self.duplicate().map_err(serde::ser::Error::custom)?;
 
         #[cfg(windows)]
         {
@@ -176,8 +173,7 @@ impl Serialize for IpcFileHandle {
                 let _hold = &handle;
                 match r.recv_blocking() {
                     Ok((process_id, mut shared_sender)) => {
-                        use std::os::windows::io::AsRawHandle as _;
-                        if let Some(handle) = duplicate_handle(process_id, handle.as_raw_handle() as usize) {
+                        if let Some(handle) = duplicate_handle_for_process(process_id, handle.handle) {
                             // ->
                             match super::ipc_unbounded() {
                                 Ok((s, mut r)) => match shared_sender.send_blocking((handle, s)) {
@@ -374,7 +370,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
 }
 
 #[cfg(all(ipc, windows))]
-fn duplicate_handle(process_id: u32, handle: usize) -> Option<usize> {
+fn duplicate_handle_for_process(process_id: u32, handle: usize) -> Option<usize> {
     unsafe {
         use windows_sys::Win32::Foundation::{DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE};
         use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcess, PROCESS_DUP_HANDLE};
