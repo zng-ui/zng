@@ -57,11 +57,11 @@ impl NotificationService {
         // no idea why its inconsistent, in isolated test without an app running it never returns an error
         // but also does not show the notifications.
         let notifier = if is_registered_app_id(id) {
-            win32_notif::ToastsNotifier::new(id)
+            win32_notif::ToastsNotifier::new(Some(id))
         } else {
             const FALLBACK_ID: &str = "Microsoft.Windows.Explorer";
             tracing::warn!("{id:?} is not a registered AppUserModelID, will use {FALLBACK_ID:?}");
-            win32_notif::ToastsNotifier::new(FALLBACK_ID)
+            win32_notif::ToastsNotifier::new(Some(FALLBACK_ID))
         };
         self.notifier = match notifier {
             Ok(n) => Some(Box::pin(n)),

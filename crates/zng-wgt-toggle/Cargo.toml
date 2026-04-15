@@ -33,4 +33,4 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.12.12", default-feat
 
 parking_lot = { version = "0.12", default-features = false }
 tracing = { version = "0.1", default-features = false }
-hashbrown = { version = "0.16", default-features = false }
+hashbrown = { version = "0.17", default-features = false }
