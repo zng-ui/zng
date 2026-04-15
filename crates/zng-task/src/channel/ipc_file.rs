@@ -380,8 +380,8 @@ fn duplicate_handle(process_id: u32, handle: usize) -> Option<usize> {
         use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcess, PROCESS_DUP_HANDLE};
 
         let target_process = OpenProcess(PROCESS_DUP_HANDLE, 0, process_id);
-        if target_process != 0 {
-            let mut target_handle: HANDLE = 0;
+        if !target_process.is_null() {
+            let mut target_handle: HANDLE = std::ptr::null_mut();
             let success = DuplicateHandle(
                 GetCurrentProcess(),
                 handle as HANDLE,

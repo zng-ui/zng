@@ -143,11 +143,11 @@ impl Tool {
         final_args: Option<String>,
     ) -> anyhow::Result<ToolOutput> {
         use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
+        let mut hasher = digest_io::IoWrapper(sha2::Sha256::new());
 
-        hasher.update(source_dir.as_os_str().as_encoded_bytes());
-        hasher.update(target_dir.as_os_str().as_encoded_bytes());
-        hasher.update(request.as_os_str().as_encoded_bytes());
+        hasher.0.update(source_dir.as_os_str().as_encoded_bytes());
+        hasher.0.update(target_dir.as_os_str().as_encoded_bytes());
+        hasher.0.update(request.as_os_str().as_encoded_bytes());
 
         let mut hash_request = || -> anyhow::Result<()> {
             let mut file = fs::File::open(request)?;
@@ -158,7 +158,7 @@ impl Tool {
             fatal!("cannot read request `{}`, {e}", request.display());
         }
 
-        let cache_dir = format!("{:x}", hasher.finalize());
+        let cache_dir = format!("{:x}", base16ct::HexDisplay(&hasher.0.finalize()));
 
         let mut cmd = self.cmd();
         if let Some(args) = final_args {

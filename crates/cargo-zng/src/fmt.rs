@@ -1647,7 +1647,7 @@ impl FmtHistory {
         }
         let rustfmt_version = String::from_utf8_lossy(&rustfmt_version.stdout);
         args_key.update(rustfmt_version.as_bytes());
-        let args_key = format!("{FMT_VERSION}:{:x}", args_key.finalize());
+        let args_key = format!("{FMT_VERSION}:{:x}", base16ct::HexDisplay(&args_key.finalize()));
 
         for (key, t) in self.entries.iter_mut() {
             if key == &args_key {

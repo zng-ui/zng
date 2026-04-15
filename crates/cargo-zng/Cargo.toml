@@ -34,7 +34,9 @@ convert_case = { version = "0.11", default-features = false }
 sanitise-file-name = { version = "1.0", features = ["std"], default-features = false }
 
 # res
-sha2 = { version = "0.10", features = ["std"], default-features = false }
+sha2 = { version = "0.11", features = ["alloc"], default-features = false }
+base16ct = { version = "1.0", default-features = false }
+digest-io = { version = "0.1", default-features = false }
 parking_lot = { version = "0.12", default-features = false }
 walkdir = { version = "2.5", default-features = false }
 is_executable = { version = "1.0", default-features = false }
@@ -48,7 +50,7 @@ quick-xml = { version = "0.39", features = ["serialize"], default-features = fal
 regex = { version = "1.10", features = ["std", "perf", "unicode"], default-features = false }
 once_cell = { version = "1.19", features = ["std", "parking_lot"], default-features = false }
 blocking = { version = "1.5", default-features = false }
-similar = { version = "2.7", features = ["text"], default-features = false }
+similar = { version = "3.1", features = ["text"], default-features = false }
 
 [lints.clippy]
 exhaustive_structs = "warn"

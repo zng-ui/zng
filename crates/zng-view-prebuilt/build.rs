@@ -111,7 +111,7 @@ fn main() {
         let mut hasher = sha2::Sha256::new();
         hasher.update(&lib_bytes);
         let hash = hasher.finalize();
-        println!("cargo:rustc-env=ZNG_VIEW_LIB_HASH={hash:x}",);
+        println!("cargo:rustc-env=ZNG_VIEW_LIB_HASH={:x}", base16ct::HexDisplay(&hash));
     } else if is_docs_rs || PathBuf::from("../../tools/cargo-do").exists() {
         println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
     } else {

@@ -175,7 +175,7 @@ winit = { version = "0.30", default-features = false, features = [
 glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
 
-image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
+image = { version = "0.25.1", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
 ico = { version = "0.5.0", default-features = false, optional = true }
 fast_image_resize = { version = "6.0", default-features = false, features = ["rayon", "image", "std"] }
 byteorder = { version = "1.5", default-features = false }
@@ -184,7 +184,7 @@ kamadak-exif = { version = "0.6.1", default-features = false, optional = true }
 lcms2 = { version = "6.1.1", default-features = false, features = ["static"], optional = true }
 # matches `image` dependency version
 png = { version = "0.18.0", default-features = false, optional = true }
-tiff = { version = "0.10.3", default-features = false, optional = true, features = ["lzw"] }
+tiff = { version = "0.11.3", default-features = false, optional = true, features = ["lzw"] }
 
 rodio = { version = "0.22", default-features = false, features = ["playback", "tracing"], optional = true } 
 symphonia = { version = "0.5", default-features = false, optional = true }
@@ -242,7 +242,7 @@ features = [
 
 [target.'cfg(windows)'.dependencies]
 clipboard-win = { version = "5.0", default-features = false, features = ["std"] }
-win32_notif = { version = "0.10", default-features = false, features = ["registration"] }
+win32_notif = { version = "0.15", default-features = false, features = ["registration"] }
 
 [target.'cfg(not(any(windows, target_os = "android")))'.dependencies]
 arboard = { version = "3.6", default-features = false, features = ["image-data"] }
