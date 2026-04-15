@@ -575,6 +575,7 @@ impl ImageCache {
                     let id = if tasks.is_empty() { id } else { id_gen.lock().incr() };
                     let mut page_entries = 0;
                     let page_entries = if tasks.is_empty() { &mut root_entries } else { &mut page_entries };
+                    #[cfg(feature = "image_cur")]
                     let page_cur_hotspot = page.1.cur_hotspot;
 
                     tasks.push(Task::Decode {

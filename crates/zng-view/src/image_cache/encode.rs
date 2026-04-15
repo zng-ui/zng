@@ -2,9 +2,9 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
+use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::{ToTxt as _, formatx};
-use zng_unit::{PxPoint, PxSize};
+use zng_unit::PxPoint;
 use zng_view_api::{
     Event,
     image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId},
@@ -393,7 +393,7 @@ impl Image {
                 let height = size.height.0 as u32;
 
                 const F: f32 = 1.0 / 255.0;
-                let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
                     for (c, a) in rgb.iter_mut().zip(buf.iter()) {
                         let a = *a as f32 * F;
@@ -422,7 +422,7 @@ impl Image {
                 const F: f32 = 1.0 / 255.0;
                 let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
                 let ct = if is_mask {
-                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                     for (c, a) in rgb.iter_mut().zip(buf.iter()) {
                         let a = *a as f32 * F;
                         c[0] = a;
@@ -432,7 +432,7 @@ impl Image {
                     buf = rgb.into_inner();
                     image::ColorType::Rgb32F.into()
                 } else if is_opaque {
-                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                     for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
                         for (c, a) in c32.iter_mut().zip(c8.iter()) {
                             *c = *a as f32 * F;
@@ -441,7 +441,7 @@ impl Image {
                     buf = rgb.into_inner();
                     image::ColorType::Rgb32F.into()
                 } else {
-                    let mut rgba = IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgba = zng_task::channel::IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
                     for (c32, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
                         for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
                             *c32 = *c8 as f32 * F;
@@ -458,7 +458,7 @@ impl Image {
                 let height = size.height.0 as u32;
 
                 const F: u16 = 257;
-                let mut rgba = IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
+                let mut rgba = zng_task::channel::IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
                     for (c, a) in rgba.iter_mut().zip(buf.iter()) {
                         let a = *a as u16 * 257;
@@ -521,7 +521,7 @@ impl Image {
 
     #[cfg(feature = "image_ico")]
     fn encode_ico(
-        size: PxSize,
+        size: zng_unit::PxSize,
         is_mask: bool,
         pixels: &IpcBytes,
         is_opaque: bool,
@@ -530,7 +530,7 @@ impl Image {
     ) -> std::io::Result<()> {
         let mut ico = ico::IconDir::new(ico::ResourceType::Icon);
 
-        fn to_ico_img(size: PxSize, pixels: &IpcBytes, is_mask: bool, is_opaque: bool) -> ico::IconImage {
+        fn to_ico_img(size: zng_unit::PxSize, pixels: &IpcBytes, is_mask: bool, is_opaque: bool) -> ico::IconImage {
             let rgba = if is_mask {
                 let mut v = Vec::with_capacity(pixels.len() * 4);
                 for &p in pixels.iter() {
@@ -577,7 +577,7 @@ impl Image {
 
     #[cfg(feature = "image_tiff")]
     fn encode_tiff(
-        size: PxSize,
+        size: zng_unit::PxSize,
         is_mask: bool,
         pixels: &IpcBytes,
         is_opaque: bool,

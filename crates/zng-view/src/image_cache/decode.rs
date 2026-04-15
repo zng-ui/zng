@@ -107,6 +107,7 @@ impl ImageCache {
         };
 
         let mut retry_as_unknown = None;
+        #[cfg_attr(not(feature = "image_cur"), allow(irrefutable_let_patterns))]
         if let ContainerFormat::Image(f) = fmt
             && let Err(e) = image::ImageReader::with_format(&mut *data, f).into_decoder()
             && let image::ImageError::Decoding(_) = &e
@@ -220,6 +221,7 @@ impl ImageCache {
         // single entry containers
         let fmt = match fmt {
             ContainerFormat::Image(image_format) => image_format,
+            #[cfg(feature = "image_cur")]
             ContainerFormat::Cur => unreachable!(),
         };
 
