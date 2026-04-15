@@ -3,6 +3,7 @@
 This release contains only advanced API breaking changes, it should not affect most use cases. The changes
 improve IPC performance and security.
 
+* Fix `WATCHER` panics on read error.
 * **Breaking** Change `ByteLength` inner type to `u64`.
 * Add `IpcReadHandle` and related types.
     - **Breaking** View-process API now reads image and audio files directly.
