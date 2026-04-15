@@ -397,7 +397,8 @@ fn duplicate_handle(process_id: u32, handle: usize) -> Option<usize> {
             if success != 0 {
                 Some(target_handle as usize)
             } else {
-                tracing::error!("failed to duplicate IpcFile handle");
+                let error_code = windows_sys::Win32::Foundation::GetLastError();
+                tracing::error!("failed to duplicate IpcFile handle, error code: {error_code:x}");
                 None
             }
         } else {
