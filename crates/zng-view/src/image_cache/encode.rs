@@ -204,9 +204,6 @@ impl Image {
             };
         }
 
-        let width = size.width.0 as u32;
-        let height = size.height.0 as u32;
-        let is_opaque = self.0.is_opaque();
         let is_mask = self.0.is_mask();
 
         let mut buf = IpcBytesMut::from_slice_blocking(&pixels[..])?;
@@ -218,6 +215,8 @@ impl Image {
         match format {
             #[cfg(feature = "image_jpeg")]
             image::ImageFormat::Jpeg => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
                 let mut jpg = image::codecs::jpeg::JpegEncoder::new(buffer);
                 if let Some(density) = density {
                     jpg.set_pixel_density(image::codecs::jpeg::PixelDensity {
@@ -234,6 +233,9 @@ impl Image {
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let mut img = png::Encoder::new(buffer, width, height);
                 img.set_compression(png::Compression::Fast); // image crate default
                 img.set_depth(png::BitDepth::Eight);
@@ -267,6 +269,9 @@ impl Image {
             }
             #[cfg(feature = "image_gif")]
             image::ImageFormat::Gif => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
@@ -292,6 +297,9 @@ impl Image {
             }
             #[cfg(feature = "image_webp")]
             image::ImageFormat::WebP => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -305,6 +313,9 @@ impl Image {
             }
             #[cfg(feature = "image_pnm")]
             image::ImageFormat::Pnm => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -318,12 +329,16 @@ impl Image {
             }
             #[cfg(feature = "image_tiff")]
             image::ImageFormat::Tiff => {
+                let is_opaque = self.0.is_opaque();
                 Self::encode_tiff(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
             }
             #[cfg(feature = "image_tga")]
             image::ImageFormat::Tga => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -337,6 +352,9 @@ impl Image {
             }
             #[cfg(feature = "image_bmp")]
             image::ImageFormat::Bmp => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -362,6 +380,7 @@ impl Image {
             }
             #[cfg(feature = "image_ico")]
             image::ImageFormat::Ico => {
+                let is_opaque = self.0.is_opaque();
                 Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
@@ -369,6 +388,9 @@ impl Image {
             #[cfg(feature = "image_hdr")]
             image::ImageFormat::Hdr => {
                 use image::ImageEncoder as _;
+
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
 
                 const F: f32 = 1.0 / 255.0;
                 let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
@@ -392,6 +414,10 @@ impl Image {
             #[cfg(feature = "image_exr")]
             image::ImageFormat::OpenExr => {
                 use image::ImageEncoder as _;
+
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
 
                 const F: f32 = 1.0 / 255.0;
                 let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
@@ -428,6 +454,9 @@ impl Image {
             }
             #[cfg(feature = "image_ff")]
             image::ImageFormat::Farbfeld => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+
                 const F: u16 = 257;
                 let mut rgba = IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
@@ -451,6 +480,10 @@ impl Image {
             #[cfg(feature = "image_qoi")]
             image::ImageFormat::Qoi => {
                 use image::ImageEncoder as _;
+
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
 
                 if is_mask {
                     // encoder only supports RGB
