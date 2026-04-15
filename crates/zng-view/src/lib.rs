@@ -148,8 +148,6 @@ use webrender::api::*;
 use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
-#[cfg(feature = "image_cur")]
-use zng_view_api::api_extension::ApiExtensionName;
 use zng_view_api::{
     ViewProcessInfo,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -1415,11 +1413,11 @@ impl App {
             image_cache: ImageCache::new(
                 app_sender.clone(),
                 #[cfg(feature = "image_cur")]
-                exts.id(&ApiExtensionName::new("image_cur").unwrap()).unwrap(),
+                exts.id(&api_extension::ApiExtensionName::new("image_cur").unwrap()).unwrap(),
                 #[cfg(feature = "image_meta_exif")]
-                exts.id(&ApiExtensionName::new("image_meta_exif").unwrap()).unwrap(),
+                exts.id(&api_extension::ApiExtensionName::new("image_meta_exif").unwrap()).unwrap(),
                 #[cfg(feature = "image_meta_icc")]
-                exts.id(&ApiExtensionName::new("image_meta_icc").unwrap()).unwrap(),
+                exts.id(&api_extension::ApiExtensionName::new("image_meta_icc").unwrap()).unwrap(),
             ),
             exts,
             gl_manager: GlContextManager::default(),

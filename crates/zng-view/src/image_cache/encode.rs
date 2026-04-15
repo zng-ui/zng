@@ -230,6 +230,7 @@ impl Image {
                     buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
                     jpg.encode(&buf, width, height, image::ColorType::Rgb8.into())?;
                 }
+                Ok(())
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
@@ -266,9 +267,11 @@ impl Image {
                         e,
                     ))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_gif")]
             image::ImageFormat::Gif => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -294,9 +297,11 @@ impl Image {
                         image::ColorType::Rgba8.into()
                     },
                 )?;
+                Ok(())
             }
             #[cfg(feature = "image_webp")]
             image::ImageFormat::WebP => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -310,9 +315,11 @@ impl Image {
                 };
                 let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_pnm")]
             image::ImageFormat::Pnm => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -326,16 +333,20 @@ impl Image {
                 };
                 let mut img = image::codecs::pnm::PnmEncoder::new(buffer);
                 img.encode(&buf[..], width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_tiff")]
             image::ImageFormat::Tiff => {
+                let _ = density;
                 let is_opaque = self.0.is_opaque();
                 Self::encode_tiff(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_tga")]
             image::ImageFormat::Tga => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -349,9 +360,11 @@ impl Image {
                 };
                 let img = image::codecs::tga::TgaEncoder::new(buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_bmp")]
             image::ImageFormat::Bmp => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -377,18 +390,22 @@ impl Image {
                 let mut buffer = SizedProxy(buffer);
                 let mut img = image::codecs::bmp::BmpEncoder::new(&mut buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_ico")]
             image::ImageFormat::Ico => {
+                let _ = density;
                 let is_opaque = self.0.is_opaque();
                 Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_hdr")]
             image::ImageFormat::Hdr => {
                 use image::ImageEncoder as _;
 
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
 
@@ -410,11 +427,13 @@ impl Image {
                 }
                 let img = image::codecs::hdr::HdrEncoder::new(buffer);
                 img.write_image(rgb.as_bytes(), width, height, image::ColorType::Rgb32F.into())?;
+                Ok(())
             }
             #[cfg(feature = "image_exr")]
             image::ImageFormat::OpenExr => {
                 use image::ImageEncoder as _;
 
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -451,9 +470,11 @@ impl Image {
                     image::ColorType::Rgba32F.into()
                 };
                 img.write_image(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_ff")]
             image::ImageFormat::Farbfeld => {
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
 
@@ -476,11 +497,13 @@ impl Image {
                 }
                 let img = image::codecs::farbfeld::FarbfeldEncoder::new(buffer);
                 img.encode(rgba.as_bytes(), width, height)?;
+                Ok(())
             }
             #[cfg(feature = "image_qoi")]
             image::ImageFormat::Qoi => {
                 use image::ImageEncoder as _;
 
+                let _ = density;
                 let width = size.width.0 as u32;
                 let height = size.height.0 as u32;
                 let is_opaque = self.0.is_opaque();
@@ -507,16 +530,17 @@ impl Image {
                         image::ColorType::Rgba8.into()
                     },
                 )?;
+                Ok(())
             }
             f => {
-                return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                let _ = density;
+                let _ = buffer;
+                Err(image::ImageError::Encoding(image::error::EncodingError::new(
                     image::error::ImageFormatHint::Exact(f),
                     "cannot encode format",
-                )));
+                )))
             }
         }
-
-        Ok(())
     }
 
     #[cfg(feature = "image_ico")]

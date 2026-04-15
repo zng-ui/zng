@@ -16,8 +16,6 @@ use zng_txt::Txt;
 use zng_txt::formatx;
 
 use zng_task::channel::{IpcBytes, IpcReceiver};
-#[cfg(feature = "image_any")]
-use zng_unit::PxPoint;
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
@@ -553,7 +551,7 @@ impl ImageCache {
                         // source: previous task pixels
                         size: PxSize,
                         #[cfg(feature = "image_cur")]
-                        page_cur: (PxSize, Option<PxPoint>), // (page_size, pager_cur_hotspot)
+                        page_cur: (PxSize, Option<zng_unit::PxPoint>), // (page_size, pager_cur_hotspot)
                         id: ImageId,
                         parent: ImageEntryMetadata,
                     },
@@ -967,7 +965,7 @@ fn downscale_hotspot(
     downscaled_size: PxSize,
     meta: &mut ImageMetadata,
     full_size: PxSize,
-    cur_hotspot: Option<PxPoint>,
+    cur_hotspot: Option<zng_unit::PxPoint>,
 ) {
     if let Some(mut hotspot) = cur_hotspot {
         hotspot.x *= downscaled_size.width.0 as f32 / full_size.width.0 as f32;
@@ -988,7 +986,8 @@ struct ImageHeader {
     #[cfg(feature = "image_meta_exif")]
     exif: Option<Vec<u8>>,
     og_color_type: image::ExtendedColorType,
-    cur_hotspot: Option<PxPoint>,
+    #[cfg(feature = "image_cur")]
+    cur_hotspot: Option<zng_unit::PxPoint>,
     format_name: Txt,
 }
 

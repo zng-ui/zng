@@ -7,7 +7,7 @@ use std::{fmt, time::Duration};
 #[cfg(feature = "audio_any")]
 use rodio::Source as _;
 use rustc_hash::FxHashMap;
-#[cfg(feature = "audio_mp3")]
+#[cfg(feature = "audio_any")]
 use symphonia::core::probe::QueryDescriptor;
 #[cfg(feature = "audio_any")]
 use zng_task::channel::IpcReadBlocking;
@@ -44,7 +44,7 @@ fn symphonia_format(buf: &mut IpcReadBlocking) -> io::Result<&'static AudioForma
     buf.by_ref().take(24).read_to_end(&mut magic)?;
     buf.seek(SeekFrom::Start(0))?;
 
-    let sf = std::iter::empty();
+    let sf = std::iter::empty::<&symphonia::core::probe::Descriptor>();
 
     #[cfg(feature = "audio_mp3")]
     let sf = sf.chain(symphonia::default::formats::MpaReader::query());

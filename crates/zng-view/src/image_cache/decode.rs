@@ -124,31 +124,41 @@ impl ImageCache {
             return Err(e.to_txt());
         }
 
-        match fmt {
-            #[cfg(any(feature = "image_ico", feature = "image_cur"))]
-            ContainerFormat::Image(image::ImageFormat::Ico) | ContainerFormat::Cur => {
-                if let Ok(ico) = ico::IconDir::read(data) {
-                    // largest entry is the `Page` others are `Reduced`.
-                    let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
-                    entry_sizes.sort_by_key(|t| t.1);
-                    entry_sizes.reverse();
-                    let mut first = true;
-                    let entries = entry_sizes
-                        .into_iter()
-                        .map(|(i, _)| {
-                            (
-                                i,
-                                if std::mem::take(&mut first) {
-                                    ImageEntryKind::Page
-                                } else {
-                                    ImageEntryKind::Reduced { synthetic: false }
-                                },
-                            )
-                        })
-                        .collect();
-                    return Ok((fmt, entries));
-                }
+        #[cfg(any(feature = "image_ico", feature = "image_cur"))]
+        {
+            #[allow(unused)]
+            let mut matches = false;
+            #[cfg(feature = "image_ico")]
+            {
+                matches = matches!(fmt, ContainerFormat::Image(image::ImageFormat::Ico));
             }
+            #[cfg(feature = "image_cur")]
+            {
+                matches |= matches!(fmt, ContainerFormat::Cur);
+            }
+            if matches && let Ok(ico) = ico::IconDir::read(&mut *data) {
+                // largest entry is the `Page` others are `Reduced`.
+                let mut entry_sizes: Vec<_> = ico.entries().iter().enumerate().map(|(i, e)| (i, e.width() * e.height())).collect();
+                entry_sizes.sort_by_key(|t| t.1);
+                entry_sizes.reverse();
+                let mut first = true;
+                let entries = entry_sizes
+                    .into_iter()
+                    .map(|(i, _)| {
+                        (
+                            i,
+                            if std::mem::take(&mut first) {
+                                ImageEntryKind::Page
+                            } else {
+                                ImageEntryKind::Reduced { synthetic: false }
+                            },
+                        )
+                    })
+                    .collect();
+                return Ok((fmt, entries));
+            }
+        }
+        match fmt {
             #[cfg(feature = "image_tiff")]
             ContainerFormat::Image(image::ImageFormat::Tiff) => {
                 if let Ok(mut tiff) = tiff::decoder::Decoder::new(data) {
@@ -210,11 +220,16 @@ impl ImageCache {
     pub(super) fn decode_metadata(data: &mut IpcReadBlocking, fmt: ContainerFormat, entry: usize) -> Result<ImageHeader, Txt> {
         // multi entry containers
         match fmt {
-            #[cfg(any(feature = "image_ico", feature = "image_cur"))]
-            ContainerFormat::Image(image::ImageFormat::Ico) | ContainerFormat::Cur => return Self::decode_metadata_ico(data, entry),
+            #[cfg(feature = "image_ico")]
+            ContainerFormat::Image(image::ImageFormat::Ico) => return Self::decode_metadata_ico(data, entry),
+            #[cfg(feature = "image_cur")]
+            ContainerFormat::Cur => return Self::decode_metadata_ico(data, entry),
             #[cfg(feature = "image_tiff")]
             ContainerFormat::Image(image::ImageFormat::Tiff) => return Self::decode_metadata_tiff(data, entry),
-            _ => {}
+            _ => {
+                debug_assert_eq!(entry, 0);
+                let _ = entry;
+            }
         }
         let format_name = fmt.name();
 
@@ -225,7 +240,6 @@ impl ImageCache {
             ContainerFormat::Cur => unreachable!(),
         };
 
-        let mut orientation = NoTransforms;
         let mut density = None;
 
         // metadata patches
@@ -270,7 +284,7 @@ impl ImageCache {
         // metadata generalized by image crate
         let og_color_type = decoder.original_color_type();
         let (mut w, mut h) = decoder.dimensions();
-        orientation = decoder.orientation().unwrap_or(NoTransforms);
+        let mut orientation = decoder.orientation().unwrap_or(NoTransforms);
         let mut icc_profile = None;
 
         // exif fallback
@@ -306,12 +320,13 @@ impl ImageCache {
             #[cfg(feature = "image_meta_exif")]
             exif,
             og_color_type,
+            #[cfg(feature = "image_cur")]
             cur_hotspot: None,
             format_name,
         })
     }
 
-    #[cfg(feature = "image_ico")]
+    #[cfg(any(feature = "image_ico", feature = "image_cur"))]
     fn decode_metadata_ico(data: &mut IpcReadBlocking, entry: usize) -> Result<ImageHeader, Txt> {
         let ico = ico::IconDir::read(data).map_err(|e| e.to_txt())?;
 
@@ -332,11 +347,13 @@ impl ImageCache {
                 exif: None,
                 icc_profile: None,
                 og_color_type: image::ExtendedColorType::Rgba8,
+                #[cfg(feature = "image_cur")]
                 cur_hotspot: None,
                 format_name: Txt::from_static("ICO"),
             }
         };
 
+        #[cfg(feature = "image_cur")]
         if let Some((x, y)) = entry.cursor_hotspot() {
             use zng_unit::PxPoint;
 
