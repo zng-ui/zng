@@ -228,8 +228,7 @@ impl Serialize for IpcFileHandle {
                                 Ok(()) => {
                                     // ~>
                                     use sendfd::SendWithFd as _;
-                                    use std::os::fd::AsRawFd as _;
-                                    match datagram.send_with_fd(b"zng", &[handle.as_raw_fd()]) {
+                                    match datagram.send_with_fd(b"zng", &[handle.handle as _]) {
                                         Ok(_) => {
                                             // <-
                                             let _ = confirm_rcv.recv_blocking();
