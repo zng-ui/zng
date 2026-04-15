@@ -1,4 +1,3 @@
-use image::ImageEncoder;
 use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
@@ -369,6 +368,8 @@ impl Image {
             }
             #[cfg(feature = "image_hdr")]
             image::ImageFormat::Hdr => {
+                use image::ImageEncoder as _;
+
                 const F: f32 = 1.0 / 255.0;
                 let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
@@ -390,6 +391,8 @@ impl Image {
             }
             #[cfg(feature = "image_exr")]
             image::ImageFormat::OpenExr => {
+                use image::ImageEncoder as _;
+
                 const F: f32 = 1.0 / 255.0;
                 let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
                 let ct = if is_mask {
@@ -447,6 +450,8 @@ impl Image {
             }
             #[cfg(feature = "image_qoi")]
             image::ImageFormat::Qoi => {
+                use image::ImageEncoder as _;
+
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
