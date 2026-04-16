@@ -71,43 +71,38 @@ pub mod app_side {
                     }
                 }
             }
-            UiNodeOp::Render { frame } => {
-                // if extension is available
-                if ext_id != ApiExtensionId::INVALID {
-                    let mut cursor = PxPoint::splat(Px::MIN);
-                    if cursor_px != cursor
-                        && let Some(c) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px))
-                    {
-                        cursor = c;
-                    }
-
-                    let window_pos = frame.transform().transform_point(PxPoint::zero()).unwrap_or_default();
-
-                    // push the entire custom item.
-                    frame.push_extension_item(
-                        ext_id,
-                        &super::api::RenderPayload {
-                            cursor_binding: Some(cursor_binding),
-                            cursor,
-                            size: render_size,
-                            window_pos,
-                        },
-                    );
+            // render if extension is available
+            UiNodeOp::Render { frame } if ext_id != ApiExtensionId::INVALID => {
+                let mut cursor = PxPoint::splat(Px::MIN);
+                if cursor_px != cursor
+                    && let Some(c) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px))
+                {
+                    cursor = c;
                 }
+
+                let window_pos = frame.transform().transform_point(PxPoint::zero()).unwrap_or_default();
+
+                // push the entire custom item.
+                frame.push_extension_item(
+                    ext_id,
+                    &super::api::RenderPayload {
+                        cursor_binding: Some(cursor_binding),
+                        cursor,
+                        size: render_size,
+                        window_pos,
+                    },
+                );
             }
-            UiNodeOp::RenderUpdate { update } => {
-                // if extension is available
-                if ext_id != ApiExtensionId::INVALID {
-                    let mut cursor = PxPoint::splat(Px::MIN);
-                    if cursor_px != cursor
-                        && let Some(c) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px))
-                    {
-                        cursor = c;
-                    }
-
-                    // push an update.
-                    update.update_extension(ext_id, &super::api::RenderUpdatePayload { cursor_binding, cursor });
+            UiNodeOp::RenderUpdate { update } if ext_id != ApiExtensionId::INVALID => {
+                let mut cursor = PxPoint::splat(Px::MIN);
+                if cursor_px != cursor
+                    && let Some(c) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px))
+                {
+                    cursor = c;
                 }
+
+                // push an update.
+                update.update_extension(ext_id, &super::api::RenderUpdatePayload { cursor_binding, cursor });
             }
             _ => {}
         })

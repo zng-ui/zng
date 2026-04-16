@@ -143,10 +143,8 @@ pub fn collapse_skip(child: impl IntoUiNode, skip: impl IntoVar<bool>) -> UiNode
         UiNodeOp::Init => {
             WIDGET.sub_var_info(&skip);
         }
-        UiNodeOp::Info { info } => {
-            if skip.get() {
-                info.flag_meta(*COLLAPSE_SKIP_ID);
-            }
+        UiNodeOp::Info { info } if skip.get() => {
+            info.flag_meta(*COLLAPSE_SKIP_ID);
         }
         _ => {}
     })

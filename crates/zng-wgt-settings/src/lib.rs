@@ -64,21 +64,20 @@ pub fn settings_editor_node() -> UiNode {
             c.deinit();
             *c.node() = UiNode::nil();
         }
-        UiNodeOp::Update { .. } => {
-            if PANEL_FN_VAR.is_new()
+        UiNodeOp::Update { .. }
+            if (PANEL_FN_VAR.is_new()
                 || SETTINGS_FN_VAR.is_new()
                 || SETTING_FN_VAR.is_new()
                 || SETTINGS_SEARCH_FN_VAR.is_new()
                 || CATEGORIES_LIST_FN_VAR.is_new()
                 || CATEGORY_HEADER_FN_VAR.is_new()
-                || CATEGORY_ITEM_FN_VAR.is_new()
-            {
-                c.delegated();
-                c.node().deinit();
-                *c.node() = settings_view_fn();
-                c.node().init();
-                WIDGET.update_info().layout().render();
-            }
+                || CATEGORY_ITEM_FN_VAR.is_new()) =>
+        {
+            c.delegated();
+            c.node().deinit();
+            *c.node() = settings_view_fn();
+            c.node().init();
+            WIDGET.update_info().layout().render();
         }
         _ => {}
     })

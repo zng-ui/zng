@@ -437,7 +437,7 @@ impl Trace {
                     items.push((sp.end, end));
                 }
 
-                items.sort_by(|a, b| a.0.cmp(&b.0));
+                items.sort_by_key(|a| a.0);
 
                 for (_, item) in items {
                     let item = serde_json::to_string(&item).unwrap();
@@ -517,7 +517,7 @@ impl ThreadTrace {
     ///
     /// After sorting if a span starts within the start..=end of the previous it is "inside" it.
     pub fn sort(&mut self) {
-        self.events.sort_by(|a, b| a.instant.cmp(&b.instant));
+        self.events.sort_by_key(|a| a.instant);
         self.spans.sort_by(|a, b| a.start.cmp(&b.start).then(b.start.cmp(&a.start)));
     }
 }

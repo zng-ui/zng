@@ -34,19 +34,17 @@ pub fn zoom_size_only(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> Ui
                 WIDGET.layout();
             }
         }
-        UiNodeOp::Layout { wl, final_size } => {
-            if enabled.get() {
-                let s = SCROLL_SCALE_VAR.get();
-                if s != 1.fct() {
-                    // return the unscaled size to not affect the parent layout,
-                    // ideally the scaled parent will fit around the resized child.
-                    *final_size = c.measure(&mut wl.to_measure(None));
-                    let scaled_size = *final_size * s;
-                    LAYOUT.with_constraints(PxConstraints2d::new_exact_size(scaled_size), || c.layout(wl));
-                    if scale != s {
-                        scale = s;
-                        WIDGET.render_update();
-                    }
+        UiNodeOp::Layout { wl, final_size } if enabled.get() => {
+            let s = SCROLL_SCALE_VAR.get();
+            if s != 1.fct() {
+                // return the unscaled size to not affect the parent layout,
+                // ideally the scaled parent will fit around the resized child.
+                *final_size = c.measure(&mut wl.to_measure(None));
+                let scaled_size = *final_size * s;
+                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(scaled_size), || c.layout(wl));
+                if scale != s {
+                    scale = s;
+                    WIDGET.render_update();
                 }
             }
         }

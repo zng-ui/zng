@@ -121,19 +121,17 @@ pub fn capture_pointer_on_init(child: impl IntoUiNode, mode: impl IntoVar<Captur
             WIDGET.sub_var(&mode);
             capture = true; // wait for info
         }
-        UiNodeOp::Info { .. } => {
-            if std::mem::take(&mut capture) {
-                let widget_id = WIDGET.id();
+        UiNodeOp::Info { .. } if std::mem::take(&mut capture) => {
+            let widget_id = WIDGET.id();
 
-                match mode.get() {
-                    CaptureMode::Widget => {
-                        POINTER_CAPTURE.capture_widget(widget_id);
-                    }
-                    CaptureMode::Subtree => {
-                        POINTER_CAPTURE.capture_subtree(widget_id);
-                    }
-                    CaptureMode::Window => (),
+            match mode.get() {
+                CaptureMode::Widget => {
+                    POINTER_CAPTURE.capture_widget(widget_id);
                 }
+                CaptureMode::Subtree => {
+                    POINTER_CAPTURE.capture_subtree(widget_id);
+                }
+                CaptureMode::Window => (),
             }
         }
         UiNodeOp::Update { .. } => {

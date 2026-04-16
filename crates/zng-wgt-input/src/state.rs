@@ -561,10 +561,8 @@ pub fn is_mouse_active(child: impl IntoUiNode, state: impl IntoVar<bool>) -> UiN
             // event always hooks, so its ok to chain handles like this
             WIDGET.push_var_handle(handle);
         }
-        UiNodeOp::Deinit => {
-            if state.get() {
-                state.set(false);
-            }
+        UiNodeOp::Deinit if state.get() => {
+            state.set(false);
         }
         _ => {}
     })

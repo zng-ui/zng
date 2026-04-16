@@ -15,19 +15,15 @@ pub fn sticky_width(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNod
         UiNodeOp::Deinit => {
             sticky_after_layout = false;
         }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                sticky_after_layout = false;
-            }
+        UiNodeOp::Update { .. } if sticky.is_new() => {
+            sticky_after_layout = false;
         }
-        UiNodeOp::Measure { wm, desired_size } => {
-            if sticky_after_layout && sticky.get() {
-                child.delegated();
-                let min = WIDGET.bounds().inner_size().width;
-                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || wm.measure_block(child.node()));
-                size.width = size.width.max(min);
-                *desired_size = size;
-            }
+        UiNodeOp::Measure { wm, desired_size } if sticky_after_layout && sticky.get() => {
+            child.delegated();
+            let min = WIDGET.bounds().inner_size().width;
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || wm.measure_block(child.node()));
+            size.width = size.width.max(min);
+            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
             let sticky = sticky.get();
@@ -60,19 +56,15 @@ pub fn sticky_height(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNo
         UiNodeOp::Deinit => {
             sticky_after_layout = false;
         }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                sticky_after_layout = false;
-            }
+        UiNodeOp::Update { .. } if sticky.is_new() => {
+            sticky_after_layout = false;
         }
-        UiNodeOp::Measure { wm, desired_size } => {
-            if sticky_after_layout && sticky.get() {
-                child.delegated();
-                let min = WIDGET.bounds().inner_size().height;
-                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_y(min), || wm.measure_block(child.node()));
-                size.height = size.height.max(min);
-                *desired_size = size;
-            }
+        UiNodeOp::Measure { wm, desired_size } if sticky_after_layout && sticky.get() => {
+            child.delegated();
+            let min = WIDGET.bounds().inner_size().height;
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_y(min), || wm.measure_block(child.node()));
+            size.height = size.height.max(min);
+            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
             let sticky = sticky.get();
@@ -105,19 +97,16 @@ pub fn sticky_size(child: impl IntoUiNode, sticky: impl IntoVar<bool>) -> UiNode
         UiNodeOp::Deinit => {
             sticky_after_layout = false;
         }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                sticky_after_layout = false;
-            }
+        UiNodeOp::Update { .. } if sticky.is_new() => {
+            sticky_after_layout = false;
         }
-        UiNodeOp::Measure { wm, desired_size } => {
-            if sticky_after_layout && sticky.get() {
-                child.delegated();
-                let min = WIDGET.bounds().inner_size();
-                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || wm.measure_block(child.node()));
-                size = size.max(min);
-                *desired_size = size;
-            }
+        UiNodeOp::Update { .. } => {}
+        UiNodeOp::Measure { wm, desired_size } if sticky_after_layout && sticky.get() => {
+            child.delegated();
+            let min = WIDGET.bounds().inner_size();
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || wm.measure_block(child.node()));
+            size = size.max(min);
+            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
             let sticky = sticky.get();

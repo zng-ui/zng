@@ -349,12 +349,10 @@ fn style_node(child: UiNode, widget_builder: WidgetBuilder, style_var: ContextVa
             *c.node() = UiNode::nil();
             style_fn_var_styles.clear();
         }
-        UiNodeOp::Update { .. } => {
-            if style_vars.iter().any(|v| v.is_new()) || style_fn_var_styles.iter().any(|(n, _)| n.is_new()) {
-                WIDGET.reinit();
-                WIDGET.update_info().layout().render();
-                c.delegated();
-            }
+        UiNodeOp::Update { .. } if style_vars.iter().any(|v| v.is_new()) || style_fn_var_styles.iter().any(|(n, _)| n.is_new()) => {
+            WIDGET.reinit();
+            WIDGET.update_info().layout().render();
+            c.delegated();
         }
         _ => {}
     })

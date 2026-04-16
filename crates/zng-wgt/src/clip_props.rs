@@ -16,10 +16,8 @@ pub fn clip_to_bounds(child: impl IntoUiNode, clip: impl IntoVar<bool>) -> UiNod
         UiNodeOp::Init => {
             WIDGET.layout().render();
         }
-        UiNodeOp::Update { .. } => {
-            if clip.is_new() {
-                WIDGET.layout().render();
-            }
+        UiNodeOp::Update { .. } if clip.is_new() => {
+            WIDGET.layout().render();
         }
         UiNodeOp::Layout { wl, final_size } => {
             let bounds = child.layout(wl);

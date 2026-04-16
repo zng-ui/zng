@@ -42,7 +42,7 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
     let ctx_img = var(ImageEntry::new_loading());
     let child = with_context_var(child, CONTEXT_IMAGE_REDUCED_VAR, var(None));
     let child = with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only());
-    let mut img = var(ImageEntry::new_loading()).read_only();
+    let mut _img = var(ImageEntry::new_loading()).read_only();
     let mut _ctx_binding = None;
 
     match_node(child, move |child, op| match op {
@@ -64,16 +64,16 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                 *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
             let opt = ImageOptions::new(mode, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
-            img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
+            _img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
-            ctx_img.set_from(&img);
-            _ctx_binding = Some(img.bind(&ctx_img));
+            ctx_img.set_from(&_img);
+            _ctx_binding = Some(_img.bind(&ctx_img));
         }
         UiNodeOp::Deinit => {
             child.deinit();
 
             ctx_img.set(no_context_image());
-            img = var(no_context_image()).read_only();
+            _img = const_var(no_context_image());
             _ctx_binding = None;
         }
         UiNodeOp::Update { .. } => {
@@ -92,10 +92,10 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                     ImageCacheMode::Ignore
                 };
                 let opt = ImageOptions::new(mode, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
-                img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
+                _img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
-                ctx_img.set_from(&img);
-                _ctx_binding = Some(img.bind(&ctx_img));
+                ctx_img.set_from(&_img);
+                _ctx_binding = Some(_img.bind(&ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new() {
                 // cache-mode update:
                 let is_cached = ctx_img.with(|img| IMAGES.is_cached(img));
@@ -104,16 +104,16 @@ pub fn image_source(child: impl IntoUiNode, source: impl IntoVar<ImageSource>) -
                     let mut opt = ImageOptions::new(ImageCacheMode::Cache, IMAGE_DOWNSCALE_VAR.get(), None, IMAGE_ENTRIES_MODE_VAR.get());
 
                     if is_cached {
-                        img = const_var(ImageEntry::new_loading());
+                        _img = const_var(ImageEntry::new_loading());
                         if let Some(h) = source.hash128(&opt) {
                             IMAGES.clean(h);
                         }
                         opt.cache_mode = ImageCacheMode::Ignore;
                     }
-                    img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
+                    _img = IMAGES.image(source, opt, IMAGE_LIMITS_VAR.get());
 
-                    ctx_img.set_from(&img);
-                    _ctx_binding = Some(img.bind(&ctx_img));
+                    ctx_img.set_from(&_img);
+                    _ctx_binding = Some(_img.bind(&ctx_img));
                 }
             }
         }
@@ -228,10 +228,8 @@ pub fn image_presenter() -> UiNode {
 
             img_size = CONTEXT_IMAGE_VAR.with(ImageEntry::size);
         }
-        UiNodeOp::Deinit => {
-            if reduced_img.take().is_some() {
-                CONTEXT_IMAGE_REDUCED_VAR.set(None);
-            }
+        UiNodeOp::Deinit if reduced_img.take().is_some() => {
+            CONTEXT_IMAGE_REDUCED_VAR.set(None);
         }
         UiNodeOp::Update { .. } => {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {

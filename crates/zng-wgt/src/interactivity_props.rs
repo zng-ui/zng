@@ -46,10 +46,8 @@ pub fn enabled(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
             UiNodeOp::Init => {
                 WIDGET.sub_var_info(&enabled);
             }
-            UiNodeOp::Info { info } => {
-                if !enabled.get() {
-                    info.push_interactivity(Interactivity::DISABLED);
-                }
+            UiNodeOp::Info { info } if !enabled.get() => {
+                info.push_interactivity(Interactivity::DISABLED);
             }
             _ => {}
         }),
@@ -81,10 +79,8 @@ pub fn interactive(child: impl IntoUiNode, interactive: impl IntoVar<bool>) -> U
         UiNodeOp::Init => {
             WIDGET.sub_var_info(&interactive);
         }
-        UiNodeOp::Info { info } => {
-            if !interactive.get() {
-                info.push_interactivity(Interactivity::BLOCKED);
-            }
+        UiNodeOp::Info { info } if !interactive.get() => {
+            info.push_interactivity(Interactivity::BLOCKED);
         }
         _ => {}
     })

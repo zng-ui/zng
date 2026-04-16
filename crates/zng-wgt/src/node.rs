@@ -1740,14 +1740,12 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
             c.deinit();
             *c.node() = UiNode::nil();
         }
-        UiNodeOp::Update { .. } => {
-            if data.is_new() || wgt_fn.is_new() {
-                c.node().deinit();
-                *c.node() = wgt_fn.get()(data.get());
-                c.node().init();
-                c.delegated();
-                WIDGET.update_info().layout().render();
-            }
+        UiNodeOp::Update { .. } if (data.is_new() || wgt_fn.is_new()) => {
+            c.node().deinit();
+            *c.node() = wgt_fn.get()(data.get());
+            c.node().init();
+            c.delegated();
+            WIDGET.update_info().layout().render();
         }
         _ => {}
     })
@@ -1773,20 +1771,18 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
             c.deinit();
             *c.node() = UiNode::nil();
         }
-        UiNodeOp::Update { .. } => {
-            if data.is_new() || wgt_fn.is_new() {
-                if let Some(data) = data.get() {
-                    c.node().deinit();
-                    *c.node() = wgt_fn.get()(data);
-                    c.node().init();
-                    c.delegated();
-                    WIDGET.update_info().layout().render();
-                } else if !c.node().is_nil() {
-                    c.node().deinit();
-                    *c.node() = UiNode::nil();
-                    c.delegated();
-                    WIDGET.update_info().layout().render();
-                }
+        UiNodeOp::Update { .. } if data.is_new() || wgt_fn.is_new() => {
+            if let Some(data) = data.get() {
+                c.node().deinit();
+                *c.node() = wgt_fn.get()(data);
+                c.node().init();
+                c.delegated();
+                WIDGET.update_info().layout().render();
+            } else if !c.node().is_nil() {
+                c.node().deinit();
+                *c.node() = UiNode::nil();
+                c.delegated();
+                WIDGET.update_info().layout().render();
             }
         }
         _ => {}

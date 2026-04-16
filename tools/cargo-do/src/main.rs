@@ -1102,6 +1102,7 @@ fn build(mut args: Vec<&str>) {
 //    Compile the crate and dump generic instances
 // USAGE
 //    mono-stats --print --dump <CRATE>
+
 //       Don't group/sort items in files, just print, to a dump file
 fn mono_stats(mut args: Vec<&str>) {
     let print = take_flag(&mut args, &["--print"]);

@@ -188,7 +188,7 @@ pub fn run(mut args: FmtArgs) {
         .collect();
 
     // latest modified first
-    files.sort_by(|a, b| b.1.cmp(&a.1));
+    files.sort_by_key(|f| std::cmp::Reverse(f.1));
 
     let files: Vec<_> = files.into_iter().map(|(p, _)| p).collect();
 
