@@ -5,7 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 32 feature flags, 0 enabled by default.
+This crate provides 30 feature flags, 0 enabled by default.
 
 #### `"ipc"`
 Enables pre-build and init as view-process.
@@ -87,9 +87,6 @@ Enable TIFF image decoder and encoder.
 #### `"image_webp"`
 Enable WEBP image decoder.
 
-#### `"image_any"`
-If any image format feature is enabled.
-
 #### `"image_all"`
 Enable all image decoders and encoders.
 
@@ -119,9 +116,6 @@ Enable MP3 audio decoder and encoder.
 
 #### `"audio_wav"`
 Enable WAV audio decoder and encoder.
-
-#### `"audio_any"`
-If any audio format feature is enabled.
 
 #### `"audio_all"`
 Enable all audio decoders and encoders.

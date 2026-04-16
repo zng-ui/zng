@@ -1,15 +1,15 @@
-#![cfg_attr(not(feature = "image_any"), allow(unused))]
+#![cfg_attr(not(feature = "_image_any"), allow(unused))]
 
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 use crate::image_cache::ImageHeader;
 use crate::image_cache::ResizerCache;
 use crate::image_cache::dyn_image::IpcDynamicImage;
 use crate::image_cache::{ImageCache, RawLoadedImg};
 use image::ImageDecoder as _;
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 use std::io::{Read as _, Seek as _, SeekFrom};
 use zng_task::channel::IpcBytesMut;
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 use zng_task::channel::IpcReadBlocking;
 use zng_txt::ToTxt as _;
 use zng_txt::Txt;
@@ -19,7 +19,7 @@ use zng_view_api::image::ImageDataFormat;
 use zng_view_api::image::ImageEntryKind;
 use zng_view_api::image::ImageMaskMode;
 
-#[cfg(not(feature = "image_any"))]
+#[cfg(not(feature = "_image_any"))]
 use crate::image_cache::lcms2;
 
 #[derive(Clone, Copy)]
@@ -65,7 +65,7 @@ impl ContainerFormat {
 
 impl ImageCache {
     /// Guess and verify the image format and get entries sorted by kind and size.
-    #[cfg(feature = "image_any")]
+    #[cfg(feature = "_image_any")]
     pub(super) fn decode_container(
         fmt: &ImageDataFormat,
         data: &mut IpcReadBlocking,
@@ -216,7 +216,7 @@ impl ImageCache {
         Ok((fmt, vec![(0, ImageEntryKind::Page)]))
     }
 
-    #[cfg(feature = "image_any")]
+    #[cfg(feature = "_image_any")]
     pub(super) fn decode_metadata(data: &mut IpcReadBlocking, fmt: ContainerFormat, entry: usize) -> Result<ImageHeader, Txt> {
         // multi entry containers
         match fmt {
@@ -390,7 +390,7 @@ impl ImageCache {
     }
 
     /// Replace non-default orientation and density with exif values
-    #[cfg(feature = "image_any")]
+    #[cfg(feature = "_image_any")]
     fn decode_exif_metadata(exif: Vec<u8>, orientation: &mut image::metadata::Orientation, density: &mut Option<PxDensity2d>) {
         use exif::Tag;
         if let Ok(exif) = exif::Reader::new().read_raw(exif) {
@@ -422,7 +422,7 @@ impl ImageCache {
         }
     }
 
-    #[cfg(feature = "image_any")]
+    #[cfg(feature = "_image_any")]
     fn parse_icc(icc: Vec<u8>) -> Option<lcms2::Profile> {
         match lcms2::Profile::new_icc(&icc) {
             Ok(p) => Some(p),
@@ -433,7 +433,7 @@ impl ImageCache {
         }
     }
 
-    #[cfg(feature = "image_any")]
+    #[cfg(feature = "_image_any")]
     pub(super) fn decode_image(buf: &mut IpcReadBlocking, format: ContainerFormat, entry: usize) -> image::ImageResult<IpcDynamicImage> {
         IpcDynamicImage::decode(buf, format, entry)
     }
@@ -785,14 +785,14 @@ impl ImageCache {
             }
         };
 
-        #[cfg(feature = "image_any")]
+        #[cfg(feature = "_image_any")]
         if let Some(p) = icc_profile {
             use lcms2::*;
             let srgb = Profile::new_srgb();
             let t = Transform::new(p, PixelFormat::BGRA_8, &srgb, PixelFormat::BGRA_8, Intent::Perceptual).unwrap();
             t.transform_in_place(&mut pixels);
         }
-        #[cfg(not(feature = "image_any"))]
+        #[cfg(not(feature = "_image_any"))]
         let _ = (icc_profile, &mut pixels);
 
         let (mut size, mut pixels) = Self::apply_orientation(orientation, size, mask.is_some(), pixels)?;

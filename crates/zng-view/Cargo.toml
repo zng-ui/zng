@@ -57,38 +57,38 @@ android_native_activity = ["winit/android-native-activity"]
 # image_avif = ["image/avif", "image/avif-native"]
 
 # Enable BMP image decoder and encoder.
-image_bmp = ["image_any", "image/bmp"]
+image_bmp = ["_image_any", "image/bmp"]
 # Enable DDS image decoder.
-image_dds = ["image_any", "image/dds"]
+image_dds = ["_image_any", "image/dds"]
 # Enable EXR image decoder and encoder.
-image_exr = ["image_any", "image/exr"]
+image_exr = ["_image_any", "image/exr"]
 # Enable Farbfeld image decoder and encoder.
-image_ff = ["image_any", "image/ff"]
+image_ff = ["_image_any", "image/ff"]
 # Enable GIF image decoder and encoder.
-image_gif = ["image_any", "image/gif"]
+image_gif = ["_image_any", "image/gif"]
 # Enable Radiance HDR image decoder and encoder.
-image_hdr = ["image_any", "image/hdr"]
+image_hdr = ["_image_any", "image/hdr"]
 # Enable ICO image decoder and encoder.
-image_ico = ["image_any", "image/ico", "dep:ico"]
+image_ico = ["_image_any", "image/ico", "dep:ico"]
 # Enable CUR image decoder and encoder.
-image_cur = ["image_any", "image/ico", "dep:ico"]
+image_cur = ["_image_any", "image/ico", "dep:ico"]
 # Enable JPEG image decoder and encoder.
-image_jpeg = ["image_any", "image/jpeg"]
+image_jpeg = ["_image_any", "image/jpeg"]
 # Enable PNG image decoder and encoder.
-image_png = ["image_any", "image/png", "dep:png"]
+image_png = ["_image_any", "image/png", "dep:png"]
 # Enable PNM image decoder and encoder.
-image_pnm = ["image_any", "image/pnm"]
+image_pnm = ["_image_any", "image/pnm"]
 # Enable QOI image decoder and encoder.
-image_qoi = ["image_any", "image/qoi"]
+image_qoi = ["_image_any", "image/qoi"]
 # Enable TGA image decoder and encoder.
-image_tga = ["image_any", "image/tga"]
+image_tga = ["_image_any", "image/tga"]
 # Enable TIFF image decoder and encoder.
-image_tiff = ["image_any", "image/tiff", "dep:tiff"]
+image_tiff = ["_image_any", "image/tiff", "dep:tiff"]
 # Enable WEBP image decoder.
-image_webp = ["image_any", "image/webp"]
+image_webp = ["_image_any", "image/webp"]
 
-# If any image format feature is enabled.
-image_any = ["dep:kamadak-exif", "dep:lcms2"]
+# Internal feature. If any image format feature is enabled.
+_image_any = ["dep:kamadak-exif", "dep:lcms2"]
 
 # Enable all image decoders and encoders.
 image_all = [
@@ -121,18 +121,18 @@ image_meta_exif = []
 image_meta_icc = []
 
 # Enable MP3 audio decoder and encoder.
-audio_mp3 = ["audio_any", "rodio/mp3"]
+audio_mp3 = ["_audio_any", "rodio/mp3"]
 # Enable MP4 audio decoder and encoder.
-audio_mp4 = ["audio_any", "rodio/mp4"]
+audio_mp4 = ["_audio_any", "rodio/mp4"]
 # Enable FLAC audio decoder and encoder.
-audio_flac = ["audio_any", "rodio/flac"]
+audio_flac = ["_audio_any", "rodio/flac"]
 # Enable MP3 audio decoder and encoder.
-audio_vorbis = ["audio_any", "rodio/vorbis"]
+audio_vorbis = ["_audio_any", "rodio/vorbis"]
 # Enable WAV audio decoder and encoder.
-audio_wav = ["audio_any", "rodio/wav"]
+audio_wav = ["_audio_any", "rodio/wav"]
 
-# If any audio format feature is enabled.
-audio_any = ["dep:rodio", "dep:symphonia"]
+# Internal feature. If any audio format feature is enabled.
+_audio_any = ["dep:rodio", "dep:symphonia"]
 
 # Enable all audio decoders and encoders.
 audio_all = [

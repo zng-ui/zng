@@ -179,7 +179,7 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
                         for dft in defaults.split(',') {
                             rd.insert(dft.trim_matches(['"', ' ']).to_owned());
                         }
-                    } else {
+                    } else if !name.starts_with("_") {
                         r.push(Feature {
                             name: name.to_owned(),
                             docs: std::mem::take(&mut next_docs),

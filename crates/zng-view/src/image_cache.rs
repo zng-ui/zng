@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "image_any"), allow(unused))]
+#![cfg_attr(not(feature = "_image_any"), allow(unused))]
 
 use std::{
     fmt,
@@ -11,7 +11,7 @@ use zng_task::{
 };
 
 use webrender::api::ImageDescriptor;
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 use zng_txt::Txt;
 use zng_txt::formatx;
 
@@ -37,7 +37,7 @@ mod encode;
 mod external;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
-#[cfg(not(feature = "image_any"))]
+#[cfg(not(feature = "_image_any"))]
 pub(crate) mod lcms2 {
     pub struct Profile {}
 }
@@ -220,7 +220,7 @@ impl ImageCache {
 
             // try parse header early at least
             let mut header_reader = IpcReadBlocking::Bytes(io::Cursor::new(first_chunk.clone()));
-            #[cfg(feature = "image_any")]
+            #[cfg(feature = "_image_any")]
             if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
                 && let Ok((fmt, entries)) = Self::decode_container(&format, &mut header_reader)
                 && entries.first() == Some(&(0, ImageEntryKind::Page))
@@ -463,12 +463,12 @@ impl ImageCache {
                 }
             }
             // needs decoding
-            #[cfg(not(feature = "image_any"))]
+            #[cfg(not(feature = "_image_any"))]
             fmt => {
                 let _ = (max_decoded_len, downscale);
                 return error!("no decoder for {fmt:?}");
             }
-            #[cfg(feature = "image_any")]
+            #[cfg(feature = "_image_any")]
             fmt => {
                 let (fmt, entries_kind) = match Self::decode_container(&fmt, &mut data) {
                     Ok(r) => r,
@@ -977,7 +977,7 @@ fn downscale_hotspot(
         ));
     }
 }
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 struct ImageHeader {
     size: PxSize,
     orientation: image::metadata::Orientation,

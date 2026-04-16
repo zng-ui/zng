@@ -19,6 +19,7 @@ improve IPC performance and security.
 * **Breaking** `CursorImg` is now `non_exhaustive`.
 * **Breaking** Upgrade `VideoMode::refresh_rate` to use `Frequency` unit type.
 * **Breaking** Add `use FrequencyUnits as _` in preludes.
+* Internal features (image_any, audio_any) are now named with underscore prefix and hidden from docs.
 
 # 0.21.13
 

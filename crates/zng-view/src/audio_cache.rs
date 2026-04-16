@@ -1,21 +1,21 @@
-#![cfg_attr(not(feature = "audio_any"), allow(unused))]
+#![cfg_attr(not(feature = "_audio_any"), allow(unused))]
 
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 use std::io::{self, Read as _, Seek as _, SeekFrom};
 use std::{fmt, time::Duration};
 
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 use rodio::Source as _;
 use rustc_hash::FxHashMap;
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 use symphonia::core::probe::QueryDescriptor;
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 use zng_task::channel::IpcReadBlocking;
 use zng_task::channel::{IpcBytes, IpcBytesCast, IpcBytesCastIntoIter, IpcReadHandle, IpcReceiver};
 use zng_txt::{ToTxt, formatx};
 use zng_view_api::{Event, audio::*};
 
-#[cfg(not(feature = "audio_any"))]
+#[cfg(not(feature = "_audio_any"))]
 mod rodio {
     pub struct MixerDeviceSink;
     pub struct Player;
@@ -38,7 +38,7 @@ pub(crate) const FORMATS: &[AudioFormat] = &[
     AudioFormat::from_static("WAV", "wav,vnd.wave", "wav,wave", AudioFormatCapability::empty()),
 ];
 
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 fn symphonia_format(buf: &mut IpcReadBlocking) -> io::Result<&'static AudioFormat> {
     let mut magic = vec![];
     buf.by_ref().take(24).read_to_end(&mut magic)?;
@@ -115,15 +115,15 @@ impl AudioCache {
         id
     }
 
-    #[cfg(not(feature = "audio_any"))]
+    #[cfg(not(feature = "_audio_any"))]
     fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcReadHandle>) {
         app_sender.send(AppEvent::Notify(Event::AudioDecodeError {
             audio: id,
-            error: r#"not built with "audio_any""#.to_txt(),
+            error: r#"not built with "_audio_any""#.to_txt(),
         }));
     }
 
-    #[cfg(feature = "audio_any")]
+    #[cfg(feature = "_audio_any")]
     fn add_impl(app_sender: AppEventSender, id: AudioId, request: AudioRequest<IpcReadHandle>) {
         macro_rules! error {
             ($($msg:tt)+) => {
@@ -295,15 +295,15 @@ impl AudioCache {
         self.tracks.remove(&id);
     }
 
-    #[cfg(not(feature = "audio_any"))]
+    #[cfg(not(feature = "_audio_any"))]
     pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
         let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpenError {
             id: output.id,
-            error: r#"cannot open audio output device stream, not built with "audio_any""#.to_txt(),
+            error: r#"cannot open audio output device stream, not built with "_audio_any""#.to_txt(),
         }));
     }
 
-    #[cfg(feature = "audio_any")]
+    #[cfg(feature = "_audio_any")]
     pub(crate) fn open_output(&mut self, output: AudioOutputRequest) {
         let id = output.id;
 
@@ -351,10 +351,10 @@ impl AudioCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::AudioOutputOpened(id, data)));
     }
 
-    #[cfg(not(feature = "audio_any"))]
+    #[cfg(not(feature = "_audio_any"))]
     pub(crate) fn update_output(&mut self, _: AudioOutputUpdateRequest) {}
 
-    #[cfg(feature = "audio_any")]
+    #[cfg(feature = "_audio_any")]
     pub(crate) fn update_output(&mut self, request: AudioOutputUpdateRequest) {
         if let Some(s) = self.streams.get(&request.id) {
             match &request.config.state {
@@ -374,17 +374,17 @@ impl AudioCache {
         }
     }
 
-    #[cfg(not(feature = "audio_any"))]
+    #[cfg(not(feature = "_audio_any"))]
     pub(crate) fn close_output(&mut self, _: AudioOutputId) {}
 
-    #[cfg(feature = "audio_any")]
+    #[cfg(feature = "_audio_any")]
     pub(crate) fn close_output(&mut self, id: AudioOutputId) {
         if let Some(s) = self.streams.remove(&id) {
             s.sink.stop();
         }
     }
 
-    #[cfg(not(feature = "audio_any"))]
+    #[cfg(not(feature = "_audio_any"))]
     pub(crate) fn play(&mut self, request: AudioPlayRequest) -> AudioPlayId {
         let id = self.play_id_gen.incr();
 
@@ -396,7 +396,7 @@ impl AudioCache {
         id
     }
 
-    #[cfg(feature = "audio_any")]
+    #[cfg(feature = "_audio_any")]
     pub(crate) fn play(&mut self, request: AudioPlayRequest) -> AudioPlayId {
         let id = self.play_id_gen.incr();
 
@@ -464,7 +464,7 @@ impl Iterator for AudioTrackPlay {
         self.track.size_hint()
     }
 }
-#[cfg(feature = "audio_any")]
+#[cfg(feature = "_audio_any")]
 impl rodio::Source for AudioTrackPlay {
     fn current_span_len(&self) -> Option<usize> {
         Some(self.track.rest().len())
