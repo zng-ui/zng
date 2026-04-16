@@ -88,7 +88,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ImageFormat::from_static2("TGA", "x-tga,x-targa", "tga,icb,vda,vst", "", Cap::ENCODE),
     #[cfg(feature = "image_tiff")]
     ImageFormat::from_static2("TIFF", "tiff", "tif,tiff", "4d4d002a,49492a00", Cap::ENCODE_ENTRIES),
-    #[cfg(feature = "image_tiff")]
+    #[cfg(feature = "image_webp")]
     ImageFormat::from_static2("WebP", "webp", "webp", "52494646xxxxxxxx57454250565038", Cap::ENCODE),
 ];
 

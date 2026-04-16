@@ -331,7 +331,7 @@ impl ImageCache {
         let ico = ico::IconDir::read(data).map_err(|e| e.to_txt())?;
 
         let entry = &ico.entries()[entry];
-        let mut r = if entry.is_png() {
+        let r = if entry.is_png() {
             use std::io;
             use zng_task::channel::IpcBytes;
 
@@ -359,7 +359,9 @@ impl ImageCache {
 
             let x = (x as u32).min(entry.width());
             let y = (y as u32).min(entry.height());
+            let mut r = r;
             r.cur_hotspot = Some(PxPoint::new(Px(x as _), Px(y as _)));
+            return Ok(r);
         }
 
         Ok(r)
@@ -384,6 +386,7 @@ impl ImageCache {
             #[cfg(feature = "image_meta_exif")]
             exif,
             og_color_type: color_type.into(),
+            #[cfg(feature = "image_cur")]
             cur_hotspot: None,
             format_name: Txt::from_static("TIFF"),
         })
