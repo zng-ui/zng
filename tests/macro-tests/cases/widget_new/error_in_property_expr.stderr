@@ -1,4 +1,4 @@
-error[E0433]: failed to resolve: use of unresolved module or unlinked crate `unknown`
+error[E0433]: cannot find module or crate `unknown` in this scope
  --> cases/widget_new/error_in_property_expr.rs:7:21
   |
 7 |             let _ = unknown::path();

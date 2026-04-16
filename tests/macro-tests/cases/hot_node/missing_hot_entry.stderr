@@ -6,11 +6,11 @@ error[E0432]: unresolved import `crate`
   |
   = note: this error originates in the attribute macro `hot_node` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0433]: failed to resolve: unresolved import
+error[E0433]: cannot find `zng_hot_entry` in `crate`
  --> cases/hot_node/missing_hot_entry.rs:5:1
   |
 5 | #[hot_node]
-  | ^^^^^^^^^^^ unresolved import
+  | ^^^^^^^^^^^ could not find `zng_hot_entry` in the crate root
   |
   = note: this error originates in the attribute macro `hot_node` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -26,14 +26,3 @@ help: a built-in attribute with a similar name exists
 5 - #[hot_node]
 5 + link
   |
-
-error[E0433]: failed to resolve: unresolved import
- --> cases/hot_node/missing_hot_entry.rs:5:1
-  |
-5 | #[hot_node]
-  | ^^^^^^^^^^^
-  | |
-  | unresolved import
-  | help: a similar path exists: `zng::hot_reload::zng_hot_entry`
-  |
-  = note: this error originates in the attribute macro `hot_node` (in Nightly builds, run with -Z macro-backtrace for more info)
