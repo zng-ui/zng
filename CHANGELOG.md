@@ -3,6 +3,7 @@
 This release contains only advanced API breaking changes, it should not affect most use cases. The changes
 improve IPC performance and security.
 
+* Fix `WATCHER` panics on read error.
 * **Breaking** Change `ByteLength` inner type to `u64`.
 * Add `IpcReadHandle` and related types.
     - **Breaking** View-process API now reads image and audio files directly.
@@ -18,6 +19,7 @@ improve IPC performance and security.
 * **Breaking** `CursorImg` is now `non_exhaustive`.
 * **Breaking** Upgrade `VideoMode::refresh_rate` to use `Frequency` unit type.
 * **Breaking** Add `use FrequencyUnits as _` in preludes.
+* Internal features (image_any, audio_any) are now named with underscore prefix and hidden from docs.
 
 # 0.21.13
 

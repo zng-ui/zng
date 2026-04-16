@@ -556,10 +556,8 @@ impl SegmentedText {
             start = i;
             match c {
                 '\u{200D}' => continue, // ZWJ
-                '\n' => {
-                    if text[..i].ends_with('\r') {
-                        start = i - 1;
-                    }
+                '\n' if text[..i].ends_with('\r') => {
+                    start = i - 1;
                 }
                 c if c == '\u{FE0F}' || emoji_util::is_modifier(c) => {
                     // VS16 || Emoji-Modifier

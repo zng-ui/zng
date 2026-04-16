@@ -110,6 +110,8 @@ impl IpcDynamicImage {
             #[cfg(feature = "image_cur")]
             ContainerFormat::Cur => return Self::decode_ico(buf, entry),
         };
+        debug_assert_eq!(entry, 0);
+        let _ = entry;
 
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);

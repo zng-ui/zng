@@ -1,11 +1,10 @@
-use image::ImageEncoder;
 use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_task::channel::{IpcBytes, IpcBytesMut, IpcBytesMutCast};
+use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::{ToTxt as _, formatx};
-use zng_unit::{PxPoint, PxSize};
+use zng_unit::PxPoint;
 use zng_view_api::{
     Event,
     image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId},
@@ -205,9 +204,6 @@ impl Image {
             };
         }
 
-        let width = size.width.0 as u32;
-        let height = size.height.0 as u32;
-        let is_opaque = self.0.is_opaque();
         let is_mask = self.0.is_mask();
 
         let mut buf = IpcBytesMut::from_slice_blocking(&pixels[..])?;
@@ -219,6 +215,8 @@ impl Image {
         match format {
             #[cfg(feature = "image_jpeg")]
             image::ImageFormat::Jpeg => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
                 let mut jpg = image::codecs::jpeg::JpegEncoder::new(buffer);
                 if let Some(density) = density {
                     jpg.set_pixel_density(image::codecs::jpeg::PixelDensity {
@@ -232,9 +230,13 @@ impl Image {
                     buf.reduce_in_place(|[r, g, b, _]| [r, g, b]);
                     jpg.encode(&buf, width, height, image::ColorType::Rgb8.into())?;
                 }
+                Ok(())
             }
             #[cfg(feature = "image_png")]
             image::ImageFormat::Png => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let mut img = png::Encoder::new(buffer, width, height);
                 img.set_compression(png::Compression::Fast); // image crate default
                 img.set_depth(png::BitDepth::Eight);
@@ -265,9 +267,14 @@ impl Image {
                         e,
                     ))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_gif")]
             image::ImageFormat::Gif => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
@@ -290,9 +297,14 @@ impl Image {
                         image::ColorType::Rgba8.into()
                     },
                 )?;
+                Ok(())
             }
             #[cfg(feature = "image_webp")]
             image::ImageFormat::WebP => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -303,9 +315,14 @@ impl Image {
                 };
                 let img = image::codecs::webp::WebPEncoder::new_lossless(buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_pnm")]
             image::ImageFormat::Pnm => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -316,15 +333,23 @@ impl Image {
                 };
                 let mut img = image::codecs::pnm::PnmEncoder::new(buffer);
                 img.encode(&buf[..], width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_tiff")]
             image::ImageFormat::Tiff => {
+                let _ = density;
+                let is_opaque = self.0.is_opaque();
                 Self::encode_tiff(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_tga")]
             image::ImageFormat::Tga => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -335,9 +360,14 @@ impl Image {
                 };
                 let img = image::codecs::tga::TgaEncoder::new(buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_bmp")]
             image::ImageFormat::Bmp => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
                 let ct = if is_mask {
                     image::ColorType::L8.into()
                 } else if is_opaque {
@@ -360,17 +390,27 @@ impl Image {
                 let mut buffer = SizedProxy(buffer);
                 let mut img = image::codecs::bmp::BmpEncoder::new(&mut buffer);
                 img.encode(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_ico")]
             image::ImageFormat::Ico => {
+                let _ = density;
+                let is_opaque = self.0.is_opaque();
                 Self::encode_ico(*size, is_mask, pixels, is_opaque, entries, buffer).map_err(|e| {
                     image::ImageError::Encoding(image::error::EncodingError::new(image::error::ImageFormatHint::Exact(format), e))
                 })?;
+                Ok(())
             }
             #[cfg(feature = "image_hdr")]
             image::ImageFormat::Hdr => {
+                use image::ImageEncoder as _;
+
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+
                 const F: f32 = 1.0 / 255.0;
-                let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
                     for (c, a) in rgb.iter_mut().zip(buf.iter()) {
                         let a = *a as f32 * F;
@@ -387,13 +427,21 @@ impl Image {
                 }
                 let img = image::codecs::hdr::HdrEncoder::new(buffer);
                 img.write_image(rgb.as_bytes(), width, height, image::ColorType::Rgb32F.into())?;
+                Ok(())
             }
             #[cfg(feature = "image_exr")]
             image::ImageFormat::OpenExr => {
+                use image::ImageEncoder as _;
+
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
+
                 const F: f32 = 1.0 / 255.0;
                 let img = image::codecs::openexr::OpenExrEncoder::new(buffer);
                 let ct = if is_mask {
-                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                     for (c, a) in rgb.iter_mut().zip(buf.iter()) {
                         let a = *a as f32 * F;
                         c[0] = a;
@@ -403,7 +451,7 @@ impl Image {
                     buf = rgb.into_inner();
                     image::ColorType::Rgb32F.into()
                 } else if is_opaque {
-                    let mut rgb = IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
                     for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
                         for (c, a) in c32.iter_mut().zip(c8.iter()) {
                             *c = *a as f32 * F;
@@ -412,7 +460,7 @@ impl Image {
                     buf = rgb.into_inner();
                     image::ColorType::Rgb32F.into()
                 } else {
-                    let mut rgba = IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
+                    let mut rgba = zng_task::channel::IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
                     for (c32, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
                         for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
                             *c32 = *c8 as f32 * F;
@@ -422,11 +470,16 @@ impl Image {
                     image::ColorType::Rgba32F.into()
                 };
                 img.write_image(&buf, width, height, ct)?;
+                Ok(())
             }
             #[cfg(feature = "image_ff")]
             image::ImageFormat::Farbfeld => {
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+
                 const F: u16 = 257;
-                let mut rgba = IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
+                let mut rgba = zng_task::channel::IpcBytesMutCast::<[u16; 4]>::new_blocking(width as usize * height as usize)?;
                 if is_mask {
                     for (c, a) in rgba.iter_mut().zip(buf.iter()) {
                         let a = *a as u16 * 257;
@@ -444,9 +497,17 @@ impl Image {
                 }
                 let img = image::codecs::farbfeld::FarbfeldEncoder::new(buffer);
                 img.encode(rgba.as_bytes(), width, height)?;
+                Ok(())
             }
             #[cfg(feature = "image_qoi")]
             image::ImageFormat::Qoi => {
+                use image::ImageEncoder as _;
+
+                let _ = density;
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                let is_opaque = self.0.is_opaque();
+
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
@@ -469,21 +530,22 @@ impl Image {
                         image::ColorType::Rgba8.into()
                     },
                 )?;
+                Ok(())
             }
             f => {
-                return Err(image::ImageError::Encoding(image::error::EncodingError::new(
+                let _ = density;
+                let _ = buffer;
+                Err(image::ImageError::Encoding(image::error::EncodingError::new(
                     image::error::ImageFormatHint::Exact(f),
                     "cannot encode format",
-                )));
+                )))
             }
         }
-
-        Ok(())
     }
 
     #[cfg(feature = "image_ico")]
     fn encode_ico(
-        size: PxSize,
+        size: zng_unit::PxSize,
         is_mask: bool,
         pixels: &IpcBytes,
         is_opaque: bool,
@@ -492,7 +554,7 @@ impl Image {
     ) -> std::io::Result<()> {
         let mut ico = ico::IconDir::new(ico::ResourceType::Icon);
 
-        fn to_ico_img(size: PxSize, pixels: &IpcBytes, is_mask: bool, is_opaque: bool) -> ico::IconImage {
+        fn to_ico_img(size: zng_unit::PxSize, pixels: &IpcBytes, is_mask: bool, is_opaque: bool) -> ico::IconImage {
             let rgba = if is_mask {
                 let mut v = Vec::with_capacity(pixels.len() * 4);
                 for &p in pixels.iter() {
@@ -539,7 +601,7 @@ impl Image {
 
     #[cfg(feature = "image_tiff")]
     fn encode_tiff(
-        size: PxSize,
+        size: zng_unit::PxSize,
         is_mask: bool,
         pixels: &IpcBytes,
         is_opaque: bool,

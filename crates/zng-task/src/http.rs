@@ -367,7 +367,7 @@ impl Request {
     /// Set the [`cookies`].
     ///
     /// [`cookies`]: field@Request::cookies
-    #[cfg(feature = "http_compression")]
+    #[cfg(feature = "http_cookie")]
     pub fn cookies(mut self, enable: bool) -> Self {
         self.cookies = enable;
         self

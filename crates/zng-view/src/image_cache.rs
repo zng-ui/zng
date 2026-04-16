@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "image_any"), allow(unused))]
+#![cfg_attr(not(feature = "_image_any"), allow(unused))]
 
 use std::{
     fmt,
@@ -11,13 +11,11 @@ use zng_task::{
 };
 
 use webrender::api::ImageDescriptor;
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 use zng_txt::Txt;
 use zng_txt::formatx;
 
 use zng_task::channel::{IpcBytes, IpcReceiver};
-#[cfg(feature = "image_any")]
-use zng_unit::PxPoint;
 use zng_unit::{Px, PxDensity2d, PxSize};
 use zng_view_api::{
     Event,
@@ -39,7 +37,7 @@ mod encode;
 mod external;
 pub(crate) use external::{ImageUseMap, WrImageCache};
 
-#[cfg(not(feature = "image_any"))]
+#[cfg(not(feature = "_image_any"))]
 pub(crate) mod lcms2 {
     pub struct Profile {}
 }
@@ -90,7 +88,7 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ImageFormat::from_static2("TGA", "x-tga,x-targa", "tga,icb,vda,vst", "", Cap::ENCODE),
     #[cfg(feature = "image_tiff")]
     ImageFormat::from_static2("TIFF", "tiff", "tif,tiff", "4d4d002a,49492a00", Cap::ENCODE_ENTRIES),
-    #[cfg(feature = "image_tiff")]
+    #[cfg(feature = "image_webp")]
     ImageFormat::from_static2("WebP", "webp", "webp", "52494646xxxxxxxx57454250565038", Cap::ENCODE),
 ];
 
@@ -222,7 +220,7 @@ impl ImageCache {
 
             // try parse header early at least
             let mut header_reader = IpcReadBlocking::Bytes(io::Cursor::new(first_chunk.clone()));
-            #[cfg(feature = "image_any")]
+            #[cfg(feature = "_image_any")]
             if let ImageDataFormat::FileExtension(_) | ImageDataFormat::MimeType(_) | ImageDataFormat::Unknown = &format
                 && let Ok((fmt, entries)) = Self::decode_container(&format, &mut header_reader)
                 && entries.first() == Some(&(0, ImageEntryKind::Page))
@@ -465,12 +463,12 @@ impl ImageCache {
                 }
             }
             // needs decoding
-            #[cfg(not(feature = "image_any"))]
+            #[cfg(not(feature = "_image_any"))]
             fmt => {
                 let _ = (max_decoded_len, downscale);
                 return error!("no decoder for {fmt:?}");
             }
-            #[cfg(feature = "image_any")]
+            #[cfg(feature = "_image_any")]
             fmt => {
                 let (fmt, entries_kind) = match Self::decode_container(&fmt, &mut data) {
                     Ok(r) => r,
@@ -553,7 +551,7 @@ impl ImageCache {
                         // source: previous task pixels
                         size: PxSize,
                         #[cfg(feature = "image_cur")]
-                        page_cur: (PxSize, Option<PxPoint>), // (page_size, pager_cur_hotspot)
+                        page_cur: (PxSize, Option<zng_unit::PxPoint>), // (page_size, pager_cur_hotspot)
                         id: ImageId,
                         parent: ImageEntryMetadata,
                     },
@@ -575,6 +573,7 @@ impl ImageCache {
                     let id = if tasks.is_empty() { id } else { id_gen.lock().incr() };
                     let mut page_entries = 0;
                     let page_entries = if tasks.is_empty() { &mut root_entries } else { &mut page_entries };
+                    #[cfg(feature = "image_cur")]
                     let page_cur_hotspot = page.1.cur_hotspot;
 
                     tasks.push(Task::Decode {
@@ -966,7 +965,7 @@ fn downscale_hotspot(
     downscaled_size: PxSize,
     meta: &mut ImageMetadata,
     full_size: PxSize,
-    cur_hotspot: Option<PxPoint>,
+    cur_hotspot: Option<zng_unit::PxPoint>,
 ) {
     if let Some(mut hotspot) = cur_hotspot {
         hotspot.x *= downscaled_size.width.0 as f32 / full_size.width.0 as f32;
@@ -978,7 +977,7 @@ fn downscale_hotspot(
         ));
     }
 }
-#[cfg(feature = "image_any")]
+#[cfg(feature = "_image_any")]
 struct ImageHeader {
     size: PxSize,
     orientation: image::metadata::Orientation,
@@ -987,7 +986,8 @@ struct ImageHeader {
     #[cfg(feature = "image_meta_exif")]
     exif: Option<Vec<u8>>,
     og_color_type: image::ExtendedColorType,
-    cur_hotspot: Option<PxPoint>,
+    #[cfg(feature = "image_cur")]
+    cur_hotspot: Option<zng_unit::PxPoint>,
     format_name: Txt,
 }
 

@@ -1,4 +1,4 @@
-error[E0433]: failed to resolve: could not find `not` in the crate root
+error[E0433]: cannot find `not` in `$crate`
  --> cases/widget/type_path_is_invalid1.rs:3:18
   |
 3 | #[widget($crate::not::a::valid::path)]

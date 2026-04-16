@@ -555,11 +555,9 @@ pub(super) fn implicit_resolve_weak(sequence: &IsolatingRunSequence, processing_
             // <http://www.unicode.org/reports/tr9/#W3>
             //
             match processing_classes[i] {
-                EN => {
-                    if last_strong_is_al {
-                        // W2. If previous strong char was AL, change EN to AN.
-                        processing_classes[i] = AN;
-                    }
+                EN if last_strong_is_al => {
+                    // W2. If previous strong char was AL, change EN to AN.
+                    processing_classes[i] = AN;
                 }
                 // W3.
                 AL => processing_classes[i] = R,

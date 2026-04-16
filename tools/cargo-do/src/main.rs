@@ -456,7 +456,7 @@ fn check_all_features(mut args: Vec<&str>) {
                 clean = 0;
                 let prev_dir = current_full_build_dir;
                 if prev_dir != std::path::PathBuf::new() {
-                    cmd("cargo", &["clean"], &[]);
+                    self::clean(vec![]);
                 }
                 let _ = remove_dir_all::remove_dir_all(&dir);
                 std::fs::create_dir_all(&dir).unwrap();
@@ -477,7 +477,7 @@ fn check_all_features(mut args: Vec<&str>) {
             if clean == max_clean {
                 clean = 0;
                 print("CLEAN\n");
-                cmd("cargo", &["clean"], &[]);
+                self::clean(vec![]);
             }
 
             // replace features
@@ -514,7 +514,7 @@ fn check_all_features(mut args: Vec<&str>) {
             if clean == max_clean {
                 clean = 0;
                 print("CLEAN\n");
-                cmd("cargo", &["clean"], &[]);
+                self::clean(vec![]);
             }
 
             cmd(
@@ -525,7 +525,7 @@ fn check_all_features(mut args: Vec<&str>) {
         }
     }
     if full_build && current_full_build_dir != std::path::PathBuf::new() {
-        cmd("cargo", &["clean"], &[]);
+        self::clean(vec![]);
         if let Err(e) = remove_dir_all::remove_dir_all(&current_full_build_dir) {
             error(f!("failed to cleanup `{}`, {e}", current_full_build_dir.display()));
         }
@@ -1102,6 +1102,7 @@ fn build(mut args: Vec<&str>) {
 //    Compile the crate and dump generic instances
 // USAGE
 //    mono-stats --print --dump <CRATE>
+
 //       Don't group/sort items in files, just print, to a dump file
 fn mono_stats(mut args: Vec<&str>) {
     let print = take_flag(&mut args, &["--print"]);
@@ -1351,6 +1352,11 @@ fn clean(mut args: Vec<&str>) {
             }
         }
         println(f!("     Removed {count} prebuild files"))
+    }
+
+    if !std::env::args().any(|a| a == "clean") {
+        // not cargo do clean command, assume execution will continue, init redirected temp dir again
+        init_local_temp();
     }
 }
 
@@ -1681,7 +1687,7 @@ fn publish(mut args: Vec<&str>) {
                     // this at least tests if features are enabled correctly.
                     cmd("cargo", &["check", "--package", member.name.as_str(), "--quiet"], &[]);
                 }
-                cmd("cargo", &["clean"], &[]);
+                self::clean(vec![]);
             }
         }
     } else if take_flag(&mut args, &["--execute"]) {
@@ -1718,7 +1724,7 @@ fn publish(mut args: Vec<&str>) {
                     cmd_req("cargo", &["owner", "--add", "github:zng-ui:owners", member.name.as_str()], &[]);
                 }
 
-                cmd("cargo", &["clean"], &[]);
+                self::clean(vec![]);
 
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
                 let extra = Duration::from_secs(1);

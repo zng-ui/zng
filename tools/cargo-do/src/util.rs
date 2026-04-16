@@ -513,6 +513,7 @@ pub fn publish_members() -> Vec<PublishMember> {
                         Section::Features => {
                             if let Some((feat, _)) = line.split_once(" = [")
                                 && feat != "default"
+                                && !feat.starts_with("_")
                             {
                                 member.features.push(feat.trim_end().to_owned());
                             }

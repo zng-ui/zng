@@ -106,14 +106,6 @@ note: candidate #2 is defined in an impl for the type `TestWidget`
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0282]: type annotations needed
- --> cases/widget/name_conflict2.rs:3:1
-  |
-3 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
-  |
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0034]: multiple applicable items in scope
  --> cases/widget/name_conflict2.rs:6:1
   |
@@ -130,12 +122,4 @@ note: candidate #2 is defined in an impl for the type `TestWidget`
   |
 6 | #[widget($crate::TestWidget)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0282]: type annotations needed
- --> cases/widget/name_conflict2.rs:6:1
-  |
-6 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
-  |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)

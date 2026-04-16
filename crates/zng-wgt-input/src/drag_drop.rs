@@ -22,10 +22,8 @@ pub fn draggable(child: impl IntoUiNode, input: impl IntoVar<bool>) -> UiNode {
         UiNodeOp::Init => {
             WIDGET.sub_var_info(&input);
         }
-        UiNodeOp::Info { info } => {
-            if input.get() {
-                info.draggable();
-            }
+        UiNodeOp::Info { info } if input.get() => {
+            info.draggable();
         }
         _ => {}
     })

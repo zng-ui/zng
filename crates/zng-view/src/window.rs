@@ -299,24 +299,23 @@ impl Window {
                 }
 
                 match msg {
-                    windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN => {
+                    windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
                         if wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
-                            == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
-                        {
-                            // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
+                            == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4 =>
+                    {
+                        // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
-                            let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
-                                window: id,
-                                device: InputDeviceId::INVALID, // same as winit
-                                key_code: KeyCode::F4,
-                                state: KeyState::Pressed,
-                                key: Key::F4,
-                                key_modified: Key::F4,
-                                text: Txt::from_static(""),
-                                key_location: zng_view_api::keyboard::KeyLocation::Standard,
-                            }));
-                            return Some(0);
-                        }
+                        let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
+                            window: id,
+                            device: InputDeviceId::INVALID, // same as winit
+                            key_code: KeyCode::F4,
+                            state: KeyState::Pressed,
+                            key: Key::F4,
+                            key_modified: Key::F4,
+                            text: Txt::from_static(""),
+                            key_location: zng_view_api::keyboard::KeyLocation::Standard,
+                        }));
+                        return Some(0);
                     }
                     windows_sys::Win32::UI::WindowsAndMessaging::WM_QUERYENDSESSION => {
                         let mut reason = [0u16; 256];

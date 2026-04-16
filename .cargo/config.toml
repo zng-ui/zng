@@ -3,8 +3,6 @@ DO_CMD = "cargo do"
 
 [alias]
 do = ["run", "--manifest-path", "tools/cargo-do/Cargo.toml", "--quiet", "--"]
-
-[build]
-# false positives in 1.92, fix will release only in 1.95 (16 April, 2026)
-# see https://github.com/rust-lang/rust/issues/149889
-rustflags = ["-A", "unused_assignments"]
+# Windows does not support 'cargo do clean' because it locks the exe path, this
+# alias runs from a different target dir
+do-windows-target = ["run", "--manifest-path", "tools/cargo-do/Cargo.toml", "--quiet", "--target-dir", "tools/cargo-do/target", "--"]

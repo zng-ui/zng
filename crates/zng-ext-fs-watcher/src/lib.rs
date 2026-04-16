@@ -272,7 +272,7 @@ impl WATCHER {
                     }
                     Err(e) => {
                         // read error
-                        data.status.set((data.status_mtds.read_error)(Box::new(e)));
+                        data.status.set((data.status_mtds.read_error)(e));
                     }
                 }
             }));
@@ -460,7 +460,7 @@ impl WATCHER {
                         data.status.set((data.status_mtds.idle)());
                     }
                     Err(e) => {
-                        data.status.set((data.status_mtds.read_error)(Box::new(e)));
+                        data.status.set((data.status_mtds.read_error)(e));
                     }
                 }
             }));

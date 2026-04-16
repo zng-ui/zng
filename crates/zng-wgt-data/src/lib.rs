@@ -58,15 +58,13 @@ pub fn data_note(child: impl IntoUiNode, level: impl IntoVar<DataNoteLevel>, not
         UiNodeOp::Deinit => {
             _handle = DataNoteHandle::dummy();
         }
-        UiNodeOp::Update { .. } => {
-            if level.is_new() || note.is_new() {
-                let note = note.get();
-                _handle = if note.is_empty() {
-                    DataNoteHandle::dummy()
-                } else {
-                    DATA.annotate(level.get(), note)
-                };
-            }
+        UiNodeOp::Update { .. } if (level.is_new() || note.is_new()) => {
+            let note = note.get();
+            _handle = if note.is_empty() {
+                DataNoteHandle::dummy()
+            } else {
+                DATA.annotate(level.get(), note)
+            };
         }
         _ => {}
     })

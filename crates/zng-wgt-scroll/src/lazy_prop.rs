@@ -212,10 +212,8 @@ pub fn lazy(child: impl IntoUiNode, mode: impl IntoVar<LazyMode>) -> UiNode {
             }
             c.node_impl::<UiVec>().clear(); // drop placeholder, if any
         }
-        UiNodeOp::Update { .. } => {
-            if mode.is_new() {
-                WIDGET.reinit();
-            }
+        UiNodeOp::Update { .. } if mode.is_new() => {
+            WIDGET.reinit();
         }
         UiNodeOp::Measure { wm, desired_size } => {
             c.delegated();

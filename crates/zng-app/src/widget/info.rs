@@ -1795,7 +1795,7 @@ impl WidgetInfo {
             })
             .collect();
 
-        hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
+        hits.sort_by_key(|h| std::cmp::Reverse(h.z_index));
 
         HitTestInfo {
             window_id: self.tree.0.window_id,

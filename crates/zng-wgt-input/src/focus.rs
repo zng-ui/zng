@@ -73,11 +73,9 @@ fn focus_scope_impl(child: impl IntoUiNode, is_scope: impl IntoVar<bool>, is_alt
                 info.scope(is_scope.get());
             }
         }
-        UiNodeOp::Deinit => {
-            if is_alt && FOCUS.is_focus_within(WIDGET.id()).get() {
-                // focus auto recovery can't return focus if the entire scope is missing.
-                FOCUS.focus_exit(false);
-            }
+        UiNodeOp::Deinit if is_alt && FOCUS.is_focus_within(WIDGET.id()).get() => {
+            // focus auto recovery can't return focus if the entire scope is missing.
+            FOCUS.focus_exit(false);
         }
         _ => {}
     })

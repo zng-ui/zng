@@ -947,15 +947,11 @@ pub fn flood(color: impl IntoVar<Rgba>) -> UiNode {
                 WIDGET.render();
             }
         }
-        UiNodeOp::Render { frame } => {
-            if !render_size.is_empty() {
-                frame.push_color(PxRect::from_size(render_size), frame_key.bind_var(&color, |&c| c));
-            }
+        UiNodeOp::Render { frame } if !render_size.is_empty() => {
+            frame.push_color(PxRect::from_size(render_size), frame_key.bind_var(&color, |&c| c));
         }
-        UiNodeOp::RenderUpdate { update } => {
-            if !render_size.is_empty() {
-                update.update_color_opt(frame_key.update_var(&color, |&c| c));
-            }
+        UiNodeOp::RenderUpdate { update } if !render_size.is_empty() => {
+            update.update_color_opt(frame_key.update_var(&color, |&c| c));
         }
         _ => {}
     })
