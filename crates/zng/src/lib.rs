@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = { version = "0.21.13", features = ["view_prebuilt"] }
+//! zng = { version = "0.22.0", features = ["view_prebuilt"] }
 //! ```
 //!
 //! Then create your first app:
