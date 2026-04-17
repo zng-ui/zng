@@ -1234,8 +1234,8 @@ static_id! {
 
 /// Undo extension methods for commands.
 pub trait CommandUndoExt {
-    /// Gets the command scoped in the undo scope widget that is or contains the focused widget, or
-    /// scoped on the app if there is no focused undo scope.
+    /// Gets the command scoped to the undo scope widget that is (or contains) the focused widget.
+    /// If no undo scope is focused gets the command scoped on the app.
     fn undo_scoped(self) -> Var<Command>;
 
     /// Latest undo stack for the given scope, same as calling [`UNDO::undo_stack`] inside the scope.

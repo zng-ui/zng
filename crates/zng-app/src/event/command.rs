@@ -965,7 +965,7 @@ impl CommandArgs {
                     // if scope widget contains args scope widget
                     if let Some(t) = &self.target {
                         t.widgets_path().iter().position(|i| *i == scope_id).unwrap_or(usize::MAX)
-                            < t.widgets_path().iter().position(|i| *i == args_id).unwrap_or(usize::MAX)
+                            <= t.widgets_path().iter().position(|i| *i == args_id).unwrap_or(usize::MAX)
                     } else {
                         todo!()
                     }
