@@ -25,6 +25,7 @@ use zng_wgt_webrender_debug as wr;
 mod encoding;
 
 fn main() {
+    // zng::app::print_tracing(tracing::Level::INFO, false, |_| true);
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
