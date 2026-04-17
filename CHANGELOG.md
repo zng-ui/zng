@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.0
+
 This release contains only advanced API breaking changes, it should not affect most use cases. The changes
 improve IPC performance and security.
 
