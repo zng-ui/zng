@@ -121,7 +121,8 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> UiNode {
                 }
             });
         }
-        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } => {
+        UiNodeOp::Render { .. } | UiNodeOp::RenderUpdate { .. } if inspected_tree.is_some() && WINDOWS.vars(inspector).is_some() => {
+            // update render info
             INSPECT_CMD.scoped(WINDOW.id()).notify_param(InspectorUpdateOnly::Render);
         }
         _ => {}

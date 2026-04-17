@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix builds with inspector notifying INSPECT_CMD every frame.
 
 # 0.22.0
 
