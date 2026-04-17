@@ -39,13 +39,14 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 
 ## Webrender
 
-Webrender is not published so we maintain our own fork in <https://github.com/zng-ui/zng-webrender>. These crates mostly untouched,
-for now we just rename and remove a dependency that has a security advisory (`time`, does not impact Webrender, but shows in `cargo audit`).
+Webrender updates where not published for a long time so we published our own fork in <https://github.com/zng-ui/zng-webrender>.
+Currently (since zng 0.22) we are back to depending on the original Webrender as it has updated, if it lags behind the Firefox
+release again we will be back to depending on our own fork.
 
-To update these crates:
+To update the fork crates:
 
-* Merge from upstream <https://github.com/servo/webrender>.
-* Manually increment the minor version of each crate that changed.
+* Merge from upstream branch of <https://github.com/servo/webrender>.
+* Manually increment the minor version (breaking) of each crate that changed.
 * Manually copy new shaders from webrender to swgl (publish does not allow files from outside the crate dir so we duplicate these).
 * We depend on `zng-webrender`, `zng-swgl` and all local dependencies of these crates. As of last publish these are:
 
