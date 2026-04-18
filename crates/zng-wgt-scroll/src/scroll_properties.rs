@@ -91,10 +91,10 @@ context_var! {
     /// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
     /// for optimizations from the render culling to lazy widgets.
     ///
-    /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
+    /// Default is `50.dip()`.
     ///
     /// [`FrameBuilder::auto_hide_rect`]: zng_wgt::prelude::FrameBuilder::auto_hide_rect
-    pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
+    pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 50.dip();
 
     /// Color of the overscroll indicator.
     pub static OVERSCROLL_COLOR_VAR: Rgba = colors::GRAY.with_alpha(50.pct());
@@ -381,7 +381,7 @@ pub fn zoom_to_fit_mode(child: impl IntoUiNode, mode: impl IntoVar<ZoomToFitMode
 /// performance, a larger extra space means that more widgets are rendering, but also can mean less full frame
 /// requests, if there is no other widget requesting render.
 ///
-/// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
+/// Default is `50.dip()`.
 ///
 /// This property sets the [`AUTO_HIDE_EXTRA_VAR`].
 ///
