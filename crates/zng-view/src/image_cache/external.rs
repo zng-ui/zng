@@ -235,7 +235,7 @@ impl ImageUseMap {
         if tile_spacing.is_empty() && tile_size == image_size {
             let full_size = img.image.size();
 
-            if !img.image.overflows_wr() {
+            if !img.image.should_stripe() {
                 // normal sized image
                 let bounds = clip_rect.to_wr();
                 let clip = sc.clip_chain_id(wr_list);
