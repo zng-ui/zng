@@ -1,5 +1,6 @@
 # Unreleased
 
+* Optimize RAM usage of gigapixel images at full scale.
 * Fix widget scoped commands only matching ancestors when direct match is disabled.
 * Fix builds with inspector notifying INSPECT_CMD every frame.
 

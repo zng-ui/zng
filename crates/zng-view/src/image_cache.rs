@@ -1126,15 +1126,19 @@ impl Image {
     }
 
     /// If this is `true` needs to replace with `wr_stripes`
+    pub fn should_stripe(&self) -> bool {
+        self.pixels().len() > Self::SHOULD_STRIPE_LEN
+    }
+
     pub fn overflows_wr(&self) -> bool {
-        self.pixels().len() > Self::MAX_LEN
+        self.pixels().len() > Self::WR_MAX_IMG_LEN
     }
 
     /// Returns the image split in "stripes" that fit the Webrender buffer length constraints.
     ///
     /// If the image cannot be split into stripes returns an empty list. This only happens if the image width is absurdly wide.
     pub fn wr_stripes(&self) -> Box<[Image]> {
-        if !self.overflows_wr() {
+        if !self.should_stripe() {
             return Box::new([self.clone()]);
         }
 
@@ -1159,20 +1163,26 @@ impl Image {
             _ => unreachable!(),
         }
     }
-    const MAX_LEN: usize = i32::MAX as usize;
+    // WR buffer can only handle i32::MAX, but we don't want stripes less than 8px in height
+    const WR_MAX_IMG_LEN: usize = i32::MAX as usize / 8;
+    const WR_DEFAULT_TILE_PX: usize = 512;
+    // better performance over letting WR tile a WR_MAX_IMG_LEN chunk in one go
+    const SHOULD_STRIPE_LEN: usize = (Self::WR_DEFAULT_TILE_PX * 2 * 4).pow(2);
+
     fn generate_stripes(&self, full_size: PxSize, pixels: &IpcBytes, is_opaque: bool, density: Option<PxDensity2d>) -> Box<[Image]> {
         let w = full_size.width.0 as usize * 4;
-        if w > Self::MAX_LEN {
-            tracing::error!("renderer does not support images with width * 4 > {}", Self::MAX_LEN);
+        if w > Self::WR_MAX_IMG_LEN {
+            tracing::error!("renderer does not support images with width * 4 > i32::MAX / 10");
             return Box::new([]);
         }
 
-        // find proportional split that fits, to avoid having the last stripe be to thin
-        let full_height = full_size.height.0 as usize;
-        let mut stripe_height = full_height / 2;
-        while w * stripe_height > Self::MAX_LEN {
+        let mut stripe_height = Self::WR_DEFAULT_TILE_PX * 2;
+        while stripe_height * w > Self::WR_MAX_IMG_LEN {
             stripe_height /= 2;
         }
+        debug_assert!(stripe_height >= 8);
+
+        let full_height = full_size.height.0 as usize;
         let stripe_len = w * stripe_height;
         let stripes_len = full_height.div_ceil(stripe_height);
         let stripe_height = Px(stripe_height as _);
