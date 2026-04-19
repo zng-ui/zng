@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.1
+
 * Better default markdown link popup.
 * Change default `Scroll::auto_hide_extra` to a fixed 50dip.
 * Optimize RAM usage of gigapixel images at full scale.
