@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use zng_ext_l10n::l10n;
 use zng_wgt::{prelude::*, *};
 
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
@@ -271,8 +272,6 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
     let popup_id = WidgetId::new_unique();
 
-    let url = args.url.clone();
-
     #[derive(Clone, Debug, PartialEq)]
     enum Status {
         Pending,
@@ -322,12 +321,19 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         });
 
         child = Button! {
-            style_fn = zng_wgt_button::LinkStyle!();
+            style_fn = zng_wgt_button::LightStyle!();
 
             focus_on_init = true;
 
-            child = Text!(url);
-            child_spacing = 2;
+            child = Text!(match &link {
+                Link::Url(_) => l10n!("try_open_link.open-url", "Open in Browser"),
+                Link::Path(_) => match std::env::consts::OS {
+                    "windows" => l10n!("try_open_link.reveal-path-windows", "Reveal in File Explorer"),
+                    "macos" => l10n!("try_open_link.reveal-path-macos", "Reveal in Finder"),
+                    _ => l10n!("try_open_link.reveal-path", "Reveal in File Manager"),
+                },
+            });
+            child_spacing = 3;
             child_end = ICONS.get_or("arrow-outward", || Text!("🡵"));
 
             text::underline_skip = text::UnderlineSkip::SPACES;
@@ -402,7 +408,12 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         child_end = Button! {
             style_fn = zng_wgt_button::LightStyle!();
             padding = 3;
-            child = COPY_CMD.icon().present_data(());
+            child_spacing = 3;
+            child = Text!(match &link {
+                Link::Url(_) => l10n!("try_open_link.copy-url", "Copy Url"),
+                Link::Path(_) => l10n!("try_open_link.copy-path", "Copy Path"),
+            });
+            child_end = COPY_CMD.icon().present_data(());
             on_click = async_hn_once!(status, |args: &ClickArgs| {
                 if status.get() != Status::Pending || args.timestamp.duration_since(open_time) < 300.ms() {
                     return;
