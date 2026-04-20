@@ -1,5 +1,6 @@
 # Unreleased
 
+* Debug builds now detect incorrect repeated updates and logs an error.
 
 # 0.22.1
 
