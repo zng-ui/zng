@@ -28,6 +28,7 @@ use crate::{
 };
 
 /// Represents all the widgets and windows marked to receive an update.
+#[derive(Clone)]
 pub struct UpdateDeliveryList {
     windows: IdSet<WindowId>,
     widgets: IdSet<WidgetId>,
@@ -108,28 +109,7 @@ impl UpdateDeliveryList {
             });
         }
         self.search.clear();
-        self.search_root = true;
-    }
-
-    /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
-    fn extend_unchecked(&mut self, other: UpdateDeliveryList) {
-        if self.windows.is_empty() {
-            self.windows = other.windows;
-        } else {
-            self.windows.extend(other.windows);
-        }
-
-        if self.widgets.is_empty() {
-            self.widgets = other.widgets;
-        } else {
-            self.widgets.extend(other.widgets);
-        }
-
-        if self.search.is_empty() {
-            self.search = other.search;
-        } else {
-            self.search.extend(other.search);
-        }
+        self.search_root = false;
     }
 
     /// Returns `true` if the window is on the list.
@@ -153,15 +133,36 @@ impl UpdateDeliveryList {
     }
 
     /// Widgets still pending search or not found.
-    #[must_use = "use `search_all` to request search"]
+    #[must_use = "use `search_widget` to request search"]
     pub fn search_widgets(&mut self) -> &IdSet<WidgetId> {
         &self.search
     }
 
     /// If search for window a root is pending.
-    #[must_use = "use `search_widget` to request search"]
+    #[must_use = "use `insert_window` to request search"]
     pub fn search_root(&mut self) -> bool {
         self.search_root
+    }
+
+    /// Copy windows, widgets and search from `other`.
+    pub fn extend(&mut self, other: UpdateDeliveryList) {
+        if self.windows.is_empty() {
+            self.windows = other.windows;
+        } else {
+            self.windows.extend(other.windows);
+        }
+
+        if self.widgets.is_empty() {
+            self.widgets = other.widgets;
+        } else {
+            self.widgets.extend(other.widgets);
+        }
+
+        if self.search.is_empty() {
+            self.search = other.search;
+        } else {
+            self.search.extend(other.search);
+        }
     }
 }
 
@@ -249,7 +250,7 @@ impl InfoUpdates {
 
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: InfoUpdates) {
-        self.delivery_list.extend_unchecked(other.delivery_list)
+        self.delivery_list.extend(other.delivery_list)
     }
 }
 
@@ -300,7 +301,7 @@ impl WidgetUpdates {
 
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: WidgetUpdates) {
-        self.delivery_list.extend_unchecked(other.delivery_list)
+        self.delivery_list.extend(other.delivery_list)
     }
 }
 
@@ -339,7 +340,7 @@ impl LayoutUpdates {
 
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: LayoutUpdates) {
-        self.delivery_list.extend_unchecked(other.delivery_list)
+        self.delivery_list.extend(other.delivery_list)
     }
 }
 
@@ -378,7 +379,7 @@ impl RenderUpdates {
 
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: RenderUpdates) {
-        self.delivery_list.extend_unchecked(other.delivery_list)
+        self.delivery_list.extend(other.delivery_list)
     }
 }
 
