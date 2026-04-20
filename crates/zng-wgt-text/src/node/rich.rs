@@ -146,23 +146,22 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
 // some visuals (like selection background) depend on focused status of any rich leaf
 fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |c, op| {
-        if let UiNodeOp::Update { .. } = op {
-            FOCUS_CHANGED_EVENT.each_update(true, |args| {
-                let ctx = match TEXT.try_rich() {
-                    Some(c) => c,
-                    None => return, // disabled
-                };
-                if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
-                    // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID too
-                    let mut extended_list = UpdateDeliveryList::new();
-                    for leaf in ctx.leaves() {
-                        extended_list.insert_wgt(&leaf);
-                    }
-                    drop(ctx);
-                    let updates = WidgetUpdates::new(extended_list);
-                    c.node().update(&updates);
-                }
+        if let UiNodeOp::Update { updates } = op
+            && let Some(ctx) = TEXT.try_rich()
+        {
+            let extend_propagation = FOCUS_CHANGED_EVENT.any_update(true, |args| {
+                args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id))
             });
+            if extend_propagation {
+                let mut extended_list = updates.delivery_list().clone();
+                // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID too
+                for leaf in ctx.leaves() {
+                    extended_list.insert_wgt(&leaf);
+                }
+                drop(ctx);
+                let updates = WidgetUpdates::new(extended_list);
+                c.update(&updates);
+            }
         }
     })
 }

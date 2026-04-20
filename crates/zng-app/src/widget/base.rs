@@ -660,6 +660,8 @@ pub mod node {
             inited: bool,
             #[cfg(debug_assertions)]
             info_built: bool,
+            #[cfg(debug_assertions)]
+            update_id: zng_var::VarUpdateId,
         }
         impl WidgetUiNodeImpl for WidgetNode {
             fn with_context(&mut self, update_mode: WidgetUpdateMode, visitor: &mut dyn FnMut()) {
@@ -750,10 +752,18 @@ pub mod node {
 
                 WIDGET.with_context(&mut self.ctx, WidgetUpdateMode::Bubble, || {
                     #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
-                    } else if !self.info_built {
-                        tracing::error!(target: "widget_base", "`UiNode::update` called in widget {:?} before first info build", WIDGET.id());
+                    {
+                        if !self.inited {
+                            tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
+                        } else if !self.info_built {
+                            tracing::error!(target: "widget_base", "`UiNode::update` called in widget {:?} before first info build", WIDGET.id());
+                        }
+                        let update_id = crate::update::UPDATES.update_id();
+                        if self.update_id == update_id {
+                            tracing::error!(target: "widget_base", "`UiNode::update` called again in widget {:?} for pass {:?}", WIDGET.id(), update_id);
+                        } else {
+                            self.update_id = update_id;
+                        }
                     }
 
                     updates.with_widget(|| {
@@ -896,6 +906,8 @@ pub mod node {
             inited: false,
             #[cfg(debug_assertions)]
             info_built: false,
+            #[cfg(debug_assertions)]
+            update_id: zng_var::VarUpdateId::never(),
         }
         .into_node()
     }

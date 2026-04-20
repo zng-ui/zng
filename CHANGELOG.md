@@ -1,5 +1,8 @@
 # Unreleased
 
+* The `UpdateDeliveryList` type can now be cloned and extended.
+* Fix `rich_text` causing repeated updates.
+* Debug builds now detect incorrect repeated updates and logs an error.
 
 # 0.22.1
 
