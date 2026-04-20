@@ -12,7 +12,7 @@ use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_task::channel::ChannelError;
 use zng_unique_id::IdSet;
-use zng_var::{VARS, VARS_APP};
+use zng_var::{VARS, VARS_APP, VarUpdateId};
 
 use crate::{
     AppEventSender, LoopTimer, async_hn_once,
@@ -1170,6 +1170,13 @@ impl UPDATES {
     pub fn on_update(&self, handler: Handler<UpdateArgs>) -> OnUpdateHandle {
         let u = UPDATES_SV.read();
         Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false)
+    }
+
+    /// Id of the current update pass.
+    ///
+    /// This is an alias for [`VARS::update_id`]
+    pub fn update_id(&self) -> VarUpdateId {
+        VARS.update_id()
     }
 
     /// Calls the closure once the current update is over.
