@@ -306,8 +306,16 @@ pub use crate::event_args;
 /// operate as if the event was not received.
 ///
 /// You can get the propagation handle of any event argument by using the [`AnyEventArgs::propagation`] method.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EventPropagationHandle(Arc<AtomicBool>);
+impl std::fmt::Debug for EventPropagationHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventPropagationHandle")
+            .field(".handle", &Arc::as_ptr(&self.0))
+            .field("is_stopped()", &self.is_stopped())
+            .finish()
+    }
+}
 impl EventPropagationHandle {
     /// New in the not stopped default state.
     pub fn new() -> Self {
