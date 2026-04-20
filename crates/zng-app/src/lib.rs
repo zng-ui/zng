@@ -730,20 +730,21 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
 
     if metadata.level() == &tracing::Level::INFO && level < &tracing::Level::TRACE {
         // suppress large info about texture cache
-        if metadata.target() == "zng_webrender::device::gl" {
+        if metadata.target().ends_with("webrender::device::gl") {
+            // ends with to also support zng_webrender*
             return false;
         }
         // suppress config dump
-        if metadata.target() == "zng_webrender::renderer::init" {
+        if metadata.target().ends_with("webrender::renderer::init") {
             return false;
         }
     } else if metadata.level() == &tracing::Level::WARN && level < &tracing::Level::DEBUG {
         // suppress webrender warnings:
         //
-        if metadata.target() == "zng_webrender::device::gl" {
+        if metadata.target().ends_with("webrender::device::gl") {
             // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
             // This happens when an empty frame is rendered.
-            if metadata.line() == Some(4647) {
+            if metadata.line() == Some(4652) {
                 return false;
             }
         }
