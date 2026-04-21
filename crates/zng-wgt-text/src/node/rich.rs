@@ -153,8 +153,9 @@ fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
                 args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id))
             });
             if extend_propagation {
+                // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID, so we just need to extend
+                // WidgetUpdates to reach all leaves
                 let mut extended_list = updates.delivery_list().clone();
-                // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID too
                 for leaf in ctx.leaves() {
                     extended_list.insert_wgt(&leaf);
                 }

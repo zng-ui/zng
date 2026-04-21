@@ -26,6 +26,8 @@ static_id! {
 /// You can set this property to a [`CursorIcon`] for a named platform dependent icon, [`CursorImg`] for a custom image,
 /// or to `false` that converts to [`CursorSource::Hidden`].
 ///
+/// The cursor will apply to the widget an all descendants that don't set a cursor.
+///
 /// [`CursorImg`]: zng_ext_window::CursorImg
 #[property(CONTEXT, default(CursorIcon::Default))]
 pub fn cursor(child: impl IntoUiNode, cursor: impl IntoVar<CursorSource>) -> UiNode {
@@ -65,6 +67,7 @@ fn cursor_impl(id: WindowId) -> VarHandle {
     MOUSE_HOVERED_EVENT.hook(move |args| {
         if let Some(t) = &args.target
             && t.window_id() == id
+            && args.capture_allows((t.window_id(), t.widget_id()))
             && let Some(info) = WINDOWS.widget_tree(id).unwrap().get(t.widget_id())
         {
             let mut vars = None;
@@ -74,11 +77,6 @@ fn cursor_impl(id: WindowId) -> VarHandle {
                 };
             }
             for info in info.self_and_ancestors() {
-                if let Some(cap) = &args.capture
-                    && !cap.allows((id, info.id()))
-                {
-                    continue;
-                }
                 if let Some(cursor) = info.meta().get(*WIDGET_CURSOR_ID) {
                     let top = Some(info.id());
                     if current_top != top {
