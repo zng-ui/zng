@@ -174,7 +174,9 @@ impl CaptureInfo {
             CaptureMode::Window => self.target.window_id() == wgt.0,
             CaptureMode::Widget => self.target.widget_id() == wgt.1,
             CaptureMode::Subtree => {
-                if let Some(wgt) = WINDOWS.widget_tree(wgt.0).and_then(|t| t.get(wgt.1)) {
+                if self.target.window_id() == wgt.0
+                    && let Some(wgt) = WINDOWS.widget_tree(wgt.0).and_then(|t| t.get(wgt.1))
+                {
                     for wgt in wgt.self_and_ancestors() {
                         if wgt.id() == self.target.widget_id() {
                             return true;

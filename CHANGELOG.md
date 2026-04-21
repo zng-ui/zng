@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cursor` not applying when a child widget captures the pointer.
 * The `UpdateDeliveryList` type can now be cloned and extended.
 * Fix `rich_text` causing repeated updates.
 * Debug builds now detect incorrect repeated updates and logs an error.
