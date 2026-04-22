@@ -40,7 +40,7 @@ use crate::{
     TextOverflow, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR, UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR,
     WORD_SPACING_VAR,
     cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
-    node::SelectionBy,
+    node::{RichTextComponent, RichTextWidgetInfoExt, SelectionBy},
 };
 
 use super::{LAIDOUT_TEXT, LaidoutText, PendingLayout, RenderInfo, TEXT};
@@ -1016,8 +1016,6 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
         return;
     }
 
-    let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
-
     let prev_caret_index = {
         let caret = &resolved.caret;
         (caret.index, caret.index_version, caret.selection_index)
@@ -1209,15 +1207,181 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
             }
         }
     });
-    MOUSE_INPUT_EVENT.each_update(true, |args| {
-        if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
+
+    fn accept_pointer_event(event_target: &WidgetPath, widget_id: WidgetId) -> bool {
+        match TEXT.try_rich() {
+            Some(ctx) => {
+                if event_target.widget_id() == widget_id {
+                    return true;
+                }
+                if !event_target.contains(ctx.root_id) {
+                    return false;
+                }
+                // accept pointer in rich context, except if the pointer is already targeting another leaf
+                // this distinction is important because rich text leaves may filter out pointer events
+                // using contextual data, like the TEXT_SELECTABLE_ALT_ONLY_VAR
+                if let Some(target) = WINDOW.info().get(event_target.widget_id())
+                    && let Some(widget) = target.tree().get(widget_id)
+                {
+                    if target.is_ancestor(&widget) {
+                        // target is a leaf (widget) ancestor,
+                        // this event was probably broadcasted by the rich parent
+                        // and any leaf can handle it
+                        return true;
+                    }
+                    if target
+                        .self_and_ancestors()
+                        .take_while(|t| t.id() != ctx.root_id)
+                        .any(|t| matches!(t.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
+                    {
+                        // already targeting a leaf, let it handle it
+                        return false;
+                    } else {
+                        // target is not a leaf,
+                        // this event was probably broadcasted by the rich parent
+                        // and any leaf can handle it
+                        return true;
+                    }
+                }
+                // invalid event_target
+                false
+            }
+            None => event_target.widget_id() == widget_id,
+        }
+    }
+
+    // rich_text context extends notification of pointer events on the rich root to all leaves
+    // so we need to use the var to receive updates
+    MOUSE_INPUT_EVENT.with_new(|args| {
+        for args in args.iter() {
+            if args.is_primary() && args.is_mouse_down() && accept_pointer_event(&args.target, widget.id()) {
+                let mut modifiers = args.modifiers;
+                let alt = modifiers.take_alt();
+                let select = selectable && modifiers.take_shift();
+                let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
+
+                if modifiers.is_empty() && (!selectable_alt_only || alt) {
+                    args.propagation.stop();
+                    TEXT.resolve().selection_by = SelectionBy::Mouse;
+                    if alt {
+                        if TEXT.try_rich().is_some() {
+                            TEXT.flag_rich_selection_started_by_alt();
+                        } else {
+                            edit.selection_started_by_alt = true;
+                        }
+                    }
+
+                    edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
+                        let cfg = MOUSE.multi_click_config().get();
+
+                        let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {
+                            let dist = (info.position.to_vector() - args.position.to_vector()).abs();
+                            let area = cfg.area;
+                            dist.x <= area.width && dist.y <= area.height
+                        };
+
+                        if double_allowed {
+                            info.timestamp = args.timestamp;
+                            info.count += 1;
+                            info.count = info.count.min(4);
+                        } else {
+                            *info = SelectionMouseDown {
+                                position: args.position,
+                                timestamp: args.timestamp,
+                                count: 1,
+                            };
+                        }
+
+                        info.count
+                    } else {
+                        edit.selection_mouse_down = Some(SelectionMouseDown {
+                            position: args.position,
+                            timestamp: args.timestamp,
+                            count: 1,
+                        });
+                        1
+                    };
+
+                    match edit.click_count {
+                        1 => {
+                            if select {
+                                TextSelectOp::select_nearest_to(args.position).call()
+                            } else {
+                                TextSelectOp::nearest_to(args.position).call();
+
+                                // select all on mouse-up if only acquire focus
+                                edit.auto_select = selectable
+                                    && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                                    && !FOCUS.is_focused(widget.id()).get()
+                                    && TEXT.resolved().caret.selection_range().is_none();
+                            }
+                        }
+                        2 => {
+                            if selectable {
+                                TextSelectOp::select_word_nearest_to(!select, args.position).call()
+                            }
+                        }
+                        3 => {
+                            if selectable {
+                                TextSelectOp::select_line_nearest_to(!select, args.position).call()
+                            }
+                        }
+                        4 => {
+                            if selectable {
+                                TextSelectOp::select_all().call()
+                            }
+                        }
+                        _ => unreachable!(),
+                    };
+                    if selectable {
+                        let id = widget.id();
+                        edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id));
+                        edit.selection_move_handles
+                            .push(POINTER_CAPTURE_EVENT.subscribe(UpdateOp::Update, id));
+                        POINTER_CAPTURE.capture_widget(id);
+                    }
+                }
+            } else {
+                if mem::take(&mut edit.auto_select)
+                    && selectable
+                    && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                    && args.is_primary()
+                    && args.is_mouse_up()
+                    && FOCUS.is_focused(widget.id()).get()
+                    && TEXT.resolved().caret.selection_range().is_none()
+                {
+                    TextSelectOp::select_all().call()
+                }
+                edit.selection_move_handles.clear();
+            }
+        }
+    });
+
+    TOUCH_INPUT_EVENT.with_new(|args| {
+        for args in args.iter() {
             let mut modifiers = args.modifiers;
             let alt = modifiers.take_alt();
-            let select = selectable && modifiers.take_shift();
+            let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
+            if modifiers.is_empty() && (!selectable_alt_only || alt) && accept_pointer_event(&args.target, widget.id()) {
+                edit.auto_select = selectable
+                    && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                    && args.modifiers.is_empty()
+                    && args.is_touch_start()
+                    && !FOCUS.is_focused(widget.id()).get()
+                    && TEXT.resolved().caret.selection_range().is_none();
+            }
+        }
+    });
 
-            if modifiers.is_empty() && (!selectable_alt_only || alt) {
+    TOUCH_TAP_EVENT.with_new(|args| {
+        for args in args.iter() {
+            let mut modifiers = args.modifiers;
+            let alt = modifiers.take_alt();
+            let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
+            if modifiers.is_empty() && (!selectable_alt_only || alt) && accept_pointer_event(&args.target, widget.id()) {
                 args.propagation.stop();
-                TEXT.resolve().selection_by = SelectionBy::Mouse;
+
+                TEXT.resolve().selection_by = SelectionBy::Touch;
                 if alt {
                     if TEXT.try_rich().is_some() {
                         TEXT.flag_rich_selection_started_by_alt();
@@ -1226,134 +1390,23 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                     }
                 }
 
-                edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
-                    let cfg = MOUSE.multi_click_config().get();
+                TextSelectOp::nearest_to(args.position).call();
 
-                    let double_allowed = args.timestamp.duration_since(info.timestamp) <= cfg.time && {
-                        let dist = (info.position.to_vector() - args.position.to_vector()).abs();
-                        let area = cfg.area;
-                        dist.x <= area.width && dist.y <= area.height
-                    };
-
-                    if double_allowed {
-                        info.timestamp = args.timestamp;
-                        info.count += 1;
-                        info.count = info.count.min(4);
-                    } else {
-                        *info = SelectionMouseDown {
-                            position: args.position,
-                            timestamp: args.timestamp,
-                            count: 1,
-                        };
-                    }
-
-                    info.count
-                } else {
-                    edit.selection_mouse_down = Some(SelectionMouseDown {
-                        position: args.position,
-                        timestamp: args.timestamp,
-                        count: 1,
-                    });
-                    1
-                };
-
-                match edit.click_count {
-                    1 => {
-                        if select {
-                            TextSelectOp::select_nearest_to(args.position).call()
-                        } else {
-                            TextSelectOp::nearest_to(args.position).call();
-
-                            // select all on mouse-up if only acquire focus
-                            edit.auto_select = selectable
-                                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                                && !FOCUS.is_focused(widget.id()).get()
-                                && TEXT.resolved().caret.selection_range().is_none();
-                        }
-                    }
-                    2 => {
-                        if selectable {
-                            TextSelectOp::select_word_nearest_to(!select, args.position).call()
-                        }
-                    }
-                    3 => {
-                        if selectable {
-                            TextSelectOp::select_line_nearest_to(!select, args.position).call()
-                        }
-                    }
-                    4 => {
-                        if selectable {
-                            TextSelectOp::select_all().call()
-                        }
-                    }
-                    _ => unreachable!(),
-                };
-                if selectable {
-                    let id = widget.id();
-                    edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(UpdateOp::Update, id));
-                    edit.selection_move_handles
-                        .push(POINTER_CAPTURE_EVENT.subscribe(UpdateOp::Update, id));
-                    POINTER_CAPTURE.capture_widget(id);
+                if mem::take(&mut edit.auto_select)
+                    && selectable
+                    && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                    && FOCUS.is_focused(WIDGET.id()).get()
+                    && TEXT.resolved().caret.selection_range().is_none()
+                {
+                    TextSelectOp::select_all().call()
                 }
-            }
-        } else {
-            if mem::take(&mut edit.auto_select)
-                && selectable
-                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                && args.is_primary()
-                && args.is_mouse_up()
-                && FOCUS.is_focused(widget.id()).get()
-                && TEXT.resolved().caret.selection_range().is_none()
-            {
-                TextSelectOp::select_all().call()
-            }
-            edit.selection_move_handles.clear();
-        }
-    });
-
-    TOUCH_INPUT_EVENT.each_update(false, |args| {
-        let mut modifiers = args.modifiers;
-        let alt = modifiers.take_alt();
-        if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
-            edit.auto_select = selectable
-                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                && args.modifiers.is_empty()
-                && args.is_touch_start()
-                && !FOCUS.is_focused(widget.id()).get()
-                && TEXT.resolved().caret.selection_range().is_none();
-        }
-    });
-
-    TOUCH_TAP_EVENT.each_update(false, |args| {
-        let mut modifiers = args.modifiers;
-        let alt = modifiers.take_alt();
-        if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
-            args.propagation.stop();
-
-            TEXT.resolve().selection_by = SelectionBy::Touch;
-            if alt {
-                if TEXT.try_rich().is_some() {
-                    TEXT.flag_rich_selection_started_by_alt();
-                } else {
-                    edit.selection_started_by_alt = true;
-                }
-            }
-
-            TextSelectOp::nearest_to(args.position).call();
-
-            if mem::take(&mut edit.auto_select)
-                && selectable
-                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                && FOCUS.is_focused(WIDGET.id()).get()
-                && TEXT.resolved().caret.selection_range().is_none()
-            {
-                TextSelectOp::select_all().call()
             }
         }
     });
     TOUCH_LONG_PRESS_EVENT.each_update(false, |args| {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
+        let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
         if modifiers.is_empty() && (!selectable_alt_only || alt) && selectable && args.target.widget_id() == widget.id() {
             args.propagation.stop();
 

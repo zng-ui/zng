@@ -1,6 +1,7 @@
 //! App updates API.
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, hash_map},
     fmt, mem,
     sync::Arc,
@@ -66,11 +67,75 @@ impl UpdateDeliveryList {
     }
 
     /// Insert the `wgt` and ancestors up-to the inner most that is included in the subscribers.
-    pub fn insert_wgt(&mut self, wgt: &impl WidgetPathProvider) {
+    pub fn insert_wgt(&mut self, wgt: impl WidgetPathProvider) {
         for w in wgt.widget_and_ancestors() {
-            self.widgets.insert(w);
+            if !self.widgets.insert(w) {
+                return;
+            }
         }
         self.windows.insert(wgt.window_id());
+    }
+
+    /// If the delivery list does not contain the `wgt` clones the list and inserts the widget.
+    ///
+    /// If the list already contains the widget returns the reference.
+    pub fn clone_insert_wgt(&self, wgt: impl WidgetPathProvider) -> Cow<'_, Self> {
+        let mut path = wgt.widget_and_ancestors();
+        if let Some(w) = path.next()
+            && !self.widgets.contains(&w)
+        {
+            let mut s = self.clone();
+            s.widgets.insert(w);
+            for w in path {
+                if !s.widgets.insert(w) {
+                    return Cow::Owned(s);
+                }
+            }
+            s.windows.insert(wgt.window_id());
+            return Cow::Owned(s);
+        }
+        Cow::Borrowed(self)
+    }
+
+    /// If the delivery list does not contain all `widgets` clones the list and inserts all widgets.
+    ///
+    /// If the list already contains all widgets returns the reference.
+    pub fn clone_insert_all<W: WidgetPathProvider>(&self, widgets: impl IntoIterator<Item = W>) -> Cow<'_, Self> {
+        let mut widgets = widgets.into_iter();
+        for wgt in widgets.by_ref() {
+            match self.clone_insert_wgt(wgt) {
+                Cow::Borrowed(_) => continue,
+                Cow::Owned(mut l) => {
+                    for wgt in widgets {
+                        l.insert_wgt(wgt);
+                    }
+                    return Cow::Owned(l);
+                }
+            }
+        }
+        Cow::Borrowed(self)
+    }
+
+    /// If the delivery list does not contain any `widgets` clones the list and inserts the first missing widget.
+    ///
+    /// If the list already contains at least one widget returns the reference.
+    pub fn clone_insert_any<W: WidgetPathProvider>(&self, widgets: impl IntoIterator<Item = W>) -> Cow<'_, Self> {
+        let mut first_missing = None;
+        for wgt in widgets.into_iter() {
+            if self.widgets.contains(&wgt.widget_and_ancestors().next().unwrap()) {
+                return Cow::Borrowed(self);
+            } else if first_missing.is_none() {
+                first_missing = Some(wgt);
+            }
+        }
+        match first_missing {
+            Some(wgt) => {
+                let mut l = self.clone();
+                l.insert_wgt(wgt);
+                Cow::Owned(l)
+            }
+            None => Cow::Borrowed(self),
+        }
     }
 
     /// Insert the window by itself, the window root widget will be targeted.
@@ -214,6 +279,20 @@ impl WidgetPathProvider for InteractionPath {
         self.widgets_path().iter().copied().rev()
     }
 }
+impl<T: WidgetPathProvider> WidgetPathProvider for &T {
+    type WidgetIter<'s>
+        = <T as WidgetPathProvider>::WidgetIter<'s>
+    where
+        Self: 's;
+
+    fn window_id(&self) -> WindowId {
+        <T as WidgetPathProvider>::window_id(self)
+    }
+
+    fn widget_and_ancestors(&self) -> Self::WidgetIter<'_> {
+        <T as WidgetPathProvider>::widget_and_ancestors(self)
+    }
+}
 
 /// Widget info updates of the current cycle.
 #[derive(Debug, Default)]
@@ -255,7 +334,19 @@ impl InfoUpdates {
 }
 
 /// Widget updates of the current cycle.
-#[derive(Debug, Default)]
+///
+/// Most information about the current update is provided by the [`UPDATES`] service. Variable and event instances
+/// are also flagged new inside the update context.
+///
+/// This type contains only the [`delivery_list`], widget nodes must use it to skip the widget branch, other nodes
+/// need only pass the reference to all children nodes.
+///
+/// Widgets can extend the current update to descendant widgets using the `clone_insert*` methods, but this is only recommended
+/// if the descendant nodes know to support this, usually gated by a contextual flag, event updates need to be received differently for example,
+/// as the event target will not contain the inserted widget.
+///
+/// [`delivery_list`]: WidgetUpdates::delivery_list
+#[derive(Debug, Default, Clone)]
 pub struct WidgetUpdates {
     pub(crate) delivery_list: UpdateDeliveryList,
 }
@@ -302,6 +393,36 @@ impl WidgetUpdates {
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: WidgetUpdates) {
         self.delivery_list.extend(other.delivery_list)
+    }
+
+    /// If the delivery list does not contain the `wgt` clones the updates and inserts the widget.
+    ///
+    /// If the list already contains the widget returns the reference.
+    pub fn clone_insert_wgt(&self, wgt: impl WidgetPathProvider) -> Cow<'_, Self> {
+        match self.delivery_list.clone_insert_wgt(wgt) {
+            Cow::Borrowed(_) => Cow::Borrowed(self),
+            Cow::Owned(l) => Cow::Owned(Self { delivery_list: l }),
+        }
+    }
+
+    /// If the delivery list does not contain all `widgets` clones the updates and inserts all widgets.
+    ///
+    /// If the list already contains all widgets returns the reference.
+    pub fn clone_insert_all<W: WidgetPathProvider>(&self, widgets: impl IntoIterator<Item = W>) -> Cow<'_, Self> {
+        match self.delivery_list.clone_insert_all(widgets) {
+            Cow::Borrowed(_) => Cow::Borrowed(self),
+            Cow::Owned(l) => Cow::Owned(Self { delivery_list: l }),
+        }
+    }
+
+    /// If the delivery list does not contain any `widgets` clones the updates and inserts the last widget.
+    ///
+    /// If the list already contains at least one widget returns the reference.
+    pub fn clone_insert_any<W: WidgetPathProvider>(&self, widgets: impl IntoIterator<Item = W>) -> Cow<'_, Self> {
+        match self.delivery_list.clone_insert_any(widgets) {
+            Cow::Borrowed(_) => Cow::Borrowed(self),
+            Cow::Owned(l) => Cow::Owned(Self { delivery_list: l }),
+        }
     }
 }
 

@@ -1,7 +1,11 @@
 # Unreleased
 
+* Add `Event::with_new` shorthand to avoid a `Event::var` clone in widget updates that do non standard event matching.
+* Pointer text selection implemented for rich text widgets.
+    - Now works for mouse and touch events at any position in `rich_text = true; txt_selectable = true;` widgets area.
 * Fix `cursor` not applying when a child widget captures the pointer.
-* The `UpdateDeliveryList` type can now be cloned and extended.
+* The `UpdateDeliveryList` and `WidgetUpdates` types can now be cloned and extended.
+    - Added `clone_insert_wgt`, `clone_insert_all` and `clone_insert_any` helpers.
 * Fix `rich_text` causing repeated updates.
 * Debug builds now detect incorrect repeated updates and logs an error.
 

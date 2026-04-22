@@ -1,15 +1,19 @@
-use std::{fmt, sync::Arc};
+use std::{borrow::Cow, fmt, sync::Arc};
 
 use parking_lot::{Mutex, RwLock};
 use zng_app::{event::CommandScope, widget::node::Z_INDEX};
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
 use zng_ext_font::CaretIndex;
-use zng_ext_input::focus::{FOCUS, FOCUS_CHANGED_EVENT};
+use zng_ext_input::{
+    focus::{FOCUS, FOCUS_CHANGED_EVENT},
+    mouse::MOUSE_INPUT_EVENT,
+    touch::{TOUCH_INPUT_EVENT, TOUCH_TAP_EVENT},
+};
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
 use crate::{
-    RICH_TEXT_FOCUSED_Z_VAR,
+    RICH_TEXT_FOCUSED_Z_VAR, TEXT_SELECTABLE_VAR,
     cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
 };
 
@@ -17,7 +21,7 @@ use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
-    let child = rich_text_focus_change_broadcast(child);
+    let child = rich_text_events_broadcast(child);
     let child = rich_text_cmds(child);
     let child = rich_text_component(child, "rich_text");
 
@@ -127,6 +131,7 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
                 }
             });
 
+            // actual leaf Text! handles rich text context for operations
             SELECT_CMD.scoped(ctx.root_id).each_update(true, false, |args| {
                 args.propagation.stop();
                 if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
@@ -144,25 +149,68 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
     })
 }
 // some visuals (like selection background) depend on focused status of any rich leaf
-fn rich_text_focus_change_broadcast(child: impl IntoUiNode) -> UiNode {
+//
+// leaf texts also handle pointer input events for the rich text
+fn rich_text_events_broadcast(child: impl IntoUiNode) -> UiNode {
+    let mut handles = VarHandles::dummy();
     match_node(child, move |c, op| {
-        if let UiNodeOp::Update { updates } = op
-            && let Some(ctx) = TEXT.try_rich()
-        {
-            let extend_propagation = FOCUS_CHANGED_EVENT.any_update(true, |args| {
-                args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id))
-            });
-            if extend_propagation {
-                // visuals know to receive FOCUS_CHANGED_EVENT for rich root ID, so we just need to extend
-                // WidgetUpdates to reach all leaves
-                let mut extended_list = updates.delivery_list().clone();
-                for leaf in ctx.leaves() {
-                    extended_list.insert_wgt(&leaf);
+        match op {
+            UiNodeOp::Init if TEXT.try_rich().is_some() => {
+                WIDGET.sub_var(&TEXT_SELECTABLE_VAR);
+                if TEXT_SELECTABLE_VAR.get() {
+                    let id = WIDGET.id();
+                    handles.push(MOUSE_INPUT_EVENT.subscribe(UpdateOp::Update, id));
+                    handles.push(TOUCH_INPUT_EVENT.subscribe(UpdateOp::Update, id));
+                    handles.push(TOUCH_TAP_EVENT.subscribe(UpdateOp::Update, id));
                 }
-                drop(ctx);
-                let updates = WidgetUpdates::new(extended_list);
-                c.update(&updates);
             }
+            UiNodeOp::Deinit => {
+                handles = VarHandles::dummy();
+            }
+            UiNodeOp::Update { updates } if let Some(ctx) = TEXT.try_rich() => {
+                let selectable = if let Some(sub) = TEXT_SELECTABLE_VAR.get_new() {
+                    if sub {
+                        let id = WIDGET.id();
+                        handles.push(MOUSE_INPUT_EVENT.subscribe(UpdateOp::Update, id));
+                        handles.push(TOUCH_INPUT_EVENT.subscribe(UpdateOp::Update, id));
+                        handles.push(TOUCH_TAP_EVENT.subscribe(UpdateOp::Update, id));
+                    } else {
+                        handles.clear();
+                    }
+                    sub
+                } else {
+                    TEXT_SELECTABLE_VAR.get()
+                };
+                if !selectable {
+                    return;
+                }
+
+                // Broadcast FOCUS_CHANGED_EVENT to all leaves, they handle this event targeting the rich text only
+                if ctx.caret.selection_index.is_some() {
+                    let extend_propagation = FOCUS_CHANGED_EVENT.any_update(true, |args| {
+                        args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id))
+                    });
+                    if extend_propagation {
+                        if let Cow::Owned(updates) = updates.clone_insert_all(ctx.selection()) {
+                            drop(ctx);
+                            c.update(&updates);
+                        }
+                        return;
+                    }
+                }
+
+                // extend pointer input events targeting this widget to first leaf. Leaves handle
+                // selection events from pointer for the rich root ID too
+                let extend_propagation = MOUSE_INPUT_EVENT.any_update(true, |args| {
+                    args.is_primary() && args.is_mouse_down() && args.target.contains(ctx.root_id)
+                }) || TOUCH_INPUT_EVENT.any_update(true, |args| args.target.contains(ctx.root_id))
+                    || TOUCH_TAP_EVENT.any_update(true, |args| args.target.contains(ctx.root_id));
+                if extend_propagation && let Cow::Owned(updates) = updates.clone_insert_any(ctx.leaves()) {
+                    drop(ctx);
+                    c.update(&updates);
+                }
+            }
+            _ => (),
         }
     })
 }
@@ -191,20 +239,18 @@ pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode
         UiNodeOp::Deinit => {
             focus_within = false;
         }
-        UiNodeOp::Info { info } => {
-            if let Some(r) = TEXT.try_rich() {
-                let c = match kind {
-                    "rich_text" => {
-                        if r.root_id == WIDGET.id() {
-                            RichTextComponent::Root
-                        } else {
-                            RichTextComponent::Branch
-                        }
+        UiNodeOp::Info { info } if let Some(r) = TEXT.try_rich() => {
+            let c = match kind {
+                "rich_text" => {
+                    if r.root_id == WIDGET.id() {
+                        RichTextComponent::Root
+                    } else {
+                        RichTextComponent::Branch
                     }
-                    kind => RichTextComponent::Leaf { kind },
-                };
-                info.set_meta(*RICH_TEXT_COMPONENT_ID, c);
-            }
+                }
+                kind => RichTextComponent::Leaf { kind },
+            };
+            info.set_meta(*RICH_TEXT_COMPONENT_ID, c);
         }
         UiNodeOp::Update { updates } => {
             FOCUS_CHANGED_EVENT.each_update(true, |args| {
@@ -214,7 +260,6 @@ pub fn rich_text_component(child: impl IntoUiNode, kind: &'static str) -> UiNode
 
                     if TEXT.try_rich().is_some() {
                         index_update = Some(focus_within);
-                        WIDGET.update(); // Z_INDEX.set only works on update
                     }
                 }
             });

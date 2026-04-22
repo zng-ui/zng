@@ -572,11 +572,26 @@ impl<A: EventArgs> Event<A> {
         self.get_var().wait_match(move |a| a.iter().any(&predicate)).await
     }
 
-    /// Visit the args current value of [`var`].
+    /// Visit the current value of [`var`].
     ///
     /// [`var`]: Self::var
     pub fn with<R>(&self, visitor: impl FnOnce(&EventUpdates<A>) -> R) -> R {
         self.read_var().with(move |v| visitor(v.downcast_ref::<EventUpdates<A>>().unwrap()))
+    }
+
+    /// Visit the args current value of [`var`] if it has any update for any target.
+    ///
+    /// Note that [`each_update`], [`any_update`], [`latest_update`] and [`has_update`] are the methods
+    /// to receive updates targeted at the contextual widget. This method shows all updates for all targets.
+    ///
+    /// [`var`]: Self::var
+    /// [`each_update`]: Self::each_update
+    /// [`any_update`]: Self::any_update
+    /// [`latest_update`]: Self::latest_update
+    /// [`has_update`]: Self::has_update
+    pub fn with_new<R>(&self, visitor: impl FnOnce(&EventUpdates<A>) -> R) -> Option<R> {
+        self.read_var()
+            .with_new(move |v| visitor(v.downcast_ref::<EventUpdates<A>>().unwrap()))
     }
 }
 
