@@ -177,7 +177,7 @@ pub fn render_selection(child: impl IntoUiNode) -> UiNode {
         }
         UiNodeOp::Update { .. } => {
             // rich context extends update for focus on rich root to all selected leaves
-            FOCUS_CHANGED_EVENT.var().with_new(|updates| {
+            FOCUS_CHANGED_EVENT.with_new(|updates| {
                 for args in updates.iter() {
                     let new_is_focused = args.is_focus_within(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()));
                     if is_focused != new_is_focused {

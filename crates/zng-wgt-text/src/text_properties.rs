@@ -2121,9 +2121,9 @@ impl RichTextMix<()> {
 /// clipping the caret.
 ///
 /// When enabled and not nested the widget will handle text commands, it also broadcasts focus change events to all text descendants.
-#[property(CONTEXT, default(false), widget_impl(RichTextMix<P>))]
+#[property(CONTEXT + 1, default(false), widget_impl(RichTextMix<P>))] // + 1 because it needs to read TEXT_SELECTABLE_VAR
 pub fn rich_text(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
-    crate::node::rich_text_node(child, enabled)
+    crate::node::rich_text_node(child, enabled) // TODO(breaking) refactor into a build action property
 }
 
 /// Defines the Z-index set on inner text (and nested rich text) widgets when focus is within.
