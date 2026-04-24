@@ -25,7 +25,7 @@ use zng_ext_undo::UNDO;
 use zng_ext_window::WidgetInfoBuilderImeArea as _;
 use zng_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, LAYOUT, LayoutMetrics},
-    unit::{DipPoint, FactorUnits as _, Px, PxBox, PxConstraints2d, PxRect, PxSize, PxTransform, Rect, Size},
+    unit::{DipPoint, FactorUnits as _, Px, PxBox, PxConstraints2d, PxRect, PxSize, PxTransform},
 };
 use zng_view_api::keyboard::{Key, KeyState};
 use zng_wgt::prelude::*;
@@ -803,32 +803,58 @@ impl LayoutTextFinal {
                 if let Some(index) = &mut caret.index {
                     *index = ctx.shaped_text.snap_caret_line(*index);
 
+                    // update caret_origin
                     let p = ctx.shaped_text.caret_origin(*index, resolved_mut.segmented_text.text());
                     if !caret.used_retained_x {
                         ctx.caret_retained_x = p.x;
                     }
                     ctx.caret_origin = Some(p);
 
+                    // update caret_selection_origin
                     if let Some(sel) = &mut caret.selection_index {
                         *sel = ctx.shaped_text.snap_caret_line(*sel);
                         ctx.caret_selection_origin = Some(ctx.shaped_text.caret_origin(*sel, resolved_mut.segmented_text.text()));
+                    } else {
+                        debug_assert!(ctx.caret_selection_origin.is_none());
+                        ctx.caret_selection_origin = None;
                     }
 
-                    if !mem::take(&mut caret.skip_next_scroll)
-                        && SCROLL.try_id().is_some()
-                        && let Some(focused) = FOCUS.focused().get()
-                        && focused.contains(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()))
-                    {
-                        let line_height = ctx
-                            .shaped_text
-                            .line(index.line)
-                            .map(|l| l.rect().height())
-                            .unwrap_or_else(|| ctx.shaped_text.line_height());
+                    // auto scroll
+                    if !mem::take(&mut caret.skip_next_scroll) && SCROLL.try_id().is_some() {
+                        let is_focused_caret_wgt = FOCUS.focused().with(|f| {
+                            if let Some(focused) = f {
+                                match TEXT.try_rich() {
+                                    Some(ctx) => ctx.caret.index == Some(WIDGET.id()) && focused.contains(ctx.root_id),
+                                    None => focused.contains(WIDGET.id()),
+                                }
+                            } else {
+                                false
+                            }
+                        });
+                        if is_focused_caret_wgt {
+                            // not rich text and is in focus
+                            if let Some(p) = ctx.render_info.transform.transform_point(p) {
+                                // caret_origin in window space
+                                let mut p = p.to_vector();
 
-                        if let Some(p) = ctx.render_info.transform.transform_point(p) {
-                            let p = p - WIDGET.info().inner_bounds().origin;
-                            let min_rect = Rect::new(p.to_point(), Size::new(Px(1), line_height * 2 + ctx.shaped_text.line_spacing()));
-                            SCROLL.scroll_to(ScrollToMode::minimal_rect(min_rect));
+                                // to text space
+                                p -= WIDGET.info().inner_bounds().origin.to_vector();
+
+                                let line_height = ctx
+                                    .shaped_text
+                                    .line(index.line)
+                                    .map(|l| l.rect().height())
+                                    .unwrap_or_else(|| ctx.shaped_text.line_height());
+
+                                let horizontal_margin = Dip::new(4).to_px(metrics.scale_factor());
+                                let vertical_margin = ctx.shaped_text.line_spacing() + line_height / Px(2);
+
+                                // minimal_rect for caret
+                                let p =
+                                    PxRect::new(p.to_point(), PxSize::new(Px(1), line_height)).inflate(horizontal_margin, vertical_margin);
+
+                                SCROLL.scroll_to(ScrollToMode::minimal_rect(p));
+                            }
                         }
                     }
                 }

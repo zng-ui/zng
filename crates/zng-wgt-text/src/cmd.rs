@@ -981,6 +981,7 @@ impl TextSelectOp {
         Self::new_rich(
             |ctx| (ctx.leaves_rev().next().map(|w| w.id()).unwrap_or_else(|| WIDGET.id()), ()),
             |()| {
+                TEXT.resolve_caret().skip_next_scroll = true;
                 (
                     CaretIndex {
                         index: TEXT.resolved().segmented_text.text().len(),
@@ -990,7 +991,10 @@ impl TextSelectOp {
                 )
             },
             |ctx, ()| Some((ctx.leaves().next().map(|w| w.id()).unwrap_or_else(|| WIDGET.id()), ())),
-            |()| Some(CaretIndex::ZERO),
+            |()| {
+                TEXT.resolve_caret().skip_next_scroll = true;
+                Some(CaretIndex::ZERO)
+            },
         )
     }
 

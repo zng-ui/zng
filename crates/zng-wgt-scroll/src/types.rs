@@ -131,6 +131,8 @@ struct ScrollConfig {
     overscroll: [Mutex<AnimationHandle>; 2],
     inertia: [Mutex<AnimationHandle>; 2],
     auto: [Mutex<AnimationHandle>; 2],
+
+    ignore_next_scroll_to_focused: Mutex<Option<DInstant>>,
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -146,6 +148,7 @@ impl Default for ScrollConfig {
             overscroll: Default::default(),
             inertia: Default::default(),
             auto: Default::default(),
+            ignore_next_scroll_to_focused: Default::default(),
         }
     }
 }
@@ -930,6 +933,18 @@ impl SCROLL {
             .min(viewport.height / content.height)
             .min(1.0)
             .fct()
+    }
+
+    /// Don't scroll to focused on the next focus change, if the change event happens in the next update.
+    pub fn ignore_next_scroll_to_focused(&self) {
+        *SCROLL_CONFIG.get().ignore_next_scroll_to_focused.lock() = Some(INSTANT.now());
+    }
+
+    pub(crate) fn take_ignore_next_scroll_to_focused(&self) -> bool {
+        match SCROLL_CONFIG.get().ignore_next_scroll_to_focused.lock().take() {
+            Some(t) => t.elapsed() < Duration::from_millis(50),
+            None => false,
+        }
     }
 }
 
