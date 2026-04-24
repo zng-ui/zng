@@ -61,6 +61,7 @@ impl Markdown {
 
             when #txt_selectable {
                 cursor = CursorIcon::Text;
+                zng_wgt_menu::context::context_menu_fn = WidgetFn::new(default_context_menu);
             }
         };
 
@@ -80,6 +81,19 @@ impl Markdown {
         /// Note that the copy is only in plain text, without any style.
         pub zng_wgt_text::txt_selectable(enabled: impl IntoVar<bool>);
     }
+}
+
+/// Context menu set by the [`Markdown!`] when [`txt_selectable`] is `true`.
+///
+/// [`Markdown!`]: struct@Markdown
+/// [`txt_selectable`]: fn@zng_wgt_text::txt_selectable
+pub fn default_context_menu(args: zng_wgt_menu::context::ContextMenuArgs) -> UiNode {
+    use zng_wgt_button::Button;
+    let id = args.anchor_id;
+    zng_wgt_menu::context::ContextMenu!(ui_vec![
+        Button!(zng_ext_clipboard::COPY_CMD.scoped(id)),
+        Button!(zng_wgt_text::cmd::SELECT_ALL_CMD.scoped(id)),
+    ])
 }
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
