@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add default context menu for `Markdown!` and `AnsiText!` when `txt_selectable = true`.
 * Add `Event::with_new` shorthand to avoid a `Event::var` clone in widget updates that do non standard event matching.
 * Pointer text selection implemented for rich text widgets.
     - Now works for mouse and touch events at any position in `rich_text = true; txt_selectable = true;` widgets area.

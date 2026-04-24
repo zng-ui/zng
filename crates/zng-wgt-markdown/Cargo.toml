@@ -37,6 +37,7 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.14.1", default-features 
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.12.1", default-features = false }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.15.1", default-features = false }
 zng-app = { path = "../zng-app", version = "0.23.1", default-features = false }
+zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.13.1", default-features = false }
 
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 http = { version = "1.1", default-features = false, features = ["std"] }

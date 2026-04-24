@@ -20,5 +20,8 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.14.1", default-featu
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.13.1", default-features = false }
 zng-ext-font = { path = "../zng-ext-font", version = "0.14.1", default-features = false }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.12.1", default-features = false }
+zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.13.1", default-features = false }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.14.1", default-features = false }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.12.1", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }

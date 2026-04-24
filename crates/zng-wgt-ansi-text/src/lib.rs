@@ -55,6 +55,7 @@ impl AnsiText {
 
             when #txt_selectable {
                 cursor = CursorIcon::Text;
+                zng_wgt_menu::context::context_menu_fn = WidgetFn::new(default_context_menu);
             }
         };
 
@@ -754,6 +755,19 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
         }
         _ => {}
     })
+}
+
+/// Context menu set by the [`AnsiText!`] when [`txt_selectable`] is `true`.
+///
+/// [`AnsiText!`]: struct@AnsiText
+/// [`txt_selectable`]: fn@zng_wgt_text::txt_selectable
+pub fn default_context_menu(args: zng_wgt_menu::context::ContextMenuArgs) -> UiNode {
+    use zng_wgt_button::Button;
+    let id = args.anchor_id;
+    zng_wgt_menu::context::ContextMenu!(ui_vec![
+        Button!(zng_ext_clipboard::COPY_CMD.scoped(id)),
+        Button!(zng_wgt_text::cmd::SELECT_ALL_CMD.scoped(id)),
+    ])
 }
 
 static X_TERM_256: [(u8, u8, u8); 256] = [
