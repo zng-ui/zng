@@ -89,9 +89,9 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy, rustfmt
       - name: install wasm-pack
-        uses: taiki-e/cache-cargo-install-action@v3
+        uses: baptiste0928/cargo-install@v3
         with:
-          tool: wasm-pack
+          crate: wasm-pack
       - uses: Swatinem/rust-cache@v2
       - run: cargo do run-wasm multi --no-serve
   check-android:
@@ -106,9 +106,9 @@ jobs:
           targets: aarch64-linux-android, armv7-linux-androideabi
           components: clippy, rustfmt
       - name: install cargo-ndk
-        uses: taiki-e/cache-cargo-install-action@v3
+        uses: baptiste0928/cargo-install@v3
         with:
-          tool: cargo-ndk
+          crate: cargo-ndk
       - uses: Swatinem/rust-cache@v2
       - run: cargo do build-apk multi
   check-android-windows:
@@ -123,9 +123,9 @@ jobs:
           targets: aarch64-linux-android, armv7-linux-androideabi
           components: clippy, rustfmt
       - name: install cargo-ndk
-        uses: taiki-e/cache-cargo-install-action@v3
+        uses: baptiste0928/cargo-install@v3
         with:
-          tool: cargo-ndk
+          crate: cargo-ndk
       - uses: Swatinem/rust-cache@v2
       - run: cargo do build-apk multi
   check-android-macos:
@@ -140,9 +140,9 @@ jobs:
           targets: aarch64-linux-android, armv7-linux-androideabi
           components: clippy, rustfmt
       - name: install cargo-ndk
-        uses: taiki-e/cache-cargo-install-action@v3
+        uses: baptiste0928/cargo-install@v3
         with:
-          tool: cargo-ndk
+          crate: cargo-ndk
       - uses: Swatinem/rust-cache@v2
       - run: cargo do build-apk multi
   # check-ios:
@@ -157,9 +157,9 @@ jobs:
   #         targets: aarch64-apple-ios
   #         components: clippy, rustfmt
   #     - name: install cargo-lipo
-  #       uses: taiki-e/cache-cargo-install-action@v3
+  #       uses: baptiste0928/cargo-install@v3
   #       with:
-  #         tool: cargo-lipo
+  #         crate: cargo-lipo
   #     - uses: Swatinem/rust-cache@v2
   #     - run: cargo do build-ios multi
   doc:
@@ -189,9 +189,9 @@ jobs:
       with:
         components: clippy, rustfmt
     - name: install cargo-about
-      uses: taiki-e/cache-cargo-install-action@v3
+      uses: baptiste0928/cargo-install@v3
       with:
-        tool: cargo-about
+        crate: cargo-about
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
@@ -214,9 +214,9 @@ jobs:
       with:
         components: clippy, rustfmt
     - name: install cargo-about
-      uses: taiki-e/cache-cargo-install-action@v3
+      uses: baptiste0928/cargo-install@v3
       with:
-        tool: cargo-about
+        crate: cargo-about
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
@@ -236,9 +236,9 @@ jobs:
       with:
         components: clippy, rustfmt
     - name: install cargo-about
-      uses: taiki-e/cache-cargo-install-action@v3
+      uses: baptiste0928/cargo-install@v3
       with:
-        tool: cargo-about
+        crate: cargo-about
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
