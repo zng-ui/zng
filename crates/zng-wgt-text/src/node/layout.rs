@@ -1450,23 +1450,16 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
     });
     MOUSE_MOVE_EVENT.each_update(false, |args| {
         if !edit.selection_move_handles.is_dummy() && selectable {
-            let handle = if let Some(rich_root_id) = TEXT.try_rich().map(|r| r.root_id) {
-                args.target.contains(rich_root_id)
-            } else {
-                args.target.widget_id() == widget.id()
-            };
+            args.propagation.stop();
 
-            if handle {
-                args.propagation.stop();
-
-                match edit.click_count {
-                    1 => TextSelectOp::select_nearest_to(args.position).call(),
-                    2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
-                    3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
-                    4 => {}
-                    _ => unreachable!(),
-                }
+            match edit.click_count {
+                1 => TextSelectOp::select_nearest_to(args.position).call(),
+                2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
+                3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
+                4 => {}
+                _ => unreachable!(),
             }
+            // !!: TODO handle rich captured events too?
         }
     });
     POINTER_CAPTURE_EVENT.each_update(false, |args| {
