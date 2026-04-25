@@ -1459,7 +1459,6 @@ fn layout_text_edit_events(edit: &mut LayoutTextEdit) {
                 4 => {}
                 _ => unreachable!(),
             }
-            // !!: TODO handle rich captured events too?
         }
     });
     POINTER_CAPTURE_EVENT.each_update(false, |args| {
