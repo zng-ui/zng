@@ -772,7 +772,9 @@ pub fn scroll_to_node(child: impl IntoUiNode) -> UiNode {
                     && !args.is_focus_leave_enabled(self_id)
                 {
                     // focus move inside.
-                    if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
+                    if !SCROLL.take_ignore_next_scroll_to_focused()
+                        && let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get()
+                    {
                         // scroll_to_focused enabled
 
                         let can_scroll_v = SCROLL.can_scroll_vertical().get();

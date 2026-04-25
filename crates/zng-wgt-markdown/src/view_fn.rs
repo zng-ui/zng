@@ -735,6 +735,8 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> UiNode {
             padding = 6;
             corner_radius = 4;
             background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
+            // Markdown! already sets context_menu_fn
+            zng_wgt_menu::context::context_menu_fn = unset!;
         }
     } else {
         Text! {

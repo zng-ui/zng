@@ -11,6 +11,7 @@ use zng_ext_input::{
 };
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
+use zng_wgt_scroll::SCROLL;
 
 use crate::{
     RICH_TEXT_FOCUSED_Z_VAR, TEXT_SELECTABLE_VAR,
@@ -545,7 +546,11 @@ impl RichCaretInfo {
     }
     fn continue_focus(&self, skip_focus: bool, new_index: &WidgetInfo, root: &WidgetInfo) {
         if !skip_focus && FOCUS.is_focus_within(root.id()).get() {
+            // focus leaf with caret to receive key input
             FOCUS.focus_widget(new_index.id(), false);
+            // don't scroll to focused, text nodes already implement scrolling to the caret,
+            // with support for not scrolling in some cases
+            SCROLL.ignore_next_scroll_to_focused();
         }
     }
 }

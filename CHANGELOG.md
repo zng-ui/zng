@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `SELECT_ALL_CMD` auto scrolling text to end.
+    - Add `SCROLL.ignore_next_scroll_to_focused` for widgets that implement custom scrolling and also use auto scroll to focus.
 * Add default context menu for `Markdown!` and `AnsiText!` when `txt_selectable = true`.
 * Add `Event::with_new` shorthand to avoid a `Event::var` clone in widget updates that do non standard event matching.
 * Pointer text selection implemented for rich text widgets.

@@ -28,6 +28,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          features: cli
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   check-windows:
@@ -52,6 +53,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          features: cli
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }}
   check-macos:
     permissions:
@@ -70,6 +72,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          features: cli
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   doc:
     permissions:
@@ -83,5 +86,6 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          features: cli
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
       - run: cargo +nightly doc --all-features --no-deps
