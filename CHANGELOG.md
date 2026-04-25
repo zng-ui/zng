@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.2
+
 * Fix text selection not extending when pressed pointer is outside the viewport.
 * Fix `SELECT_ALL_CMD` auto scrolling text to end.
     - Add `SCROLL.ignore_next_scroll_to_focused` for widgets that implement custom scrolling and also use auto scroll to focus.

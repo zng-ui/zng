@@ -1,6 +1,6 @@
 [package]
 name = "zng-l10n-translator-gemini"
-version = "0.12.1"
+version = "0.12.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -14,5 +14,5 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 clap = { version = "4.5", features = ["std", "derive"], default-features = false }
 zng-task = { path = "../zng-task", version = "0.13.0", default-features = false, features = ["http"] }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.15.1", default-features = false, features = ["lang_autonym"] }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.15.2", default-features = false, features = ["lang_autonym"] }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
