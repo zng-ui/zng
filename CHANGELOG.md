@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix missing space in rich text copy when component texts are spaced by layout only.
 * Fix text wrap breaking word segment sequences.
 
 # 0.22.2
