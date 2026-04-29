@@ -120,6 +120,12 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
                                     let line_info = leaf.rich_text_line_info();
                                     if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
                                         txt.push('\n');
+                                    } else {
+                                        let spaced = matches!(t_frag.chars().next(), Some(c) if c.is_whitespace())
+                                            || matches!(txt.chars().last(), Some(c) if c.is_whitespace());
+                                        if !spaced {
+                                            txt.push(' ');
+                                        }
                                     }
 
                                     txt.push_str(&t_frag);
