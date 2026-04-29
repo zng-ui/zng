@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix text wrap breaking word segment sequences.
 
 # 0.22.2
 

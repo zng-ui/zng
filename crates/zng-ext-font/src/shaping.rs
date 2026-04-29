@@ -2518,38 +2518,41 @@ impl ShapedTextBuilder {
                 LIG.iter().any(|l| *l == tag)
             });
 
-        if ligature_enabled {
-            let mut start = 0;
-            let mut words_start = None;
-            for (i, info) in text.segs().iter().enumerate() {
-                if info.kind.is_word() && info.kind != TextSegmentKind::Emoji {
-                    if words_start.is_none() {
-                        words_start = Some(i);
-                    }
-                } else {
-                    if let Some(s) = words_start.take() {
-                        self.push_ligature_words(fonts, features, word_ctx_key, text, s, i);
-                    }
-
-                    let seg = &text.text()[start..info.end];
-                    self.push_seg(fonts, features, word_ctx_key, text, seg, *info);
-                }
-                start = info.end;
-            }
-            if let Some(s) = words_start.take() {
-                self.push_ligature_words(fonts, features, word_ctx_key, text, s, text.segs().len());
-            }
+        let push_words_fn = if ligature_enabled {
+            Self::push_word_segs_with_lig
         } else {
-            for (seg, info) in text.iter() {
-                self.push_seg(fonts, features, word_ctx_key, text, seg, info);
-            }
-        }
+            Self::push_word_segs
+        };
 
+        // iterate by groups of is_word
+        let mut info_start = 0;
+        let mut words_start = None;
+        for (i, info) in text.segs().iter().enumerate() {
+            if info.kind.is_word() {
+                if words_start.is_none() {
+                    words_start = Some(i);
+                }
+            } else {
+                if let Some(s) = words_start.take() {
+                    // push is_word group
+                    push_words_fn(self, fonts, features, word_ctx_key, text, s, i);
+                }
+
+                // push !_is_word
+                let seg = &text.text()[info_start..info.end];
+                self.push_single_seg(fonts, features, word_ctx_key, text, seg, *info);
+            }
+            info_start = info.end;
+        }
+        if let Some(s) = words_start.take() {
+            // push is_word group
+            push_words_fn(self, fonts, features, word_ctx_key, text, s, text.segs().len());
+        }
         self.push_last_line(text);
 
         self.push_font(&fonts[0]);
     }
-    fn push_ligature_words(
+    fn push_word_segs_with_lig(
         &mut self,
         fonts: &[Font],
         features: &RFontFeatures,
@@ -2564,73 +2567,134 @@ impl ShapedTextBuilder {
         let seg = &text.text()[seg_start..seg_end];
 
         if words_end - words_start == 1 {
-            self.push_seg(fonts, features, word_ctx_key, text, seg, end_info);
-        } else {
-            // check if `is_word` sequence is a ligature that covers more than one word.
-            let handled = fonts[0].shape_segment(seg, word_ctx_key, features, |shaped_seg| {
-                let mut cluster_start = 0;
-                let mut cluster_end = None;
-                for g in shaped_seg.glyphs.iter() {
-                    if g.index == 0 {
-                        // top font not used for at least one word in this sequence
-                        return false;
-                    }
-                    if seg[cluster_start as usize..g.cluster as usize].chars().take(2).count() > 1 {
-                        cluster_end = Some(g.index);
-                        break;
-                    }
-                    cluster_start = g.cluster;
+            return self.push_single_seg(fonts, features, word_ctx_key, text, seg, end_info);
+        }
+
+        // check if `is_word` sequence is a ligature that covers more than one word.
+        let handled = fonts[0].shape_segment(seg, word_ctx_key, features, |shaped_seg| {
+            let mut cluster_start = 0;
+            let mut cluster_end = None;
+            for g in shaped_seg.glyphs.iter() {
+                if g.index == 0 {
+                    // top font not used for at least one word in this sequence
+                    return false;
                 }
-
-                if cluster_end.is_none() && seg[cluster_start as usize..].chars().take(2).count() > 1 {
-                    cluster_end = Some(seg.len() as u32);
+                if seg[cluster_start as usize..g.cluster as usize].chars().take(2).count() > 1 {
+                    cluster_end = Some(g.index);
+                    break;
                 }
-                if let Some(cluster_end) = cluster_end {
-                    // previous glyph is a ligature, check word boundaries.
-                    let cluster_start_in_txt = seg_start + cluster_start as usize;
-                    let cluster_end_in_txt = seg_start + cluster_end as usize;
+                cluster_start = g.cluster;
+            }
 
-                    let handle = text.segs()[words_start..words_end]
-                        .iter()
-                        .any(|info| info.end > cluster_start_in_txt && info.end <= cluster_end_in_txt);
+            if cluster_end.is_none() && seg[cluster_start as usize..].chars().take(2).count() > 1 {
+                cluster_end = Some(seg.len() as u32);
+            }
+            if let Some(cluster_end) = cluster_end {
+                // previous glyph is a ligature, check word boundaries.
+                let cluster_start_in_txt = seg_start + cluster_start as usize;
+                let cluster_end_in_txt = seg_start + cluster_end as usize;
 
-                    if handle {
-                        let max_width = self.actual_max_width();
-                        if self.origin.x + shaped_seg.x_advance > max_width {
-                            // need wrap
-                            if shaped_seg.x_advance > max_width {
-                                // need segment split
-                                return false;
-                            }
+                let handle = text.segs()[words_start..words_end]
+                    .iter()
+                    .any(|info| info.end > cluster_start_in_txt && info.end <= cluster_end_in_txt);
 
-                            self.push_line_break(true, text);
-                            self.push_glyphs(shaped_seg, self.letter_spacing);
+                if handle {
+                    let max_width = self.actual_max_width();
+                    if self.origin.x + shaped_seg.x_advance > max_width {
+                        // need wrap
+                        if shaped_seg.x_advance > max_width {
+                            // need segment split
+                            return false;
                         }
+
+                        self.push_line_break(true, text);
                         self.push_glyphs(shaped_seg, self.letter_spacing);
-                        let mut seg = seg;
-                        for info in &text.segs()[words_start..words_end] {
-                            self.push_text_seg(seg, *info);
-                            seg = "";
-                        }
-
-                        return true;
                     }
-                }
+                    self.push_glyphs(shaped_seg, self.letter_spacing);
+                    let mut seg = seg;
+                    for info in &text.segs()[words_start..words_end] {
+                        self.push_text_seg(seg, *info);
+                        seg = "";
+                    }
 
-                false
-            });
-
-            if !handled {
-                let mut seg_start = seg_start;
-                for info in text.segs()[words_start..words_end].iter() {
-                    let seg = &text.text()[seg_start..info.end];
-                    self.push_seg(fonts, features, word_ctx_key, text, seg, *info);
-                    seg_start = info.end;
+                    return true;
                 }
             }
+
+            false
+        });
+
+        if !handled {
+            self.push_word_segs(fonts, features, word_ctx_key, text, words_start, words_end);
         }
     }
-    fn push_seg(
+    fn push_word_segs(
+        &mut self,
+        fonts: &[Font],
+        features: &RFontFeatures,
+        word_ctx_key: &mut WordContextKey,
+        text: &SegmentedText,
+        words_start: usize,
+        words_end: usize,
+    ) {
+        let seg_start = if words_start == 0 { 0 } else { text.segs()[words_start - 1].end };
+        let end_info = text.segs()[words_end - 1];
+        let seg_end = end_info.end;
+        let seg = &text.text()[seg_start..seg_end];
+
+        if words_end - words_start == 1 {
+            return self.push_single_seg(fonts, features, word_ctx_key, text, seg, end_info);
+        }
+
+        let word_segs = move || {
+            let mut seg_start = seg_start;
+            (words_start..words_end).map(move |i| {
+                let info = text.segs()[i];
+                let seg = &text.text()[seg_start..info.end];
+                seg_start = info.end;
+
+                (seg, info)
+            })
+        };
+
+        let max_width = self.actual_max_width();
+        let mut line_break = false;
+        let mut x_advance = 0.0;
+        for (seg, info) in word_segs() {
+            debug_assert!(info.kind.is_word());
+            word_ctx_key.direction = info.direction();
+            fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, _| {
+                x_advance += shaped_seg.x_advance;
+            });
+            if self.origin.x + x_advance > max_width {
+                // need wrap
+                if x_advance > max_width {
+                    // need word segments split
+                    for (seg, info) in word_segs() {
+                        self.push_single_seg(fonts, features, word_ctx_key, text, seg, info);
+                    }
+                    return;
+                }
+                // else
+                line_break = true;
+            }
+        }
+
+        if line_break {
+            self.push_line_break(true, text);
+        }
+        for (seg, info) in word_segs() {
+            word_ctx_key.direction = info.direction();
+            fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
+                self.push_glyphs(shaped_seg, self.letter_spacing);
+                self.push_text_seg(seg, info);
+                if matches!(info.kind, TextSegmentKind::Emoji) {
+                    self.push_emoji_seg(shaped_seg, font);
+                }
+            });
+        }
+    }
+    fn push_single_seg(
         &mut self,
         fonts: &[Font],
         features: &RFontFeatures,
@@ -2681,25 +2745,7 @@ impl ShapedTextBuilder {
                 }
 
                 if matches!(info.kind, TextSegmentKind::Emoji) {
-                    if !font.face().color_glyphs().is_empty() {
-                        self.out.has_colored_glyphs = true;
-                    }
-                    if (font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()))
-                        && let Some(ttf) = font.face().ttf()
-                    {
-                        for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-                            let id = ttf_parser::GlyphId(g.index as _);
-                            let ppm = font.size().0 as u16;
-                            let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
-                            if let Some(img) = ttf.glyph_raster_image(id, ppm) {
-                                self.push_glyph_raster(glyphs_i as _, img);
-                            } else if cfg!(feature = "svg")
-                                && let Some(img) = ttf.glyph_svg_image(id)
-                            {
-                                self.push_glyph_svg(glyphs_i as _, img);
-                            }
-                        }
-                    }
+                    self.push_emoji_seg(shaped_seg, font);
                 }
 
                 self.push_font(font);
@@ -2746,6 +2792,27 @@ impl ShapedTextBuilder {
             self.push_line_break(false, text);
         } else {
             self.push_text_seg(seg, info)
+        }
+    }
+    fn push_emoji_seg(&mut self, shaped_seg: &ShapedSegmentData, font: &Font) {
+        if !font.face().color_glyphs().is_empty() {
+            self.out.has_colored_glyphs = true;
+        }
+        if (font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()))
+            && let Some(ttf) = font.face().ttf()
+        {
+            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                let id = ttf_parser::GlyphId(g.index as _);
+                let ppm = font.size().0 as u16;
+                let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
+                if let Some(img) = ttf.glyph_raster_image(id, ppm) {
+                    self.push_glyph_raster(glyphs_i as _, img);
+                } else if cfg!(feature = "svg")
+                    && let Some(img) = ttf.glyph_svg_image(id)
+                {
+                    self.push_glyph_svg(glyphs_i as _, img);
+                }
+            }
         }
     }
 
