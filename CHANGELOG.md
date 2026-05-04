@@ -1,5 +1,11 @@
 # Unreleased
 
+* Implement mnemonic access keys.
+    - Add `mnemonic_scope`, `mnemonic` and `mnemonic_txt` properties.
+    - Integrated with `Menu!`, `SubMenu!` and `Label!` widgets.
+
+* Add `zng::widget::bind_state_info` helper.
+
 * Fix missing space in rich text copy when component texts are spaced by layout only.
 * Fix text wrap breaking word segment sequences.
 

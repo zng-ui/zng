@@ -13,7 +13,7 @@ use zng_app::{
     widget::{
         VarLayout, WIDGET,
         border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
-        info::Interactivity,
+        info::{Interactivity, WIDGET_TREE_CHANGED_EVENT},
         node::*,
     },
     window::WINDOW,
@@ -1017,7 +1017,7 @@ pub fn bind_state<T: VarValue>(child: impl IntoUiNode, source: impl IntoVar<T>, 
     })
 }
 
-/// Helper for declaring state properties that are controlled by a variable.
+/// Helper for declaring state properties that are controlled by a variable that can only be retrieved on init.
 ///
 /// On init the `bind` closure is called with the `state` variable, it must set and bind it.
 pub fn bind_state_init<T>(
@@ -1035,6 +1035,39 @@ where
         UiNodeOp::Init => {
             validate_getter_var(&state);
             _binding = bind(&state);
+        }
+        UiNodeOp::Deinit => {
+            _binding = VarHandle::dummy();
+        }
+        _ => {}
+    })
+}
+
+/// Helper for declaring state properties that are controlled by a variable that can only be derived from the widget info.
+///
+/// On info init (first update after the window info tree builds) the `bind` closure is called with the `state` variable, it must set and bind it.
+pub fn bind_state_info<T>(
+    child: impl IntoUiNode,
+    state: impl IntoVar<T>,
+    mut bind: impl FnMut(&Var<T>) -> VarHandle + Send + 'static,
+) -> UiNode
+where
+    T: VarValue,
+{
+    let state = state.into_var();
+    let mut _binding = VarHandle::dummy();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            let id = WINDOW.id();
+            WIDGET.sub_event_when(&WIDGET_TREE_CHANGED_EVENT, move |a| !a.is_update && a.tree.window_id() == id);
+        }
+        UiNodeOp::Update { .. } => {
+            WIDGET_TREE_CHANGED_EVENT.each_update(true, |a| {
+                if !a.is_update && a.tree.window_id() == WINDOW.id() {
+                    _binding = bind(&state);
+                }
+            });
         }
         UiNodeOp::Deinit => {
             _binding = VarHandle::dummy();
