@@ -4,6 +4,7 @@
     - Add `mnemonic_scope`, `mnemonic` and `mnemonic_txt` properties.
     - Integrated with `Menu!`, `SubMenu!` and `Label!` widgets.
 
+* Add `WidgetBuilder::push_pre_build_action` helper for derived widgets affect build state before base widget build.
 * Add `zng::widget::bind_state_info` helper.
 
 * Fix missing space in rich text copy when component texts are spaced by layout only.

@@ -331,7 +331,7 @@ pub fn mnemonic(child: impl IntoUiNode, mnemonic: impl IntoVar<Mnemonic>) -> UiN
 /// [`mnemonic`]: fn@mnemonic
 /// [`FromTxt`]: Mnemonic::FromTxt
 /// [`Auto`]: Mnemonic::Auto
-#[property(CONTEXT, default(Txt::default()))]
+#[property(CHILD, default(Txt::default()))]
 pub fn mnemonic_txt(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode {
     let txt = txt.into_var();
     match_node(child, move |_, op| {
@@ -599,6 +599,33 @@ pub fn get_mnemonic_char(child: impl IntoUiNode, state: impl IntoVar<Option<char
     })
 }
 
+/// Gets the mnemonic mode enabled for this widget or ancestor.
+///
+/// If this widget or ancestor enables [`mnemonic`] the `state` is set to the mnemonic mode.
+///
+/// [`mnemonic`]: fn@mnemonic
+#[property(WIDGET_INNER, default(var(Mnemonic::None)))]
+pub fn get_mnemonic(child: impl IntoUiNode, state: impl IntoVar<Mnemonic>) -> UiNode {
+    bind_state_info(child, state, move |s| {
+        let info = WIDGET.info();
+        for w in info.self_and_ancestors() {
+            let found_scope = w.is_mnemonic_scope();
+            if found_scope && w != info {
+                break;
+            }
+
+            if let Some(m) = w.mnemonic() {
+                return m.bind(s);
+            }
+
+            if found_scope {
+                break;
+            }
+        }
+        VarHandle::dummy()
+    })
+}
+
 static_id! {
     static ref MNEMONIC_SCOPE_ID: StateId<()>;
     static ref MNEMONIC_ID: StateId<Var<Mnemonic>>;
@@ -606,7 +633,10 @@ static_id! {
 }
 
 context_var! {
-    static ACTIVE_MNEMONICS_VAR: HashMap<WidgetId, char> = HashMap::new();
+    /// Inside an active [`mnemonic_scope`] this context var is a read-only map of the selected `char` for each descendant of the scope.
+    ///
+    /// [`mnemonic_scope`]: fn@mnemonic_scope
+    pub static ACTIVE_MNEMONICS_VAR: HashMap<WidgetId, char> = HashMap::new();
 }
 
 /// Extension methods for widget info about mnemonic metadata.

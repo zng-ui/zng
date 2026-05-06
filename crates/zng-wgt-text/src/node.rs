@@ -291,6 +291,14 @@ impl TEXT {
         self.layout().caret_retained_x = x;
     }
 
+    /// Set the `underlines` value.
+    ///
+    /// Note that the value is already updated automatically on layout, this method is for custom properties that
+    /// override the normal underlines.
+    pub fn set_underlines(&self, underlines: Vec<(PxPoint, Px)>) {
+        self.layout().underlines = underlines;
+    }
+
     pub(crate) fn resolve(&self) -> RwLockWriteGuardOwned<ResolvedText> {
         RESOLVED_TEXT.write()
     }
@@ -454,7 +462,7 @@ pub struct LaidoutText {
     /// List of underline segments, defining origin and width of each line.
     ///
     /// Note that underlines are only computed if the `underline_thickness` is more than `0`. These
-    /// underlines never cover the IME review text range.
+    /// underlines never cover the IME preview text range.
     ///
     /// Default underlines are rendered by [`render_underlines`].
     pub underlines: Vec<(PxPoint, Px)>,
