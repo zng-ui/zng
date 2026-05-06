@@ -82,7 +82,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                 ]
             ),
             SubMenu!(
-                "Scroll to",
+                "Scroll To",
                 ui_vec![
                     Button!(SCROLL_TO_TOP_CMD.scoped(scope)),
                     Button!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),

@@ -10,7 +10,10 @@ use zng_ext_input::{
 use zng_layout::unit::Orientation2D;
 use zng_wgt::{base_color, border, prelude::*};
 use zng_wgt_fill::background_color;
-use zng_wgt_input::pointer_capture::{CaptureMode, capture_pointer_on_init};
+use zng_wgt_input::{
+    gesture::mnemonic_scope,
+    pointer_capture::{CaptureMode, capture_pointer_on_init},
+};
 use zng_wgt_layer::popup::{POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT, PopupCloseMode};
 use zng_wgt_stack::Stack;
 use zng_wgt_style::{impl_style_fn, style_fn};
@@ -33,6 +36,8 @@ impl SubMenuPopup {
             //
             // So the user can press to open the menu, then drag over an item and release to click it.
             capture_pointer_on_init = CaptureMode::Subtree;
+
+            mnemonic_scope = true;
             zng_wgt_rule_line::collapse_scope = true;
         }
 
