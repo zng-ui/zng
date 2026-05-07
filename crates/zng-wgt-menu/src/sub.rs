@@ -742,6 +742,9 @@ impl ButtonStyle {
                 None => const_var(WidgetFn::nil()),
             });
 
+            zng_wgt_input::gesture::mnemonic = true;
+            zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| crate::MENU_TEXT_INPUT.label(cmd.name()));
+
             when *#is_focused {
                 background_color = BASE_COLOR_VAR.shade(1);
                 opacity = 100.pct();

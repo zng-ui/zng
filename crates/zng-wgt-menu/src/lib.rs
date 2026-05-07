@@ -127,6 +127,7 @@ impl ButtonStyle {
             access_role = AccessRole::MenuItem;
             focus_click_behavior = FocusClickBehavior::menu_item();
 
+            zng_wgt_input::gesture::mnemonic = true;
             zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| MENU_TEXT_INPUT.label(cmd.name()));
 
             zng_wgt_container::child_start =

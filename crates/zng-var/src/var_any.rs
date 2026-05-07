@@ -1568,7 +1568,7 @@ impl fmt::Debug for VarInstanceTag {
         if *self == Self::NOT_SHARED {
             write!(f, "NOT_SHARED")
         } else {
-            write!(f, "0x{:X})", self.0)
+            write!(f, "0x{:X}", self.0)
         }
     }
 }

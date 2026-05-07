@@ -26,3 +26,4 @@
 //! See [`zng_wgt_text_input::label`] for the full widget API.
 
 pub use zng_wgt_text_input::label::{DefaultStyle, Label, style_fn};
+// TODO(breaking) Label! in prelude
