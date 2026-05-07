@@ -831,9 +831,10 @@ mod __prelude_wgt {
 
     pub use zng_wgt::node::{
         EventNodeBuilder, VarEventNodeBuilder, VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter,
-        VarPresentOpt as _, bind_state, bind_state_init, border_node, command_property, event_property, fill_node, list_presenter,
-        list_presenter_from_iter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
-        with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+        VarPresentOpt as _, bind_state, bind_state_info, bind_state_init, border_node, command_property, event_property, fill_node,
+        list_presenter, list_presenter_from_iter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state,
+        with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state,
+        with_widget_state_modify,
     };
 
     #[cfg(feature = "window")]

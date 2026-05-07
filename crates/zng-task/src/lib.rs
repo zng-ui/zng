@@ -23,7 +23,7 @@ use std::{
 };
 
 #[doc(no_inline)]
-pub use parking_lot;
+pub use parking_lot; // TODO(breaking) don't reexport everything? Maybe in `zng` at least
 use parking_lot::Mutex;
 
 use zng_app_context::{LocalContext, app_local};

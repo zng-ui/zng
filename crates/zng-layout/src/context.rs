@@ -994,6 +994,7 @@ bitflags! {
         const DEFAULT_VALUE = 1 << 31;
         /// The [`LayoutMetrics::constraints`], [`LayoutMetrics::z_constraints`] and [`LayoutMetrics::inline_constraints`].
         const CONSTRAINTS = 1 << 30;
+        // TODO(breaking) https://github.com/zng-ui/zng/issues/902
 
         /// The [`LayoutMetrics::font_size`].
         const FONT_SIZE = 1;

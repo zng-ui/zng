@@ -1939,6 +1939,8 @@ impl ShapedText {
     }
 
     /// Rectangles of the text selected by `range`.
+    ///
+    /// The [`CaretIndex::line`] must be valid in the `range` value.
     pub fn highlight_rects(&self, range: ops::Range<CaretIndex>, full_txt: &str) -> impl Iterator<Item = PxRect> + '_ {
         let start_origin = self.caret_origin(range.start, full_txt).x;
         let end_origin = self.caret_origin(range.end, full_txt).x;
@@ -1983,6 +1985,20 @@ impl ShapedText {
                     r
                 }),
         )
+    }
+
+    /// Underlines of the text selected by `range`.
+    ///
+    /// Yields each line start point and width. The underline does not skip.
+    ///
+    /// The [`CaretIndex::line`] must be valid in the `range` value.
+    pub fn highlight_underlines(&self, range: ops::Range<CaretIndex>, full_txt: &str) -> impl Iterator<Item = (PxPoint, Px)> + '_ {
+        let offset = self.underline();
+        self.highlight_rects(range, full_txt).map(move |r| {
+            let mut origin = r.origin;
+            origin.y = r.max_y() - offset;
+            (origin, r.width())
+        })
     }
 
     /// Clip under/overline to a text `clip_range` area, if `clip_out` only lines outside the range are visible.

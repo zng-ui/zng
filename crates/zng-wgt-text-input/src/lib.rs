@@ -16,3 +16,16 @@ pub mod selectable;
 
 mod text_input;
 pub use text_input::*;
+
+zng_env::on_process_start!(|args| {
+    if args.yield_until_app() {
+        return;
+    }
+    zng_wgt_menu::MENU_TEXT_INPUT.init_label(menu_label);
+});
+fn menu_label(txt: zng_var::Var<zng_wgt::prelude::Txt>) -> zng_app::widget::node::UiNode {
+    label::Label! {
+        txt;
+        mnemonic_underline = 1, zng_app::widget::border::LineStyle::Solid;
+    }
+}

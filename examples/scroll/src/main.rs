@@ -1,6 +1,7 @@
 //! Demonstrates the `Scroll!` widget and scroll commands.
 
 use zng::{
+    label::Label,
     mouse::{CursorIcon, cursor},
     prelude::*,
     scroll::cmd::ScrollToMode,
@@ -82,7 +83,7 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                 ]
             ),
             SubMenu!(
-                "Scroll to",
+                "Scroll To",
                 ui_vec![
                     Button!(SCROLL_TO_TOP_CMD.scoped(scope)),
                     Button!(SCROLL_TO_BOTTOM_CMD.scoped(scope)),
@@ -129,7 +130,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!(
+        child = Label!(formatx!(
             "Scroll To {} {}",
             target,
             if let ScrollToMode::Minimal { .. } = &mode {
@@ -137,7 +138,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> UiNode {
             } else {
                 "(center)"
             }
-        );
+        ));
         cmd_param = cmd::ScrollToRequest::new(target, mode.clone());
         cmd;
     }
@@ -148,7 +149,7 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!("Scroll To {} (minimal) at {}", target, zoom);
+        child = Label!(formatx!("Scroll To {} (minimal) at {}", target, zoom));
         cmd_param = {
             let mut req = cmd::ScrollToRequest::new(target, ScrollToMode::minimal(10));
             req.zoom = Some(zoom.into());
@@ -164,7 +165,7 @@ fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!(
+        child = Label!(formatx!(
             "Scroll To {} {}",
             target,
             if let ScrollToMode::Minimal { .. } = &mode {
@@ -172,7 +173,7 @@ fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> UiNode {
             } else {
                 "(center)"
             }
-        );
+        ));
         cmd_param = cmd::ScrollToRequest::new(target.clone(), mode.clone());
         cmd;
     }

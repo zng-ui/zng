@@ -1,19 +1,22 @@
 //! Label text.
 
-use zng_app::access::ACCESS_CLICK_EVENT;
-use zng_ext_input::{
-    focus::{FOCUS, FocusInfoBuilder},
-    mouse::MOUSE_INPUT_EVENT,
-    touch::TOUCH_INPUT_EVENT,
-};
+use zng_app::property_args;
+use zng_ext_font::UnderlineThickness;
+use zng_ext_input::{focus::FOCUS, gesture::CLICK_EVENT};
 use zng_wgt::prelude::*;
-use zng_wgt_input::focus::FocusableMix;
+use zng_wgt_input::{
+    focus::FocusableMix,
+    gesture::{Mnemonic, get_mnemonic, get_mnemonic_char, mnemonic_txt},
+};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn};
+
+#[doc(hidden)]
+pub use zng_wgt::prelude::formatx as __formatx;
+use zng_wgt_text::{UNDERLINE_THICKNESS_VAR, node::TEXT};
 
 /// Styleable and focusable read-only text widget.
 ///
-/// Optionally can be the label of a [`target`](#method.target) widget, in this case the label is not focusable, it transfers focus
-/// to the target.
+/// Optionally can be the label of a [`target`](#method.target) widget, if set the target widget is focused when the label is focused.
 ///
 /// # Shorthand
 ///
@@ -34,11 +37,58 @@ use zng_wgt_style::{Style, StyleMix, impl_style_fn};
         txt = $txt;
         target = $target;
     };
+    ($txt:literal) => {
+        txt = $crate::label::__formatx!($txt);
+    };
+    ($txt:expr) => {
+        txt = $txt;
+    };
 })]
-pub struct Label(FocusableMix<StyleMix<zng_wgt_text::Text>>);
+pub struct Label(FocusableMix<StyleMix<zng_wgt_text::Text>>); // TODO(breaking) remove FocusableMix
 impl Label {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
+
+        // this used to be true when Label! was only really useful with a `target`,
+        // so as a fallback when it had no target it was at least focusable
+        //
+        // now Label! primary use case is mnemonic shortcuts so this changes
+        widget_set! {
+            self;
+            focusable = false;
+        }
+
+        // replace the txt with one that removes the mnemonic marker
+        self.widget_builder().push_pre_build_action(|wgt| {
+            let mut mnemonic_data = None;
+            if let Some(txt) = wgt.property_mut(property_id!(zng_wgt_text::txt))
+                && !*txt.captured
+            {
+                let t = txt.args.downcast_var::<Txt>(0);
+
+                let mnemonic = var(Mnemonic::None);
+                mnemonic_data = Some((t.clone(), mnemonic.clone()));
+                let t = expr_var! {
+                    let t = #{t};
+                    if let Mnemonic::FromTxt { marker } = #{mnemonic} {
+                        let mut prev_is_marker = false;
+                        for (i, c) in t.char_indices() {
+                            if c == *marker {
+                                prev_is_marker = true;
+                            } else if prev_is_marker && c.is_alphanumeric() {
+                                return formatx!("{}{}", &t[..i - 1], &t[i..]);
+                            }
+                        }
+                    }
+                    t.clone()
+                };
+                *txt.args = property_args!(zng_wgt_text::txt = t);
+            }
+            if let Some((raw_txt, mnemonic)) = mnemonic_data {
+                wgt.push_intrinsic(NestGroup::WIDGET_INNER, "get_mnemonic", move |c| get_mnemonic(c, mnemonic.clone()));
+                wgt.push_intrinsic(NestGroup::CHILD, "mnemonic_txt", move |c| mnemonic_txt(c, raw_txt.clone()));
+            }
+        });
     }
 }
 impl_style_fn!(Label, DefaultStyle);
@@ -59,8 +109,6 @@ impl DefaultStyle {
 ///
 /// When the label is pressed the widget or the first focusable child of the widget is focused.
 /// Accessibility metadata is also set so the target widget is marked as *labelled-by* this widget in the view-process.
-///
-/// If this is set focusable is disabled on the label widget.
 #[property(CONTEXT, widget_impl(Label))]
 pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode {
     let target = target.into_var();
@@ -68,17 +116,10 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
 
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET
-                .sub_var(&target)
-                .sub_event_when(&MOUSE_INPUT_EVENT, |a| a.is_mouse_down())
-                .sub_event_when(&TOUCH_INPUT_EVENT, |a| a.is_touch_start())
-                .sub_event_when(&ACCESS_CLICK_EVENT, |a| a.is_primary);
+            WIDGET.sub_var(&target).sub_event_when(&CLICK_EVENT, |a| a.is_primary());
         }
         UiNodeOp::Info { info } => {
             c.info(info);
-
-            FocusInfoBuilder::new(info).focusable(false);
-
             if let Some(mut a) = info.access() {
                 let target = target.get();
                 prev_target = Some(target);
@@ -96,13 +137,62 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
 
             c.update(updates);
 
-            if MOUSE_INPUT_EVENT.any_update(true, |a| a.is_mouse_down())
-                || TOUCH_INPUT_EVENT.any_update(true, |a| a.is_touch_start())
-                || ACCESS_CLICK_EVENT.any_update(true, |a| a.is_primary)
-            {
+            if CLICK_EVENT.any_update(true, |a| a.is_primary()) {
                 FOCUS.focus_widget_or_enter(target.get(), true, false);
             }
         }
         _ => {}
     })
+}
+
+/// Draw underline for the first occurrence of the mnemonic char in text.
+///
+/// When enabled this overrides [`underline`] and [`underline_skip`], only the first char defined by [`get_mnemonic_char`] is underlined.
+///
+/// [`underline_skip`]: fn@zng_wgt_text::underline_skip
+/// [`get_mnemonic_char`]: fn@get_mnemonic_char
+#[property(CHILD_LAYOUT + 101, default(0, LineStyle::Hidden), widget_impl(Label))]
+pub fn mnemonic_underline(child: impl IntoUiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
+    let m_char = var(None);
+    let child = get_mnemonic_char(child, m_char.clone());
+
+    let child = match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&UNDERLINE_THICKNESS_VAR).sub_var_layout(&m_char);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = c.layout(wl);
+
+            let thickness = UNDERLINE_THICKNESS_VAR.get().layout_dft_x(Px(0));
+            if thickness > Px(0)
+                && let Some(c) = m_char.get()
+            {
+                let r = TEXT.resolved();
+                let mut ci = None;
+                for (i, tc) in r.segmented_text.text().char_indices() {
+                    if c.to_lowercase().eq(tc.to_lowercase()) {
+                        ci = Some(i);
+                        break;
+                    }
+                }
+                if let Some(i) = ci {
+                    let l = TEXT.laidout();
+                    let start = l.shaped_text.snap_caret_line(i.into());
+                    let mut end = start;
+                    end.index += c.len_utf8();
+                    let u = l.shaped_text.highlight_underlines(start..end, r.segmented_text.text()).collect();
+                    drop(l);
+                    TEXT.set_underlines(u, thickness);
+                } else {
+                    TEXT.set_underlines(vec![], Px(0));
+                }
+            } else {
+                // force no underline
+                TEXT.set_underlines(vec![], Px(0));
+            }
+        }
+        _ => {}
+    });
+
+    zng_wgt_text::underline(child, thickness, style)
 }
