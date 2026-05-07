@@ -311,8 +311,12 @@ impl Mnemonic {
 ///
 /// The `Menu!` and related widgets automatically enables mnemonic for inner buttons, but you still must use `Label!` instead of `Text!`.
 ///
+/// Note that the focus event inside the parent [`mnemonic_scope`] must be keyboard [`highlight`], that is, for a `Menu!`, the mnemonics
+/// are only active when when focus enters by pressing `Alt`.
+///
 /// [`mnemonic_scope`]: fn@mnemonic_scope
 /// [`mnemonic_txt`]: fn@mnemonic_txt
+/// [`highlight`]: zng_ext_input::focus::FocusChangedArgs::highlight
 #[property(CONTEXT, default(Mnemonic::None))]
 pub fn mnemonic(child: impl IntoUiNode, mnemonic: impl IntoVar<Mnemonic>) -> UiNode {
     let mnemonic = mnemonic.into_var();
@@ -343,7 +347,8 @@ pub fn mnemonic_txt(child: impl IntoUiNode, txt: impl IntoVar<Txt>) -> UiNode {
 
 /// Defines a mnemonic shortcut scope.
 ///
-/// When focus is within the scope widget a [`GESTURES.click_shortcut`] is set for each [`mnemonic`] descendant.
+/// When focus is within the scope widget and the focus event was caused by key press a
+/// [`GESTURES.click_shortcut`] is set for each [`mnemonic`] descendant.
 ///
 /// [`mnemonic`]: fn@mnemonic
 /// [`GESTURES.click_shortcut`]: GESTURES::click_shortcut
@@ -416,13 +421,32 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                 // else if is inited and enabled, check is_focus_within change
                 let id = WIDGET.id();
                 FOCUS_CHANGED_EVENT.each_update(true, |a| {
-                    // !!: don't activate if focus is in an inner scope
-                    if a.is_focus_enter(id) {
-                        is_focus_within = true;
-                        set_shortcuts = true;
-                    } else if a.is_focus_leave(id) {
-                        is_focus_within = false;
-                        shortcut_subs.clear();
+                    let is_within = a.highlight
+                        && match &a.new_focus {
+                            Some(f) => {
+                                // don't activate if is in inner scope
+                                f.contains(id)
+                                    && WINDOW
+                                        .info()
+                                        .get(f.widget_id())
+                                        .unwrap()
+                                        .self_and_ancestors()
+                                        .find(|w| w.is_mnemonic_scope())
+                                        .unwrap()
+                                        .id()
+                                        == id
+                            }
+                            None => false,
+                        };
+                    if is_within != is_focus_within {
+                        if is_within {
+                            is_focus_within = true;
+                            set_shortcuts = true;
+                        } else {
+                            is_focus_within = false;
+                            shortcut_subs.clear();
+                            active_mnemonics.modify(|a| a.clear());
+                        }
                     }
                 });
             }
@@ -435,6 +459,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                 let mut chars = HashMap::new();
                 let mut auto = vec![];
                 let info = WIDGET.info();
+                println!("!!: {}", info.trace_path());
                 let scope_and_descendants = info.self_and_descendants().tree_filter(|w| {
                     if w != &info && w.is_mnemonic_scope() {
                         TreeFilter::SkipAll
@@ -453,7 +478,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                             m = Mnemonic::Auto;
 
                             let mnemonic_and_descendants = d.self_and_descendants().tree_filter(|w| {
-                                if w != &d && d.is_mnemonic_scope() || d.mnemonic().is_some() {
+                                if w != &d && (w.is_mnemonic_scope() || w.mnemonic().is_some()) {
                                     TreeFilter::SkipAll
                                 } else {
                                     TreeFilter::Include
@@ -510,14 +535,14 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                     let mut found_txt = false;
 
                     let mnemonic_and_descendants = d.self_and_descendants().tree_filter(|w| {
-                        if w != &d && d.is_mnemonic_scope() || d.mnemonic().is_some() {
+                        if w != &d && (w.is_mnemonic_scope() || w.mnemonic().is_some()) {
                             TreeFilter::SkipAll
                         } else {
                             TreeFilter::Include
                         }
                     });
-                    for d in mnemonic_and_descendants {
-                        if let Some(txt) = d.mnemonic_txt() {
+                    for w in mnemonic_and_descendants {
+                        if let Some(txt) = w.mnemonic_txt() {
                             found_txt = true;
 
                             txt.with(|t| {
@@ -541,13 +566,15 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                                         return;
                                     }
                                 }
+
+                                tracing::debug!("no mnemonic char selected for {:?}", t);
                             });
                             break;
                         }
                     }
                     if !found_txt {
                         tracing::warn!(
-                            "no mnemonic selected for {:?}, no `mnemonic_txt` set on it or descendants, consider using `Label!` for the inner text",
+                            "no mnemonic selected for {:?}, consider using `Label!` for the inner text or set `mnemonic_txt`",
                             d.id()
                         );
                     }
@@ -588,7 +615,7 @@ pub fn get_mnemonic_char(child: impl IntoUiNode, state: impl IntoVar<Option<char
 
             if w.mnemonic().is_some() {
                 let id = w.id();
-                return ACTIVE_MNEMONICS_VAR.bind_map(s, move |m| m.get(&id).copied());
+                return ACTIVE_MNEMONICS_VAR.set_bind_map(s, move |m| m.get(&id).copied());
             }
 
             if found_scope {
@@ -615,7 +642,7 @@ pub fn get_mnemonic(child: impl IntoUiNode, state: impl IntoVar<Mnemonic>) -> Ui
             }
 
             if let Some(m) = w.mnemonic() {
-                return m.bind(s);
+                return m.set_bind(s);
             }
 
             if found_scope {
