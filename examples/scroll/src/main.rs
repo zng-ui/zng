@@ -113,11 +113,11 @@ fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> UiNode {
                 ui_vec![
                     Toggle! {
                         checked = mouse_pan;
-                        child = Text!("Mouse Pan");
+                        child = Label!("Mouse Pan");
                     },
                     Toggle! {
                         checked = smooth_scrolling;
-                        child = Text!("Smooth Scrolling");
+                        child = Label!("Smooth Scrolling");
                     },
                 ]
             )
