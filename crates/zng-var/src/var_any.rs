@@ -163,30 +163,34 @@ impl AnyVar {
     ///  
     /// This can be used just before creating a binding to start with synchronized values.
     pub fn try_set_from(&self, other: &AnyVar) -> Result<(), VarIsReadOnlyError> {
-        let other = other.current_context();
-        if other.capabilities().is_const() {
-            self.try_set(other.get())
-        } else if self.capabilities().is_read_only() {
-            Err(VarIsReadOnlyError {})
-        } else {
-            let weak_other = other.downgrade();
-            self.try_modify(move |v| {
-                if let Some(other) = weak_other.upgrade() {
-                    other.with(|ov| {
-                        if *ov != **v {
-                            // only clone if really changed
-                            let mut new_value = ov.clone_boxed();
-                            assert!(v.try_swap(&mut *new_value), "set_from other var not of the same type");
-
-                            // tag for bidi bindings
-                            v.push_tag(other.var_instance_tag());
-                        }
-                        // don't break animation of this if other just started animating after the `set_from` request was scheduled
-                        v.set_modify_importance(other.modify_importance());
-                    });
-                }
-            })
+        if self.capabilities().is_read_only() {
+            return Err(VarIsReadOnlyError {});
         }
+        let caps = other.capabilities();
+        if caps.is_const() {
+            return self.try_set(other.get());
+        }
+        let weak_other = if caps.is_contextual() {
+            other.current_context().downgrade()
+        } else {
+            other.downgrade()
+        };
+        self.try_modify(move |v| {
+            if let Some(other) = weak_other.upgrade() {
+                other.with(|ov| {
+                    if *ov != **v {
+                        // only clone if really changed
+                        let mut new_value = ov.clone_boxed();
+                        assert!(v.try_swap(&mut *new_value), "set_from other var not of the same type");
+
+                        // tag for bidi bindings
+                        v.push_tag(other.var_instance_tag());
+                    }
+                    // don't break animation of this if other just started animating after the `set_from` request was scheduled
+                    v.set_modify_importance(other.modify_importance());
+                });
+            }
+        })
     }
 
     /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the updated
@@ -210,26 +214,31 @@ impl AnyVar {
         other: &AnyVar,
         map: impl FnOnce(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
     ) -> Result<(), VarIsReadOnlyError> {
-        if other.capabilities().is_const() {
-            self.try_set(other.with(map))
-        } else if self.capabilities().is_read_only() {
-            Err(VarIsReadOnlyError {})
-        } else {
-            let weak_other = other.downgrade();
-            self.try_modify(move |v| {
-                if let Some(other) = weak_other.upgrade() {
-                    other.with(|ov| {
-                        let new_value = map(ov);
-                        if v.set(new_value) {
-                            // tag for bidi bindings
-                            v.push_tag(other.var_instance_tag());
-                        }
-                        // don't break animation of this if other just started animating after the `set_from` request was scheduled
-                        v.set_modify_importance(other.modify_importance());
-                    });
-                }
-            })
+        if self.capabilities().is_read_only() {
+            return Err(VarIsReadOnlyError {});
         }
+        let caps = other.capabilities();
+        if caps.is_const() {
+            return self.try_set(other.with(map));
+        }
+        let weak_other = if caps.is_contextual() {
+            other.current_context().downgrade()
+        } else {
+            other.downgrade()
+        };
+        self.try_modify(move |v| {
+            if let Some(other) = weak_other.upgrade() {
+                other.with(|ov| {
+                    let new_value = map(ov);
+                    if v.set(new_value) {
+                        // tag for bidi bindings
+                        v.push_tag(other.var_instance_tag());
+                    }
+                    // don't break animation of this if other just started animating after the `set_from` request was scheduled
+                    v.set_modify_importance(other.modify_importance());
+                });
+            }
+        })
     }
 
     /// Like [`set_from`], but uses `map` to produce the new value from the updated value of `other`.
