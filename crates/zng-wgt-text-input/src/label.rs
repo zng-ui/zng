@@ -180,10 +180,20 @@ fn mnemonic_underline_node(child: impl IntoUiNode) -> UiNode {
                 if let Some(c) = m_char.get() {
                     let r = TEXT.resolved();
                     let mut ci = None;
+                    // try exact match first, to underline uppercase chars when possible
                     for (i, tc) in r.segmented_text.text().char_indices() {
-                        if c.to_lowercase().eq(tc.to_lowercase()) {
+                        if c == tc {
                             ci = Some(i);
                             break;
+                        }                        
+                    }
+                    if ci.is_none() {
+                        // find char
+                        for (i, tc) in r.segmented_text.text().char_indices() {
+                            if c.to_lowercase().eq(tc.to_lowercase()) {
+                                ci = Some(i);
+                                break;
+                            }
                         }
                     }
                     if let Some(i) = ci {
