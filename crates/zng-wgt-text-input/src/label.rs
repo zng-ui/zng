@@ -185,7 +185,7 @@ fn mnemonic_underline_node(child: impl IntoUiNode) -> UiNode {
                         if c == tc {
                             ci = Some(i);
                             break;
-                        }                        
+                        }
                     }
                     if ci.is_none() {
                         // find char

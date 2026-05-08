@@ -533,12 +533,17 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                         }
                     }
                 }
-                // generate best char for ::Auto
-                for d in auto {
+                // select best char for ::Auto
+                //
+                // - Prefers chars from words that only appear in one label
+                // - Prefers uppercase chars
+                let mut mnemonic_words = HashMap::<Txt, IdSet<WidgetId>>::new();
+                let mut id_words = IdMap::<WidgetId, Vec<Txt>>::new();
+                for d in &auto {
                     let mut found_txt = false;
 
                     let mnemonic_and_descendants = d.self_and_descendants().tree_filter(|w| {
-                        if w != &d && (w.is_mnemonic_scope() || w.mnemonic().is_some()) {
+                        if w != d && (w.is_mnemonic_scope() || w.mnemonic().is_some()) {
                             TreeFilter::SkipAll
                         } else {
                             TreeFilter::Include
@@ -547,32 +552,17 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                     for w in mnemonic_and_descendants {
                         if let Some(txt) = w.mnemonic_txt() {
                             found_txt = true;
-
                             txt.with(|t| {
-                                // try uppercase chars first
-                                for c in t.chars() {
-                                    if c.is_alphanumeric()
-                                        && c.is_uppercase()
-                                        && let hash_map::Entry::Vacant(e) = chars.entry(c.to_lowercase().collect::<Txt>())
-                                    {
-                                        e.insert((d.id(), c));
-                                        return;
+                                for word in t.split(' ') {
+                                    let word = word.trim();
+                                    if !word.is_empty() {
+                                        let word = Txt::from_str(word);
+                                        if mnemonic_words.entry(word.clone()).or_default().insert(d.id()) {
+                                            id_words.entry(d.id()).or_default().push(word);
+                                        }
                                     }
                                 }
-                                // try other alphanumeric chars
-                                for c in t.chars() {
-                                    if c.is_alphanumeric()
-                                        && !c.is_uppercase()
-                                        && let hash_map::Entry::Vacant(e) = chars.entry(Txt::from_char(c))
-                                    {
-                                        e.insert((d.id(), c));
-                                        return;
-                                    }
-                                }
-
-                                tracing::debug!("no mnemonic char selected for {:?}", t);
-                            });
-                            break;
+                            })
                         }
                     }
                     if !found_txt {
@@ -582,6 +572,37 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                         );
                     }
                 }
+                'select: for d in auto {
+                    if let Some(mut words) = id_words.remove(&d.id()) {
+                        words.sort_by_key(|w| mnemonic_words.get(w).unwrap().len());
+
+                        // try uppercase chars first
+                        for w in &words {
+                            for c in w.chars() {
+                                if c.is_alphanumeric()
+                                    && c.is_uppercase()
+                                    && let hash_map::Entry::Vacant(e) = chars.entry(c.to_lowercase().collect::<Txt>())
+                                {
+                                    e.insert((d.id(), c));
+                                    continue 'select;
+                                }
+                            }
+                        }
+                        // try other alphanumeric chars
+                        for w in &words {
+                            for c in w.chars() {
+                                if c.is_alphanumeric()
+                                    && !c.is_uppercase()
+                                    && let hash_map::Entry::Vacant(e) = chars.entry(Txt::from_char(c))
+                                {
+                                    e.insert((d.id(), c));
+                                    continue 'select;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // register shortcuts
                 for (_, (id, c)) in chars.iter() {
                     let h = GESTURES.click_shortcut(GestureKey::Key(Key::Char(*c)), ShortcutClick::Primary, *id);
