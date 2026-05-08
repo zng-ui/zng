@@ -254,6 +254,7 @@ macro_rules! lazy_static_patchable {
         $vis:vis static ref $N:ident : $T:ty = $e:expr;
     ) => {
         $crate::paste! {
+            #[allow(all)]
             fn [<_ $N:lower _hot>](__override: &mut Option<$T>) -> &'static $T {
                 fn __init() -> $T {
                     $e
@@ -278,6 +279,7 @@ macro_rules! lazy_static_not_patchable {
         $vis:vis static ref $N:ident : $T:ty = $e:expr;
     ) => {
         $crate::paste! {
+            #[allow(all)]
             fn [<_ $N:lower _init>]() -> $T {
                 $e
             }

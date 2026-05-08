@@ -103,6 +103,7 @@ impl DefaultStyle {
             zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
             zng_wgt_rule_line::vr::height = 1.em();
         }
+        MENU_TEXT_INPUT.set_label_style(self);
     }
 }
 
@@ -284,19 +285,25 @@ pub fn shortcut_txt(child: impl IntoUiNode, shortcut: impl IntoUiNode) -> UiNode
 pub struct MENU_TEXT_INPUT;
 impl MENU_TEXT_INPUT {
     /// Register function that instantiates a `Label!` widget.
-    pub fn init_label(&self, label: fn(Var<Txt>) -> UiNode) {
-        zng_unique_id::lazy_static_init(&LABEL, label).unwrap_or_else(|_| panic!("init_label already called"));
+    pub fn init_label(&self, label: fn(Var<Txt>) -> UiNode, set_style: fn(&mut Style)) {
+        zng_unique_id::lazy_static_init(&LABEL, (label, set_style)).unwrap_or_else(|_| panic!("init_label already called"));
     }
 
     /// Instantiate a `Label!` widget.
     pub fn label(&self, txt: impl IntoVar<Txt>) -> UiNode {
-        (*LABEL)(txt.into_var())
+        (LABEL.0)(txt.into_var())
+    }
+
+    pub(crate) fn set_label_style(&self, wgt: &mut Style) {
+        (LABEL.1)(wgt);
     }
 }
 zng_unique_id::lazy_static! {
-    static ref LABEL: fn(Var<Txt>) -> UiNode = default_label;
+    #[allow(clippy::type_complexity)]
+    static ref LABEL: (fn(Var<Txt>) -> UiNode, fn(&mut Style)) = (default_label, default_set_style);
 }
 fn default_label(txt: Var<Txt>) -> UiNode {
     tracing::warn!("MENU_TEXT_INPUT.init_label not called, command menu buttons will not render mnemonics");
     zng_wgt_text::Text!(txt)
 }
+fn default_set_style(_: &mut Style) {}

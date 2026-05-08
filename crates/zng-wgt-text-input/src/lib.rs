@@ -21,11 +21,19 @@ zng_env::on_process_start!(|args| {
     if args.yield_until_app() {
         return;
     }
-    zng_wgt_menu::MENU_TEXT_INPUT.init_label(menu_label);
+    zng_wgt_menu::MENU_TEXT_INPUT.init_label(menu_label, set_menu_label_style);
 });
 fn menu_label(txt: zng_var::Var<zng_wgt::prelude::Txt>) -> zng_app::widget::node::UiNode {
     label::Label! {
         txt;
-        mnemonic_underline = 1, zng_app::widget::border::LineStyle::Solid;
+    }
+}
+fn set_menu_label_style(wgt: &mut zng_wgt_style::Style) {
+    zng_app::widget_set! {
+        wgt;
+        label::style_fn = zng_wgt_style::style_fn!(|_| label::DefaultStyle! {
+            label::mnemonic_underline = true;
+            zng_wgt_text::underline = 1, zng_app::widget::border::LineStyle::Solid;
+        });
     }
 }

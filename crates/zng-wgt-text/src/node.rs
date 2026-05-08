@@ -295,13 +295,12 @@ impl TEXT {
     ///
     /// Note that the value is already updated automatically on layout, this method is for custom properties that
     /// override the normal underlines.
-    pub fn set_underlines(&self, underlines: Vec<(PxPoint, Px)>, thickness: Px) {
+    pub fn set_underlines(&self, underlines: Vec<(PxPoint, Px)>) {
         let mut l = self.layout();
-        if l.underline_thickness != thickness || l.underlines != underlines {
+        if l.underlines != underlines {
             WIDGET.render();
         }
         l.underlines = underlines;
-        l.underline_thickness = thickness;
     }
 
     pub(crate) fn resolve(&self) -> RwLockWriteGuardOwned<ResolvedText> {

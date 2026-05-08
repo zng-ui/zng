@@ -102,6 +102,7 @@ impl DefaultStyle {
                 sides: BASE_COLOR_VAR.shade_into(1),
             };
         }
+        crate::MENU_TEXT_INPUT.set_label_style(self);
     }
 }
 

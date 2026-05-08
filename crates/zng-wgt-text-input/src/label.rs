@@ -1,7 +1,6 @@
 //! Label text.
 
 use zng_app::property_args;
-use zng_ext_font::UnderlineThickness;
 use zng_ext_input::{focus::FOCUS, gesture::CLICK_EVENT};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{
@@ -12,7 +11,7 @@ use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 #[doc(hidden)]
 pub use zng_wgt::prelude::formatx as __formatx;
-use zng_wgt_text::{UNDERLINE_THICKNESS_VAR, node::TEXT};
+use zng_wgt_text::node::TEXT;
 
 /// Styleable and focusable read-only text widget.
 ///
@@ -86,6 +85,9 @@ impl Label {
             }
             if let Some((raw_txt, mnemonic)) = mnemonic_data {
                 wgt.push_intrinsic(NestGroup::WIDGET_INNER, "get_mnemonic", move |c| get_mnemonic(c, mnemonic.clone()));
+                wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 101, "mnemonic_underline", move |c| {
+                    mnemonic_underline_node(c)
+                });
                 wgt.push_intrinsic(NestGroup::CHILD, "mnemonic_txt", move |c| mnemonic_txt(c, raw_txt.clone()));
             }
         });
@@ -145,55 +147,62 @@ pub fn target(child: impl IntoUiNode, target: impl IntoVar<WidgetId>) -> UiNode 
     })
 }
 
-/// Draw underline for the first occurrence of the mnemonic char in text.
+context_var! {
+    /// Mnemonic underline.
+    pub static MNEMONIC_UNDERLINE_VAR: bool = false;
+}
+
+/// Only draw underline under active mnemonic char in labels.
 ///
-/// When enabled this overrides [`underline`] and [`underline_skip`], only the first char defined by [`get_mnemonic_char`] is underlined.
+/// When enabled this overrides [`underline_skip`] in labels, only the char defined by [`get_mnemonic_char`] is underlined.
 ///
-/// [`underline`]: fn@zng_wgt_text::underline
+/// Note that [`underline`] must also be set to a visible state in context.
+///
 /// [`underline_skip`]: fn@zng_wgt_text::underline_skip
-/// [`get_mnemonic_char`]: fn@get_mnemonic_char
-#[property(CHILD_LAYOUT + 101, default(0, LineStyle::Hidden), widget_impl(Label))]
-pub fn mnemonic_underline(child: impl IntoUiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> UiNode {
+/// [`underline`]: fn@zng_wgt_text::underline
+#[property(CONTEXT, default(MNEMONIC_UNDERLINE_VAR), widget_impl(Label))]
+pub fn mnemonic_underline(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
+    with_context_var(child, MNEMONIC_UNDERLINE_VAR, enabled)
+}
+
+fn mnemonic_underline_node(child: impl IntoUiNode) -> UiNode {
     let m_char = var(None);
     let child = get_mnemonic_char(child, m_char.clone());
 
-    let child = match_node(child, move |c, op| match op {
+    match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&UNDERLINE_THICKNESS_VAR).sub_var_layout(&m_char);
+            WIDGET.sub_var_layout(&MNEMONIC_UNDERLINE_VAR).sub_var_layout(&m_char);
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
 
-            let thickness = UNDERLINE_THICKNESS_VAR.get().layout_dft_x(Px(0));
-            if thickness > Px(0)
-                && let Some(c) = m_char.get()
-            {
-                let r = TEXT.resolved();
-                let mut ci = None;
-                for (i, tc) in r.segmented_text.text().char_indices() {
-                    if c.to_lowercase().eq(tc.to_lowercase()) {
-                        ci = Some(i);
-                        break;
+            if MNEMONIC_UNDERLINE_VAR.get() {
+                if let Some(c) = m_char.get() {
+                    let r = TEXT.resolved();
+                    let mut ci = None;
+                    for (i, tc) in r.segmented_text.text().char_indices() {
+                        if c.to_lowercase().eq(tc.to_lowercase()) {
+                            ci = Some(i);
+                            break;
+                        }
                     }
-                }
-                if let Some(i) = ci {
-                    let l = TEXT.laidout();
-                    let start = l.shaped_text.snap_caret_line(i.into());
-                    let mut end = start;
-                    end.index += c.len_utf8();
-                    let u = l.shaped_text.highlight_underlines(start..end, r.segmented_text.text()).collect();
-                    drop(l);
-                    TEXT.set_underlines(u, thickness);
+                    if let Some(i) = ci {
+                        let l = TEXT.laidout();
+                        let start = l.shaped_text.snap_caret_line(i.into());
+                        let mut end = start;
+                        end.index += c.len_utf8();
+                        let u = l.shaped_text.highlight_underlines(start..end, r.segmented_text.text()).collect();
+                        drop(l);
+                        TEXT.set_underlines(u);
+                    } else {
+                        TEXT.set_underlines(vec![]);
+                    }
                 } else {
-                    TEXT.set_underlines(vec![], Px(0));
+                    // force no underline
+                    TEXT.set_underlines(vec![]);
                 }
-            } else {
-                // force no underline
-                TEXT.set_underlines(vec![], Px(0));
             }
         }
         _ => {}
-    });
-
-    zng_wgt_text::underline(child, thickness, style)
+    })
 }
