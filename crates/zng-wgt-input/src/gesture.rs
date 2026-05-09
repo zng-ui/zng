@@ -392,7 +392,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                     var_subs.push(
                         FOCUS_CHANGED_EVENT.subscribe_when(UpdateOp::Update, id, move |a| a.is_focus_enter(id) || a.is_focus_leave(id)),
                     );
-                    is_focus_within = FOCUS.focused().with(|f| matches!(f, Some(f) if f.contains(id)));
+                    is_focus_within = FOCUS.is_highlighting().get() && FOCUS.focused().with(|f| matches!(f, Some(f) if f.contains(id)));
                     set_shortcuts = is_focus_within;
 
                     // sub to each descendant mnemonic properties
