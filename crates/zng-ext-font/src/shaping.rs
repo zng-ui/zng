@@ -2707,6 +2707,7 @@ impl ShapedTextBuilder {
                 if matches!(info.kind, TextSegmentKind::Emoji) {
                     self.push_emoji_seg(shaped_seg, font);
                 }
+                self.push_font(font);
             });
         }
     }
