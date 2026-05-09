@@ -7,6 +7,7 @@
 * Add `WidgetBuilder::push_pre_build_action` helper for derived widgets affect build state before base widget build.
 * Add `zng::widget::bind_state_info` helper.
 
+* Fix multiple fonts in the same word only rendering glyphs from one font.
 * Fix `Var::set_from` contextual var.
 * Fix missing space in rich text copy when component texts are spaced by layout only.
 * Fix text wrap breaking word segment sequences.
