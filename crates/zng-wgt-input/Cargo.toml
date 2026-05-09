@@ -28,3 +28,4 @@ zng-view-api = { path = "../zng-view-api", version = "0.20.0", default-features 
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.12.2", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+zng-var = { path = "../zng-var", version = "0.14.0", default-features = false }

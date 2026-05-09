@@ -1047,7 +1047,7 @@ impl ShortcutsHandle {
         self.0.is_permanent()
     }
 
-    /// Drops the handle and releases the claim
+    /// Drops the handle and releases the claim.
     pub fn release(self) {
         self.0.force_drop();
     }

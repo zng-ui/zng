@@ -17,6 +17,7 @@ use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_button::BUTTON;
 use zng_wgt_container::{child_end, padding};
 use zng_wgt_input::focus::{FocusClickBehavior, alt_focus_scope, focus_click_behavior};
+use zng_wgt_input::gesture::mnemonic_scope;
 use zng_wgt_style::{Style, StyleMix, impl_named_style_fn, impl_style_fn, style_fn};
 
 pub mod context;
@@ -32,6 +33,7 @@ impl Menu {
         widget_set! {
             self;
             alt_focus_scope = true;
+            mnemonic_scope = true;
             zng_wgt_panel::panel_fn = PANEL_FN_VAR;
             access_role = AccessRole::Menu;
             zng_wgt_rule_line::collapse_scope = true;
@@ -101,6 +103,7 @@ impl DefaultStyle {
             zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.shade(1);
             zng_wgt_rule_line::vr::height = 1.em();
         }
+        MENU_TEXT_INPUT.set_label_style(self);
     }
 }
 
@@ -124,6 +127,9 @@ impl ButtonStyle {
 
             access_role = AccessRole::MenuItem;
             focus_click_behavior = FocusClickBehavior::menu_item();
+
+            zng_wgt_input::gesture::mnemonic = true;
+            zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| MENU_TEXT_INPUT.label(cmd.name()));
 
             zng_wgt_container::child_start =
                 BUTTON
@@ -273,3 +279,31 @@ pub fn shortcut_txt(child: impl IntoUiNode, shortcut: impl IntoUiNode) -> UiNode
     let shortcut = margin(shortcut, sub::END_COLUMN_WIDTH_VAR.map(|w| SideOffsets::new(0, w.clone(), 0, 0)));
     child_end(child, shortcut)
 }
+
+/// Integration with `zng-wgt-text-input` crate that depends on this crate.
+#[allow(non_camel_case_types)]
+pub struct MENU_TEXT_INPUT;
+impl MENU_TEXT_INPUT {
+    /// Register function that instantiates a `Label!` widget.
+    pub fn init_label(&self, label: fn(Var<Txt>) -> UiNode, set_style: fn(&mut Style)) {
+        zng_unique_id::lazy_static_init(&LABEL, (label, set_style)).unwrap_or_else(|_| panic!("init_label already called"));
+    }
+
+    /// Instantiate a `Label!` widget.
+    pub fn label(&self, txt: impl IntoVar<Txt>) -> UiNode {
+        (LABEL.0)(txt.into_var())
+    }
+
+    pub(crate) fn set_label_style(&self, wgt: &mut Style) {
+        (LABEL.1)(wgt);
+    }
+}
+zng_unique_id::lazy_static! {
+    #[allow(clippy::type_complexity)]
+    static ref LABEL: (fn(Var<Txt>) -> UiNode, fn(&mut Style)) = (default_label, default_set_style);
+}
+fn default_label(txt: Var<Txt>) -> UiNode {
+    tracing::warn!("MENU_TEXT_INPUT.init_label not called, command menu buttons will not render mnemonics");
+    zng_wgt_text::Text!(txt)
+}
+fn default_set_style(_: &mut Style) {}

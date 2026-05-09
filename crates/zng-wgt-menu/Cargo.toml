@@ -36,3 +36,6 @@ zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.15.2", default-features 
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.13.2", default-features = false }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.14.2", default-features = false }
 zng-wgt-shortcut = { path = "../zng-wgt-shortcut", version = "0.7.2", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.12.0", default-features = false }
+
+tracing = { version = "0.1", default-features = false, features = ["std"] }

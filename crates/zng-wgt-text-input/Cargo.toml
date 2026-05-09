@@ -30,4 +30,9 @@ zng-wgt-data = { path = "../zng-wgt-data", version = "0.12.2", default-features 
 zng-app = { path = "../zng-app", version = "0.23.2", default-features = false }
 zng-ext-input = { path = "../zng-ext-input", version = "0.15.2", default-features = false }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.12.2", default-features = false }
+zng-ext-font = { path = "../zng-ext-font", version = "0.14.2", default-features = false }
 zng-var = { path = "../zng-var", version = "0.14.0", default-features = false }
+
+zng-env = { path = "../zng-env", version = "0.11.0", default-features = false }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"

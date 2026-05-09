@@ -3987,6 +3987,11 @@ impl Ord for CaretIndex {
         self.index.cmp(&other.index)
     }
 }
+impl_from_and_into_var! {
+    fn from(index: usize) -> CaretIndex {
+        CaretIndex { index, line: 0 }
+    }
+}
 
 /// Reasons why a loader might fail to load a font.
 #[derive(Debug, Clone)]

@@ -21,6 +21,7 @@ use zng_wgt_filter::{opacity, saturate};
 use zng_wgt_input::{
     CursorIcon, click_mode, cursor,
     focus::{FocusClickBehavior, focus_click_behavior, focusable, is_focused},
+    gesture::mnemonic,
     is_hovered,
     mouse::on_pre_mouse_enter,
     pointer_capture::capture_pointer,
@@ -33,13 +34,10 @@ use zng_wgt_shortcut::ShortcutText;
 use zng_wgt_size_offset::{size, width};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
-#[doc(hidden)]
-pub use zng_wgt_text::Text;
-
 /// Submenu header and items.
 #[widget($crate::sub::SubMenu {
     ($header_txt:expr, $children:expr $(,)?) => {
-        header = $crate::sub::Text!($header_txt);
+        header = $crate::MENU_TEXT_INPUT.label($header_txt);
         children = $children;
     }
 })]
@@ -55,6 +53,7 @@ impl SubMenu {
         widget_set! {
             self;
             focusable = true;
+            mnemonic = true;
             click_mode = ClickMode::press();
             focus_click_behavior = FocusClickBehavior::Ignore; // we handle clicks.
             capture_pointer = true; // part of press-and-drag to click (see SubMenuPopup)
@@ -743,6 +742,9 @@ impl ButtonStyle {
                 None => const_var(WidgetFn::nil()),
             });
 
+            zng_wgt_input::gesture::mnemonic = true;
+            zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| crate::MENU_TEXT_INPUT.label(cmd.name()));
+
             when *#is_focused {
                 background_color = BASE_COLOR_VAR.shade(1);
                 opacity = 100.pct();
@@ -806,7 +808,7 @@ impl ToggleStyle {
             click_mode = ClickMode::release();
             access_role = AccessRole::MenuItemCheckBox;
 
-            start_column_fn = wgt_fn!(|_| Text! {
+            start_column_fn = wgt_fn!(|_| zng_wgt_text::Text! {
                 size = 1.2.em();
                 font_family = FONTS.generics().system_ui(&lang!(und));
                 align = Align::CENTER;

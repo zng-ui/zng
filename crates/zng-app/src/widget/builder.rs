@@ -1501,6 +1501,7 @@ pub struct WidgetBuilder {
     p_attributes_unset: HashMap<(PropertyId, &'static str), Importance>,
 
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
+    pre_build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
 
     custom_build: Option<Arc<Mutex<dyn FnMut(WidgetBuilder) -> UiNode + Send>>>,
 }
@@ -1516,6 +1517,7 @@ impl Clone for WidgetBuilder {
             whens: self.whens.clone(),
             when_insert_idx: self.when_insert_idx,
             build_actions: self.build_actions.clone(),
+            pre_build_actions: self.pre_build_actions.clone(),
             custom_build: self.custom_build.clone(),
         }
     }
@@ -1534,6 +1536,7 @@ impl fmt::Debug for WidgetBuilder {
             .field("unset", &self.unset)
             .field("whens", &self.whens)
             .field("build_actions.len", &self.build_actions.len())
+            .field("pre_build_actions.len", &self.pre_build_actions.len())
             .field("is_custom_build", &self.is_custom_build())
             .finish()
     }
@@ -1551,6 +1554,7 @@ impl WidgetBuilder {
             p_attributes_unset: Default::default(),
             when_insert_idx: 0,
             build_actions: Default::default(),
+            pre_build_actions: Default::default(),
             custom_build: Default::default(),
         }
     }
@@ -1736,13 +1740,32 @@ impl WidgetBuilder {
     }
 
     /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
+    ///
+    /// Build actions are called sequentially on build, first registered actions are called first. Note that when
+    /// an widget inherits from another the base widget actions are registered first, so base actions will run fist.
+    /// This means that a base widget will capture properties before the derived widget can, but a derived widget
+    /// can override the child node set by the base widget.
     pub fn push_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + Send + 'static) {
         self.build_actions.push(Arc::new(Mutex::new(action)))
     }
 
-    /// Remove all registered build actions.
+    /// Add an `action` closure that is called every time this builder or a clone of it builds a widget instance.
+    ///
+    /// Preview build actions are called in reverse sequence order on build, last registered action is called first,
+    /// all preview actions run before the [`push_build_action`] actions.
+    ///
+    /// The primary use case for preview build actions is to allow derived widgets to inspect the build state before
+    /// the base widget can interact with it.
+    ///
+    /// [`push_build_action`]: Self::push_build_action
+    pub fn push_pre_build_action(&mut self, action: impl FnMut(&mut WidgetBuilding) + Send + 'static) {
+        self.pre_build_actions.push(Arc::new(Mutex::new(action)))
+    }
+
+    /// Remove all registered prebuild and build actions.
     pub fn clear_build_actions(&mut self) {
         self.build_actions.clear();
+        self.pre_build_actions.clear();
     }
 
     /// Returns `true` if a custom build handler is registered.
@@ -1818,6 +1841,10 @@ impl WidgetBuilder {
             if imp >= min_importance {
                 self.push_property_attribute(id, name, imp, action);
             }
+        }
+
+        for act in other.pre_build_actions {
+            self.pre_build_actions.push(act);
         }
 
         for act in other.build_actions {
@@ -1999,6 +2026,9 @@ impl WidgetBuilder {
             building.build_p_attributes(p_attributes);
         }
 
+        for action in self.pre_build_actions.into_iter().rev() {
+            (action.lock())(&mut building);
+        }
         for action in self.build_actions {
             (action.lock())(&mut building);
         }

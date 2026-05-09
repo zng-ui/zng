@@ -44,10 +44,10 @@ pub use zng_app::shortcut::{
 };
 
 pub use zng_wgt_input::gesture::{
-    click_shortcut, context_click_shortcut, on_any_click, on_any_double_click, on_any_single_click, on_any_triple_click, on_click,
-    on_context_click, on_disabled_click, on_double_click, on_pre_any_click, on_pre_any_double_click, on_pre_any_single_click,
-    on_pre_any_triple_click, on_pre_click, on_pre_context_click, on_pre_disabled_click, on_pre_double_click, on_pre_single_click,
-    on_pre_triple_click, on_single_click, on_triple_click,
+    Mnemonic, click_shortcut, context_click_shortcut, mnemonic, mnemonic_scope, mnemonic_txt, on_any_click, on_any_double_click,
+    on_any_single_click, on_any_triple_click, on_click, on_context_click, on_disabled_click, on_double_click, on_pre_any_click,
+    on_pre_any_double_click, on_pre_any_single_click, on_pre_any_triple_click, on_pre_click, on_pre_context_click, on_pre_disabled_click,
+    on_pre_double_click, on_pre_single_click, on_pre_triple_click, on_single_click, on_triple_click,
 };
 
 pub use zng_wgt_input::{
