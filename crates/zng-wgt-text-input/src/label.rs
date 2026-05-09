@@ -69,7 +69,7 @@ impl Label {
                 mnemonic_data = Some((t.clone(), mnemonic.clone()));
                 let t = expr_var! {
                     let t = #{t};
-                    if let Mnemonic::FromTxt { marker } = #{mnemonic} {
+                    if let Mnemonic::FromTxt { marker, .. } = #{mnemonic} {
                         let mut prev_is_marker = false;
                         for (i, c) in t.char_indices() {
                             if c == *marker {

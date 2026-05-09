@@ -249,7 +249,7 @@ pub enum Mnemonic {
     /// The associated char must be a value that can appear in [`Key::Char`] (case indifferent), otherwise it will never match.
     ///
     /// In case the same key is set for multiple widgets in a scope the first widget (in tab order) takes it, the others
-    /// fallback to `Auto`.
+    /// do not enable mnemonic shortcut.
     ///
     /// [`Key::Char`]: zng_ext_input::keyboard::Key
     Char(char),
@@ -263,6 +263,8 @@ pub enum Mnemonic {
         ///
         /// If marker is `'_'` and the text is `"_Cut"` the mnemonic is `'c'`.
         marker: char,
+        /// If should `Auto` select a char if the marked char is not found or cannot be used.
+        fallback_auto: bool,
     },
     /// No mnemonic behavior, disabled.
     None,
@@ -272,17 +274,15 @@ impl_from_and_into_var! {
     fn from(c: char) -> Mnemonic {
         Mnemonic::Char(c)
     }
-    /// Converts `true` to [`from_txt`] and `false` to `None`.
-    ///
-    /// [`from_txt`]: Mnemonic::from_txt
+    /// Converts `true` to `from_txt('_', true)` and `false` to `None`.
     fn from(from_txt: bool) -> Mnemonic {
-        if from_txt { Mnemonic::from_txt() } else { Mnemonic::None }
+        if from_txt { Mnemonic::from_txt('_', true) } else { Mnemonic::None }
     }
 }
 impl Mnemonic {
     /// `FromTxt` with default marker `'_'`.
-    pub fn from_txt() -> Self {
-        Self::FromTxt { marker: '_' }
+    pub fn from_txt(marker: char, fallback_auto: bool) -> Self {
+        Self::FromTxt { marker, fallback_auto }
     }
 }
 
@@ -476,9 +476,9 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                         let mut m = m.get();
 
                         // extract ::Char from inner text
-                        if let Mnemonic::FromTxt { marker } = m {
+                        if let Mnemonic::FromTxt { marker, fallback_auto } = m {
                             // fallback state
-                            m = Mnemonic::Auto;
+                            m = if fallback_auto { Mnemonic::Auto } else { Mnemonic::None };
 
                             let mnemonic_and_descendants = d.self_and_descendants().tree_filter(|w| {
                                 if w != &d && (w.is_mnemonic_scope() || w.mnemonic().is_some()) {
@@ -518,12 +518,12 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                                     }
                                     hash_map::Entry::Occupied(e) => {
                                         tracing::error!("both {:?} and {:?} set the same mnemonic {:?}", e.get().0, d.id(), c);
-                                        m = Mnemonic::Auto;
+                                        m = Mnemonic::None;
                                     }
                                 }
                             } else {
                                 tracing::error!("char `{c:?}` cannot be a mnemonic, not alphanumeric");
-                                m = Mnemonic::Auto;
+                                m = Mnemonic::None;
                             }
                         }
 
