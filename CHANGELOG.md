@@ -14,6 +14,8 @@
 * Fix `Var::cow` issues.
     - Now is contextualized when source is contextual.
     - Now does not force update on source value update.
+* Fix command metadata init sometimes not initing for the app scope.
+    - Fixes sporadic localized command names not translating.
 
 # 0.22.2
 
