@@ -1516,7 +1516,7 @@ impl<T: VarValue> Var<T> {
         Var::new_any(self.any.read_only())
     }
 
-    /// Create a var that redirects to this variable until the first value update, then it disconnects as a separate variable.
+    /// Create a var that updates with this var until it is set.
     ///
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped,

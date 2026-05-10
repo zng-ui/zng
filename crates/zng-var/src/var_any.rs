@@ -1379,13 +1379,45 @@ impl AnyVar {
         AnyVar(self.0.clone_dyn().into_read_only())
     }
 
-    /// Create a var that redirects to this variable until the first value update, then it disconnects as a separate variable.
+    /// Create a var that updates with this var until it is set.
     ///
     /// The return variable is *clone-on-write* and has the `MODIFY` capability independent of the source capabilities, when
     /// a modify request is made the source value is cloned and offered for modification, if modified the source variable is dropped,
     /// if the modify closure does not update the source variable is retained.
     pub fn cow(&self) -> AnyVar {
-        AnyVar(crate::DynAnyVar::Cow(crate::cow_var::CowVar::new(self.clone())))
+        let caps = self.capabilities();
+
+        if caps.is_contextual() {
+            let me = self.clone();
+            // clone again inside the context to get a new clear (me as contextual_var)
+            return any_contextual_var(move || me.clone().cow_tail(me.capabilities()), self.value_type());
+        }
+        self.cow_tail(caps)
+    }
+    // to avoid infinite closure type (contextual case)
+    fn cow_tail(&self, caps: VarCapability) -> AnyVar {
+        let me = self.current_context();
+
+        let mut init_value = None;
+        me.with(&mut |v: &dyn AnyVarValue| init_value = Some(v.clone_boxed()));
+        let init_value = init_value.unwrap();
+
+        let output = crate::any_var_derived(init_value, &me);
+        if caps.is_const() {
+            return output;
+        }
+
+        let read_handle = me.bind_impl(&output, |a| a.clone_boxed());
+        output
+            .hook(move |a| {
+                // hold source and binding handle
+                let _hold = &read_handle;
+                // while updates are only from source
+                a.contains_tag(&me.var_instance_tag())
+            })
+            .perm();
+
+        output
     }
 
     /// Hold the variable in memory until the app exit.
