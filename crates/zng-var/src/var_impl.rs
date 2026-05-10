@@ -18,7 +18,6 @@ pub(crate) mod shared_var;
 pub use shared_var::{any_var, any_var_derived, var, var_derived, var_getter, var_state};
 
 pub(crate) mod const_var;
-pub(crate) mod cow_var;
 pub use const_var::IntoVar;
 pub(crate) mod flat_map_var;
 pub(crate) mod read_only_var;
@@ -51,13 +50,11 @@ pub(crate) enum DynAnyVar {
     Shared(shared_var::SharedVar),
     Context(context_var::ContextVarImpl),
     FlatMap(flat_map_var::FlatMapVar),
-    Cow(cow_var::CowVar),
     Contextual(contextual_var::ContextualVar),
 
     ReadOnlyShared(ReadOnlyImpl<shared_var::SharedVar>),
     ReadOnlyFlatMap(ReadOnlyImpl<flat_map_var::FlatMapVar>),
     ReadOnlyContext(ReadOnlyImpl<context_var::ContextVarImpl>),
-    ReadOnlyCow(ReadOnlyImpl<cow_var::CowVar>),
     ReadOnlyContextual(ReadOnlyImpl<contextual_var::ContextualVar>),
 }
 macro_rules! dispatch {
@@ -70,13 +67,11 @@ macro_rules! dispatch {
 
             DynAnyVar::Shared($var) => $($tt)+,
             DynAnyVar::Context($var) => $($tt)+,
-            DynAnyVar::Cow($var) => $($tt)+,
             DynAnyVar::Contextual($var) => $($tt)+,
 
             DynAnyVar::ReadOnlyShared($var) => $($tt)+,
             DynAnyVar::ReadOnlyFlatMap($var) => $($tt)+,
             DynAnyVar::ReadOnlyContext($var) => $($tt)+,
-            DynAnyVar::ReadOnlyCow($var) => $($tt)+,
             DynAnyVar::ReadOnlyContextual($var) => $($tt)+,
         }
     };
@@ -95,12 +90,10 @@ pub(crate) enum DynWeakAnyVar {
     Shared(shared_var::WeakSharedVar),
     Context(context_var::ContextVarImpl),
     FlatMap(flat_map_var::WeakFlatMapVar),
-    Cow(cow_var::WeakCowVar),
     Contextual(contextual_var::WeakContextualVar),
 
     ReadOnlyShared(ReadOnlyImpl<shared_var::WeakSharedVar>),
     ReadOnlyContext(ReadOnlyImpl<context_var::ContextVarImpl>),
-    ReadOnlyCow(ReadOnlyImpl<cow_var::WeakCowVar>),
     ReadOnlyContextual(ReadOnlyImpl<contextual_var::WeakContextualVar>),
     ReadOnlyFlatMap(ReadOnlyImpl<flat_map_var::WeakFlatMapVar>),
 }
@@ -110,14 +103,12 @@ macro_rules! dispatch_weak {
             DynWeakAnyVar::Const($var) => $($tt)+,
             DynWeakAnyVar::Shared($var) => $($tt)+,
             DynWeakAnyVar::Context($var) => $($tt)+,
-            DynWeakAnyVar::Cow($var) => $($tt)+,
             DynWeakAnyVar::Contextual($var) => $($tt)+,
             DynWeakAnyVar::FlatMap($var) => $($tt)+,
             DynWeakAnyVar::Merge($var) => $($tt)+,
             DynWeakAnyVar::When($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyShared($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyContext($var) => $($tt)+,
-            DynWeakAnyVar::ReadOnlyCow($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyContextual($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyFlatMap($var) => $($tt)+,
 

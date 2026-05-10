@@ -11,6 +11,9 @@
 * Fix `Var::set_from` contextual var.
 * Fix missing space in rich text copy when component texts are spaced by layout only.
 * Fix text wrap breaking word segment sequences.
+* Fix `Var::cow` issues.
+    - Now is contextualized when source is contextual.
+    - Now does not force update on source value update.
 
 # 0.22.2
 

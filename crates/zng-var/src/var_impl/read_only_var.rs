@@ -18,7 +18,6 @@ impl DynAnyVar {
         match self {
             DynAnyVar::Shared(v) => DynAnyVar::ReadOnlyShared(ReadOnlyImpl(v)),
             DynAnyVar::Context(v) => DynAnyVar::ReadOnlyContext(ReadOnlyImpl(v)),
-            DynAnyVar::Cow(v) => DynAnyVar::ReadOnlyCow(ReadOnlyImpl(v)),
             DynAnyVar::Contextual(v) => DynAnyVar::ReadOnlyContextual(ReadOnlyImpl(v)),
             DynAnyVar::FlatMap(v) => DynAnyVar::ReadOnlyFlatMap(ReadOnlyImpl(v)),
             r => r,
@@ -30,7 +29,6 @@ impl DynWeakAnyVar {
         match self {
             DynWeakAnyVar::Shared(v) => DynWeakAnyVar::ReadOnlyShared(ReadOnlyImpl(v)),
             DynWeakAnyVar::Context(v) => DynWeakAnyVar::ReadOnlyContext(ReadOnlyImpl(v)),
-            DynWeakAnyVar::Cow(v) => DynWeakAnyVar::ReadOnlyCow(ReadOnlyImpl(v)),
             DynWeakAnyVar::Contextual(v) => DynWeakAnyVar::ReadOnlyContextual(ReadOnlyImpl(v)),
             DynWeakAnyVar::FlatMap(v) => DynWeakAnyVar::ReadOnlyFlatMap(ReadOnlyImpl(v)),
             r => r,
@@ -74,7 +72,6 @@ impl<V: VarImpl + PartialEq + Any> VarImpl for ReadOnlyImpl<V> {
             DynAnyVar::ReadOnlyShared(v) => eq_any(&self.0, &v.0),
             DynAnyVar::ReadOnlyFlatMap(v) => eq_any(&self.0, &v.0),
             DynAnyVar::ReadOnlyContext(v) => eq_any(&self.0, &v.0),
-            DynAnyVar::ReadOnlyCow(v) => eq_any(&self.0, &v.0),
             DynAnyVar::ReadOnlyContextual(v) => eq_any(&self.0, &v.0),
             _ => false,
         }
@@ -166,7 +163,6 @@ impl<V: WeakVarImpl> WeakVarImpl for ReadOnlyImpl<V> {
             DynWeakAnyVar::ReadOnlyShared(v) => eq_any(&self.0, &v.0),
             DynWeakAnyVar::ReadOnlyFlatMap(v) => eq_any(&self.0, &v.0),
             DynWeakAnyVar::ReadOnlyContext(v) => eq_any(&self.0, &v.0),
-            DynWeakAnyVar::ReadOnlyCow(v) => eq_any(&self.0, &v.0),
             DynWeakAnyVar::ReadOnlyContextual(v) => eq_any(&self.0, &v.0),
             _ => false,
         }
