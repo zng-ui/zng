@@ -200,7 +200,14 @@ macro_rules! __command {
                 let __l10n_arg = $l10n_arg;
                 $crate::event::paste! {$(
                     cmd.[<init_ $meta_ident>]($meta_init);
-                    $crate::event::init_meta_l10n(std::env!("CARGO_PKG_NAME"), std::env!("CARGO_PKG_VERSION"), &__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
+                    $crate::event::init_meta_l10n(
+                        std::env!("CARGO_PKG_NAME"),
+                        std::env!("CARGO_PKG_VERSION"),
+                        &__l10n_arg,
+                        cmd,
+                        stringify!($meta_ident),
+                        &cmd.$meta_ident()
+                    );
                 )*}
             }
             $crate::event::app_local! {
@@ -435,7 +442,7 @@ impl Command {
                         write.meta_init = MetaInit::Initing(lock.clone());
                         let _init_guard = lock.1.lock();
                         drop(write);
-                        init(*self_);
+                        init(self_.scoped(CommandScope::App));
                         self_.local.write().meta_init = MetaInit::Inited;
                     }
                     MetaInit::Initing(l) => {
