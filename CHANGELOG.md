@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.3
+
 * Implement mnemonic access keys.
     - Add `mnemonic_scope`, `mnemonic` and `mnemonic_txt` properties.
     - Integrated with `Menu!`, `SubMenu!` and `Label!` widgets.
