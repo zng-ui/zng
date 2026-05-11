@@ -1120,16 +1120,18 @@ impl FocusService {
             if prev_scope != new_scope {
                 debug_assert_eq!(prev_focus.as_ref().unwrap().widget_id(), prev_info.info().id());
 
-                if let Some(scope) = new_scope
-                    && scope.is_alt_scope()
+                if let Some(new_scope) = new_scope
+                    && new_scope.is_alt_scope()
                     && !matches!(request.target, FocusTarget::Exit { .. })
+                    && prev_scope.as_ref().map(|p| !p.is_alt_scope()).unwrap_or(true)
+                    && prev_focus.as_ref().map(|f| !f.contains(new_scope.info().id())).unwrap_or(true)
                 {
                     // focus entered ALT scope, previous focus outside is return
-                    let set = update_return(scope.info().interaction_path());
+                    let set = update_return(new_scope.info().interaction_path());
                     if set {
                         tracing::trace!(
                             "set alt scope {:?} return focus to {:?}",
-                            scope.info().id(),
+                            new_scope.info().id(),
                             prev_focus.as_ref().map(|f| f.widget_id())
                         );
                     }
