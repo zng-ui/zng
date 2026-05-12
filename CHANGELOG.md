@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix large submenu dropdown covering the header.
 
 # 0.22.3
 
