@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix warning using embedded tar localization resources.
+
+# 0.22.4
+
+* Fix warning (panic in debug builds) using embedded tar localization resources.
 * Fix menu item label underlined in menus with scroll active.
 * Fix large submenu dropdown covering the header.
 
