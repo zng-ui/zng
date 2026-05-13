@@ -73,7 +73,8 @@ impl L10nTar {
                         // lang/file.ftl
                         2 => {
                             let lang = utf8_path[0];
-                            let file = Txt::from_str(utf8_path[1].rsplit_once('.').unwrap().0);
+                            let file_str = utf8_path[1].rsplit_once('.').unwrap().0;
+                            let file = Txt::from_str(if file_str == "_" { "" } else { file_str });
                             (lang, LangFilePath::current_app(file))
                         }
                         // lang/deps/pkg-name/pkg-version/file.ftl
@@ -90,7 +91,8 @@ impl L10nTar {
                                     continue;
                                 }
                             };
-                            let file = Txt::from_str(utf8_path[4]);
+                            let file_str = utf8_path[4].rsplit_once('.').unwrap().0;
+                            let file = Txt::from_str(if file_str == "_" { "" } else { file_str });
 
                             (lang, LangFilePath::new(pkg_name, pkg_version, file))
                         }

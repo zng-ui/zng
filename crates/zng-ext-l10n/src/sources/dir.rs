@@ -97,7 +97,6 @@ impl L10nDir {
                             };
                             let file_str = utf8_path[4].rsplit_once('.').unwrap().0;
                             let file = Txt::from_str(if file_str == "_" { "" } else { file_str });
-
                             (lang, LangFilePath::new(pkg_name, pkg_version, file))
                         }
                         _ => {
