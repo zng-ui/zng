@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix warning using embedded tar localization resources.
 * Fix menu item label underlined in menus with scroll active.
 * Fix large submenu dropdown covering the header.
 
