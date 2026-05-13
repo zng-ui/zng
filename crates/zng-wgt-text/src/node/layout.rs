@@ -275,7 +275,8 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
             *desired_size = if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
-                let size = txt.layout(&metrics, true);
+                let size = txt.layout(&metrics, true, false);
+                txt.pending = PendingLayout::empty();
 
                 if let Some(inline) = wm.inline() {
                     let ctx = TEXT.laidout();
@@ -325,7 +326,7 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
 
             TEXT.layout().viewport = metrics.viewport();
 
-            *final_size = txt.layout(&metrics, false);
+            *final_size = txt.layout(&metrics, false, false);
 
             if txt.pending != PendingLayout::empty() {
                 WIDGET.render();
@@ -413,7 +414,7 @@ impl LayoutTextFinal {
     /// Because measure affects the state the `ensure_layout_for_render` method must be called because the measure API
     /// is not supposed to change state a parent panel can measure and discard the results and go directly to render, expecting
     /// the widget to still have the last layout state.
-    fn layout(&mut self, metrics: &LayoutMetrics, is_measure: bool) -> PxSize {
+    fn layout(&mut self, metrics: &LayoutMetrics, is_measure: bool, is_render_recover: bool) -> PxSize {
         let mut resolved = TEXT.resolved();
 
         self.pending |= resolved.pending_layout;
@@ -670,14 +671,14 @@ impl LayoutTextFinal {
                     ctx.overflow = None;
                 }
             }
-            if self.pending.contains(PendingLayout::OVERLINE) {
+            if !is_render_recover && self.pending.contains(PendingLayout::OVERLINE) {
                 if ctx.overline_thickness > Px(0) {
                     ctx.overlines = ctx.shaped_text.lines().map(|l| l.overline()).collect();
                 } else {
                     ctx.overlines = vec![];
                 }
             }
-            if self.pending.contains(PendingLayout::STRIKETHROUGH) {
+            if !is_render_recover && self.pending.contains(PendingLayout::STRIKETHROUGH) {
                 if ctx.strikethrough_thickness > Px(0) {
                     ctx.strikethroughs = ctx.shaped_text.lines().map(|l| l.strikethrough()).collect();
                 } else {
@@ -685,7 +686,7 @@ impl LayoutTextFinal {
                 }
             }
 
-            if self.pending.contains(PendingLayout::UNDERLINE) {
+            if !is_render_recover && self.pending.contains(PendingLayout::UNDERLINE) {
                 let ime_range = if let Some(ime) = &resolved.ime_preview {
                     let start = ime.prev_selection.unwrap_or(ime.prev_caret).index.min(ime.prev_caret.index);
                     start..start + ime.txt.len()
@@ -795,7 +796,7 @@ impl LayoutTextFinal {
                 }
             }
 
-            if self.pending.contains(PendingLayout::CARET) {
+            if !is_render_recover && self.pending.contains(PendingLayout::CARET) {
                 drop(resolved);
                 let mut resolved_mut = TEXT.resolve();
                 let resolved_mut = &mut *resolved_mut;
@@ -873,7 +874,7 @@ impl LayoutTextFinal {
             let metrics = self.last_layout.0.clone();
             self.shaping_args.inline_constraints = self.last_layout.1;
             LAYOUT.with_context(metrics.clone(), || {
-                self.layout(&metrics, false);
+                self.layout(&metrics, false, true);
             });
 
             debug_assert!(!self.txt_is_measured);

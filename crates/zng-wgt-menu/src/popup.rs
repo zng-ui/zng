@@ -39,6 +39,7 @@ impl SubMenuPopup {
 
             mnemonic_scope = true;
             zng_wgt_rule_line::collapse_scope = true;
+            zng_wgt_size_offset::max_height = 90.pct();
         }
 
         self.widget_builder().push_build_action(|wgt| {
