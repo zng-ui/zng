@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix menu item label underlined in menus with scroll active.
 * Fix large submenu dropdown covering the header.
 
 # 0.22.3
