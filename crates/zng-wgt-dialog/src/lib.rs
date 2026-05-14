@@ -775,6 +775,10 @@ impl DIALOG {
     ///
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
+    /// # Panics
+    ///
+    /// Panics is not called from inside an widget.
+    ///
     /// [`close`]: Response::close
     pub fn custom(&self, dialog: impl IntoUiNode) -> ResponseVar<Response> {
         self.show_impl(dialog.into_node())
@@ -885,10 +889,12 @@ impl DIALOG {
         native_icon: native_api::MsgDialogIcon,
         native_buttons: native_api::MsgDialogButtons,
     ) -> ResponseVar<Response> {
-        if NATIVE_DIALOGS_VAR.get().contains(kind) {
+        if NATIVE_DIALOGS_VAR.get().contains(kind) || WIDGET.try_id().is_none() {
             WINDOWS_DIALOG
                 .native_message_dialog(
-                    WINDOW.id(),
+                    WINDOW
+                        .try_id()
+                        .expect("DIALOG service requires a contextual window open in view-process"),
                     native_api::MsgDialog::new(title.get(), msg.get(), native_icon, native_buttons),
                 )
                 .map_response(|r| r.clone().into())

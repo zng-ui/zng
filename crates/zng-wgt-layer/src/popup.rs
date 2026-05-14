@@ -124,6 +124,10 @@ impl POPUP {
     ///
     /// If the popup node is not a full widget after init it is upgraded to one. Returns
     /// a variable that tracks the popup state and ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called from inside an widget.
     pub fn open(&self, popup: impl IntoUiNode) -> Var<PopupState> {
         self.open_impl(popup.into_node(), ANCHOR_MODE_VAR.into(), CONTEXT_CAPTURE_VAR.get())
     }
@@ -132,6 +136,10 @@ impl POPUP {
     ///
     /// If the popup node is not a full widget after init it is upgraded to one. Returns
     /// a variable that tracks the popup state and ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called from inside an widget.
     pub fn open_config(
         &self,
         popup: impl IntoUiNode,
@@ -145,7 +153,7 @@ impl POPUP {
         let state = var(PopupState::Opening);
         let mut _close_handle = CommandHandle::dummy();
 
-        let anchor_id = WIDGET.id();
+        let anchor_id = WIDGET.try_id().expect("POPUP service requires a widget context");
 
         popup = match_widget(
             popup,
