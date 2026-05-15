@@ -43,6 +43,9 @@
 pub mod default {
     pub use zng_view::run_same_process;
 
+    #[cfg(all(windows, feature = "view_hardware"))]
+    pub use zng_view::no_gl_warmup;
+
     /// Android init types.
     ///
     /// See [`winit::platform::android`](https://docs.rs/winit/latest/winit/platform/android/) for more details

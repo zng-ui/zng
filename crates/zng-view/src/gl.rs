@@ -768,6 +768,25 @@ impl Drop for GlContext {
     }
 }
 
+/// Disable OpenGL driver warmup.
+///
+/// On Windows in some NVidia machines there is a slight delay on showing the first window that uses the GPU, to mitigate
+/// this the view-process spawns a driver *warmup* task to parallelize this cost. This warmup allocates some driver resources
+/// that last for the duration of the process, this function exists to avoid this allocation if the app will only use
+/// the software renderer.
+///
+/// This must be called before the view-process is started if running in same process mode, or before the
+/// view-process is spawned (APP start).
+///
+/// This sets the `"ZNG_VIEW_NO_GL_WARMUP"` env variable.
+#[cfg(all(windows, feature = "hardware"))]
+pub fn no_gl_warmup() {
+    // SAFETY: set_var is always safe on Windows, and we only read using env::var anyway
+    unsafe {
+        std::env::set_var("ZNG_VIEW_NO_GL_WARMUP", "true");
+    }
+}
+
 /// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
 /// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
 #[cfg(all(windows, feature = "hardware"))]
@@ -775,13 +794,17 @@ pub(crate) fn warmup() {
     // idea copied from here:
     // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
 
+    if std::env::var("ZNG_VIEW_NO_GL_WARMUP").is_ok() {
+        return;
+    }
+
     use windows_sys::Win32::Graphics::{
         Gdi::*,
         OpenGL::{self},
     };
 
     let _ = std::thread::Builder::new()
-        .name("warmup".to_owned())
+        .name("gl-warmup".to_owned())
         .stack_size(3 * 64 * 1024)
         .spawn(|| unsafe {
             let _span = tracing::trace_span!("open-gl-init").entered();

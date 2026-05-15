@@ -37,7 +37,7 @@
 //! # Software Backend
 //!
 //! The `webrender/swgl` software renderer can be used as fallback when no native OpenGL 3.2 driver is available, to build it
-//! the feature `"software"` must be enabled (it is by default) and on Windows MSVC the `clang-cl` dependency must be installed and
+//! the feature `"software"` must be enabled and on Windows MSVC the `clang-cl` dependency must be installed and
 //! associated with the `CC` and `CXX` environment variables, if requirements are not met a warning is emitted and the build fails.
 //!
 //! To install dependencies on Windows:
@@ -52,6 +52,16 @@
 //! setx CXX clang-cl
 //! ```
 //! Note that you may need to reopen the terminal for the environment variables to be available (setx always requires this).
+//!
+//! ## Software Only
+//!
+//! The software renderer is not as efficient as the GPU one, but it uses significantly less memory, this might be of
+//! advantage for very small single window apps. To support with only software build without the `"hardware"` feature,
+//! this will also generate a smaller binary.
+//!
+//! Note that in `"hardware"` builds for Windows the OpenGL driver is *warmup* on startup, meaning resources for hardware
+//! rendering are allocated even if no subsequent window opens in hardware mode. You can call the `no_gl_warmup` function
+//! before the view-process start or spawn.
 //!
 //! # Pre-built
 //!
@@ -188,6 +198,9 @@ zng_env::on_process_start!(|args| {
         }
     }
 });
+
+#[cfg(all(windows, feature = "hardware"))]
+pub use gl::no_gl_warmup;
 
 /// Runs the view-process server.
 ///

@@ -1,5 +1,6 @@
 # Unreleased
 
+* On Windows, add `zng::view_process::default::no_gl_warmup`.
 
 # 0.22.4
 
