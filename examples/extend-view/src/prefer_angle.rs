@@ -1,8 +1,8 @@
 //! Enable the built in extension "zng-view.prefer_angle".
 
 use zng::prelude_wgt::*;
-use zng_app::view_process::VIEW_PROCESS;
-use zng_ext_window::WINDOWS_EXTENSIONS;
+use zng_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+use zng_ext_window::{WINDOW_Ext, WINDOWS_EXTENSIONS};
 use zng_view_api::api_extension::{ApiExtensionId, ApiExtensionPayload};
 
 pub fn extension_id() -> ApiExtensionId {
@@ -23,9 +23,23 @@ pub fn use_angle_egl(child: impl IntoUiNode, enable: impl IntoValue<bool>) -> Ui
         if let UiNodeOp::Init = op
             && enable
         {
-            WINDOWS_EXTENSIONS
-                .view_extensions_init(WINDOW.id(), extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
-                .unwrap();
+            if VIEW_PROCESS.is_connected() {
+                WINDOWS_EXTENSIONS
+                    .view_extensions_init(WINDOW.id(), extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
+                    .unwrap();
+            }
+            let win_id = WINDOW.id();
+            let mut loading_handle = WINDOW.loading_handle(5.secs(), "use_angle_egl");
+            let handle = VIEW_PROCESS_INITED_EVENT.hook(move |_| {
+                let _ = loading_handle.take();
+                WINDOWS_EXTENSIONS
+                    .view_extensions_init(win_id, extension_id(), ApiExtensionPayload::serialize(&true).unwrap())
+                    .unwrap();
+
+                // retain in case of respawn
+                true
+            });
+            WIDGET.push_var_handle(handle);
         }
     })
 }
