@@ -40,16 +40,18 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 ## Webrender
 
 Webrender updates where not published for a long time so we published our own fork in <https://github.com/zng-ui/zng-webrender>.
-Currently (since zng 0.22) we are back to depending on the original Webrender as it has updated, if it lags behind the Firefox
-release again we will be back to depending on our own fork.
+
+In zng-0.22.0 we went back to depending on the original Webrender as it has updated.
+
+In zng-0.022.5 we depend on zng-webrender again as it fixes a critical ANGLE bug.
 
 To update the fork crates:
 
-* Merge from upstream branch of <https://github.com/servo/webrender>.
-* Manually increment the minor version (breaking) of each crate that changed.
-* Manually copy new shaders from webrender to swgl (publish does not allow files from outside the crate dir so we duplicate these).
-* We depend on `zng-webrender`, `zng-swgl` and all local dependencies of these crates. As of last publish these are:
-
+* Checkout the latest published branch from upstream <https://github.com/servo/webrender>.
+* Checkout a new branch named `release-0.v.v`.
+* Add a `FORK.md` file and set it as the readme for all crates.
+* Apply custom patch.
+* Rename all patched crates on the list:
 ```
 zng-webrender-build
 zng-peek-poke-derive
@@ -61,9 +63,7 @@ zng-webrender-api
 zng-wr-glyph-rasterizer
 zng-webrender
 ```
-
-* Push changes to GitHub.
-* Test the `zng` project, both `do test` and a manual review using `do prebuild` and `do run -all`.
+* Bump patched crates version.
 * Manually publish each crate.
-
+* Publish new branch to Github.
 * If publishing new crates also set the crate owner `cargo owner --add github:zng-ui:owners [CRATE]`.

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix ANGLE backend shader compile error.
 * Fix `WINDOW_EXTENSIONS.view_extensions_init` for an existing window after respawn.
 
 # 0.22.4

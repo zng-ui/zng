@@ -154,7 +154,7 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.9.0", default-feat
 zng-env = { path = "../zng-env", version = "0.11.1", default-features = false }
 zng-task = { path = "../zng-task", version = "0.13.1", default-features = false }
 
-webrender = { version = "0.68.0", default-features = false, features = ["static_freetype"] }
+webrender = { version = "0.68.1", default-features = false, features = ["static_freetype"], package = "zng-webrender" }
 swgl = { version = "0.68.0", default-features = false, optional = true }
 
 linkme = { version = "0.3.35", default-features = false }
