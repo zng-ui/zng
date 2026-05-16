@@ -32,6 +32,7 @@ use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::{ResponderVar, ResponseVar, VarHandle};
 use zng_view_api::{
+    ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ColorsConfig, FontAntiAliasing},
     window::{FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, WindowCapability, WindowRequest, WindowState},
@@ -129,8 +130,9 @@ pub(crate) struct WindowInstance {
     pub(crate) pending_loading: std::sync::Weak<dyn Any + Send + Sync>,
     pub(crate) vars: Option<WindowVars>,
     pub(crate) info: Option<WidgetInfoTree>,
-    pub(crate) extensions_init: Option<Vec<(ApiExtensionId, ApiExtensionPayload)>>,
+    pub(crate) extensions_init: Vec<(ApiExtensionId, ApiExtensionPayload)>,
     pub(crate) root: Option<WindowNode>,
+    pub(crate) view_generation: ViewProcessGen,
 }
 impl WindowInstance {
     pub(crate) fn new(
@@ -144,8 +146,9 @@ impl WindowInstance {
             pending_loading: std::sync::Weak::<()>::new(),
             vars: None,
             info: None,
-            extensions_init: Some(vec![]),
+            extensions_init: vec![],
             root: None,
+            view_generation: ViewProcessGen::INVALID,
         };
         UPDATES
             .run(async move {
@@ -600,6 +603,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                             let _ = window.focus();
                         }
 
+                        w.view_generation = window.generation();
                         r.renderer = Some(window.renderer());
                         r.view_window = Some(window);
                         r.view_opening = VarHandle::dummy();
@@ -785,6 +789,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
 
                         let r = w.root.as_mut().unwrap();
                         let surface = a.surface.upgrade().unwrap();
+                        w.view_generation = surface.generation();
                         r.renderer = Some(surface.renderer());
                         r.view_headless = Some(surface);
                         r.view_opening = VarHandle::dummy();

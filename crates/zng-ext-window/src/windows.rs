@@ -22,7 +22,7 @@ use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
 use zng_var::{ResponderVar, ResponseVar, VARS, Var, const_var, response_done_var, response_var, var, var_default};
 use zng_view_api::{
-    DragDropId,
+    DragDropId, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     window::{RenderMode, WindowCapability},
@@ -971,10 +971,10 @@ impl WINDOWS_EXTENSIONS {
     ) -> Result<(), ViewExtensionError> {
         match WINDOWS_SV.write().windows.get_mut(&window_id) {
             Some(w) => {
-                if matches!(w.mode, WindowMode::HeadlessWithRenderer) {
+                if matches!(w.mode, WindowMode::Headless) {
                     Err(ViewExtensionError::NotOpenInViewProcess(window_id))
-                } else if let Some(exts) = &mut w.extensions_init {
-                    exts.push((extension_id, request));
+                } else if w.view_generation == ViewProcessGen::INVALID || w.view_generation != VIEW_PROCESS.generation() {
+                    w.extensions_init.push((extension_id, request));
                     Ok(())
                 } else {
                     Err(ViewExtensionError::AlreadyOpenInViewProcess(window_id))
@@ -988,7 +988,7 @@ impl WINDOWS_EXTENSIONS {
             .write()
             .windows
             .get_mut(&window_id)
-            .and_then(|w| w.extensions_init.take())
+            .map(|w| mem::take(&mut w.extensions_init))
             .unwrap_or_default()
     }
 

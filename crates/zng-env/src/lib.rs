@@ -673,7 +673,7 @@ fn find_res() -> PathBuf {
 /// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In Android returns `android_internal("config")`.
 /// * In Linux, macOS and Windows if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
-///   defines the res path.
+///   defines the config path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
 /// * If the config dir selected by the previous method contains a `"config-dir"` file it will be

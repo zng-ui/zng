@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `WINDOW_EXTENSIONS.view_extensions_init` for an existing window after respawn.
 
 # 0.22.4
 
