@@ -1246,6 +1246,11 @@ type Result<T> = std::result::Result<T, ChannelError>;
 #[must_use = "the view is disposed when all clones of the handle are dropped"]
 pub struct ViewHeadless(ArcEq<ViewWindowData>);
 impl ViewHeadless {
+    /// Returns the view-process generation on which the headless surface was open.
+    pub fn generation(&self) -> ViewProcessGen {
+        self.0.generation
+    }
+
     /// Resize the headless surface.
     pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
         self.0.call(|id, p| p.set_headless_size(id, size, scale_factor))
