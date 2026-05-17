@@ -123,7 +123,10 @@ impl L10nDir {
                     tracing::error!("'loading available' {s}");
                     return Err(s);
                 }
-
+                for m in set.values_mut() {
+                    m.shrink_to_fit();
+                }
+                set.shrink_to_fit();
                 Ok(Some(Arc::new(set)))
             }),
         );
