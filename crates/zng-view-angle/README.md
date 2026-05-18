@@ -9,8 +9,6 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 #### `"download"`
 Download ANGLE DLLs and copy to output dir on build
 
-The DLLs are built by the ZNG project, see https://github.com/zng-ui/build-angle
-
 <!--do doc --readme #SECTION-END-->
 
 

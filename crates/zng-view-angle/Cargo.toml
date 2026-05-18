@@ -13,8 +13,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 # Download ANGLE DLLs and copy to output dir on build
-# 
-# The DLLs are built by the ZNG project, see https://github.com/zng-ui/build-angle
 download = []
 
 [dependencies]
