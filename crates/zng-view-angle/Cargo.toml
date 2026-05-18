@@ -1,0 +1,28 @@
+[package]
+name = "zng-view-angle"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_wgt_webrender_debug"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+# Download ANGLE DLLs and copy to output dir on build
+# 
+# The DLLs are built by the ZNG project, see https://github.com/zng-ui/build-angle
+download = []
+
+[dependencies]
+zng-app = { path = "../zng-app", version = "0.23.3", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.15.3", default-features = false }
+zng-ext-window = { path = "../zng-ext-window", version = "0.13.3", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.20.1", default-features = false }
+
+serde = { version = "1.0", default-features = false }
+bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
+tracing = { version = "0.1", default-features = false }

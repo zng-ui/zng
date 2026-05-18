@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix ANGLE backend shader compile error.
+* Fix ANGLE backend and add helper crate.
+    - Patched Webrender to fix shader compile error.
+    - Added `zng-view-angle` crate to acquire ANGLE DLLs and enable it in the view-process.
+
 * Fix `WINDOW_EXTENSIONS.view_extensions_init` for an existing window after respawn.
 
 # 0.22.4
