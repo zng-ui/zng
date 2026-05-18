@@ -20,6 +20,7 @@ const CRATE_FILES: &[(&str, &[&str])] = &[
     ("zng-view", &["crates/zng-view/src/lib.rs"]),
     ("zng-tp-licenses", &["crates/zng/src/third_party.rs"]),
     ("zng-env", &["crates/zng/src/env.rs"]),
+    ("zng-view-angle", &["crates/zng-view-angle/src/lib.rs"]),
 ];
 
 pub fn check() {

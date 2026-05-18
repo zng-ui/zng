@@ -902,6 +902,11 @@ impl<V> LangMap<V> {
     pub fn iter_mut(&mut self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &mut V)> {
         self.inner.iter_mut().map(|(k, v)| (&*k, v))
     }
+
+    /// Shrink capacity as much as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.inner.shrink_to_fit();
+    }
 }
 impl<V> LangMap<HashMap<LangFilePath, V>> {
     /// Returns the match for `lang` and `file`.

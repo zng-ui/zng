@@ -1,6 +1,6 @@
 # Optimize Release Builds
 
-This document is a guide for how to setup your release process to optimize release builds for speed and binary size.
+This document is a guide for how to setup your release process to optimize release builds for speed, binary size and memory use.
 
 ## Features
 
@@ -88,10 +88,39 @@ RUSTFLAGS="-Zshare-generics -C link-args=-znostart-stop-gc" cargo +nightly build
 
 In the command line example above the `RUSTFLAGS` is set to enable the `share-generics` feature that reduces many monomorphised copies of generic functions and the `cargo +nightly` compiler is used because share-generics is unstable.
 
-The example also sets the `-C link-args=-znostart-stop-gc`, this is to workaround a nightly only linker issue that affects a dependency of `zng`. Note
-that every nightly release can cause all kinds of issues and the `zng` project is only officially supported on the latest stable Rust release. This
-optimization was tested on the `2025-01-08` nightly release.
+The example also sets the `-C link-args=-znostart-stop-gc`, this is to workaround a nightly only linker issue that affects a dependency of `zng`. Note that every nightly release can cause all kinds of issues and the `zng` project is only officially supported on the latest stable Rust release. This optimization was tested on the `2025-01-08` nightly release.
 
 The [`zng-template`] already setups something like this, call `cargo do build -r -z --bleed` to compile with nightly optimizations.
 
 [`zng-template`]: https://github.com/zng-ui/zng-template
+
+## Memory Usage
+
+A typical Zng app runs three processes, `crash-handler-process`, `app-process` and `view-process`. Usually on startup the view-process
+will use the most memory, followed by the app-process.
+
+### View Process
+
+The view-process uses the most memory when running on a GPU, small apps like small tools with simple UIs should consider building
+with only the `"view_software"` and running the window with `RenderMode::Software`, the memory gains are significant, specially on Windows.
+
+**Windows**
+
+On Windows you can also try running on ANGLE, this is an adapter mode that runs on the GPU using DirectX instead of OpenGL.
+DirectX drivers are more optimized on Windows and use less RAM. See `zng-view-angle` for setup details.
+
+Note that ANGLE requires deploying two DLLs, these will add an extra 5MB to the binary payload.
+
+### App Process
+
+The app-process typically does not allocate much on startup, if you already compiled with only the features required by your app.
+
+More optimization will depend on the app, you can build with `"memory_profiler"` to record a DHAT heap allocation trace, see `zng::app::memory_profiler`
+for details.
+
+Note that resource services like `IMAGES` cache by default, the services can purge cache, you can also disable caching per resource, `Image! { img_cache = false; }` will not cache the images it loads.
+
+### Crash Handler Process
+
+The crash-handler-process is already optimized and should use very little memory, running it is recommended if you don't have
+an alternative crash handling setup. To run without crash handler simply don't compile with `"crash_handler"` feature.

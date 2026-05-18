@@ -14,7 +14,6 @@ fn main() {
 }
 
 mod get_info;
-mod prefer_angle;
 mod using_blob;
 mod using_display_items;
 mod using_gl_overlay;
@@ -29,8 +28,9 @@ fn app_main() {
             //     wr::DebugFlags::TEXTURE_CACHE_DBG | wr::DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
             // };
 
-            // example property that uses built-in extension.
-            prefer_angle::use_angle_egl = true;
+            // Another property that enables built-in extension "zng-view.prefer_angle_egl".
+            #[cfg(windows)]
+            zng_view_angle::prefer_angle_egl = true;
 
             title = "Extend-View Example";
             width = 900;

@@ -116,6 +116,10 @@ impl L10nTar {
                     set.get_exact_or_insert(lang, Default::default)
                         .insert(file, entry.as_ref().to_owned());
                 }
+                for m in set.values_mut() {
+                    m.shrink_to_fit();
+                }
+                set.shrink_to_fit();
                 map.set(set);
                 Ok(errors)
             })();

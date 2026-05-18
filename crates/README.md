@@ -45,6 +45,7 @@ future platform cannot integrate with this crate it will be named `zng-view-#pla
 - `zng-view-api`
 - `zng-view`
     - `zng-view-prebuilt`
+- `zng-view-angle`
 
 ### App
 
