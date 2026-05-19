@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix view-process window extension calls from inside the same window.
+
 * Fix panic on trace recorder init when a tracing subscriber is already set.
     - Add `zng::app::trace_recorder::is_enabled` helper to coordinate logging init.
 

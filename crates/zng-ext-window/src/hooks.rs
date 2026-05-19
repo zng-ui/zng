@@ -30,7 +30,7 @@ use zng_wgt::prelude::{DIRECTION_VAR, InteractionPath, LAYOUT, LayoutMetrics};
 use crate::{
     AutoSize, CursorSource, IME_EVENT, ImeArgs, MONITORS, SetFromViewTag, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_REQUESTED_EVENT,
     WINDOW_FOCUS_CHANGED_EVENT, WINDOWS, WINDOWS_SV, WidgetInfoImeArea, WindowChangedArgs, WindowCloseRequestedArgs,
-    WindowFocusChangedArgs, WindowInstance, WindowInstanceState, WindowNode, WindowVars, cmd::WindowCommands,
+    WindowFocusChangedArgs, WindowInstance, WindowInstanceState, WindowVars, cmd::WindowCommands,
 };
 
 /// Hooks always active for the lifetime of the app.
@@ -50,10 +50,9 @@ pub(crate) fn hook_events() {
                     if has_view {
                         debug_assert!(args.is_respawn);
 
-                        let r = w.root.as_mut().unwrap();
-                        r.renderer = None;
-                        r.view_headless = None;
-                        r.view_window = None;
+                        w.renderer = None;
+                        w.view_headless = None;
+                        w.view_window = None;
 
                         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
                     }
@@ -84,16 +83,16 @@ pub(crate) fn hook_events() {
                     args.window_id
                 );
                 if let Some(r) = &mut w.root {
-                    if r.renderer.is_some() {
+                    if w.renderer.is_some() {
                         w.vars
                             .as_ref()
                             .unwrap()
                             .0
                             .instance_state
                             .set(WindowInstanceState::Loaded { has_view: false });
-                        r.renderer = None;
-                        r.view_window = None;
-                        r.view_headless = None;
+                        w.renderer = None;
+                        w.view_window = None;
+                        w.view_headless = None;
                     }
                     r.view_opening = VarHandle::dummy();
                 }
@@ -136,8 +135,7 @@ pub(crate) fn hook_events() {
                         v.0.children.with(|c| {
                             for id in c {
                                 if let Some(w) = s.windows.get(id)
-                                    && let Some(r) = &w.root
-                                    && let Some(v) = &r.view_window
+                                    && let Some(v) = &w.view_window
                                 {
                                     let _ = v.bring_to_top();
                                 }
@@ -493,7 +491,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         vars.0
             .actual_icon
             .hook(move |args| {
-                with_view(id, |_, _, v| {
+                with_view(id, |_, v| {
                     let _ = v.set_icon(args.value().as_ref().map(|i| i.view_handle()));
                 });
                 true
@@ -512,7 +510,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
             match args.value() {
                 CursorSource::Icon(ico) => {
                     // only built-in cursor, clean custom image
-                    with_view(id, |_, _, v| {
+                    with_view(id, |_, v| {
                         let _ = v.set_cursor(Some(*ico));
                     });
                     #[cfg(feature = "image")]
@@ -524,7 +522,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 #[cfg(feature = "image")]
                 CursorSource::Img(img) => {
                     // load image cursor, set fallback immediately
-                    with_view(id, |_, _, v| {
+                    with_view(id, |_, v| {
                         let _ = v.set_cursor(Some(img.fallback));
                     });
                     {
@@ -558,7 +556,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 }
                 CursorSource::Hidden => {
                     // remove built-in and image cursor
-                    with_view(id, |_, _, v| {
+                    with_view(id, |_, v| {
                         let _ = v.set_cursor(None);
                         #[cfg(feature = "image")]
                         {
@@ -575,7 +573,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .actual_cursor_img
         .hook(move |args| {
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = match args.value() {
                     Some((img, hotspot)) => v.set_cursor_image(Some(img.view_handle()), *hotspot),
                     None => v.set_cursor_image(None, zng_layout::unit::PxPoint::zero()),
@@ -589,7 +587,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .title
         .hook(move |args| {
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_title(args.value().clone());
             });
             true
@@ -600,7 +598,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .focus_indicator
         .hook(move |args| {
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_focus_indicator(*args.value());
             });
             true
@@ -677,7 +675,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 return false;
             }
 
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_video_mode(*args.value());
             });
 
@@ -787,7 +785,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot affect window chrome buttons in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_enabled_buttons(*a.value());
             });
             true
@@ -802,7 +800,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot SET_RESIZABLE in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_resizable(*a.value());
             });
             true
@@ -817,7 +815,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot SET_MOVABLE in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_movable(*a.value());
             });
             true
@@ -832,7 +830,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot SET_ALWAYS_ON_TOP in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_always_on_top(*a.value());
             });
             true
@@ -847,7 +845,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot SET_VISIBLE in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_visible(*a.value());
             });
             true
@@ -862,7 +860,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
                 tracing::warn!("view-process cannot SET_TASKBAR_VISIBLE in the current system");
                 return false;
             }
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_taskbar_visible(*a.value());
             });
             true
@@ -873,7 +871,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .system_shutdown_warn
         .hook(move |a| {
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_system_shutdown_warn(a.value().clone());
             });
             true
@@ -1021,7 +1019,7 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     vars.0
         .frame_capture_mode
         .hook(move |a| {
-            with_view(id, |_, _, v| {
+            with_view(id, |_, v| {
                 let _ = v.set_capture_mode(matches!(
                     *a.value(),
                     crate::FrameCaptureMode::All | crate::FrameCaptureMode::AllMask(_)
@@ -1073,8 +1071,7 @@ fn on_state_changed(id: WindowId, s: &zng_var::AnyVarHookArgs<'_>) -> bool {
                 if let Some(w) = WINDOWS_SV.read().windows.get(&id)
                     && let Some(vars) = &w.vars
                     && vars.0.pending_state_update.swap(false, std::sync::atomic::Ordering::Relaxed)
-                    && let Some(r) = &w.root
-                    && let Some(v) = &r.view_window
+                    && let Some(v) = &w.view_window
                 {
                     let state = vars.window_state_all();
                     let _ = v.set_state(state);
@@ -1085,12 +1082,11 @@ fn on_state_changed(id: WindowId, s: &zng_var::AnyVarHookArgs<'_>) -> bool {
     true
 }
 
-fn with_view(id: WindowId, f: impl FnOnce(&WindowInstance, &WindowNode, &ViewWindow)) {
+fn with_view(id: WindowId, f: impl FnOnce(&WindowInstance, &ViewWindow)) {
     if let Some(w) = WINDOWS_SV.read().windows.get(&id)
-        && let Some(r) = &w.root
-        && let Some(v) = &r.view_window
+        && let Some(v) = &w.view_window
     {
-        f(w, r, v)
+        f(w, v)
     }
 }
 
@@ -1165,8 +1161,7 @@ pub(crate) fn focused_widget_handler() -> impl FnMut(&Option<InteractionPath>) +
         // clear previous ime area
         if let Some((win, _)) = prev_ime_area
             && let Some(w) = s.windows.get(&win)
-            && let Some(r) = &w.root
-            && let Some(v) = &r.view_window
+            && let Some(v) = &w.view_window
         {
             if new_ime_area.map(|(i, _)| i) == Some(win) {
                 // or replace it, if is same window
@@ -1184,8 +1179,7 @@ pub(crate) fn focused_widget_handler() -> impl FnMut(&Option<InteractionPath>) +
 
         if let Some((win, wgt)) = new_ime_area
             && let Some(w) = s.windows.get(&win)
-            && let Some(r) = &w.root
-            && let Some(v) = &r.view_window
+            && let Some(v) = &w.view_window
         {
             let _ = v.set_ime_area(Some(area));
             prev_ime_area = new_ime_area;
@@ -1199,8 +1193,7 @@ fn hook_ime_area_update(window_id: WindowId, area_id: WidgetId) -> VarHandle {
             if let Some(area) = args.tree.get(area_id)
                 && let Some(area) = area.ime_area()
                 && let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-                && let Some(r) = &w.root
-                && let Some(v) = &r.view_window
+                && let Some(v) = &w.view_window
             {
                 let _ = v.set_ime_area(Some(area.to_dip(args.tree.scale_factor())));
             } else {

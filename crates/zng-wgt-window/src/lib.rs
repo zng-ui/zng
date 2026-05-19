@@ -237,6 +237,8 @@ pub fn on_open(child: impl IntoUiNode, handler: Handler<WindowOpenArgs>) -> UiNo
 /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
 /// have expired or dropped.
 ///
+/// If the window has a renderer this event notifies only after the window is loaded with renderer in the view-process.
+///
 /// This property is the same as [`on_pre_window_load`].
 ///
 /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
@@ -402,9 +404,9 @@ pub fn on_exited_fullscreen(child: impl IntoUiNode, handler: Handler<WindowChang
     events::on_pre_window_exited_fullscreen(child, handler)
 }
 
-/// On window frame rendered.
+/// On window frame rendered and captured.
 ///
-/// If [`frame_capture_mode`](fn@frame_capture_mode) is set the image will be available in the event args.
+/// This only notifies if [`frame_capture_mode`](fn@frame_capture_mode) is set. The image will be available in the event args.
 #[cfg(feature = "image")]
 #[property(EVENT, widget_impl(Window))]
 pub fn on_frame_image_ready(child: impl IntoUiNode, handler: Handler<FrameImageReadyArgs>) -> UiNode {

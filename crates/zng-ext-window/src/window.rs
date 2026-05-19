@@ -44,8 +44,8 @@ use zng_wgt::{
 
 use crate::{
     AutoSize, CloseWindowResult, MONITORS, OpenNestedHandlerArgs, StartPosition, WINDOW_CLOSE_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
-    WINDOWS, WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WindowCloseArgs, WindowInstanceState, WindowLoadingHandle,
-    WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowVars,
+    WINDOWS, WINDOWS_EXTENSIONS, WINDOWS_SV, WidgetInfoImeArea as _, WidgetUpdateArgs, WindowCloseArgs, WindowInstanceState,
+    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowVars,
 };
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
@@ -132,6 +132,11 @@ pub(crate) struct WindowInstance {
     pub(crate) info: Option<WidgetInfoTree>,
     pub(crate) extensions_init: Vec<(ApiExtensionId, ApiExtensionPayload)>,
     pub(crate) root: Option<WindowNode>,
+
+    pub(crate) view_window: Option<ViewWindow>,
+    pub(crate) view_headless: Option<ViewHeadless>,
+    pub(crate) renderer: Option<ViewRenderer>,
+
     pub(crate) view_generation: ViewProcessGen,
 }
 impl WindowInstance {
@@ -148,6 +153,9 @@ impl WindowInstance {
             info: None,
             extensions_init: vec![],
             root: None,
+            view_window: None,
+            view_headless: None,
+            renderer: None,
             view_generation: ViewProcessGen::INVALID,
         };
         UPDATES
@@ -307,9 +315,6 @@ impl WindowInstance {
                     wgt_ctx: WidgetCtx::new(root.id),
                     root: Mutex::new(root),
 
-                    view_window: None,
-                    view_headless: None,
-                    renderer: None,
                     view_opening: VarHandle::dummy(),
                     view_spawned: false,
 
@@ -340,9 +345,6 @@ pub(crate) struct WindowNode {
     // Mutex for Sync only
     pub(crate) root: Mutex<WindowRoot>,
 
-    pub(crate) view_window: Option<ViewWindow>,
-    pub(crate) view_headless: Option<ViewHeadless>,
-    pub(crate) renderer: Option<ViewRenderer>,
     pub(crate) view_opening: VarHandle,
     // if `view_window/headless` is `None` but this is `true` the view is respawning
     pub(crate) view_spawned: bool,
@@ -390,14 +392,14 @@ impl NestedWindowWidgetInfoExt for WidgetInfo {
     }
 }
 
-pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option<WindowVars>), updates: &Arc<LayoutUpdates>) {
-    if !updates.delivery_list().enter_window(*id) {
+pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpdates>) {
+    if !updates.delivery_list().enter_window(a.id) {
         return;
     }
 
-    let vars = vars.take().unwrap();
+    let vars = a.vars.take().unwrap();
 
-    if let Some(n) = &mut n.nested {
+    if let Some(n) = &mut a.node.nested {
         // nested window layout happens in the layout context of the parent window
         n.pending_layout = Some(updates.clone());
         if let Some(t) = vars.0.nest_parent.get() {
@@ -410,16 +412,16 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     let mut monitor_rect = PxRect::zero();
     let monitor_density;
     let mut scale_factor = 1.fct();
-    if n.win_ctx.mode().is_headed() {
+    if a.node.win_ctx.mode().is_headed() {
         // get real monitor data
         let monitor = vars.0.actual_monitor.get().and_then(|id| MONITORS.monitor(id));
 
         // run query if actual_monitor is not set, it will be set by the view-process event
-        let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(*id));
+        let monitor = monitor.unwrap_or_else(|| vars.0.monitor.get().select_fallback(a.id));
 
         if monitor.id() == MonitorId::fallback() && matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
             // window not open yet and view-process provided no monitor (probably loading)
-            let handle = WINDOWS.loading_handle(*id, 1.secs(), "monitors");
+            let handle = WINDOWS.loading_handle(a.id, 1.secs(), "monitors");
             RAW_MONITORS_CHANGED_EVENT
                 .hook(move |_| {
                     let _hold = &handle;
@@ -432,9 +434,9 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         monitor_density = monitor.density().get();
         scale_factor = monitor.scale_factor().get();
     } else {
-        debug_assert!(n.win_ctx.mode().is_headless());
+        debug_assert!(a.node.win_ctx.mode().is_headless());
         // uses test monitor data
-        let m = &n.root.get_mut().headless_monitor;
+        let m = &a.node.root.get_mut().headless_monitor;
         if let Some(f) = m.scale_factor {
             scale_factor = f;
         }
@@ -458,8 +460,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     };
 
     // layout
-    n.layout_pass = n.layout_pass.next();
-    let (final_size, min_size, max_size) = LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
+    a.node.layout_pass = a.node.layout_pass.next();
+    let (final_size, min_size, max_size) = LAYOUT.with_root_context(a.node.layout_pass, monitor_metrics(), || {
         // root font size
         let font_size = vars.0.font_size.layout_dft_x(font_size_dft);
         LAYOUT.with_font_size(font_size, || {
@@ -494,7 +496,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
             // layout
             let metrics = metrics.with_constraints(root_cons).with_viewport(viewport);
             let desired_size = LAYOUT.with_context(metrics, || {
-                n.with_root(|n| WidgetLayout::with_root_widget(updates.clone(), |wl| n.layout(wl)))
+                a.node
+                    .with_root(|n| WidgetLayout::with_root_widget(updates.clone(), |wl| n.layout(wl)))
             });
 
             // clamp desired_size
@@ -510,8 +513,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         })
     });
 
-    if n.wgt_ctx.is_pending_reinit() {
-        n.with_root(|_| WIDGET.update());
+    if a.node.wgt_ctx.is_pending_reinit() {
+        a.node.with_root(|_| WIDGET.update());
     }
 
     let size_dip = final_size.to_dip(scale_factor);
@@ -527,24 +530,25 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
     // transition to Loaded (without view)
     if matches!(vars.0.instance_state.get(), WindowInstanceState::Loading) {
         let mut s = WINDOWS_SV.write();
-        let w = s.windows.get_mut(id).unwrap();
+        let w = s.windows.get_mut(&a.id).unwrap();
         if w.pending_loading.strong_count() > 0 {
             // wait loading handles
-            tracing::debug!(" window {id:?} skipping transition to Loaded, active loading handles");
+            tracing::debug!(" window {:?} skipping transition to Loaded, active loading handles", a.id);
             return;
         }
-        tracing::trace!("window {id:?} has Loaded");
+        tracing::trace!("window {:?} has Loaded", a.id);
         w.pending_loading = std::sync::Weak::<()>::new();
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
-        if !n.win_ctx.mode().has_renderer() {
-            WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(*id));
+        if !a.node.win_ctx.mode().has_renderer() {
+            // will not open in view-process, notify loaded already
+            WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(a.id));
         }
     }
 
     // transition to Loaded (with view) or update view
-    match n.win_ctx.mode() {
+    match a.node.win_ctx.mode() {
         WindowMode::Headed => {
-            if let Some(view) = &n.view_window {
+            if let Some(view) = &a.view_window {
                 // update view window size if is auto_size
                 let prev_size = vars.0.actual_size.get().to_px(scale_factor);
                 if !auto_size.is_empty() && prev_size != final_size {
@@ -576,17 +580,17 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     });
                     let _ = view.set_state(s);
                 }
-            } else if n.view_opening.is_dummy() {
+            } else if a.node.view_opening.is_dummy() {
                 // start opening view-process window
 
                 if !VIEW_PROCESS.is_available() || !VIEW_PROCESS.is_connected() {
-                    tracing::debug!("skipping view-process open window {id:?}, no view-process connected");
+                    tracing::debug!("skipping view-process open window {:?}, no view-process connected", a.id);
                     return;
                 }
 
-                let id = n.win_ctx.id();
+                let id = a.node.win_ctx.id();
 
-                n.view_opening = RAW_WINDOW_OPEN_EVENT.hook(move |a| {
+                a.node.view_opening = RAW_WINDOW_OPEN_EVENT.hook(move |a| {
                     if a.window_id != id {
                         return true;
                     }
@@ -604,8 +608,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         }
 
                         w.view_generation = window.generation();
-                        r.renderer = Some(window.renderer());
-                        r.view_window = Some(window);
+                        w.renderer = Some(window.renderer());
+                        w.view_window = Some(window);
                         r.view_opening = VarHandle::dummy();
                         r.view_spawned = true;
                         UPDATES.render_window(id);
@@ -642,17 +646,17 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 let mut system_pos = false;
                 let mut global_position = PxPoint::zero();
                 let mut position = DipPoint::zero();
-                if n.view_spawned {
+                if a.node.view_spawned {
                     // is respawning view
                     global_position = vars.0.global_position.get();
                     position = vars.0.actual_position.get();
                 } else {
-                    match n.root.get_mut().start_position {
+                    match a.node.root.get_mut().start_position {
                         StartPosition::Default => {
                             let pos = vars.0.position.get();
                             system_pos = pos.x.is_default() || pos.y.is_default();
                             if !system_pos {
-                                LAYOUT.with_root_context(n.layout_pass, monitor_metrics(), || {
+                                LAYOUT.with_root_context(a.node.layout_pass, monitor_metrics(), || {
                                     let pos = pos.layout();
                                     position = pos.to_dip(scale_factor);
                                     global_position = monitor_rect.origin + pos.to_vector();
@@ -715,7 +719,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     vars.0.title.get(),
                     state_all,
-                    n.root.get_mut().kiosk,
+                    a.node.root.get_mut().kiosk,
                     system_pos,
                     vars.0.video_mode.get(),
                     vars.0.visible.get(),
@@ -734,12 +738,16 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         .with(|i| i.as_ref().map(|(i, p)| (i.view_handle().image_id(), *p))),
                     #[cfg(not(feature = "image"))]
                     None,
-                    n.root.get_mut().transparent,
+                    a.node.root.get_mut().transparent,
                     #[cfg(feature = "image")]
                     matches!(vars.0.frame_capture_mode.get(), crate::FrameCaptureMode::All),
                     #[cfg(not(feature = "image"))]
                     false,
-                    n.root.get_mut().render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+                    a.node
+                        .root
+                        .get_mut()
+                        .render_mode
+                        .unwrap_or_else(|| WINDOWS.default_render_mode().get()),
                     vars.0.focus_indicator.get(),
                     vars.0.focused.get(),
                     ime_area,
@@ -749,30 +757,30 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                 ));
                 if r.is_err() {
                     tracing::error!("view-process window {id:?} open request failed, will retry on respawn");
-                    n.view_opening = VarHandle::dummy();
+                    a.node.view_opening = VarHandle::dummy();
                 }
             }
         }
         WindowMode::HeadlessWithRenderer => {
-            if let Some(view) = &n.view_headless {
+            if let Some(view) = &a.view_headless {
                 if !auto_size.is_empty() {
                     let _ = view.set_size(size_dip, scale_factor);
                 }
-            } else if n.view_opening.is_dummy() {
+            } else if a.node.view_opening.is_dummy() {
                 if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
                     // simulate focus, for tests mostly
-                    let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(*id));
+                    let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(a.id));
                     RAW_WINDOW_FOCUS_EVENT.notify(args);
                 }
 
                 if !VIEW_PROCESS.is_connected() {
-                    tracing::debug!("skipping view-process open headless {id:?}, no view-process connected");
+                    tracing::debug!("skipping view-process open headless {:?}, no view-process connected", a.id);
                     return;
                 }
 
                 // start opening view-process renderer
-                let id = n.win_ctx.id();
-                n.view_opening = RAW_HEADLESS_OPEN_EVENT.hook(move |a| {
+                let id = a.node.win_ctx.id();
+                a.node.view_opening = RAW_HEADLESS_OPEN_EVENT.hook(move |a| {
                     if a.window_id != id {
                         return true;
                     }
@@ -790,8 +798,8 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                         let r = w.root.as_mut().unwrap();
                         let surface = a.surface.upgrade().unwrap();
                         w.view_generation = surface.generation();
-                        r.renderer = Some(surface.renderer());
-                        r.view_headless = Some(surface);
+                        w.renderer = Some(surface.renderer());
+                        w.view_headless = Some(surface);
                         r.view_opening = VarHandle::dummy();
                         r.view_spawned = true;
 
@@ -805,77 +813,83 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     scale_factor,
                     size_dip,
-                    n.root.get_mut().render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+                    a.node
+                        .root
+                        .get_mut()
+                        .render_mode
+                        .unwrap_or_else(|| WINDOWS.default_render_mode().get()),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 ));
                 if r.is_err() {
                     tracing::error!("view-process headless surface {id:?} open request failed, will retry on respawn");
-                    n.view_opening = VarHandle::dummy();
+                    a.node.view_opening = VarHandle::dummy();
                 }
             }
         }
         WindowMode::Headless => {
             if APP.window_mode().is_headless() && !vars.0.instance_state.get().is_loaded() {
                 // simulate focus, for tests mostly
-                let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(*id));
+                let args = RawWindowFocusArgs::now(WINDOWS_SV.read().focused.with(|p| p.as_ref().map(|p| p.window_id())), Some(a.id));
                 RAW_WINDOW_FOCUS_EVENT.notify(args);
             }
         }
     }
 }
 
-pub(crate) fn render(
-    (id, n, vars): &mut (WindowId, WindowNode, Option<WindowVars>),
-    render_widgets: &Arc<RenderUpdates>,
-    render_update_widgets: &Arc<RenderUpdates>,
-) {
-    if render_widgets.delivery_list().enter_window(*id)
-        || (n.frame_id == FrameId::INVALID && render_update_widgets.delivery_list().enter_window(*id))
+pub(crate) fn render(a: &mut WidgetUpdateArgs, render_widgets: &Arc<RenderUpdates>, render_update_widgets: &Arc<RenderUpdates>) {
+    if render_widgets.delivery_list().enter_window(a.id)
+        || (a.node.frame_id == FrameId::INVALID && render_update_widgets.delivery_list().enter_window(a.id))
     {
         // if is pending render or is first frame and is pending render_update
 
-        if let Some(n) = &mut n.nested {
+        if let Some(n) = &mut a.node.nested {
             // if is nested redirect to parent window
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
-            if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
+            if let Some(t) = a.vars.take().unwrap().0.nest_parent.get() {
                 UPDATES.render(t);
             }
             return;
         }
 
-        if matches!(n.win_ctx.mode(), WindowMode::Headed | WindowMode::HeadlessWithRenderer) && n.renderer.is_none() {
+        if matches!(a.node.win_ctx.mode(), WindowMode::Headed | WindowMode::HeadlessWithRenderer) && a.renderer.is_none() {
             // skip until there is a window.
-            tracing::debug!("skipping render {id:?}, no renderer connected");
+            tracing::debug!("skipping render {:?}, no renderer connected", a.id);
             return;
         }
 
-        let vars = vars.take().unwrap();
-        let info = n.win_ctx.widget_tree();
+        let vars = a.vars.take().unwrap();
+        let info = a.node.win_ctx.widget_tree();
 
         // render
-        n.frame_id = n.frame_id.next();
+        a.node.frame_id = a.node.frame_id.next();
         let mut frame = FrameBuilder::new(
             render_widgets.clone(),
             render_update_widgets.clone(),
-            n.frame_id,
-            n.wgt_ctx.id(),
-            &n.wgt_ctx.bounds(),
+            a.node.frame_id,
+            a.node.wgt_ctx.id(),
+            &a.node.wgt_ctx.bounds(),
             &info,
-            n.renderer.clone(),
+            a.renderer.clone(),
             vars.0.scale_factor.get(),
             FontAntiAliasing::Default,
         );
-        n.with_root(|n| {
+        a.node.with_root(|n| {
             n.render(&mut frame);
         });
         let frame = frame.finalize(&info);
-        n.clear_color = frame.clear_color;
+        a.node.clear_color = frame.clear_color;
 
         let capture = vars.take_frame_capture();
-        let wait_id = n.frame_wait_id.take();
-        if let Some(r) = &n.renderer {
+        let wait_id = a.node.frame_wait_id.take();
+        if let Some(r) = &a.renderer {
             // send frame to view-process
-            let _ = r.render(FrameRequest::new(n.frame_id, n.clear_color, frame.display_list, capture, wait_id));
+            let _ = r.render(FrameRequest::new(
+                a.node.frame_id,
+                a.node.clear_color,
+                frame.display_list,
+                capture,
+                wait_id,
+            ));
         } else {
             #[cfg(feature = "image")]
             {
@@ -887,7 +901,7 @@ pub(crate) fn render(
                 };
                 if !error.is_empty() {
                     let frame_image = zng_var::VarEq(zng_var::var(zng_ext_image::ImageEntry::new_error(error.into())));
-                    crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::now(*id, n.frame_id, frame_image.downgrade()));
+                    crate::FRAME_IMAGE_READY_EVENT.notify(crate::FrameImageReadyArgs::now(a.id, a.node.frame_id, frame_image.downgrade()));
                     UPDATES.once_next_update("", move || {
                         let _hold = &frame_image;
                     });
@@ -895,42 +909,42 @@ pub(crate) fn render(
             }
         }
 
-        if n.wgt_ctx.is_pending_reinit() {
-            n.with_root(|_| WIDGET.update());
+        if a.node.wgt_ctx.is_pending_reinit() {
+            a.node.with_root(|_| WIDGET.update());
         }
-    } else if render_update_widgets.delivery_list().enter_window(*id) {
-        if let Some(n) = &mut n.nested {
+    } else if render_update_widgets.delivery_list().enter_window(a.id) {
+        if let Some(n) = &mut a.node.nested {
             n.pending_render = Some([render_widgets.clone(), render_update_widgets.clone()]);
-            if let Some(t) = vars.take().unwrap().0.nest_parent.get() {
+            if let Some(t) = a.vars.take().unwrap().0.nest_parent.get() {
                 UPDATES.render_update(t);
             }
             return;
         }
 
         // update
-        n.frame_id = n.frame_id.next_update();
+        a.node.frame_id = a.node.frame_id.next_update();
         let mut update = FrameUpdate::new(
             render_update_widgets.clone(),
-            n.frame_id,
-            n.wgt_ctx.id(),
-            n.wgt_ctx.bounds(),
-            n.clear_color,
+            a.node.frame_id,
+            a.node.wgt_ctx.id(),
+            a.node.wgt_ctx.bounds(),
+            a.node.clear_color,
         );
-        n.with_root(|n| {
+        a.node.with_root(|n| {
             n.render_update(&mut update);
         });
-        let update = update.finalize(&n.win_ctx.widget_tree());
+        let update = update.finalize(&a.node.win_ctx.widget_tree());
         if let Some(c) = update.clear_color {
-            n.clear_color = c;
+            a.node.clear_color = c;
         }
-        let vars = vars.take().unwrap();
+        let vars = a.vars.take().unwrap();
         let capture = vars.take_frame_capture();
-        let wait_id = n.frame_wait_id.take();
+        let wait_id = a.node.frame_wait_id.take();
 
-        if let Some(r) = &n.renderer {
+        if let Some(r) = &a.renderer {
             // send updates to view-process
             let _ = r.render_update(FrameUpdateRequest::new(
-                n.frame_id,
+                a.node.frame_id,
                 update.transforms,
                 update.floats,
                 update.colors,
@@ -941,8 +955,8 @@ pub(crate) fn render(
             ));
         }
 
-        if n.wgt_ctx.is_pending_reinit() {
-            n.with_root(|_| WIDGET.update());
+        if a.node.wgt_ctx.is_pending_reinit() {
+            a.node.with_root(|_| WIDGET.update());
         }
     }
 }

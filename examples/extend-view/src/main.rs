@@ -35,7 +35,7 @@ fn app_main() {
             title = "Extend-View Example";
             width = 900;
 
-            on_frame_image_ready = hn_once!(|_| {
+            on_load = hn_once!(|_| {
                 let h = get_info::app_side::window_handle(WINDOW.id()).unwrap();
                 tracing::info!("RAW-WINDOW-HANDLE: {h}");
 
