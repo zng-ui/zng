@@ -768,32 +768,6 @@ impl Drop for GlContext {
     }
 }
 
-/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
-/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
-#[cfg(all(windows, feature = "hardware"))]
-pub(crate) fn warmup() {
-    // idea copied from here:
-    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
-
-    use windows_sys::Win32::Graphics::{
-        Gdi::*,
-        OpenGL::{self},
-    };
-
-    let _ = std::thread::Builder::new()
-        .name("warmup".to_owned())
-        .stack_size(3 * 64 * 1024)
-        .spawn(|| unsafe {
-            let _span = tracing::trace_span!("open-gl-init").entered();
-            let hdc = GetDC(std::ptr::null_mut());
-            let _ = OpenGL::DescribePixelFormat(hdc, 0, 0, std::ptr::null_mut());
-            ReleaseDC(std::ptr::null_mut(), hdc);
-        });
-}
-
-#[cfg(not(all(windows, feature = "hardware")))]
-pub(crate) fn warmup() {}
-
 // check if equal or newer then 3.1
 #[cfg(feature = "hardware")]
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {

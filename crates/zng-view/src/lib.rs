@@ -1227,8 +1227,6 @@ impl App {
     pub fn run_headless(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headless view-process");
 
-        gl::warmup();
-
         let (app_sender, app_receiver) = channel::unbounded();
         let (request_sender, request_receiver) = channel::unbounded();
         let mut app = App::new(
@@ -1355,8 +1353,6 @@ impl App {
 
     pub fn run_headed(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
-
-        gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         #[cfg(not(target_os = "android"))]
