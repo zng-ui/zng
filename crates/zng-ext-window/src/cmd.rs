@@ -213,8 +213,7 @@ impl WindowCommands {
             hn!(|args| {
                 if let Some(w) = WINDOWS_SV.read().windows.get(&id)
                     && let Some(vars) = &w.vars
-                    && let Some(r) = &w.root
-                    && let Some(v) = &r.view_window
+                    && let Some(v) = &w.view_window
                 {
                     args.propagation.stop();
 
@@ -245,8 +244,7 @@ impl WindowCommands {
             hn!(|args| {
                 let s = WINDOWS_SV.read();
                 if let Some(w) = s.windows.get(&id)
-                    && let Some(r) = &w.root
-                    && let Some(v) = &r.view_window
+                    && let Some(v) = &w.view_window
                     && let Some(f) = s.focused.get()
                     && f.window_id() == id
                     && (matches!(args.scope, CommandScope::Window(w) if w == id)
@@ -274,8 +272,7 @@ impl WindowCommands {
             false,
             hn!(|args| {
                 if let Some(w) = WINDOWS_SV.read().windows.get(&id)
-                    && let Some(r) = &w.root
-                    && let Some(v) = &r.view_window
+                    && let Some(v) = &w.view_window
                 {
                     args.propagation.stop();
                     let _ = match args.param::<crate::cmd::ResizeDirection>() {

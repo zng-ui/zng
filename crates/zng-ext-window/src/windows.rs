@@ -48,7 +48,7 @@ pub(crate) struct WindowsService {
     pub(crate) open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut OpenNestedHandlerArgs) + Send + 'static>>>,
 
     pub(crate) windows: IdMap<WindowId, WindowInstance>,
-    widget_update_buf: Vec<(WindowId, WindowNode, Option<WindowVars>)>,
+    widget_update_buf: Vec<WidgetUpdateArgs>,
 
     pub(crate) focused: Var<Option<InteractionPath>>,
     focused_set: bool,
@@ -89,23 +89,35 @@ impl WindowsService {
     /// Called to apply widget updates without locking the entire WINDOWS service, reuses a buffer
     ///
     /// Must call `finish_widget_update` to after the update
-    fn start_widget_update(&mut self, clone_vars: bool) -> Vec<(WindowId, WindowNode, Option<WindowVars>)> {
+    fn start_widget_update(&mut self, use_vars: bool, use_view: bool, use_renderer: bool) -> Vec<WidgetUpdateArgs> {
         let mut buf = mem::take(&mut self.widget_update_buf);
-        if clone_vars {
-            buf.extend(
-                self.windows
-                    .iter_mut()
-                    .filter_map(|(k, v)| Some((*k, v.root.take()?, v.vars.clone()))),
-            );
-        } else {
-            buf.extend(self.windows.iter_mut().filter_map(|(k, v)| Some((*k, v.root.take()?, None))));
-        }
+        buf.extend(self.windows.iter_mut().filter_map(|(k, v)| {
+            let mut args = WidgetUpdateArgs {
+                node: v.root.take()?,
+                id: *k,
+                vars: None,
+                view_window: None,
+                view_headless: None,
+                renderer: None,
+            };
+            if use_vars {
+                args.vars = v.vars.clone();
+            }
+            if use_view {
+                args.view_window = v.view_window.clone();
+                args.view_headless = v.view_headless.clone();
+            }
+            if use_renderer {
+                args.renderer = v.renderer.clone();
+            }
+            Some(args)
+        }));
         buf
     }
 
-    fn finish_widget_update(&mut self, mut nodes: Vec<(WindowId, WindowNode, Option<WindowVars>)>) {
-        for (id, node, _) in nodes.drain(..) {
-            self.windows.get_mut(&id).unwrap().root = Some(node);
+    fn finish_widget_update(&mut self, mut nodes: Vec<WidgetUpdateArgs>) {
+        for args in nodes.drain(..) {
+            self.windows.get_mut(&args.id).unwrap().root = Some(args.node);
         }
         self.widget_update_buf = nodes;
     }
@@ -122,6 +134,14 @@ impl WindowsService {
             VARS.frame_duration().set(max.period());
         }
     }
+}
+pub(crate) struct WidgetUpdateArgs {
+    pub id: WindowId,
+    pub node: WindowNode,
+    pub vars: Option<WindowVars>,
+    pub view_window: Option<zng_app::view_process::ViewWindow>,
+    pub view_headless: Option<zng_app::view_process::ViewHeadless>,
+    pub renderer: Option<zng_app::view_process::ViewRenderer>,
 }
 
 /// Windows service.
@@ -471,12 +491,12 @@ fn close_together_all_built(request: Vec<WindowId>, r: ResponderVar<CloseWindowR
                                 // UPDATE includes info rebuild
                                 parallel = s.parallel.get().contains(ParallelWin::UPDATE);
                                 // take root nodes to allow widgets to use WINDOWS
-                                nodes = s.start_widget_update(true);
+                                nodes = s.start_widget_update(false, false, false);
                             };
 
-                            let deinit = |(id, n, _): &mut (WindowId, WindowNode, Option<WindowVars>)| {
-                                if args.windows.contains(id) {
-                                    n.with_root(|n| n.deinit());
+                            let deinit = |a: &mut WidgetUpdateArgs| {
+                                if args.windows.contains(&a.id) {
+                                    a.node.with_root(|n| n.deinit());
                                 }
                             };
                             if parallel {
@@ -576,20 +596,20 @@ impl zng_app::window::WindowsService for WINDOWS {
             // UPDATE includes info rebuild
             parallel = s.parallel.get().contains(ParallelWin::UPDATE);
             // take root nodes to allow widgets to use WINDOWS
-            nodes = s.start_widget_update(true);
+            nodes = s.start_widget_update(true, false, false);
         };
 
         // for each window
         let updates = Arc::new(mem::take(updates));
-        let rebuild_info = |(id, n, vars): &mut (WindowId, WindowNode, Option<WindowVars>)| {
-            if updates.delivery_list().enter_window(*id) {
+        let rebuild_info = |a: &mut WidgetUpdateArgs| {
+            if updates.delivery_list().enter_window(a.id) {
                 // rebuild info
-                let vars = vars.as_ref().unwrap();
+                let vars = a.vars.as_ref().unwrap();
                 let access_enabled = vars.access_enabled().get();
-                let info = n.with_root(|n| {
+                let info = a.node.with_root(|n| {
                     let mut builder = WidgetInfoBuilder::new(
                         updates.clone(),
-                        *id,
+                        a.id,
                         access_enabled,
                         WIDGET.id(),
                         WIDGET.bounds(),
@@ -600,12 +620,12 @@ impl zng_app::window::WindowsService for WINDOWS {
 
                     builder.finalize(WINDOW.try_info(), true)
                 });
-                n.win_ctx.set_widget_tree(info.clone());
-                WINDOWS_SV.write().windows.get_mut(id).unwrap().info = Some(info.clone());
+                a.node.win_ctx.set_widget_tree(info.clone());
+                WINDOWS_SV.write().windows.get_mut(&a.id).unwrap().info = Some(info.clone());
 
                 if access_enabled.contains(AccessEnabled::VIEW) {
                     // access data is send in the frame display list
-                    UPDATES.render_window(n.win_ctx.id());
+                    UPDATES.render_window(a.node.win_ctx.id());
                 }
             }
         };
@@ -632,19 +652,19 @@ impl zng_app::window::WindowsService for WINDOWS {
             }
             parallel = s.parallel.get().contains(ParallelWin::UPDATE);
             // take root nodes to allow widgets to use WINDOWS
-            nodes = s.start_widget_update(false);
+            nodes = s.start_widget_update(false, false, false);
         };
 
         // for each window
-        let update = |(id, n, _): &mut (WindowId, WindowNode, _)| {
-            if updates.delivery_list().enter_window(*id) {
-                if n.wgt_ctx.take_reinit() {
-                    n.with_root(|n| {
+        let update = |a: &mut WidgetUpdateArgs| {
+            if updates.delivery_list().enter_window(a.id) {
+                if a.node.wgt_ctx.take_reinit() {
+                    a.node.with_root(|n| {
                         n.deinit();
                         n.init();
                     })
                 } else {
-                    n.with_root(|n| n.update(updates));
+                    a.node.with_root(|n| n.update(updates));
                 }
             }
         };
@@ -671,13 +691,13 @@ impl zng_app::window::WindowsService for WINDOWS {
             }
             parallel = s.parallel.get().contains(ParallelWin::LAYOUT);
             // take root nodes to allow widgets to use WINDOWS
-            nodes = s.start_widget_update(true);
+            nodes = s.start_widget_update(true, true, false);
         };
 
         // for each window
         let updates = Arc::new(mem::take(updates));
-        let layout = |args: &mut (WindowId, WindowNode, Option<WindowVars>)| {
-            crate::window::layout_open_view(args, &updates);
+        let layout = |a: &mut WidgetUpdateArgs| {
+            crate::window::layout_open_view(a, &updates);
         };
         if parallel {
             nodes.par_iter_mut().with_ctx().for_each(layout);
@@ -703,14 +723,14 @@ impl zng_app::window::WindowsService for WINDOWS {
             }
             parallel = s.parallel.get().contains(ParallelWin::RENDER);
             // take root nodes to allow widgets to use WINDOWS
-            nodes = s.start_widget_update(true);
+            nodes = s.start_widget_update(true, false, true);
         };
 
         // for each window
         let render_widgets = Arc::new(mem::take(render_widgets));
         let render_update_widgets = Arc::new(mem::take(render_update_widgets));
-        let render = |args: &mut (WindowId, WindowNode, Option<WindowVars>)| {
-            crate::window::render(args, &render_widgets, &render_update_widgets);
+        let render = |a: &mut WidgetUpdateArgs| {
+            crate::window::render(a, &render_widgets, &render_update_widgets);
         };
         if parallel {
             nodes.par_iter_mut().with_ctx().for_each(render);
@@ -778,7 +798,7 @@ impl WINDOWS {
                 }
 
                 if let Some(n) = &w.root
-                    && let Some(v) = &n.renderer
+                    && let Some(v) = &w.renderer
                     && n.frame_id != zng_view_api::window::FrameId::INVALID
                 {
                     // already has a frame
@@ -825,8 +845,7 @@ impl WINDOWS {
     fn bring_to_top_impl(&self, window_id: WindowId) {
         UPDATES.once_update("WINDOWS.bring_to_top", move || {
             if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-                && let Some(root) = &w.root
-                && let Some(v) = &root.view_window
+                && let Some(v) = &w.view_window
             {
                 let _ = v.bring_to_top();
             } else {
@@ -867,8 +886,7 @@ impl WINDOWS_FOCUS {
     fn focus_impl(&self, window_id: WindowId) {
         UPDATES.once_update("WINDOWS.focus", move || {
             if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-                && let Some(root) = &w.root
-                && let Some(v) = &root.view_window
+                && let Some(v) = &w.view_window
             {
                 if !RAW_WINDOW_FOCUS_EVENT.with(|a| matches!(a.latest(), Some(w) if w.new_focus == Some(window_id))) {
                     let _ = v.focus();
@@ -1010,9 +1028,7 @@ impl WINDOWS_EXTENSIONS {
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
-            if let Some(r) = &w.root
-                && let Some(v) = &r.view_window
-            {
+            if let Some(v) = &w.view_window {
                 match v.window_extension_raw(extension_id, request) {
                     Ok(r) => Ok(r),
                     Err(_) => Err(ViewExtensionError::Disconnected),
@@ -1040,9 +1056,7 @@ impl WINDOWS_EXTENSIONS {
     {
         let window_id = window_id.into();
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
-            if let Some(r) = &w.root
-                && let Some(v) = &r.view_window
-            {
+            if let Some(v) = &w.view_window {
                 match v.window_extension(extension_id, request) {
                     Ok(r) => match r {
                         Ok(r) => Ok(r),
@@ -1076,9 +1090,7 @@ impl WINDOWS_EXTENSIONS {
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
-            if let Some(r) = &w.root
-                && let Some(v) = &r.renderer
-            {
+            if let Some(v) = &w.renderer {
                 match v.render_extension_raw(extension_id, request) {
                     Ok(r) => Ok(r),
                     Err(_) => Err(ViewExtensionError::Disconnected),
@@ -1106,9 +1118,7 @@ impl WINDOWS_EXTENSIONS {
     {
         let window_id = window_id.into();
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id) {
-            if let Some(r) = &w.root
-                && let Some(v) = &r.renderer
-            {
+            if let Some(v) = &w.renderer {
                 match v.render_extension(extension_id, request) {
                     Ok(r) => match r {
                         Ok(r) => Ok(r),
@@ -1153,8 +1163,7 @@ impl WINDOWS_DIALOG {
         UPDATES.once_update("WINDOWS.native_message_dialog", move || {
             use zng_view_api::dialog::MsgDialogResponse;
             if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-                && let Some(root) = &w.root
-                && let Some(v) = &root.view_window
+                && let Some(v) = &w.view_window
             {
                 if let Err(e) = v.message_dialog(dialog, r.clone()) {
                     r.respond(MsgDialogResponse::Error(formatx!("cannot show dialog, {e}")));
@@ -1192,8 +1201,7 @@ impl WINDOWS_DIALOG {
         UPDATES.once_update("WINDOWS.native_file_dialog", move || {
             use zng_view_api::dialog::FileDialogResponse;
             if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-                && let Some(root) = &w.root
-                && let Some(v) = &root.view_window
+                && let Some(v) = &w.view_window
             {
                 if let Err(e) = v.file_dialog(dialog, r.clone()) {
                     r.respond(FileDialogResponse::Error(formatx!("cannot show dialog, {e}")));
@@ -1253,8 +1261,7 @@ impl WINDOWS_DRAG_DROP {
         allowed_effects: DragDropEffect,
     ) -> Result<DragDropId, DragDropError> {
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-            && let Some(root) = &w.root
-            && let Some(v) = &root.view_window
+            && let Some(v) = &w.view_window
         {
             v.start_drag_drop(data, allowed_effects)
                 .map_err(|e| DragDropError::CannotStart(e.to_txt()))?
@@ -1268,8 +1275,7 @@ impl WINDOWS_DRAG_DROP {
     /// Note that unlike normal service methods this applies immediately.
     pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) {
         if let Some(w) = WINDOWS_SV.read().windows.get(&window_id)
-            && let Some(root) = &w.root
-            && let Some(v) = &root.view_window
+            && let Some(v) = &w.view_window
         {
             let _ = v.drag_dropped(drop_id, applied);
         }
