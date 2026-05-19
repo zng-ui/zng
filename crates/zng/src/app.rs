@@ -591,9 +591,15 @@ pub mod crash_handler {
 ///
 /// [`Trace`]: zng::app::trace_recorder::Trace
 /// [filter syntax]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables
-#[cfg(trace_recorder)]
 pub mod trace_recorder {
+    #[cfg(trace_recorder)]
     pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, is_enabled, stop_recording};
+
+    /// Not enabled.
+    #[cfg(not(trace_recorder))]
+    pub fn is_enabled() -> bool {
+        false
+    }
 }
 
 /// Heap memory usage profiling.
