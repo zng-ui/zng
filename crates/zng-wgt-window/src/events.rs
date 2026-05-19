@@ -33,6 +33,8 @@ event_property! {
     /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
     ///
+    /// If the window has a renderer this event notifies only after the window is loaded with renderer in the view-process.
+    ///
     /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
     #[property(EVENT)]
     pub fn on_window_load<on_pre_window_load>(child: impl IntoUiNode, handler: Handler<WindowOpenArgs>) -> UiNode {

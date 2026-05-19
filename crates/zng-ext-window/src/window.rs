@@ -537,6 +537,7 @@ pub(crate) fn layout_open_view((id, n, vars): &mut (WindowId, WindowNode, Option
         w.pending_loading = std::sync::Weak::<()>::new();
         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
         if !n.win_ctx.mode().has_renderer() {
+            // will not open in view-process, notify loaded already
             WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(*id));
         }
     }

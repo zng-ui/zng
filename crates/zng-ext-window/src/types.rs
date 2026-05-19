@@ -739,7 +739,7 @@ event! {
 
     /// Window instance state has changed to [`WindowInstanceState::Loaded`].
     ///
-    /// If the window has renderer this event notifies only after the window is loaded with renderer.
+    /// If the window has a renderer this event notifies only after the window is loaded with renderer in the view-process.
     pub static WINDOW_LOAD_EVENT: WindowOpenArgs;
 
     /// Window focus/blur event.

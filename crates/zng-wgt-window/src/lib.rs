@@ -237,6 +237,8 @@ pub fn on_open(child: impl IntoUiNode, handler: Handler<WindowOpenArgs>) -> UiNo
 /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
 /// have expired or dropped.
 ///
+/// If the window has a renderer this event notifies only after the window is loaded with renderer in the view-process.
+///
 /// This property is the same as [`on_pre_window_load`].
 ///
 /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
