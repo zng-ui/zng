@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix panic on trace recorder init when a tracing subscriber is already set.
+    - Add `zng::app::trace_recorder::is_enabled` helper to coordinate logging init.
+
 * Fix ANGLE backend and add helper crate.
     - Patched Webrender to fix shader compile error.
     - Added `zng-view-angle` crate to acquire ANGLE DLLs and enable it in the view-process.

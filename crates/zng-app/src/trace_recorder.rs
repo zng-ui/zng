@@ -595,7 +595,12 @@ pub fn start_recording(output_dir: Option<PathBuf>) {
         .or_else(|_| EnvFilter::try_from_default_env())
         .unwrap_or_else(|_| EnvFilter::new("trace"));
 
-    tracing_subscriber::registry().with(env_layer).with(chrome_layer).init();
+    if let Err(e) = tracing_subscriber::registry().with(env_layer).with(chrome_layer).try_init() {
+        tracing::error!("cannot start recording, {e}");
+        eprintln!("cannot start recording, {e}");
+        *rec = None;
+        return;
+    }
     zng_env::on_process_exit(|_| stop_recording());
 
     tracing::info!("zng-record-start: {process_start}");
@@ -608,8 +613,17 @@ pub fn stop_recording() {
     *recording() = None;
 }
 
+/// If trace recording is enabled.
+///
+/// When this is `true` the recording starts [`on_process_start!`].
+///
+/// [`on_process_start!`]: zng_env::on_process_start!
+pub fn is_enabled() -> bool {
+    std::env::var("ZNG_RECORD_TRACE").is_ok()
+}
+
 zng_env::on_process_start!(|_| {
-    if std::env::var("ZNG_RECORD_TRACE").is_ok() {
+    if is_enabled() {
         start_recording(std::env::var("ZNG_RECORD_TRACE_DIR").ok().map(PathBuf::from));
     }
 });
