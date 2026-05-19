@@ -248,7 +248,7 @@ event_property! {
 
 #[cfg(feature = "image")]
 event_property! {
-    /// On window frame rendered.
+    /// On window frame rendered and captured.
     #[property(EVENT)]
     pub fn on_frame_image_ready<on_pre_frame_image_ready>(child: impl IntoUiNode, handler: Handler<FrameImageReadyArgs>) -> UiNode {
         const PRE: bool;

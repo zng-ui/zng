@@ -38,7 +38,7 @@ pub fn run() {
             // capture all frames.
             frame_capture_mode = FrameCaptureMode::All;
 
-            // this event will fire every time a frame is rendered.
+            // this event will fire every time a frame is rendered and captured.
             on_frame_image_ready = async_hn!(temp, frame, recorded, |args| {
                 let img = args.frame_image.upgrade().unwrap().get();
 
