@@ -367,9 +367,12 @@ impl Window {
             // optimize memory usage
             chunk_pool: Some(crate::util::wr_chunk_pool()),
 
-            use_optimized_shaders: true,
-            // optimize first frame time
-            cached_programs: Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders)))),
+            use_optimized_shaders: !context.is_software(),
+            cached_programs: if context.is_software() {
+                None
+            } else {
+                Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders))))
+            },
             // precache_flags: webrender::ShaderPrecacheFlags::FULL_COMPILE,
 
             //panic_on_gl_error: true,
