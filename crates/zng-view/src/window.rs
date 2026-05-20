@@ -367,11 +367,10 @@ impl Window {
             // optimize memory usage
             chunk_pool: Some(crate::util::wr_chunk_pool()),
 
-            // rendering is broken on Android emulators with unoptimized shaders.
-            // see: https://github.com/servo/servo/pull/31727
-            // webrender issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1887337
-            #[cfg(target_os = "android")]
             use_optimized_shaders: true,
+            // optimize first frame time
+            cached_programs: Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders)))),
+            // precache_flags: webrender::ShaderPrecacheFlags::FULL_COMPILE,
 
             //panic_on_gl_error: true,
             ..Default::default()

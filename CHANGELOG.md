@@ -1,5 +1,8 @@
 # Unreleased
 
+* Implement compiled shader caching, enabled by default.
+    - Add `WINDOWS.default_cache_shaders` and `Window::cache_shaders`.
+
 * Fix view-process window extension calls from inside the same window.
 
 * Fix panic on trace recorder init when a tracing subscriber is already set.

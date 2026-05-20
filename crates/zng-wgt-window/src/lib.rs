@@ -89,12 +89,13 @@ impl Window {
     /// [`WindowRoot`]: zng_ext_window::WindowRoot
     pub fn widget_build(&mut self) -> WindowRoot {
         let mut wgt = self.widget_take();
-        WindowRoot::new(
+        WindowRoot::new2(
             wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),
             wgt.capture_value_or_default(property_id!(Self::kiosk)),
             wgt.capture_value_or_else(property_id!(Self::allow_transparency), || true),
             wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(Self::render_mode)),
+            wgt.capture_value_or_default::<Option<bool>>(property_id!(Self::cache_shaders)),
             wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(Self::headless_monitor)),
             wgt.capture_value_or_default(property_id!(Self::start_focused)),
             wgt.build(),
@@ -207,7 +208,7 @@ pub fn allow_transparency(wgt: &mut WidgetBuilding, allow: impl IntoValue<bool>)
     wgt.expect_property_capture();
 }
 
-/// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
+/// Render mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
 ///
 /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
 /// see [`RenderMode`] for more details about each mode and fallbacks.
@@ -217,6 +218,15 @@ pub fn allow_transparency(wgt: &mut WidgetBuilding, allow: impl IntoValue<bool>)
 #[property(CONTEXT, widget_impl(Window))]
 pub fn render_mode(wgt: &mut WidgetBuilding, mode: impl IntoValue<Option<RenderMode>>) {
     let _ = mode;
+    wgt.expect_property_capture();
+}
+
+/// Compiled shader cache overwrite for this window, if set to `None` the [`WINDOWS.default_cache_shaders`] is used.
+///
+/// [`WINDOWS.default_cache_shaders`]: zng_ext_window::WINDOWS::default_cache_shaders
+#[property(CONTEXT, widget_impl(Window))]
+pub fn cache_shaders(wgt: &mut WidgetBuilding, enabled: impl IntoValue<Option<bool>>) {
+    let _ = enabled;
     wgt.expect_property_capture();
 }
 
