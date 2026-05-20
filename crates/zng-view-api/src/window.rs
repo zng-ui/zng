@@ -117,6 +117,8 @@ pub struct HeadlessRequest {
 
     /// Render mode preference for this headless surface.
     pub render_mode: RenderMode,
+    /// Cache compiled shaders to disk.
+    pub cache_shaders: bool,
 
     /// Initial payload for API extensions.
     ///
@@ -138,6 +140,7 @@ impl HeadlessRequest {
             scale_factor,
             size,
             render_mode,
+            cache_shaders: true,
             extensions,
         }
     }
@@ -523,6 +526,8 @@ pub struct WindowRequest {
 
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
+    /// Cache compiled shaders to disk.
+    pub cache_shaders: bool,
 
     /// Focus request indicator on init.
     pub focus_indicator: Option<FocusIndicator>,
@@ -591,6 +596,7 @@ impl WindowRequest {
             transparent,
             capture_mode,
             render_mode,
+            cache_shaders: true,
             focus_indicator,
             focus,
             extensions,

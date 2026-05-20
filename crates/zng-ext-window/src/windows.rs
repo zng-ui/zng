@@ -41,6 +41,7 @@ app_local! {
 pub(crate) struct WindowsService {
     exit_on_last_close: Var<bool>,
     pub(crate) default_render_mode: Var<RenderMode>,
+    pub(crate) default_cache_shaders: Var<bool>,
     parallel: Var<ParallelWin>,
     pub(crate) frame_duration_from_monitor: Var<bool>,
     // Mutex for Sync
@@ -62,6 +63,7 @@ impl WindowsService {
         let sv = Self {
             exit_on_last_close: var(true),
             default_render_mode: var_default(),
+            default_cache_shaders: var(true),
             parallel: var_default(),
             frame_duration_from_monitor: var(true),
             root_extenders: Mutex::new(vec![]),
@@ -166,6 +168,19 @@ impl WINDOWS {
     /// a different render mode if it cannot support the requested mode.
     pub fn default_render_mode(&self) -> Var<RenderMode> {
         WINDOWS_SV.read().default_render_mode.clone()
+    }
+
+    /// Defines if windows cache compiled shaders to disk.
+    ///
+    /// The cache can speed up the first rendered frame, but it does write artifacts to the cache dir, for each shader and driver used.
+    ///
+    /// This is enabled by default. This is recommended for all deployment to a single machine, portable deployments should consider
+    /// disabling it, specially if the cache dir is carried with the executable.
+    ///
+    /// Note that this setting only affects windows opened after it is changed, also the view-process may
+    /// not cache shaders depending on render mode and the graphics driver.
+    pub fn default_cache_shaders(&self) -> Var<bool> {
+        WINDOWS_SV.read().default_cache_shaders.clone()
     }
 
     /// Defines what window operations can run in parallel, between windows.
@@ -1289,12 +1304,13 @@ impl zng_ext_image::ImageRenderWindowsService for WINDOWS {
     }
 
     fn new_window_root(&self, node: UiNode, render_mode: RenderMode) -> Box<dyn zng_ext_image::ImageRenderWindowRoot> {
-        Box::new(WindowRoot::new_container(
+        Box::new(WindowRoot::new_container2(
             WidgetId::new_unique(),
             crate::StartPosition::Default,
             false,
             true,
             Some(render_mode),
+            None,
             crate::HeadlessMonitor::default(),
             false,
             node,

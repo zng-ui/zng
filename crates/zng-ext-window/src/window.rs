@@ -715,7 +715,7 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                         }
                     });
                 }
-                let r = VIEW_PROCESS.open_window(WindowRequest::new(
+                let mut args = WindowRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     vars.0.title.get(),
                     state_all,
@@ -754,7 +754,14 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                     vars.0.enabled_buttons.get(),
                     vars.0.system_shutdown_warn.get(),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
-                ));
+                );
+                args.cache_shaders = a
+                    .node
+                    .root
+                    .get_mut()
+                    .cache_shaders
+                    .unwrap_or_else(|| WINDOWS.default_cache_shaders().get());
+                let r = VIEW_PROCESS.open_window(args);
                 if r.is_err() {
                     tracing::error!("view-process window {id:?} open request failed, will retry on respawn");
                     a.node.view_opening = VarHandle::dummy();
@@ -809,7 +816,7 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                     false
                 });
 
-                let r = VIEW_PROCESS.open_headless(HeadlessRequest::new(
+                let mut args = HeadlessRequest::new(
                     zng_view_api::window::WindowId::from_raw(id.get()),
                     scale_factor,
                     size_dip,
@@ -819,7 +826,14 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                         .render_mode
                         .unwrap_or_else(|| WINDOWS.default_render_mode().get()),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
-                ));
+                );
+                args.cache_shaders = a
+                    .node
+                    .root
+                    .get_mut()
+                    .cache_shaders
+                    .unwrap_or_else(|| WINDOWS.default_cache_shaders().get());
+                let r = VIEW_PROCESS.open_headless(args);
                 if r.is_err() {
                     tracing::error!("view-process headless surface {id:?} open request failed, will retry on respawn");
                     a.node.view_opening = VarHandle::dummy();

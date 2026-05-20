@@ -116,6 +116,13 @@ impl Surface {
             // optimize memory usage
             chunk_pool: Some(crate::util::wr_chunk_pool()),
 
+            use_optimized_shaders: !context.is_software(),
+            cached_programs: if context.is_software() {
+                None
+            } else {
+                Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders))))
+            },
+
             //panic_on_gl_error: true,
             ..Default::default()
         };

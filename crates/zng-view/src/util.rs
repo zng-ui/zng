@@ -1,7 +1,9 @@
 use std::any::Any;
 use std::backtrace::Backtrace;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::{cell::Cell, sync::Arc};
 use std::{fmt, ops};
@@ -10,6 +12,7 @@ use rayon::ThreadPoolBuilder;
 use webrender::api as wr;
 use winit::event_loop::ActiveEventLoop;
 use winit::{event::ElementState, monitor::MonitorHandle};
+use zng_task::parking_lot::Mutex;
 use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
@@ -1251,6 +1254,111 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
 pub(crate) fn wr_chunk_pool() -> Arc<webrender::ChunkPool> {
     static POOL: LazyLock<Arc<webrender::ChunkPool>> = LazyLock::new(|| Arc::new(webrender::ChunkPool::new()));
     POOL.clone()
+}
+
+pub(crate) fn wr_shader_cache(disk_cache: bool) -> Box<dyn webrender::ProgramCacheObserver> {
+    static CACHE: LazyLock<Arc<WrShaderCacheData>> = LazyLock::new(|| Arc::new(WrShaderCacheData::new()));
+    Box::new(WrShaderCache {
+        d: CACHE.clone(),
+        disk_cache,
+    })
+}
+struct WrShaderCacheData {
+    // disk cache
+    dir: PathBuf,
+    // memory cache, for better perf for multiple windows
+    mem: Mutex<HashMap<webrender::ProgramSourceDigest, Arc<webrender::ProgramBinary>>>,
+}
+impl WrShaderCacheData {
+    fn new() -> Self {
+        Self {
+            dir: zng_env::cache("zng-view-wr-shaders"),
+            mem: Mutex::default(),
+        }
+    }
+}
+// https://searchfox.org/firefox-main/source/gfx/webrender_bindings/src/program_cache.rs#100
+#[derive(Clone)]
+struct WrShaderCache {
+    d: Arc<WrShaderCacheData>,
+    disk_cache: bool,
+}
+impl webrender::ProgramCacheObserver for WrShaderCache {
+    fn save_shaders_to_disk(&self, entries: Vec<Arc<webrender::ProgramBinary>>) {
+        let mut mem = self.d.mem.lock();
+        for entry in &entries {
+            mem.insert(entry.source_digest().clone(), entry.clone());
+        }
+        if !self.disk_cache {
+            return;
+        }
+        let cache = self.d.clone();
+        zng_task::spawn_wait(move || {
+            for entry in entries {
+                let file = cache.dir.join(wr_shader_cache_file_name(entry.source_digest()));
+                let file = loop {
+                    match std::fs::File::create(&file) {
+                        Ok(f) => break f,
+                        Err(e) => {
+                            if !cache.dir.exists() && std::fs::create_dir_all(&cache.dir).is_ok() {
+                                continue;
+                            }
+                            tracing::error!("cannot save shader, {e}");
+                            return;
+                        }
+                    }
+                };
+                if let Err(e) = postcard::to_io(&entry, file) {
+                    tracing::error!("cannot save shader, {e}");
+                    return;
+                }
+            }
+        });
+    }
+
+    fn set_startup_shaders(&self, _: Vec<Arc<webrender::ProgramBinary>>) {
+        // Firefox saves a key list here to immediately load the memory cache on startup
+    }
+
+    fn try_load_shader_from_disk(&self, digest: &webrender::ProgramSourceDigest, c: &std::rc::Rc<webrender::ProgramCache>) {
+        let mut mem = self.d.mem.lock();
+
+        if let Some(p) = mem.get(digest) {
+            c.load_program_binary(p.clone());
+            return;
+        }
+
+        let file = self.d.dir.join(wr_shader_cache_file_name(digest));
+        match std::fs::read(file) {
+            Ok(b) => match postcard::from_bytes::<webrender::ProgramBinary>(&b) {
+                Ok(p) => {
+                    let p = Arc::new(p);
+                    mem.insert(digest.clone(), p.clone());
+                    c.load_program_binary(p);
+                }
+                Err(e) => {
+                    tracing::error!("cannot load shader, {e}");
+                }
+            },
+            Err(e) => {
+                if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
+                    tracing::error!("cannot load shader, {e}");
+                }
+            }
+        }
+    }
+
+    fn notify_program_binary_failed(&self, program_binary: &Arc<webrender::ProgramBinary>) {
+        let mut mem = self.d.mem.lock();
+        mem.remove(program_binary.source_digest());
+        if self.disk_cache {
+            let file = self.d.dir.join(wr_shader_cache_file_name(program_binary.source_digest()));
+            let _ = std::fs::remove_file(file);
+        }
+    }
+}
+fn wr_shader_cache_file_name(digest: &webrender::ProgramSourceDigest) -> String {
+    format!("{digest}.v1.bin")
 }
 
 #[cfg(not(any(windows, target_os = "android")))]
