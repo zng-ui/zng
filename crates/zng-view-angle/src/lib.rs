@@ -92,10 +92,12 @@ pub fn prefer_angle_egl(child: impl IntoUiNode, enable: impl IntoValue<bool>) ->
             if let UiNodeOp::Init = op {
                 let win_id = WINDOW.id();
 
+                let mut loading_handle = None;
                 if VIEW_PROCESS.is_connected() {
                     init(win_id);
+                } else {
+                    loading_handle = WINDOW.loading_handle(5.secs(), "prefer_angle_egl");
                 }
-                let mut loading_handle = WINDOW.loading_handle(5.secs(), "prefer_angle_egl");
                 let handle = VIEW_PROCESS_INITED_EVENT.hook(move |_| {
                     let _ = loading_handle.take();
                     init(win_id);
