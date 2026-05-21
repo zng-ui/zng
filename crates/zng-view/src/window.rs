@@ -374,7 +374,6 @@ impl Window {
             } else {
                 Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders))))
             },
-            // precache_flags: webrender::ShaderPrecacheFlags::FULL_COMPILE,
 
             //panic_on_gl_error: true,
             ..Default::default()

@@ -172,6 +172,7 @@ winit = { version = "0.30", default-features = false, features = [
     "wayland-dlopen",
     "rwh_06",
 ] }
+# path = "../../../glutin/glutin"
 glutin = { version = "0.32", default-features = false, features = ["egl", "glx", "wayland", "wgl", "x11" ], optional = true }
 raw-window-handle = { version = "0.6", default-features = false } # matches glutin
 
