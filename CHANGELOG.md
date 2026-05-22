@@ -12,6 +12,7 @@
     - Patched Webrender to fix shader compile error.
     - Added `zng-view-angle` crate to acquire ANGLE DLLs and enable it in the view-process.
     - Fix frame after resize not filling window.
+    - Fix ClearType distortion and other blend leaking issues.
 
 * Fix `WINDOW_EXTENSIONS.view_extensions_init` for an existing window after respawn.
 

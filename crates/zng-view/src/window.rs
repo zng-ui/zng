@@ -360,8 +360,13 @@ impl Window {
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
 
-            // best for GL
-            upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
+            upload_method: if prefer_egl && !context.is_software() {
+                // best for ANGLE
+                UploadMethod::Immediate
+            } else {
+                // best for GL, causes subpixel rendering issues on ANGLE
+                UploadMethod::PixelBuffer(VertexUsageHint::Dynamic)
+            },
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),

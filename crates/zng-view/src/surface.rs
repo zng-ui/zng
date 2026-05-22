@@ -2,7 +2,7 @@ use std::{collections::VecDeque, fmt};
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    RenderApi, Renderer, Transaction,
+    RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
 };
 use winit::event_loop::ActiveEventLoop;
@@ -110,6 +110,14 @@ impl Surface {
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
+
+            upload_method: if prefer_egl && !context.is_software() {
+                // best for ANGLE
+                UploadMethod::Immediate
+            } else {
+                // best for GL, causes subpixel rendering issues on ANGLE
+                UploadMethod::PixelBuffer(VertexUsageHint::Dynamic)
+            },
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
