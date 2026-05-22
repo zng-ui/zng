@@ -73,6 +73,7 @@ pub(crate) struct Window {
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     external_images: extensions::ExternalImages,
     capture_mode: bool,
+    angle_egl: bool,
 
     pending_frames: VecDeque<(FrameId, FrameCapture, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
@@ -359,8 +360,13 @@ impl Window {
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
 
-            // best for GL
-            upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
+            upload_method: if prefer_egl && !context.is_software() {
+                // best for ANGLE
+                UploadMethod::Immediate
+            } else {
+                // best for GL, causes subpixel rendering issues on ANGLE
+                UploadMethod::PixelBuffer(VertexUsageHint::Dynamic)
+            },
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
@@ -373,7 +379,6 @@ impl Window {
             } else {
                 Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders))))
             },
-            // precache_flags: webrender::ShaderPrecacheFlags::FULL_COMPILE,
 
             //panic_on_gl_error: true,
             ..Default::default()
@@ -481,6 +486,7 @@ impl Window {
             has_shutdown_warn: false,
             cursor: None,
             cursor_img: None,
+            angle_egl: prefer_egl,
 
             #[cfg(any(
                 target_os = "linux",
@@ -1797,6 +1803,12 @@ impl Window {
             let size = self.window.inner_size();
             self.context.resize(size);
             txn.set_document_view(PxRect::from_size(size.to_px()).to_wr_device());
+
+            if self.angle_egl && !self.context.is_software() {
+                // workaround issue when first frame after large resize (maximize)
+                // does not fill window correctly
+                self.redraw();
+            }
         }
     }
 

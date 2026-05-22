@@ -203,6 +203,16 @@ impl fmt::Debug for FontAntiAliasing {
         }
     }
 }
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    /// Convert `true` to `Subpixel` and `false` to `Mono`.
+    fn from(subpixel_or_mono: bool) -> FontAntiAliasing {
+        match subpixel_or_mono {
+            true => FontAntiAliasing::Subpixel,
+            false => FontAntiAliasing::Mono,
+        }
+    }
+}
 
 /// Color scheme preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

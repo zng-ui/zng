@@ -164,3 +164,4 @@ pub use zng_ext_font::{
     TextSegment, TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, font_features,
     unicode_bidi_levels, unicode_bidi_sort,
 };
+pub use zng_view_api::config::FontAntiAliasing;
