@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.5
+
 * Implement compiled shader caching, enabled by default.
     - Add `WINDOWS.default_cache_shaders` and `Window::cache_shaders`.
 
