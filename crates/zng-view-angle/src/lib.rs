@@ -129,9 +129,9 @@ pub fn register_license() {
         vec![LicenseUsed {
             license: License::new("BSD3-Clause", r#"BSD 3-Clause "Revised" License"#, LICENSE),
             used_by: vec![User::new(
-                std::env!("CARGO_PKG_NAME"),
-                std::env!("CARGO_PKG_VERSION"),
-                "https://github.com/zng-ui/zng",
+                "ANGLE",
+                "fca8ca8",
+                "https://github.com/zng-ui/build-angle/releases/tag/2026-05-17",
             )],
         }]
     }
