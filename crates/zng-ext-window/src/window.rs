@@ -668,7 +668,7 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                             }
                         }
                         start_position => {
-                            let screen_rect = match start_position {
+                            let center_rect = match start_position {
                                 StartPosition::CenterMonitor => monitor_rect,
                                 StartPosition::CenterParent => {
                                     if let Some(parent_id) = vars.0.parent.get()
@@ -682,12 +682,16 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                                 }
                                 _ => unreachable!(),
                             };
+                            let center_point = center_rect.origin + center_rect.size.to_vector() / Px(2);
 
-                            let pos = PxPoint::new(
-                                (screen_rect.size.width - final_size.width) / Px(2),
-                                (screen_rect.size.height - final_size.height) / Px(2),
-                            );
-                            global_position = screen_rect.origin + pos.to_vector();
+                            global_position = center_point - final_size.to_vector() / Px(2);
+
+                            // snap title bar inside monitor area
+                            let title_height = Dip::new(30).to_px(scale_factor);
+                            let correction_y = (monitor_rect.origin.y + title_height - global_position.y).max(Px(0));
+                            global_position.y += correction_y;
+
+                            let pos = (global_position - monitor_rect.origin).to_point();
                             position = pos.to_dip(scale_factor);
                         }
                     }

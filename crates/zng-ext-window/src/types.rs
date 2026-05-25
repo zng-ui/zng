@@ -246,6 +246,8 @@ impl_from_and_into_var! {
 /// The startup position affects the window once, at the moment the window
 /// is open just after the first [`UiNode::layout`] call.
 ///
+/// Note that for `CenterMonitor` and `CenterParent` the window title bar is kept inside the monitor area.
+///
 ///  [`UiNode::layout`]: zng_app::widget::node::UiNode::layout
 #[derive(Clone, Default, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {

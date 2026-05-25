@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix `start_position`issues.
+    - Avoid opening with title bar out of monitor bounds.
+    - Fix `CenterParent` when child window is larger.
 * Generate optimized shaders for Windows when using native OpenGL.
 * Fix markdown table alignment in right-to-left contexts.
 * Fix layout issues when using a `Wrap!` as a `Grid!` cell.
