@@ -1,5 +1,6 @@
 # Unreleased
 
+* Generate optimized shaders for Windows when using native OpenGL.
 * Fix markdown table alignment in right-to-left contexts.
 * Fix layout issues when using a `Wrap!` as a `Grid!` cell.
     - Fixes markdown default table layout.
