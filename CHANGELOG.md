@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix markdown table alignment in right-to-left contexts.
+* Fix layout issues when using a `Wrap!` as a `Grid!` cell.
+    - Fixes markdown default table layout.
 * Fix ANGLE license attribution in `zng_view_angle::register_license`.
 
 # 0.22.5
