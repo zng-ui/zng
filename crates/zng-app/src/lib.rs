@@ -738,6 +738,10 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         if metadata.target().ends_with("webrender::renderer::init") {
             return false;
         }
+        // Recycling stats: {}
+        if metadata.target().ends_with("webrender::render_backend") && metadata.line() == Some(888) {
+            return false;
+        }
     } else if metadata.level() == &tracing::Level::WARN && level < &tracing::Level::DEBUG {
         // suppress webrender warnings:
         //
@@ -745,6 +749,13 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
             // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
             // This happens when an empty frame is rendered.
             if metadata.line() == Some(4652) {
+                return false;
+            }
+            // Suppress Missing optimized shader source for {name}
+            // Webrender does not generate optimized alternates for every shader,
+            // for example "gpu_cache_update" is used by every app and is not optimized,
+            // when an optimized shader is not found the unoptimized fallback is used
+            if metadata.line() == Some(689) {
                 return false;
             }
         }
