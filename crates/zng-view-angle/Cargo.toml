@@ -1,6 +1,6 @@
 [package]
 name = "zng-view-angle"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -16,9 +16,9 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 download = []
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.23.4", default-features = false }
-zng-wgt = { path = "../zng-wgt", version = "0.15.4", default-features = false }
-zng-ext-window = { path = "../zng-ext-window", version = "0.13.4", default-features = false }
+zng-app = { path = "../zng-app", version = "0.23.5", default-features = false }
+zng-wgt = { path = "../zng-wgt", version = "0.15.5", default-features = false }
+zng-ext-window = { path = "../zng-ext-window", version = "0.13.5", default-features = false }
 zng-view-api = { path = "../zng-view-api", version = "0.20.2", default-features = false }
 
 serde = { version = "1.0", default-features = false }
