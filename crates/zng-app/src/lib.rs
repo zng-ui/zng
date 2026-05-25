@@ -758,6 +758,11 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
             if metadata.line() == Some(689) {
                 return false;
             }
+            // Suppress "Warnings detected on shader:"
+            // The shaders run fine on Firefox
+            if metadata.line() == Some(2143) {
+                return false;
+            }
         }
 
         // suppress font-kit warnings:

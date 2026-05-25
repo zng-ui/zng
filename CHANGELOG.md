@@ -3,7 +3,7 @@
 
 # 0.22.6
 
-* Fix `start_position`issues.
+* Fix `start_position` issues.
     - Avoid opening with title bar out of monitor bounds.
     - Fix `CenterParent` when child window is larger.
 * Generate optimized shaders for Windows when using native OpenGL.
