@@ -252,8 +252,8 @@ pub trait UiNodeImpl: Any + Send {
     /// Computes the widget size given the contextual layout metrics without actually updating the widget layout.
     ///
     /// Implementers must return the same size [`layout`] returns for the given [`LayoutMetrics`], without
-    /// affecting the actual widget render. Panel widgets that implement some complex layouts need to get an
-    /// what the widget would be given some constraints, this value is used to inform the actual [`layout`] call.
+    /// affecting the actual widget render. Panel widgets that implement some complex layouts need to get
+    /// what the size the widget would be given some constraints, this value is used to inform the actual [`layout`] call.
     ///
     /// Nodes that implement [`layout`] must also implement this method, the [`LAYOUT`] context can be used to retrieve the metrics,
     /// the [`WidgetMeasure`] parameter can be used to communicate with the parent layout, such as disabling inline layout, the

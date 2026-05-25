@@ -430,7 +430,7 @@ impl InlineLayout {
             }
         }
 
-        constraints.clamp_size(self.desired_size)
+        self.desired_size
     }
 
     pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {

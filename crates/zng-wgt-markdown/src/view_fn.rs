@@ -1031,7 +1031,7 @@ pub fn default_table_fn(args: TableFnArgs) -> UiNode {
         access_role = AccessRole::Table;
         background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
         border = 1, FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
-        align = Align::LEFT;
+        align = Align::START;
         auto_grow_fn = wgt_fn!(|args: grid::AutoGrowFnArgs| {
             grid::Row! {
                 border = (0, 0, 1, 0), FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
