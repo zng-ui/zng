@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "_image_any"), allow(unused))]
 
+use fast_image_resize::IntoImageView;
 use std::{
     fmt,
     io::{self, Seek as _, SeekFrom, Write as _},
@@ -893,12 +894,27 @@ impl ImageCache {
         resize_opt.mul_div_alpha = false;
         // default, best quality
         resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
-        // try to reuse cache
-        match resizer.try_lock() {
-            Some(mut r) => r.resize(&source_img, &mut dest_img, Some(&resize_opt)),
-            None => fr::Resizer::new().resize(&source_img, &mut dest_img, Some(&resize_opt)),
+
+        {
+            // try to reuse cache
+            let mut resizer = resizer.try_lock();
+            let mut new_resizer = None;
+            let resizer = match &mut resizer {
+                Some(r) => &mut **r,
+                None => new_resizer.get_or_insert_default(),
+            };
+
+            // use resize_typed directly so we only compile for U8 and U8x4
+            if entry.is_mask {
+                let source_img = source_img.image_view::<fr::pixels::U8>().unwrap();
+                let mut dest_img = dest_img.typed_image_mut().unwrap();
+                resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
+            } else {
+                let source_img = source_img.image_view::<fr::pixels::U8x4>().unwrap();
+                let mut dest_img = dest_img.typed_image_mut().unwrap();
+                resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
+            }
         }
-        .unwrap();
 
         let pixels = dest_buf.finish_blocking().ok()?;
 

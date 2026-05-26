@@ -589,6 +589,7 @@ mod __prelude {
         IntoValue, IntoVar, Var, VarValue, const_var, context_var, expr_var, flat_expr_var, merge_var, var, var_from, var_getter,
         var_state, when_var,
     };
+    // TODO(breaking) VarEq
 
     pub use crate::var::animation::easing;
 
