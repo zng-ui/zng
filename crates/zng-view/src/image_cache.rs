@@ -875,47 +875,7 @@ impl ImageCache {
         source: &ImageDecoded,
         entry: ImageMetadata,
     ) -> Option<IpcBytes> {
-        use fast_image_resize as fr;
-
-        let px_type = if entry.is_mask { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
-        let source_img = fr::images::ImageRef::new(
-            source.meta.size.width.0 as _,
-            source.meta.size.height.0 as _,
-            &source.pixels,
-            px_type,
-        )
-        .unwrap();
-        let mut dest_buf = IpcBytesMut::new_blocking(entry.size.width.0 as usize * entry.size.height.0 as usize * px_type.size()).ok()?;
-        let mut dest_img =
-            fr::images::Image::from_slice_u8(entry.size.width.0 as _, entry.size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
-
-        let mut resize_opt = fr::ResizeOptions::new();
-        // is already pre multiplied
-        resize_opt.mul_div_alpha = false;
-        // default, best quality
-        resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
-
-        {
-            // try to reuse cache
-            let mut resizer = resizer.try_lock();
-            let mut new_resizer = None;
-            let resizer = match &mut resizer {
-                Some(r) => &mut **r,
-                None => new_resizer.get_or_insert_default(),
-            };
-
-            // use resize_typed directly so we only compile for U8 and U8x4
-            if entry.is_mask {
-                let source_img = source_img.image_view::<fr::pixels::U8>().unwrap();
-                let mut dest_img = dest_img.typed_image_mut().unwrap();
-                resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
-            } else {
-                let source_img = source_img.image_view::<fr::pixels::U8x4>().unwrap();
-                let mut dest_img = dest_img.typed_image_mut().unwrap();
-                resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
-            }
-        }
-
+        let dest_buf = fast_resize(resizer, entry.is_mask, source.meta.size, &source.pixels, entry.size)?;
         let pixels = dest_buf.finish_blocking().ok()?;
 
         app_sender
@@ -1235,4 +1195,47 @@ fn downscale_sizes(downscale: Option<&ImageDownscaleMode>, page_size: PxSize, re
         Some(d) => d.sizes(page_size, reduced_sizes),
         None => (None, vec![]),
     }
+}
+
+fn fast_resize(
+    resizer_cache: &ResizerCache,
+    source_is_mask: bool,
+    source_size: PxSize,
+    source_pixels: &[u8],
+    dest_size: PxSize,
+) -> Option<IpcBytesMut> {
+    use fast_image_resize as fr;
+
+    let px_type = if source_is_mask { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+    let source_img = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, source_pixels, px_type).unwrap();
+    let mut dest_buf = IpcBytesMut::new_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size()).ok()?;
+    let mut dest_img =
+        fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
+
+    let mut resize_opt = fr::ResizeOptions::new();
+    // is already pre multiplied
+    resize_opt.mul_div_alpha = false;
+    // default, best quality
+    resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
+
+    // try to reuse cache
+    let mut resizer = resizer_cache.try_lock();
+    let mut new_resizer = None;
+    let resizer = match &mut resizer {
+        Some(r) => &mut **r,
+        None => new_resizer.get_or_insert_default(),
+    };
+
+    // use resize_typed directly so we only compile for U8 and U8x4
+    if source_is_mask {
+        let source_img = source_img.image_view::<fr::pixels::U8>().unwrap();
+        let mut dest_img = dest_img.typed_image_mut().unwrap();
+        resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
+    } else {
+        let source_img = source_img.image_view::<fr::pixels::U8x4>().unwrap();
+        let mut dest_img = dest_img.typed_image_mut().unwrap();
+        resizer.resize_typed(&source_img, &mut dest_img, Some(&resize_opt)).unwrap();
+    }
+
+    Some(dest_buf)
 }

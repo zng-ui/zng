@@ -1045,27 +1045,8 @@ impl ImageCache {
         if let Some(dest_size) = downscale
             && source_size.min(dest_size) != source_size
         {
-            use fast_image_resize as fr;
-
-            let px_type = if mask.is_none() { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
-            let source = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, pixels, px_type).unwrap();
-            let mut dest_buf = IpcBytesMut::new_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size())?;
-            let mut dest =
-                fr::images::Image::from_slice_u8(dest_size.width.0 as _, dest_size.height.0 as _, &mut dest_buf[..], px_type).unwrap();
-
-            let mut resize_opt = fr::ResizeOptions::new();
-            // is already pre multiplied
-            resize_opt.mul_div_alpha = false;
-            // default, best quality
-            resize_opt.algorithm = fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3);
-            // try to reuse cache
-            match resizer_cache.try_lock() {
-                Some(mut r) => r.resize(&source, &mut dest, Some(&resize_opt)),
-                None => fr::Resizer::new().resize(&source, &mut dest, Some(&resize_opt)),
-            }
-            .unwrap();
-
-            return Ok(Some((dest_size, dest_buf)));
+            let dest_buf = super::fast_resize(resizer_cache, mask.is_some(), source_size, pixels, dest_size);
+            return Ok(dest_buf.map(|b| (dest_size, b)));
         }
 
         Ok(None)
