@@ -807,3 +807,25 @@ impl IpcBytes {
         }
     }
 }
+
+impl IpcBytesMut {
+    /// Unwrap to the heap allocation, if the bytes are on the heap.
+    pub fn try_unwrap_to_vec(self) -> Result<Vec<u8>, Self> {
+        match self.inner {
+            IpcBytesMutInner::Heap(mut b) => {
+                b.truncate(self.len);
+                Ok(b)
+            }
+            #[cfg(ipc)]
+            inner => Err(Self { inner, ..self }),
+        }
+    }
+
+    /// Unwrap to the heap allocation, or copy to a new heap allocation.
+    pub fn unwrap_or_to_vec(self) -> Vec<u8> {
+        match self.try_unwrap_to_vec() {
+            Ok(b) => b,
+            Err(e) => e[..].to_vec(),
+        }
+    }
+}

@@ -4,7 +4,7 @@ use winit::{
 };
 use zng_task::channel::{IpcBytes, IpcBytesMut};
 use zng_txt::{ToTxt as _, formatx};
-use zng_unit::PxPoint;
+use zng_unit::{Px, PxPoint, PxSize};
 use zng_view_api::{
     Event,
     image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId},
@@ -106,7 +106,7 @@ impl ImageCache {
 
 impl Image {
     /// Generate a window icon from the image.
-    pub fn icon(&self) -> Option<Icon> {
+    pub fn icon(&self, resizer_cache: &super::ResizerCache) -> Option<Icon> {
         let (size, pixels) = match &*self.0 {
             ImageData::RawData { size, pixels, .. } => (size, pixels),
             ImageData::NativeTexture { .. } => unreachable!(),
@@ -119,16 +119,10 @@ impl Image {
         } else {
             let r = if width > 255 || height > 255 {
                 // resize to max 255
-                let mut buf = pixels[..].to_vec();
-                bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
-                let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
-                let img = image::DynamicImage::ImageRgba8(img);
-                let img = img.resize(255, 255, image::imageops::FilterType::Lanczos3);
+                let mut buf = super::fast_resize(resizer_cache, self.0.is_mask(), *size, pixels, PxSize::splat(Px(255))).unwrap();
 
-                use image::GenericImageView;
-                let (width, height) = img.dimensions();
-                let buf = img.into_rgba8().into_raw();
-                winit::window::Icon::from_rgba(buf, width, height)
+                bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
+                winit::window::Icon::from_rgba(buf.unwrap_or_to_vec(), width, height)
             } else {
                 let mut buf = pixels[..].to_vec();
                 bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());

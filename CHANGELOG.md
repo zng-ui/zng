@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `try_unwrap_vec` and `unwrap_or_to_vec` for `IpcBytes` and `IpcBytesMut`.
 
 # 0.22.6
 

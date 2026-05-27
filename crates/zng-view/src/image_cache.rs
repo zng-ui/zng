@@ -314,6 +314,10 @@ impl ImageCache {
         id
     }
 
+    pub fn resizer(&self) -> &Arc<ResizerCache> {
+        &self.resizer
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn add_impl(
         id_gen: Arc<Mutex<ImageId>>,

@@ -665,3 +665,27 @@ impl IntoIterator for IpcBytes {
         IpcBytesIntoIter::new(self)
     }
 }
+impl IpcBytes {
+    /// Unwrap to the heap bytes if the bytes are allocated on the heap and the [`IpcBytes`] reference is not shared in process.
+    pub fn try_unwrap_vec(self) -> Result<Vec<u8>, Self> {
+        if !matches!(&*self.0, IpcBytesData::Heap(_)) {
+            return Err(self);
+        }
+        match Arc::try_unwrap(self.0) {
+            Ok(b) => match b {
+                IpcBytesData::Heap(v) => Ok(v),
+                #[cfg(ipc)]
+                _ => unreachable!(),
+            },
+            Err(b) => Err(IpcBytes(b)),
+        }
+    }
+
+    /// Unwrap to the non shared heap bytes, or copy the bytes to a new heap allocation.
+    pub fn unwrap_or_to_vec(self) -> Vec<u8> {
+        match self.try_unwrap_vec() {
+            Ok(v) => v,
+            Err(e) => e.to_vec(),
+        }
+    }
+}
