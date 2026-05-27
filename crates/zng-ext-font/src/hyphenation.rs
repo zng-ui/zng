@@ -68,7 +68,11 @@ impl HYPHENATION {
 
     /// Hyphenate with language already resolved.
     pub fn hyphenate_opt_language(&self, word: &str, lang: hyphenation::Language) -> Option<Vec<usize>> {
-        if !util::WORD_REGEX.read().is_match(word) {
+        fn is_word(word: &str) -> bool {
+            // r"^\w+$"
+            !word.is_empty() && word.chars().all(|c| c.is_alphanumeric() || c == '_')
+        }
+        if !is_word(word) {
             return None;
         }
 
@@ -172,7 +176,6 @@ impl HyphenationDataSource for HyphenationDataEmbedded {
 mod util {
     use super::*;
     use hyphenation::Language::*;
-    use regex::Regex;
     use zng_ext_l10n::{Lang, lang};
 
     app_local! {
@@ -258,7 +261,5 @@ mod util {
             (lang!("hsb"), Uppersorbian),
             (lang!("cy"), Welsh),
         ];
-
-        pub static WORD_REGEX: Regex = Regex::new(r"^\w+$").unwrap();
     }
 }

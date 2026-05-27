@@ -120,6 +120,11 @@ image_meta_exif = []
 # as the "image_meta_icc" metadata.
 image_meta_icc = []
 
+# Enable SIMD accelerated image downscaling.
+# 
+# This is much faster and produces higher quality downscaled images, but adds ~1MB of binary code.
+image_fast_downscale = ["dep:fast_image_resize"]
+
 # Enable MP3 audio decoder and encoder.
 audio_mp3 = ["_audio_any", "rodio/mp3"]
 # Enable MP4 audio decoder and encoder.
@@ -178,7 +183,7 @@ raw-window-handle = { version = "0.6", default-features = false } # matches glut
 
 image = { version = "0.25.1", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
 ico = { version = "0.5.0", default-features = false, optional = true }
-fast_image_resize = { version = "6.0", default-features = false, features = ["rayon", "image", "std"] }
+fast_image_resize = { version = "6.0", default-features = false, features = ["rayon", "image", "std"], optional = true }
 byteorder = { version = "1.5", default-features = false }
 rustc-hash = { version = "2.0", default-features = false }
 kamadak-exif = { version = "0.6.1", default-features = false, optional = true }

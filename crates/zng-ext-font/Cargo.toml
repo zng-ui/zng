@@ -51,7 +51,6 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 pastey = { version = "0.2", default-features = false }
 num_enum = { version = "0.7", default-features = false, features = ["std"] }
 hyphenation = { version = "0.8", default-features = false }
-regex = { version = "1.10", default-features = false, features = ["perf", "std", "unicode" ] }
 unicode-bidi = { version = "0.3", default-features = false, features = ["hardcoded-data", "std"]}
 unicode-linebreak = { version = "0.1", default-features = false }
 unicode-segmentation = { version = "1.11", default-features = false }

@@ -77,6 +77,7 @@ dev = [
     "wrap",
     "shortcut_text",
     "image_all",
+    "image_fast_downscale",
     "audio_all",
     "button",
     "ansi_text",
@@ -451,6 +452,11 @@ image_meta_exif = ["zng-view?/image_meta_exif"]
 # 
 # Note that images are always color managed when decoding, this feature enables `ImageEntry::icc_profile`.
 image_meta_icc = ["zng-view?/image_meta_icc"]
+
+# Enable SIMD accelerated image downscaling.
+# 
+# This is much faster and produces higher quality downscaled images, but adds ~1MB of binary code.
+image_fast_downscale = ["zng-view?/image_fast_downscale"]
 
 # Enable MP3 audio format with "view" feature.
 audio_mp3 = ["zng-view?/audio_mp3"]

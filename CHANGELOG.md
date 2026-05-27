@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `"image_fast_downscale"` Cargo feature.
+    - Enabled in the prebuilt view-process, and in `"dev"` of the main crate.
+    - When removed saves ~1MB of compiled code.
 * Add `try_unwrap_vec` and `unwrap_or_to_vec` for `IpcBytes` and `IpcBytesMut`.
 
 # 0.22.6
