@@ -1045,7 +1045,7 @@ impl ImageCache {
         if let Some(dest_size) = downscale
             && source_size.min(dest_size) != source_size
         {
-            let dest_buf = super::fast_resize(resizer_cache, mask.is_some(), source_size, pixels, dest_size);
+            let dest_buf = super::fast_downscale(resizer_cache, mask.is_some(), source_size, pixels, dest_size);
             return Ok(dest_buf.map(|b| (dest_size, b)));
         }
 

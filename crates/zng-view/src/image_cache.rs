@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "_image_any"), allow(unused))]
 
-use fast_image_resize::IntoImageView;
 use std::{
     fmt,
     io::{self, Seek as _, SeekFrom, Write as _},
@@ -93,7 +92,10 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ImageFormat::from_static2("WebP", "webp", "webp", "52494646xxxxxxxx57454250565038", Cap::ENCODE),
 ];
 
+#[cfg(feature = "image_fast_downscale")]
 pub(crate) type ResizerCache = Mutex<fast_image_resize::Resizer>;
+#[cfg(not(feature = "image_fast_downscale"))]
+pub(crate) type ResizerCache = ();
 
 /// Decode and cache image resources.
 pub(crate) struct ImageCache {
@@ -121,7 +123,10 @@ impl ImageCache {
             images: FxHashMap::default(),
             image_id_gen: Arc::new(Mutex::new(ImageId::first())),
             encode_id_gen: ImageEncodeId::first(),
+            #[cfg(feature = "image_fast_downscale")]
             resizer: Arc::new(Mutex::new(fast_image_resize::Resizer::new())),
+            #[cfg(not(feature = "image_fast_downscale"))]
+            resizer: Arc::new(()),
             #[cfg(feature = "image_cur")]
             image_cur_ext_id,
             #[cfg(feature = "image_meta_exif")]
@@ -879,7 +884,7 @@ impl ImageCache {
         source: &ImageDecoded,
         entry: ImageMetadata,
     ) -> Option<IpcBytes> {
-        let dest_buf = fast_resize(resizer, entry.is_mask, source.meta.size, &source.pixels, entry.size)?;
+        let dest_buf = fast_downscale(resizer, entry.is_mask, source.meta.size, &source.pixels, entry.size)?;
         let pixels = dest_buf.finish_blocking().ok()?;
 
         app_sender
@@ -922,6 +927,7 @@ impl ImageCache {
         // app-process controls what images are dropped so hopefully it will respond the
         // memory pressure event
 
+        #[cfg(feature = "image_fast_downscale")]
         if let Some(mut r) = self.resizer.try_lock() {
             r.reset_internal_buffers();
         } else {
@@ -1201,14 +1207,85 @@ fn downscale_sizes(downscale: Option<&ImageDownscaleMode>, page_size: PxSize, re
     }
 }
 
-fn fast_resize(
+#[cfg(not(feature = "image_fast_downscale"))]
+fn fast_downscale(
+    _: &ResizerCache,
+    source_is_mask: bool,
+    source_size: PxSize,
+    source_pixels: &[u8],
+    dest_size: PxSize,
+) -> Option<IpcBytesMut> {
+    if source_size.width >= Px(1000) {
+        tracing::warn!("downscaling large image without `image_fast_downscale`");
+    }
+
+    // basic bilinear filtering
+
+    let px_len = if source_is_mask { 1 } else { 4 };
+    let src_w = source_size.width.0 as usize;
+    let src_h = source_size.height.0 as usize;
+    let dst_w = dest_size.width.0 as usize;
+    let dst_h = dest_size.height.0 as usize;
+
+    let mut dest_buf = IpcBytesMut::new_blocking(dst_w * dst_h * px_len).ok()?;
+    let dest: &mut [u8] = &mut dest_buf[..];
+
+    if src_w == 0 || src_h == 0 || dst_w == 0 || dst_h == 0 {
+        return Some(dest_buf);
+    }
+
+    let scale_x = src_w as f32 / dst_w as f32;
+    let scale_y = src_h as f32 / dst_h as f32;
+
+    let sample = |x: isize, y: isize, c: usize| -> u8 {
+        let xx = x.clamp(0, (src_w - 1) as isize) as usize;
+        let yy = y.clamp(0, (src_h - 1) as isize) as usize;
+        source_pixels[(yy * src_w + xx) * px_len + c]
+    };
+
+    for dy in 0..dst_h {
+        let src_y = (dy as f32 + 0.5) * scale_y - 0.5;
+        let y0 = src_y.floor() as isize;
+        let y1 = y0 + 1;
+        let wy1 = src_y - y0 as f32;
+        let wy0 = 1.0 - wy1;
+
+        for dx in 0..dst_w {
+            let src_x = (dx as f32 + 0.5) * scale_x - 0.5;
+            let x0 = src_x.floor() as isize;
+            let x1 = x0 + 1;
+            let wx1 = src_x - x0 as f32;
+            let wx0 = 1.0 - wx1;
+
+            let out_index = (dy * dst_w + dx) * px_len;
+
+            for c in 0..px_len {
+                let p00 = sample(x0, y0, c) as f32;
+                let p10 = sample(x1, y0, c) as f32;
+                let p01 = sample(x0, y1, c) as f32;
+                let p11 = sample(x1, y1, c) as f32;
+
+                let top = p00 * wx0 + p10 * wx1;
+                let bottom = p01 * wx0 + p11 * wx1;
+                let value = top * wy0 + bottom * wy1;
+
+                dest[out_index + c] = value.round().clamp(0.0, 255.0) as u8;
+            }
+        }
+    }
+
+    Some(dest_buf)
+}
+
+#[cfg(feature = "image_fast_downscale")]
+fn fast_downscale(
     resizer_cache: &ResizerCache,
     source_is_mask: bool,
     source_size: PxSize,
     source_pixels: &[u8],
     dest_size: PxSize,
 ) -> Option<IpcBytesMut> {
-    use fast_image_resize as fr;
+    use fast_image_resize::{self as fr, IntoImageView};
 
     let px_type = if source_is_mask { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
     let source_img = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, source_pixels, px_type).unwrap();

@@ -562,6 +562,7 @@ fn open_or_paste_image() -> UiNode {
                         Stack!(ui_vec![
                             Image! {
                                 img_fit = ImageFit::ScaleDown;
+                                img_downscale = Some(zng::image::ImageDownscaleMode::mip_map());
                                 source;
                                 get_img_layout_size = img_size;
                                 layout::actual_size_px = img_wgt_size;
