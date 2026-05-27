@@ -324,26 +324,7 @@ impl GlContextManager {
         self.current.set(Some(id));
         let context = context.make_current(&surface)?;
 
-        let gl_api = config.api();
-        let gl = if gl_api.contains(Api::OPENGL) {
-            // SAFETY: function pointers are directly from safe glutin here.
-            unsafe {
-                gl::GlFns::load_with(|symbol| {
-                    let symbol = CString::new(symbol).unwrap();
-                    display.get_proc_address(symbol.as_c_str())
-                })
-            }
-        } else if gl_api.contains(Api::GLES3) {
-            // SAFETY: function pointers are directly from safe glutin here.
-            unsafe {
-                gl::GlesFns::load_with(|symbol| {
-                    let symbol = CString::new(symbol).unwrap();
-                    display.get_proc_address(symbol.as_c_str())
-                })
-            }
-        } else {
-            return Err("no OpenGL or GLES3 available".into());
-        };
+        let gl = gl_load(&config, &display)?;
 
         check_wr_gl_version(&*gl)?;
 
@@ -503,26 +484,7 @@ impl GlContextManager {
         self.current.set(Some(id));
         let context = context.make_current(&surface)?;
 
-        let gl_api = config.api();
-        let gl = if gl_api.contains(Api::OPENGL) {
-            // SAFETY: function pointers are directly from safe glutin here.
-            unsafe {
-                gl::GlFns::load_with(|symbol| {
-                    let symbol = CString::new(symbol).unwrap();
-                    display.get_proc_address(symbol.as_c_str())
-                })
-            }
-        } else if gl_api.contains(Api::GLES3) {
-            // SAFETY: function pointers are directly from safe glutin here.
-            unsafe {
-                gl::GlesFns::load_with(|symbol| {
-                    let symbol = CString::new(symbol).unwrap();
-                    display.get_proc_address(symbol.as_c_str())
-                })
-            }
-        } else {
-            return Err("no OpenGL or GLES3 available".into());
-        };
+        let gl = gl_load(&config, &display)?;
 
         check_wr_gl_version(&*gl)?;
 
@@ -576,6 +538,31 @@ impl GlContextManager {
             })
         }
     }
+}
+
+#[cfg(feature = "hardware")]
+fn gl_load(config: &glutin::config::Config, display: &Display) -> Result<Rc<dyn gleam::gl::Gl>, Box<dyn Error>> {
+    let gl_api = config.api();
+    let gl = if gl_api.contains(Api::OPENGL) {
+        // SAFETY: function pointers are directly from safe glutin here.
+        unsafe {
+            gl::GlFns::load_with(|symbol| {
+                let symbol = CString::new(symbol).unwrap();
+                display.get_proc_address(symbol.as_c_str())
+            })
+        }
+    } else if gl_api.contains(Api::GLES3) {
+        // SAFETY: function pointers are directly from safe glutin here.
+        unsafe {
+            gl::GlesFns::load_with(|symbol| {
+                let symbol = CString::new(symbol).unwrap();
+                display.get_proc_address(symbol.as_c_str())
+            })
+        }
+    } else {
+        return Err("no OpenGL or GLES3 available".into());
+    };
+    Ok(gl)
 }
 
 #[allow(clippy::large_enum_variant)] // glutin is the largest, but also most common

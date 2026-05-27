@@ -419,13 +419,6 @@ impl CrashError {
             }
         };
 
-        let system_info = match dump.get_stream::<MinidumpSystemInfo>() {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::error!("error reading minidump system info, {e}");
-                return None;
-            }
-        };
         let exception = match dump.get_stream::<MinidumpException>() {
             Ok(s) => s,
             Err(e) => {
@@ -434,9 +427,77 @@ impl CrashError {
             }
         };
 
-        let crash_reason = exception.get_crash_reason(system_info.os, system_info.cpu);
+        #[cfg(debug_assertions)]
+        {
+            // nice error messages, but adds >1MB of binary code
+            let system_info = match dump.get_stream::<MinidumpSystemInfo>() {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("error reading minidump system info, {e}");
+                    return None;
+                }
+            };
+            let crash_reason = exception.get_crash_reason(system_info.os, system_info.cpu);
+            Some(zng_txt::formatx!("{crash_reason}"))
+        }
 
-        Some(zng_txt::formatx!("{crash_reason}"))
+        #[cfg(not(debug_assertions))]
+        {
+            // raw error code, only common names
+            let raw = exception.raw;
+
+            let code = raw.exception_record.exception_code;
+            let addr = raw.exception_record.exception_address;
+
+            cfg_select! {
+                windows => {
+                    let name = match code {
+                        0xC0000005 => "ACCESS_VIOLATION",
+                        0xC0000409 => "STACK_BUFFER_OVERRUN",
+                        0x80000003 => "BREAKPOINT",
+                        0xC000001D => "ILLEGAL_INSTRUCTION",
+                        0xC0000094 => "INTEGER_DIVIDE_BY_ZERO",
+                        0xC00000FD => "STACK_OVERFLOW",
+                        0xC0000096 => "PRIVILEGED_INSTRUCTION",
+                        0xC0000008 => "INVALID_HANDLE",
+                        0xC0000135 => "DLL_NOT_FOUND",
+                        _ => "",
+                    };
+                }
+                any(target_os = "linux", target_os = "android") => {
+                    let name = match code as i32 {
+                        4 => "SIGILL",
+                        5 => "SIGTRAP",
+                        6 => "SIGABRT",
+                        7 => "SIGBUS",
+                        8 => "SIGFPE",
+                        9 => "SIGKILL",
+                        11 => "SIGSEGV",
+                        13 => "SIGPIPE",
+                        _ => "",
+                    };
+                }
+                any(target_os = "macos", target_os = "ios") => {
+                    let name = match code as i32 {
+                        4 => "SIGILL",
+                        5 => "SIGTRAP",
+                        6 => "SIGABRT",
+                        8 => "SIGFPE",
+                        10 => "SIGBUS",
+                        11 => "SIGSEGV",
+                        _ => "",
+                    };
+                }
+                _ => {
+                    let name = "";
+                }
+            }
+            if name.is_empty() {
+                Some(zng_txt::formatx!("exception 0x{code:08X} at 0x{addr:X}"))
+            } else {
+                Some(zng_txt::formatx!("exception 0x{code:08X} ({name}) at 0x{addr:X}"))
+            }
+        }
     }
 }
 
