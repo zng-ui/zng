@@ -2024,7 +2024,10 @@ impl Api for App {
             let id = config.id;
             let win = Window::open(
                 self.generation,
-                config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
+                config
+                    .icon
+                    .and_then(|i| self.image_cache.get(i))
+                    .and_then(|i| i.icon(self.image_cache.resizer())),
                 config
                     .cursor_image
                     .and_then(|(i, h)| self.image_cache.get(i).and_then(|i| i.cursor(h, &self.winit_loop))),
@@ -2137,7 +2140,9 @@ impl Api for App {
     }
 
     fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>) {
-        let icon = icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon());
+        let icon = icon
+            .and_then(|i| self.image_cache.get(i))
+            .and_then(|i| i.icon(self.image_cache.resizer()));
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
