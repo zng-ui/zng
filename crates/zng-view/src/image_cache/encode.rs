@@ -7,7 +7,7 @@ use zng_txt::{ToTxt as _, formatx};
 use zng_unit::{Px, PxPoint, PxSize};
 use zng_view_api::{
     Event,
-    image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId},
+    image::{ImageEncodeId, ImageEncodeRequest, ImageEntryKind, ImageFormatCapability, ImageId, downscale_fit_fill},
 };
 
 use crate::{
@@ -118,11 +118,12 @@ impl Image {
             None
         } else {
             let r = if width > 255 || height > 255 {
-                // resize to max 255
-                let mut buf = super::fast_resize(resizer_cache, self.0.is_mask(), *size, pixels, PxSize::splat(Px(255))).unwrap();
+                let down_size = downscale_fit_fill(*size, PxSize::splat(Px(255)), false).unwrap();
+                // resize to fit 255x255
+                let mut buf = super::fast_resize(resizer_cache, self.0.is_mask(), *size, pixels, down_size).unwrap();
 
                 bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());
-                winit::window::Icon::from_rgba(buf.unwrap_or_to_vec(), width, height)
+                winit::window::Icon::from_rgba(buf.unwrap_or_to_vec(), down_size.width.0 as _, down_size.height.0 as _)
             } else {
                 let mut buf = pixels[..].to_vec();
                 bgra_pre_mul_to_rgba(&mut buf, self.is_opaque());

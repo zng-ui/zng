@@ -221,8 +221,8 @@ impl ImageDownscaleMode {
     /// sorted largest to smallest.
     pub fn sizes(&self, page_size: PxSize, reduced_sizes: &[PxSize]) -> (Option<PxSize>, Vec<PxSize>) {
         match self {
-            ImageDownscaleMode::Fit(s) => (fit_fill(page_size, *s, false), vec![]),
-            ImageDownscaleMode::Fill(s) => (fit_fill(page_size, *s, true), vec![]),
+            ImageDownscaleMode::Fit(s) => (downscale_fit_fill(page_size, *s, false), vec![]),
+            ImageDownscaleMode::Fill(s) => (downscale_fit_fill(page_size, *s, true), vec![]),
             ImageDownscaleMode::MipMap { min_size, max_size } => Self::collect_mip_map(page_size, reduced_sizes, &[], *min_size, *max_size),
             ImageDownscaleMode::Entries(modes) => {
                 let mut include_full_size = false;
@@ -256,11 +256,11 @@ impl ImageDownscaleMode {
         min_size: PxSize,
         max_size: PxSize,
     ) -> (Option<PxSize>, Vec<PxSize>) {
-        let page_downscale = fit_fill(page_size, max_size, true);
+        let page_downscale = downscale_fit_fill(page_size, max_size, true);
         let mut size = page_downscale.unwrap_or(page_size) / Px(2);
         let mut entries = vec![];
         while min_size.width < size.width && min_size.height < size.height {
-            if let Some(entry) = fit_fill(page_size, size, true)
+            if let Some(entry) = downscale_fit_fill(page_size, size, true)
                 && !reduced_sizes.iter().any(|s| Self::near(entry, *s))
                 && !entry_sizes.iter().any(|s| Self::near(entry, *s))
             {
@@ -277,11 +277,11 @@ impl ImageDownscaleMode {
 
     fn collect_entries(&self, page_size: PxSize, sizes: &mut Vec<PxSize>, mip_map: &mut Option<[PxSize; 2]>, include_full_size: &mut bool) {
         match self {
-            ImageDownscaleMode::Fit(s) => match fit_fill(page_size, *s, false) {
+            ImageDownscaleMode::Fit(s) => match downscale_fit_fill(page_size, *s, false) {
                 Some(s) => sizes.push(s),
                 None => *include_full_size = true,
             },
-            ImageDownscaleMode::Fill(s) => match fit_fill(page_size, *s, true) {
+            ImageDownscaleMode::Fill(s) => match downscale_fit_fill(page_size, *s, true) {
                 Some(s) => sizes.push(s),
                 None => *include_full_size = true,
             },
@@ -303,9 +303,12 @@ impl ImageDownscaleMode {
     }
 }
 
-fn fit_fill(source_size: PxSize, new_size: PxSize, fill: bool) -> Option<PxSize> {
+/// Calculate the fit or fill size.
+///
+/// Returns `None` if the `source_size` is already smaller or equal to the `constraints`.
+pub fn downscale_fit_fill(source_size: PxSize, constraints: PxSize, fill: bool) -> Option<PxSize> {
     let source_size = source_size.cast::<f64>();
-    let new_size = new_size.cast::<f64>();
+    let new_size = constraints.cast::<f64>();
 
     let w_ratio = new_size.width / source_size.width;
     let h_ratio = new_size.height / source_size.height;
