@@ -121,8 +121,9 @@
                     // same syntax as `widget_impl!`
                     mtdSignature.innerHTML = mtdSignature.innerHTML
                         .replace('fn ', '')
-                        .replace('<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self,', '')
-                        .replace('&amp;self, ', '') + ';';
+                        .replace(/\(\s*&amp;self,\s*/gm, '(')
+                        .replace(/,\s*\)/gm, ')')
+                         + ';';
                     propertiesList.appendChild(e);
 
                 }
@@ -148,7 +149,7 @@
         let repeats = new Set();
 
         sideBar.querySelectorAll('h3').forEach(function (e) {
-            if (e.innerText == "Methods" || e.innerText.indexOf("Methods from") !== -1) {
+            if (e.innerText == "Associated Functions" || e.innerText == "Methods" || e.innerText.indexOf("Methods from") !== -1) {
                 e.firstChild.innerText = e.firstChild.innerText.replace('Deref<Target=', '').replace('>', '');
                 let mixGenericsCut = e.firstChild.innerText.indexOf('<');
                 if (mixGenericsCut !== -1) {
@@ -375,6 +376,19 @@
                     methodsSideInsertPoint.parentElement.insertBefore(sideList, methodsSideInsertPoint);
                 }
             }
+            e.page.querySelectorAll("h2.section-header").forEach(function (h2) {
+                if (h2.id.startsWith('deref-methods-')) {
+                    let mtdList = h2.parentElement.nextElementSibling;
+
+                    methodsInsertPoint.parentElement.insertBefore(h2, methodsInsertPoint);
+                    methodsInsertPoint.parentElement.insertBefore(mtdList, methodsInsertPoint);
+
+                    insertedDocs.push({
+                        url: e.url,
+                        el: mtdList,
+                    });
+                }
+            });
 
             e.page.querySelectorAll('h2.small-section-header').forEach(function (e) {
                 if (e.id.indexOf('deref-methods-') !== -1) {
