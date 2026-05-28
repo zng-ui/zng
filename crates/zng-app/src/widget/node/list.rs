@@ -2547,7 +2547,13 @@ where
                 WIDGET.update_info();
             }
         }
-        update_list_after(observer.changed, resort, &mut self.z_naturally_sorted, &mut self.info_id, &mut self.z_map);
+        update_list_after(
+            observer.changed,
+            resort,
+            &mut self.z_naturally_sorted,
+            &mut self.info_id,
+            &mut self.z_map,
+        );
 
         self.data.resize_with(self.list.children_len(), Default::default);
     }

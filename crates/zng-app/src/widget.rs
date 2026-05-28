@@ -29,7 +29,7 @@ use zng_view_api::display_list::ReuseRange;
 
 use crate::{
     event::{AnyEvent, Event, EventArgs},
-    handler::{APP_HANDLER, AppWeakHandle, Handler, HandlerExt as _, HandlerResult},
+    handler::{APP_HANDLER, AppWeakHandle, Handler, HandlerResult},
     update::{LayoutUpdates, RenderUpdates, UPDATES, UpdateFlags, UpdateOp, UpdatesTrace},
     window::WINDOW,
 };
@@ -1613,7 +1613,7 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
     }
 }
 
-fn var_on_new<T>(var: &Var<T>, handler: Handler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
+fn var_on_new<T>(var: &Var<T>, mut handler: Handler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
 where
     T: VarValue,
 {
@@ -1621,7 +1621,21 @@ where
         return VarHandle::dummy();
     }
 
-    let handler = handler.into_arc();
+    var_on_new_any(
+        var,
+        Arc::new(Mutex::new(
+            move |any_value: BoxAnyVarValue, tags: Vec<BoxAnyVarValue>| -> HandlerResult {
+                handler(&OnVarArgs::new(any_value.downcast().unwrap(), tags))
+            },
+        )),
+        is_preview,
+    )
+}
+fn var_on_new_any(
+    var: &AnyVar,
+    handler: Arc<Mutex<dyn FnMut(BoxAnyVarValue, Vec<BoxAnyVarValue>) -> HandlerResult + Send + 'static>>,
+    is_preview: bool,
+) -> VarHandle {
     let (inner_handle_owner, inner_handle) = Handle::new(());
     let mut update = VarUpdateId::never();
     var.hook(move |args| {
@@ -1637,13 +1651,13 @@ where
         update = u;
 
         let handle = inner_handle.downgrade();
-        let value = args.value().clone();
-        let tags: Vec<_> = args.tags().to_vec();
+        let mut value = Some(args.value().clone_boxed());
+        let mut tags: Vec<_> = args.tags().to_vec();
 
         let update_once: Handler<crate::update::UpdateArgs> = Box::new(clmv!(handler, |_| {
             APP_HANDLER.unsubscribe(); // once
-            APP_HANDLER.with(handle.clone_boxed(), is_preview, || {
-                handler.call(&OnVarArgs::new(value.clone(), tags.clone()))
+            APP_HANDLER.with(AppWeakHandle::clone_boxed(&handle), is_preview, || {
+                (handler.lock())(value.take().unwrap(), std::mem::take(&mut tags))
             })
         }));
 
