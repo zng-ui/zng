@@ -4,6 +4,7 @@
     - Enabled in the prebuilt view-process, and in `"dev"` of the main crate.
     - When removed saves ~1MB of compiled code.
 * Add `try_unwrap_vec` and `unwrap_or_to_vec` for `IpcBytes` and `IpcBytesMut`.
+* Compile size optimizations and dependency trimming, ~8MB reduction in release builds.
 
 # 0.22.6
 
