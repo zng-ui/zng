@@ -2468,8 +2468,11 @@ where
     }
 
     fn init(&mut self) {
-        self.z_map.clear();
-        let resort = Z_INDEX.with(WIDGET.id(), || self.list.0.init());
+        fn init_impl(z_map: &mut Vec<u64>, list: &mut UiNode) -> bool {
+            z_map.clear();
+            Z_INDEX.with(WIDGET.id(), || list.0.init())
+        }
+        let resort = init_impl(&mut self.z_map, &mut self.list);
         self.z_naturally_sorted = !resort;
         self.data.resize_with(self.list.0.children_len(), Default::default);
     }
@@ -2479,30 +2482,33 @@ where
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        let len = self.list.0.children_len();
-        if len == 0 {
-            return;
-        }
+        fn info_impl(list: &mut UiNode, info_id: &mut Option<(StateId<PanelListRange>, u8, bool)>, info: &mut WidgetInfoBuilder) {
+            let len = list.0.children_len();
+            if len == 0 {
+                return;
+            }
 
-        self.list.0.info(info);
+            list.0.info(info);
 
-        if let Some((id, version, pump_update)) = &mut self.info_id {
-            let start = self.list.with_child(0, |c| c.as_widget().map(|mut w| w.id()));
-            let end = self.list.with_child(len - 1, |c| c.as_widget().map(|mut w| w.id()));
-            let range = match (start, end) {
-                (Some(s), Some(e)) => Some((s, e)),
-                _ => None,
-            };
-            info.set_meta(*id, PanelListRange { range, version: *version });
+            if let Some((id, version, pump_update)) = info_id {
+                let start = list.with_child(0, |c| c.as_widget().map(|mut w| w.id()));
+                let end = list.with_child(len - 1, |c| c.as_widget().map(|mut w| w.id()));
+                let range = match (start, end) {
+                    (Some(s), Some(e)) => Some((s, e)),
+                    _ => None,
+                };
+                info.set_meta(*id, PanelListRange { range, version: *version });
 
-            if mem::take(pump_update) {
-                self.list.for_each_child(|_, c| {
-                    if let Some(mut w) = c.as_widget() {
-                        w.with_context(WidgetUpdateMode::Bubble, || WIDGET.update());
-                    }
-                });
+                if mem::take(pump_update) {
+                    list.for_each_child(|_, c| {
+                        if let Some(mut w) = c.as_widget() {
+                            w.with_context(WidgetUpdateMode::Bubble, || WIDGET.update());
+                        }
+                    });
+                }
             }
         }
+        info_impl(&mut self.list, &mut self.info_id, info);
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -2515,22 +2521,35 @@ where
             data: &mut self.data,
             observer,
         };
-        let resort = Z_INDEX.with(WIDGET.id(), || self.list.update_list(updates, &mut observer));
-        let observer_changed = observer.changed;
-        if resort || (observer.changed && self.z_naturally_sorted) {
-            self.z_map.clear();
-            self.z_naturally_sorted = false;
-            WIDGET.render();
+        fn update_list_impl(list: &mut UiNode, observer: &mut dyn UiNodeListObserver, updates: &WidgetUpdates) -> bool {
+            Z_INDEX.with(WIDGET.id(), || list.0.update_list(updates, observer))
         }
-        self.data.resize_with(self.list.children_len(), Default::default);
+        let resort = update_list_impl(&mut self.list, &mut observer, updates);
 
-        if observer_changed && let Some((_, v, u)) = &mut self.info_id {
-            if !*u {
-                *v = v.wrapping_add(1);
-                *u = true;
+        fn update_list_after(
+            observer_changed: bool,
+            resort: bool,
+            z_naturally_sorted: &mut bool,
+            info_id: &mut Option<(StateId<PanelListRange>, u8, bool)>,
+            z_map: &mut Vec<u64>,
+        ) {
+            if resort || (observer_changed && *z_naturally_sorted) {
+                z_map.clear();
+                *z_naturally_sorted = false;
+                WIDGET.render();
             }
-            WIDGET.update_info();
+
+            if observer_changed && let Some((_, v, u)) = info_id {
+                if !*u {
+                    *v = v.wrapping_add(1);
+                    *u = true;
+                }
+                WIDGET.update_info();
+            }
         }
+        update_list_after(observer.changed, resort, &mut self.z_naturally_sorted, &mut self.info_id, &mut self.z_map);
+
+        self.data.resize_with(self.list.children_len(), Default::default);
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
