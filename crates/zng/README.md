@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 94 feature flags, 1 enabled by default.
+This crate provides 95 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -422,6 +422,11 @@ Note that EXIF is always used when decoding, this feature enables `ImageEntry::e
 Enable ICC Profile metadata copy in images with "view" feature.
 
 Note that images are always color managed when decoding, this feature enables `ImageEntry::icc_profile`.
+
+#### `"image_fast_downscale"`
+Enable SIMD accelerated image downscaling.
+
+This is much faster and produces higher quality downscaled images, but adds ~1MB of binary code.
 
 #### `"audio_mp3"`
 Enable MP3 audio format with "view" feature.
