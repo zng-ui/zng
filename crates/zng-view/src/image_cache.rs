@@ -1287,7 +1287,7 @@ fn fast_downscale(
 ) -> Option<IpcBytesMut> {
     use fast_image_resize::{self as fr, IntoImageView};
 
-    let px_type = if source_is_mask { fr::PixelType::U8x4 } else { fr::PixelType::U8 };
+    let px_type = if source_is_mask { fr::PixelType::U8 } else { fr::PixelType::U8x4 };
     let source_img = fr::images::ImageRef::new(source_size.width.0 as _, source_size.height.0 as _, source_pixels, px_type).unwrap();
     let mut dest_buf = IpcBytesMut::new_blocking(dest_size.width.0 as usize * dest_size.height.0 as usize * px_type.size()).ok()?;
     let mut dest_img =

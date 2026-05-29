@@ -5,6 +5,6 @@ publish = false
 edition = "2024"
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view", "http", "svg", "material_icons"] }
+zng = { path = "../../crates/zng", features = ["view_prebuilt", "http", "svg", "material_icons"] }
 zng-wgt-webrender-debug = { path = "../../crates/zng-wgt-webrender-debug" }
 tracing = "0.1"
