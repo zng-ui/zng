@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.7
+
 * Add `"image_fast_downscale"` Cargo feature.
     - Enabled in the prebuilt view-process, and in `"dev"` of the main crate.
     - When removed saves ~1MB of compiled code.
