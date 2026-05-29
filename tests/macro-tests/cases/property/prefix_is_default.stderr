@@ -10,3 +10,10 @@ error[E0277]: the trait bound `zng::var::Var<bool>: IntoVar<u32>` is not satisfi
    = note: `IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others
 help: the following other types implement trait `IntoVar<T>`
             <implementers-list>
+note: required by a bound in `is_state_invalid_::args`  --> cases/property/prefix_is_default.rs:10:61
+   |
+ 9 | #[property(CONTEXT)]
+   | -------------------- required by a bound in this associated function
+10 | pub fn is_state_invalid(child: impl IntoUiNode, state: impl IntoVar<u32>) -> UiNode {
+   |                                                             ^^^^^^^^^^^^ required by this bound in `is_state_invalid_::args`
+   = note: this error originates in the macro `$crate::__impl_from_and_into_var` which comes from the expansion of the macro `impl_from_and_into_var` (in Nightly builds, run with -Z macro-backtrace for more info)

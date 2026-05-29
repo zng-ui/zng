@@ -7,7 +7,6 @@ error[E0277]: the trait bound `f32: WidgetImpl` is not satisfied
   = note: `f32` is not an `#[widget]`
   = help: the following other types implement trait `WidgetImpl`:
             <implementers-list>
-
 error[E0277]: the trait bound `f32: WidgetImpl` is not satisfied
  --> cases/widget/parent_not_widget.rs:3:1
   |
@@ -16,5 +15,3 @@ error[E0277]: the trait bound `f32: WidgetImpl` is not satisfied
   |
   = note: `f32` is not an `#[widget]`
   = help: the following other types implement trait `WidgetImpl`:
-            <implementers-list>
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -38,16 +38,16 @@ fn cleanup(test: &str) {
             let mut changed = false;
 
             for line in raw.lines() {
-                let test_line = line.trim();
                 if !skip_trait_impl {
-                    skip_trait_impl = test_line.contains("help: the following other types implement trait");
+                    skip_trait_impl = line.contains("help: the following other types implement trait")
+                        || (line.contains("= help: `") && line.contains("` implements trait `"));
 
                     clean.push_str(line);
                     clean.push('\n');
-                } else if (test_line.starts_with("and ") && test_line.ends_with(" others")) || test_line.starts_with("= note") {
-                    changed = true;
+                } else if line.contains("note: required") || line.is_empty() {
                     skip_trait_impl = false;
-                    clean.push_str("            <implementers-list>\n")
+                    clean.push_str("            <implementers-list>\n");
+                    clean.push_str(line);
                 } else {
                     changed = true;
                 }
