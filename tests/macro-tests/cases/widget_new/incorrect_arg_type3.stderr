@@ -8,10 +8,9 @@ error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
    |
    = note: `IntoVar<T>` is implemented for all `T: VarValue`
    = note: `IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others
-   = help: the following other types implement trait `IntoVar<T>`:
+   = help: `bool` implements trait `IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `zng::widget::background_gradient::background_gradient`
-  --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
+note: required by a bound in `zng::widget::background_gradient::background_gradient`  --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
    | ...Axis>, stops: impl IntoVar<GradientStops>) -> UiNode {
    |                       ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
