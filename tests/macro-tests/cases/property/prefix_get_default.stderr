@@ -47,7 +47,7 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
    = help: the trait `PartialEq` is not implemented for `NotDefault`
 help: the following other types implement trait `IntoVar<T>`
             <implementers-list>
-   = note: required for `zng::var::Var<NotDefault>` to implement `IntoVar<NotDefault>`
+   = note: required for `NotDefault` to implement `VarValue`   = note: required for `zng::var::Var<NotDefault>` to implement `IntoVar<NotDefault>`
 note: required by a bound in `get_state_invalid_::args`
   --> cases/property/prefix_get_default.rs:10:62
    |
