@@ -37,7 +37,7 @@ usage_recorder = []
 # Use recorded usage profile to subset icon fonts on build for embedding.
 # 
 # See `"usage_recorder"` for how to set the file.
-embedded_subset = ["embedded"]
+embedded_subset = ["embedded", "dep:font-subset"]
 
 [dependencies]
 zng-app = { path = "../zng-app", version = "0.23.6", default-features = false }
@@ -56,6 +56,7 @@ wasm-bindgen = "0.2"
 [build-dependencies]
 dunce = { version = "1.0", default-features = false }
 phf_codegen = { version = "0.13", default-features = false }
+font-subset = { version = "0.1.0", default-features = false, features = ["std"], optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

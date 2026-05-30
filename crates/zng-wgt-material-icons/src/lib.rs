@@ -167,7 +167,7 @@ pub mod outlined {
 
     /// Embedded font bytes.
     #[cfg(feature = "embedded")]
-    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsOutlined-Regular.otf");
+    pub const FONT_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/generated.outlined.ttf"));
 
     include!(concat!(env!("OUT_DIR"), "/generated.outlined.map.rs"));
     getters!(FONT_NAME, MAP);
@@ -200,7 +200,7 @@ pub mod filled {
 
     /// Embedded font bytes.
     #[cfg(feature = "embedded")]
-    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIcons-Regular.ttf");
+    pub const FONT_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/generated.filled.ttf"));
 
     include!(concat!(env!("OUT_DIR"), "/generated.filled.map.rs"));
     getters!(FONT_NAME, MAP);
@@ -233,7 +233,7 @@ pub mod rounded {
 
     /// Embedded font bytes.
     #[cfg(feature = "embedded")]
-    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsRound-Regular.otf");
+    pub const FONT_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/generated.rounded.ttf"));
 
     include!(concat!(env!("OUT_DIR"), "/generated.rounded.map.rs"));
     getters!(FONT_NAME, MAP);
@@ -266,7 +266,7 @@ pub mod sharp {
 
     /// Embedded font bytes.
     #[cfg(feature = "embedded")]
-    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsSharp-Regular.otf");
+    pub const FONT_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/generated.sharp.ttf"));
 
     include!(concat!(env!("OUT_DIR"), "/generated.sharp.map.rs"));
     getters!(FONT_NAME, MAP);
