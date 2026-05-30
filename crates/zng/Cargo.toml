@@ -484,6 +484,9 @@ audio_wav = ["zng-view?/audio_wav"]
 # Enable all audio decoders and encoders with "view" feature.
 audio_all = ["zng-view?/audio_all"]
 
+# Internal feature, only enabled if built with --all-features
+_all_features = ["zng-wgt-material-icons?/_all_features"]
+
 [dependencies]
 # foundation
 zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }

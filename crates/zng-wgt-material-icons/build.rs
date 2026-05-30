@@ -222,7 +222,10 @@ fn read_subset_allow() -> HashMap<String, HashSet<String>> {
     };
     let pair_path = path.parent().unwrap().join(pair_name);
 
-    assert!(path.exists() || pair_path.exists(), "subset profile file not found");
+    assert!(
+        path.exists() || pair_path.exists() || cfg!(feature = "_all_features"),
+        "subset profile file not found"
+    );
 
     // read
     let mut allow = HashMap::<String, HashSet<String>>::new();
@@ -259,7 +262,7 @@ fn read_subset_allow() -> HashMap<String, HashSet<String>> {
         }
     }
 
-    if allow.is_empty() {
+    if allow.is_empty() && !cfg!(feature = "_all_features") {
         println!("cargo::warning=no icon included in subset");
     }
 

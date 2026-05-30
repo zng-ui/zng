@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 95 feature flags, 1 enabled by default.
+This crate provides 97 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -214,6 +214,19 @@ Material Icons Rounded icon set.
 
 #### `"material_icons_sharp"`
 Material Icons Sharp icon set.
+
+#### `"material_icons_usage_recorder"`
+Compile with usage profile recorder.
+
+After recording build with `"material_icons_subset"` to embed only the icons used.
+
+Saves to `ZNG_MATERIAL_ICONS_PROFILE_FILE` if set to a .rec.subset path
+Or `"res/optimization-profiles/zng-wgt-material-icons.rec.subset"` by default
+
+#### `"material_icons_subset"`
+Use recorded usage profile to subset icon fonts on build for embedding.
+
+See `"material_icons_usage_recorder"` for how to set the file.
 
 #### `"var_type_names"`
 Compile with var value type names for better error messages and diagnostics.

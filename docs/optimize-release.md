@@ -94,6 +94,14 @@ The [`zng-template`] already setups something like this, call `cargo do build -r
 
 [`zng-template`]: https://github.com/zng-ui/zng-template
 
+### Icon Font Subsetting
+
+If you build with the `"material_icons"` feature the embedded icon fonts data and icon name tables add ~2MB, you can reduce this to
+~350KB by enabling just one icon style feature, but to fully avoid embedding unused icons you can enable compile time subsetting. 
+
+See the [`zng::icon::material`](https://zng-ui.github.io/doc/zng/icon/material/index.html) docs for a tutorial of how to enable compile time subsetting.
+
+
 ## Memory Usage
 
 A typical Zng app runs three processes, `crash-handler-process`, `app-process` and `view-process`. Usually on startup the view-process

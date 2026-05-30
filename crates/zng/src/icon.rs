@@ -92,7 +92,37 @@ pub use zng_wgt_text::icon::{GlyphIcon, GlyphSource, Icon, ico_color, ico_size};
 ///
 /// # Subsetting
 ///
-/// !!: TODO
+/// Compiling with the `"material_icons"` feature embeds the font file and a name table that around 2MB to the compiled executable.
+/// Compiling with only one icon set adds around 350KB, you can optimize further by compiling with only the subset of icons used.
+///
+/// #### Step 1
+///
+/// To subset the icons you must create a profile file that lists all icons used by the app. To get started build this crate
+/// with the `"material_icons_usage_recorder"` feature, run it and load every screen that uses an icon, close the app.
+///
+/// The subset profile is saved to `res/optimization-profiles/zng-wgt-material-icons.rec.subset` by default,
+/// you can change the location by setting the `ZNG_MATERIAL_ICONS_PROFILE_FILE` env var.
+///
+/// The profile is a text file with format:
+///
+/// ```txt
+/// # comments
+///
+/// {set}/{name}
+/// ```
+///
+/// The generated file will have a comment header with instruction on how to manually add icons.
+///
+/// The profile file can be added to source control, the recorded entries are sorted so changes are stable.
+///
+/// #### Step 2
+///
+/// With the a subset profile ready you only need to enable the `"material_icons_subset"` crate feature. On build the profile
+/// will be used to generate a subset font and only the used icons are added to the name table, greatly reducing
+/// the binary size.
+///
+/// The profile file is found using the `ZNG_MATERIAL_ICONS_PROFILE_FILE` env var is set, or in the default location.
+/// If two files `.rec.subset` and `.subset` are present with the same name both are used.
 ///
 /// # Full API
 ///
