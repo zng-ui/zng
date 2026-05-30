@@ -89,6 +89,10 @@ pub use zng_wgt_text::icon::{GlyphIcon, GlyphSource, Icon, ico_color, ico_size};
 ///
 /// You can disambiguate icons by using a the `"material/{set}/{name}"` where `{set}` is one of the items from the list above,
 /// and `{name}` is the icon name.
+/// 
+/// # Subsetting
+/// 
+/// !!: TODO
 ///
 /// # Full API
 ///

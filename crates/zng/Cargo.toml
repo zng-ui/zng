@@ -246,6 +246,18 @@ material_icons_sharp = [
     "zng-wgt-material-icons/sharp",
 ]
 
+# Compile with usage profile recorder.
+# 
+# After recording build with `"material_icons_subset"` to embed only the icons used.
+# 
+# Saves to `ZNG_MATERIAL_ICONS_PROFILE_FILE` if set to a .rec.subset path
+# Or `"res/optimization-profiles/zng-wgt-material-icons.rec.subset"` by default
+material_icons_usage_recorder = ["zng-wgt-material-icons?/usage_recorder"]
+# Use recorded usage profile to subset icon fonts on build for embedding.
+# 
+# See `"material_icons_usage_recorder"` for how to set the file.
+material_icons_subset = ["zng-wgt-material-icons?/embedded_subset"]
+
 # Compile with var value type names for better error messages and diagnostics.
 var_type_names = ["zng-var/type_names", "zng-wgt-data?/var_type_names"]
 

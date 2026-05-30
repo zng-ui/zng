@@ -20,6 +20,9 @@
 
 zng_wgt::enable_widget_macros!();
 
+#[cfg(feature = "usage_recorder")]
+mod usage_recorder;
+
 #[cfg(all(
     feature = "embedded",
     any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
@@ -32,8 +35,10 @@ zng_env::on_process_start!(|args| {
         use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
         use zng_wgt_text::icon::{GlyphIcon, Icon};
 
-        // register fonts
+        #[cfg(feature = "usage_recorder")]
+        usage_recorder::on_init();
 
+        // register fonts
         let sets = [
             #[cfg(feature = "outlined")]
             (outlined::FONT_NAME, outlined::FONT_BYTES),
@@ -44,7 +49,6 @@ zng_env::on_process_start!(|args| {
             #[cfg(feature = "sharp")]
             (sharp::FONT_NAME, sharp::FONT_BYTES),
         ];
-
         for (name, bytes) in sets {
             let font = zng_ext_font::CustomFont::from_bytes(name, zng_ext_font::FontBytes::from_static(bytes), 0);
             zng_ext_font::FONTS.register(font);
@@ -102,8 +106,14 @@ macro_rules! getters {
     ($FONT_NAME:ident, $MAP:ident) => {
         /// Gets the [`GlyphIcon`].
         pub fn get(key: &str) -> Option<GlyphIcon> {
-            Some(GlyphIcon::new($FONT_NAME.clone(), *$MAP.get(key)?))
+            let icon = GlyphIcon::new($FONT_NAME.clone(), *$MAP.get(key)?);
+            #[cfg(feature = "usage_recorder")]
+            USAGE.insert(key);
+            Some(icon)
         }
+
+        #[cfg(feature = "usage_recorder")]
+        pub(crate) static USAGE: std::sync::LazyLock<crate::usage_recorder::UsageRecorder> = std::sync::LazyLock::new(Default::default);
 
         /// Require the [`GlyphIcon`], logs an error if not found.
         ///

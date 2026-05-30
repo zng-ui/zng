@@ -1,5 +1,8 @@
 # Unreleased
 
+* Implement subsetting for embedded icon fonts.
+    - Added `"material_icons_usage_recorder"` and `"material_icons_subset"` features.
+    - Added tutorial in docs for `zng::icon::material`.
 
 # 0.22.7
 
