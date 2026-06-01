@@ -151,6 +151,53 @@
 //!
 //! The `l10n!:` value must be a *textual* literal, that is, it can be only a string literal or a `bool` literal, and it cannot be
 //! inside a macro expansion.
+//!
+//! # Dependency Localization
+//!
+//! The `cargo zng l10n` tool copies all localization files from dependency crates by default. The Fluent files
+//! are placed in `dir/{lang}/deps/*/*/*.ftl`, the [`L10N`] service knows to search these directories structure for localization.
+//!
+//! Note that dependency crates are **not scrapped**, the library crate authors are expected to scrap (and translate) text
+//! to a `{crate}/l10n` directory, beside the `{crate}/Cargo.toml`.
+//!
+//! The copied dependency resources are excluded from Git source control by default, the recommended workflow is to rerun `cargo zng l10n`
+//! after each `cargo update`. Projects created using `cargo zng new` can just run `cargo do update`, that is a shorthand for:
+//!
+//! ```console
+//! cargo update
+//! cargo zng l10n --no-local --no-pkg --output res/l10n
+//! ```
+//!
+//! ## Packaging
+//!
+//! When packaging a release build for publish you want to only include the dependency resources for the locales supported by your
+//! application. The easiest way to do this is `cargo zng res` with a `.zr-l10n` tool call, it will automatically filter out
+//! languages that only have dependency resources and also. Call `cargo zng res --tool sh` to read detailed help.
+//!
+//! ### Subsetting
+//!
+//! Your app may not use all localization resources from dependencies, with some work you can collect a *subset* allow list that
+//! can be used by `.zr-l10n` to only package the entries used, in this mode the dependency Fluent files are edited down to
+//! include only the text actually used by the app.
+//!
+//! The easiest way to get started is to build with the `"l10n_usage_recorder"` Cargo feature, run the app and visit every
+//! screen and state that uses localization text. The subset profile is saved to `res/optimization-profiles/zng-ext-l10n.rec.subset` by default,
+//! you can change the location by setting the `ZNG_L10N_PROFILE_FILE` env var.
+//!
+//! The profile is a text file with format:
+//!
+//! ```txt
+//! # comments
+//!
+//! {dependency}//{file}/{id}.{attribute}
+//! ```
+//!
+//! The dependency is the crate package name, `{file}/{id}.{attribute}` is the same key syntax used by [`l10n!`].
+//!
+//! The generated file will has a comment header with instruction on how to manually add icons.
+//!
+//! The profile file can be added to source control, the recorded entries are sorted so changes are stable.
+//!
 //! # Full API
 //!
 //! See [`zng_ext_l10n`] for the full localization API.

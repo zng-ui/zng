@@ -49,6 +49,9 @@ use service::L10N_SV;
 mod sources;
 pub use sources::*;
 
+#[cfg(feature = "usage_recorder")]
+mod usage_recorder;
+
 /// Localization service.
 pub struct L10N;
 
@@ -58,6 +61,9 @@ on_process_start!(|args: &zng_env::ProcessStartArgs| {
     }
 
     APP.on_init(hn!(|_| {
+        #[cfg(feature = "usage_recorder")]
+        usage_recorder::on_init();
+
         // integrate with commands localization
         // this is the reason we don't lazy init L10N too.
         EVENTS_L10N.init_l10n(|file, cmd, attr, txt| {

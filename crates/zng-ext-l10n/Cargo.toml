@@ -16,6 +16,13 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 tar = ["dep:flate2", "dep:tar"]
 # Embed language and region names for `Lang::autonym`.
 lang_autonym = []
+# Compile with dependency usage profile recorder.
+# 
+# The recorded profile can be used to by `cargo zng res` to pack only the used dependency strings.
+# 
+# Saves to `ZNG_L10N_PROFILE_FILE` if set to a .rec.subset path
+# Or `"res/optimization-profiles/zng-ext-l10n.rec.subset"` by default
+usage_recorder = []
 
 [dependencies]
 zng-ext-l10n-proc-macros = { path = "../zng-ext-l10n-proc-macros", version = "0.4.0", default-features = false }

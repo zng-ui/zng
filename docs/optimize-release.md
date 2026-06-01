@@ -101,6 +101,9 @@ If you build with the `"material_icons"` feature the embedded icon fonts data an
 
 See the [`zng::icon::material`](https://zng-ui.github.io/doc/zng/icon/material/index.html) docs for a tutorial of how to enable compile time subsetting.
 
+### Localization Subsetting
+
+!!: TODO
 
 ## Memory Usage
 

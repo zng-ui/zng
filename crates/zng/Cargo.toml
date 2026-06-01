@@ -209,6 +209,14 @@ hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
 # Embed language and region names for `Lang::autonym`.
 lang_autonym = ["zng-ext-l10n/lang_autonym"]
 
+# Compile with l10n dependency usage profile recorder.
+# 
+# The recorded profile can be used to by `cargo zng res` to pack only the used dependency l10n strings.
+# 
+# Saves to `ZNG_L10N_PROFILE_FILE` if set to a .rec.subset path
+# Or `"res/optimization-profiles/zng-ext-l10n.rec.subset"` by default
+l10n_usage_recorder = ["zng-ext-l10n/usage_recorder"]
+
 # Include all Material Icons icon sets in the default app.
 material_icons = [
     "material_icons_outlined",
