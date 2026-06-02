@@ -149,32 +149,6 @@ fn read_path(request_file: &Path) -> io::Result<PathBuf> {
     read_line(request_file, "path").map(PathBuf::from)
 }
 
-fn copy_dir_all(from: &Path, to: &Path, trace: bool) {
-    for entry in walkdir::WalkDir::new(from).min_depth(1).max_depth(1).sort_by_file_name() {
-        let entry = entry.unwrap_or_else(|e| fatal!("cannot walkdir entry `{}`, {e}", from.display()));
-        let from = entry.path();
-        let to = to.join(entry.file_name());
-        if entry.file_type().is_dir() {
-            fs::create_dir(&to).unwrap_or_else(|e| {
-                if e.kind() != io::ErrorKind::AlreadyExists {
-                    fatal!("cannot create_dir `{}`, {e}", to.display())
-                }
-            });
-            if trace {
-                println!("{}", display_path(&to));
-            }
-            copy_dir_all(from, &to, trace);
-        } else if entry.file_type().is_file() {
-            fs::copy(from, &to).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", from.display(), to.display()));
-            if trace {
-                println!("{}", display_path(&to));
-            }
-        } else if entry.file_type().is_symlink() {
-            symlink_warn(entry.path())
-        }
-    }
-}
-
 pub(crate) fn symlink_warn(path: &Path) {
     warn!("symlink ignored in `{}`, use zr-tools to 'link'", path.display());
 }
@@ -196,7 +170,7 @@ macro_rules! built_in {
         ];
     };
 }
-built_in! { copy, glob, rp, sh, shf, warn, fail, apk }
+built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n }
 
 pub(crate) use sh::sh_run;
 
