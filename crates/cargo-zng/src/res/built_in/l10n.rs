@@ -95,17 +95,20 @@ fn l10n_filter_copy(from: PathBuf, to: PathBuf) {
         }
 
         // skip pseudo* and template
-        let name = from_lang.file_name().unwrap().to_string_lossy();
-        if name.starts_with("pseudo") || name == "template" {
+        let lang = match from_lang.file_name().and_then(|s| s.to_str()) {
+            Some(l) => l,
+            None => continue,
+        };
+        if lang.starts_with("pseudo") || lang == "template" {
             continue;
         }
 
-        let to_lang = to.join(from_lang.file_name().unwrap());
+        let to_lang = to.join(lang);
 
         // copy *.ftl and collect ./deps
         let mut any_ftl = false;
         let mut from_deps = None;
-        for from_entry in fs::read_dir(&from).unwrap_or_else(|e| fatal!("cannot read {}, {}", from_lang.display(), e)) {
+        for from_entry in fs::read_dir(&from_lang).unwrap_or_else(|e| fatal!("cannot read {}, {}", from_lang.display(), e)) {
             let from_entry = from_entry
                 .unwrap_or_else(|e| fatal!("cannot read {} entry, {}", from_lang.display(), e))
                 .path();
@@ -210,7 +213,7 @@ fn l10n_filter_copy(from: PathBuf, to: PathBuf) {
                         }
                     };
 
-                    let to_entry = lazy_path!(to_ver.join(file));
+                    let to_entry = to_ver.join(file);
 
                     let ok = crate::l10n::generate_util::transform_file(
                         &from_entry,

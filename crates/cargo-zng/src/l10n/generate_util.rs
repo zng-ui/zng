@@ -71,7 +71,7 @@ pub fn transform_file(
         }
     }
 
-    if let Err(e) = util::check_or_write(check, to, output.as_bytes(), verbose) {
+    if let Err(e) = util::check_or_write(check, to, output.trim().as_bytes(), verbose) {
         all_ok = false;
         error!("cannot write `{}`, {e}", to.display());
     }
