@@ -35,7 +35,7 @@ fn main() {
         #[cfg(not(feature = "embedded_l10n"))]
         L10N.load_dir(zng::env::res("l10n"));
         #[cfg(feature = "embedded_l10n")]
-        L10N.load_tar(EMBEDDED_L10N); // also supports .tar.gz
+        L10N.load_tar(EMBEDDED_L10N);
 
         // preload resources l10n for the sys-lang
         let preload_handle = WINDOW.loading_handle(2.secs(), "preload-lang");
@@ -181,7 +181,8 @@ fn locale_menu() -> UiNode {
                             template.push(key);
                         } else if key.language.as_str() == "pseudo" {
                             pseudo.push(key);
-                        } else {
+                        } else if !key.is_machine_translation() || key.language.as_str() == "ar" {
+                            // don't show all languages
                             actual.push(key);
                         }
                     }
