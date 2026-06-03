@@ -531,6 +531,9 @@ $ cargo zng res --tools
 .zr-apk @ cargo-zng
   Build an Android APK from a staging directory
 
+.zr-l10n @ cargo-zng
+  Copy localization files (.ftl) and optimize for release
+
 call 'cargo zng res --help tool' to read full help from a tool
 ```
 
@@ -553,7 +556,7 @@ $ cargo zng res --tool copy
   Copies `path/bar.txt` to:
     target/foo.txt
 
-  Paths are relative to the Cargo workspace root.
+  Paths are relative to the Cargo workspace root
 ```
 
 #### `.zr-glob`

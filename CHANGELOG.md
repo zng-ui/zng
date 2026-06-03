@@ -1,9 +1,8 @@
 # Unreleased
 
 * Add `.zr-l10n` tool for `cargo zng res`.
-    - !!: TODO 
     - Auto filter dependencies for langs not translated in the local resources.
-    - Auto filter test langs.
+      Auto filter test langs. Strip comments.
     - Optional dependency subsetting.
 
 * Implement subsetting for embedded icon fonts.

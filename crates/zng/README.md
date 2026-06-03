@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 97 feature flags, 1 enabled by default.
+This crate provides 98 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -197,6 +197,14 @@ If enabled some 2.8MB of data is embedded, you can provide an alternative dictio
 
 #### `"lang_autonym"`
 Embed language and region names for `Lang::autonym`.
+
+#### `"l10n_usage_recorder"`
+Compile with l10n dependency usage profile recorder.
+
+The recorded profile can be used to by `cargo zng res` to pack only the used dependency l10n strings.
+
+Saves to `ZNG_L10N_PROFILE_FILE` if set to a .rec.subset path
+Or `"res/optimization-profiles/zng-ext-l10n.rec.subset"` by default
 
 #### `"material_icons"`
 Include all Material Icons icon sets in the default app.
