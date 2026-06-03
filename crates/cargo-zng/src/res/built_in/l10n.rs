@@ -279,7 +279,7 @@ fn read_subset(path: &Path, try_pair: bool, out: &mut SubsetMap) {
         }
 
         let (dependency, mut key) = match line.split_once("//") {
-            Some((d, k)) if !d.is_empty() && k.is_empty() => (d, k),
+            Some((d, k)) if !d.is_empty() && !k.is_empty() => (d, k),
             _ => fatal!("unexpected line {}:{}", path.display(), i + 1),
         };
         let file = match key.split_once('/') {
