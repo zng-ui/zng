@@ -3,6 +3,7 @@
 * Optimize `collect_cargo_about` license collection.
     - Skips optional dependencies not being compiled.
     - Skips local crates (version `#.#.#-local`).
+* Add `collect_cargo_about_for` for workspaces where a local crate collects the licenses, but it is not the executable entry crate.
 
 * Add `.zr-l10n` tool for `cargo zng res`.
     - Auto filter dependencies for langs not translated in the local resources.

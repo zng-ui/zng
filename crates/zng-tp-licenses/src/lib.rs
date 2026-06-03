@@ -139,7 +139,7 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
     }
 }
 
-/// Calls [`cargo about`] for the crate.
+/// Calls [`cargo about`] for the building crate and features.
 ///
 /// This method must be used in build scripts (`build.rs`).
 ///
@@ -153,6 +153,36 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
 /// [`DOCS_RS`]: https://docs.rs/about/builds#detecting-docsrs
 #[cfg(feature = "build")]
 pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
+    // TODO(breaking) &Path
+    // build.rs current_dir is crate folder
+    collect_cargo_about_for(
+        about_cfg_path,
+        "Cargo.toml",
+        &std::env::var("CARGO_CFG_FEATURE").unwrap_or_default(),
+    )
+}
+/// Calls [`cargo about`] for the given crate and features.
+///
+/// The `features` must be a comma separated list of cargo features.
+///
+/// Returns an empty vec if the [`DOCS_RS`] env var is set to any value or if `"ZNG_TP_LICENSES=false"` is set.
+///
+/// # Panics
+///
+/// Panics for any error, including `cargo about` errors and JSON deserialization errors.
+///
+/// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
+/// [`DOCS_RS`]: https://docs.rs/about/builds#detecting-docsrs
+#[cfg(feature = "build")]
+pub fn collect_cargo_about_for(
+    about_cfg_path: impl AsRef<std::path::Path>,
+    manifest_path: impl AsRef<std::path::Path>,
+    features: &str,
+) -> Vec<LicenseUsed> {
+    collect_cargo_about_for_impl(about_cfg_path.as_ref(), manifest_path.as_ref(), features)
+}
+#[cfg(feature = "build")]
+fn collect_cargo_about_for_impl(about_cfg_path: &std::path::Path, manifest_path: &std::path::Path, features: &str) -> Vec<LicenseUsed> {
     if std::env::var("DOCS_RS").is_ok() || std::env::var("ZNG_TP_LICENSES").unwrap_or_default() == "false" {
         return vec![];
     }
@@ -162,16 +192,15 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
         .arg("about")
         .arg("generate")
         .arg("--manifest-path")
-        .arg("Cargo.toml") // build.rs current_dir is crate folder
+        .arg(manifest_path)
         .arg("--format")
-        .arg("json");
+        .arg("json")
+        .arg("--no-default-features");
 
     // only include licenses from actually used dependencies
-    if let Ok(features) = std::env::var("CARGO_CFG_FEATURE") {
-        for feature in features.split(',') {
-            cargo_about.arg("--features");
-            cargo_about.arg(feature);
-        }
+    for feature in features.split(',') {
+        cargo_about.arg("--features");
+        cargo_about.arg(feature);
     }
 
     // cargo about returns an error on stdout redirect in PowerShell
@@ -182,7 +211,7 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
         cargo_about.arg("--output-file").arg(temp_file.path());
     }
 
-    if !about_cfg_path.is_empty() {
+    if !about_cfg_path.as_os_str().is_empty() {
         cargo_about.arg("--config").arg(about_cfg_path);
     }
 
