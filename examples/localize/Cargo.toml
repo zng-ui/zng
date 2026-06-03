@@ -7,7 +7,6 @@ edition = "2024"
 [features]
 # default = ["embedded_l10n"]
 embedded_l10n = []
-# 
 l10n_usage_recorder = ["zng/l10n_usage_recorder"]
 
 [dependencies]
