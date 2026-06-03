@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add `.zr-l10n` tool for `cargo zng res`.
+    - Auto filter dependencies for langs not translated in the local resources.
+      Auto filter test langs. Strip comments.
+    - Optional dependency subsetting.
+
 * Implement subsetting for embedded icon fonts.
     - Added `"material_icons_usage_recorder"` and `"material_icons_subset"` features.
     - Added tutorial in docs for `zng::icon::material`.

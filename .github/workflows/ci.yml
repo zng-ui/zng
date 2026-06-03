@@ -200,6 +200,7 @@ jobs:
     - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5 && sudo apt install libasound2-dev -o Acquire::Retries=5
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
+    - run: cargo install cargo-zng --path crates/cargo-zng
     - run: cargo do test --nextest
   test-windows:
     permissions:
@@ -225,6 +226,7 @@ jobs:
         tool: cargo-nextest
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
+    - run: cargo install cargo-zng --path crates/cargo-zng
     - run: cargo do test --nextest
   test-macos:
     permissions:
@@ -248,6 +250,7 @@ jobs:
         tool: cargo-nextest
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
+    - run: cargo install cargo-zng --path crates/cargo-zng
     - run: cargo do test --nextest
   test-doc:
     permissions:

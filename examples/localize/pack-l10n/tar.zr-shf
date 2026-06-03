@@ -1,0 +1,2 @@
+cd $ZR_TARGET_DD
+tar -cf "l10n.tar" "l10n"

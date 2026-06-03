@@ -19,7 +19,7 @@ use crate::{l10n::scraper::FluentTemplate, util};
 
 mod scraper;
 
-mod generate_util;
+pub(crate) mod generate_util;
 mod pseudo;
 mod translate;
 

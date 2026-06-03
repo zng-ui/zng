@@ -111,7 +111,7 @@ pub use zng_wgt_text::icon::{GlyphIcon, GlyphSource, Icon, ico_color, ico_size};
 /// {set}/{name}
 /// ```
 ///
-/// The generated file will have a comment header with instruction on how to manually add icons.
+/// The generated file will has a comment header with instruction on how to manually add icons.
 ///
 /// The profile file can be added to source control, the recorded entries are sorted so changes are stable.
 ///

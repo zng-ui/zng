@@ -4,7 +4,15 @@ use fluent_syntax::ast::{Attribute, CallArguments, Entry, Expression, Identifier
 
 use crate::util;
 
-pub fn generate(dir: &str, to_name: &str, file_header: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
+pub fn transform_dir(
+    dir: &str,
+    to_name: &str,
+    file_header: &str,
+    filter: &dyn Fn(&str, &str) -> bool,
+    transform: &dyn Fn(&str) -> Cow<str>,
+    check: bool,
+    verbose: bool,
+) {
     let dir_path = Path::new(dir);
     let pattern = dir_path.join("**/*.ftl");
     let to_dir = dir_path.with_file_name(to_name);
@@ -13,31 +21,37 @@ pub fn generate(dir: &str, to_name: &str, file_header: &str, transform: &impl Fn
         let relative_entry = entry.strip_prefix(dir_path).unwrap();
         let to_file = to_dir.join(relative_entry);
         let _ = util::check_or_create_dir_all(check, to_file.parent().unwrap());
-        let display_to = to_file.strip_prefix(to_dir.parent().unwrap()).unwrap();
-        generate_file(&entry, &to_file, display_to, file_header, transform, check, verbose);
+        let ok = transform_file(&entry, &to_file, file_header, filter, transform, check, verbose);
+        if ok {
+            let display_to = to_file.strip_prefix(to_dir.parent().unwrap()).unwrap();
+            println!("  generated {}", display_to.display());
+        }
     }
 }
 
-fn generate_file(
+#[allow(clippy::too_many_arguments)]
+pub fn transform_file(
     from: &Path,
     to: &Path,
-    display_to: &Path,
     file_header: &str,
-    transform: &impl Fn(&str) -> Cow<str>,
+    filter: &dyn Fn(&str, &str) -> bool,
+    transform: &dyn Fn(&str) -> Cow<str>,
     check: bool,
     verbose: bool,
-) {
+) -> bool {
     let source = match fs::read_to_string(from) {
         Ok(s) => s,
         Err(e) => {
             error!("cannot read `{}`, {e}", from.display());
-            return;
+            return false;
         }
     };
 
+    let mut all_ok = true;
     let source = match fluent_syntax::parser::parse(source) {
         Ok(s) => s,
         Err((s, e)) => {
+            all_ok = false;
             error!(
                 "cannot parse `{}`\n{}",
                 from.display(),
@@ -51,17 +65,18 @@ fn generate_file(
 
     for entry in source.body {
         match entry {
-            Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, transform),
-            Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, transform),
+            Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, filter, transform),
+            Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, filter, transform),
             Entry::Comment(_) | Entry::GroupComment(_) | Entry::ResourceComment(_) | Entry::Junk { .. } => {}
         }
     }
 
-    if let Err(e) = util::check_or_write(check, to, output.as_bytes(), verbose) {
+    if let Err(e) = util::check_or_write(check, to, output.trim().as_bytes(), verbose) {
+        all_ok = false;
         error!("cannot write `{}`, {e}", to.display());
-    } else {
-        println!("  generated {}", display_to.display());
     }
+
+    all_ok
 }
 
 fn write_entry(
@@ -70,19 +85,28 @@ fn write_entry(
     id: &Identifier<String>,
     value: Option<&Pattern<String>>,
     attributes: &[Attribute<String>],
-    transform: &impl Fn(&str) -> Cow<str>,
+    filter: &dyn Fn(&str, &str) -> bool,
+    transform: &dyn Fn(&str) -> Cow<str>,
 ) {
+    if !is_term && !filter(&id.name, "") {
+        return;
+    }
+
     write!(output, "\n\n{}{} = ", if is_term { "-" } else { "" }, id.name).unwrap();
     if let Some(value) = value {
         write_pattern(output, value, transform, 1);
     }
     for attr in attributes {
+        if !is_term && !filter(&id.name, &attr.id.name) {
+            return;
+        }
+
         write!(output, "\n    .{} = ", attr.id.name).unwrap();
         write_pattern(output, &attr.value, transform, 2);
     }
 }
 
-fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
+fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &dyn Fn(&str) -> Cow<str>, depth: usize) {
     for el in &pattern.elements {
         match el {
             PatternElement::TextElement { value } => {
@@ -98,7 +122,7 @@ fn write_pattern(output: &mut String, pattern: &Pattern<String>, transform: &imp
     }
 }
 
-fn write_expression(output: &mut String, expr: &Expression<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
+fn write_expression(output: &mut String, expr: &Expression<String>, transform: &dyn Fn(&str) -> Cow<str>, depth: usize) {
     match expr {
         Expression::Select { selector, variants } => {
             write!(output, "{{").unwrap();
@@ -125,17 +149,12 @@ fn write_expression(output: &mut String, expr: &Expression<String>, transform: &
         Expression::Inline(e) => write_inline_expression(output, e, transform, depth),
     }
 }
-fn write_inline_expression(output: &mut String, expr: &InlineExpression<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
+fn write_inline_expression(output: &mut String, expr: &InlineExpression<String>, transform: &dyn Fn(&str) -> Cow<str>, depth: usize) {
     write!(output, "{{ ").unwrap();
     write_inline_expression_inner(output, expr, transform, depth);
     write!(output, " }} ").unwrap();
 }
-fn write_inline_expression_inner(
-    output: &mut String,
-    expr: &InlineExpression<String>,
-    transform: &impl Fn(&str) -> Cow<str>,
-    depth: usize,
-) {
+fn write_inline_expression_inner(output: &mut String, expr: &InlineExpression<String>, transform: &dyn Fn(&str) -> Cow<str>, depth: usize) {
     match expr {
         InlineExpression::StringLiteral { value } => {
             let value = transform(value);
@@ -169,7 +188,7 @@ fn write_inline_expression_inner(
     }
 }
 
-fn write_arguments(output: &mut String, arguments: &CallArguments<String>, transform: &impl Fn(&str) -> Cow<str>, depth: usize) {
+fn write_arguments(output: &mut String, arguments: &CallArguments<String>, transform: &dyn Fn(&str) -> Cow<str>, depth: usize) {
     write!(output, "(").unwrap();
     let mut sep = "";
     for a in &arguments.positional {
@@ -213,8 +232,12 @@ key-count = {NUMBER($n) ->
         let mut output = String::new();
         for entry in &source.body {
             match entry {
-                Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, &|a| Cow::Borrowed(a)),
-                Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, &|a| Cow::Borrowed(a)),
+                Entry::Message(m) => write_entry(&mut output, false, &m.id, m.value.as_ref(), &m.attributes, &|_, _| true, &|a| {
+                    Cow::Borrowed(a)
+                }),
+                Entry::Term(t) => write_entry(&mut output, true, &t.id, Some(&t.value), &t.attributes, &|_, _| true, &|a| {
+                    Cow::Borrowed(a)
+                }),
                 _ => {}
             }
         }

@@ -66,6 +66,9 @@ impl L10nService {
         fallback: Txt,
         mut args: Vec<(Txt, Var<L10nArgument>)>,
     ) -> Var<Txt> {
+        #[cfg(feature = "usage_recorder")]
+        crate::usage_recorder::insert(&file, &id, &attribute);
+
         if langs.is_empty() {
             return if args.is_empty() {
                 // no lang, no args
