@@ -4,6 +4,10 @@ version = "0.0.0"
 publish = false
 edition = "2024"
 
+[features]
+# default = ["embedded_l10n"]
+embedded_l10n = []
+
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view_prebuilt"] }
 tracing = "0.1"

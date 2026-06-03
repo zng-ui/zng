@@ -23,8 +23,8 @@ use zng::{
 // Run this command to scrap template:
 // cargo do zng l10n -p "zng-example-localize" -o "examples/localize/res/l10n"
 
-#[cfg(not(debug_assertions))]
-const EMBEDDED_L10N: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/l10n.tar.gz"));
+#[cfg(feature = "embedded_l10n")]
+const EMBEDDED_L10N: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pack-l10n/l10n.tar"));
 
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
@@ -32,10 +32,10 @@ fn main() {
 
     APP.defaults().run_window("main", async {
         // load `available_langs`
-        #[cfg(debug_assertions)]
+        #[cfg(not(feature = "embedded_l10n"))]
         L10N.load_dir(zng::env::res("l10n"));
-        #[cfg(not(debug_assertions))]
-        L10N.load_tar(EMBEDDED_L10N);
+        #[cfg(feature = "embedded_l10n")]
+        L10N.load_tar(EMBEDDED_L10N); // also supports .tar.gz
 
         // preload resources l10n for the sys-lang
         let preload_handle = WINDOW.loading_handle(2.secs(), "preload-lang");
