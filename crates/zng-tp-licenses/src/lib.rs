@@ -161,9 +161,18 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
     cargo_about
         .arg("about")
         .arg("generate")
+        .arg("--manifest-path")
+        .arg("Cargo.toml") // build.rs current_dir is crate folder
         .arg("--format")
-        .arg("json")
-        .arg("--all-features");
+        .arg("json");
+
+    // only include licenses from actually used dependencies
+    if let Ok(features) = std::env::var("CARGO_CFG_FEATURE") {
+        for feature in features.split(',') {
+            cargo_about.arg("--features");
+            cargo_about.arg(feature);
+        }
+    }
 
     // cargo about returns an error on stdout redirect in PowerShell
     #[cfg(windows)]
@@ -190,7 +199,15 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
     #[cfg(not(windows))]
     let json = String::from_utf8(output.stdout).unwrap();
 
-    parse_cargo_about(&json).expect("error parsing `cargo about` output")
+    let mut entries = parse_cargo_about(&json).expect("error parsing `cargo about` output");
+
+    // don't include local crates
+    entries.retain_mut(|e| {
+        e.used_by.retain(|u| !u.version.ends_with("-local"));
+        !e.used_by.is_empty()
+    });
+
+    entries
 }
 
 /// Parse the output of [`cargo about`].

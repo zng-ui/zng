@@ -1,5 +1,9 @@
 # Unreleased
 
+* Optimize `collect_cargo_about` license collection.
+    - Skips optional dependencies not being compiled.
+    - Skips local crates (version `#.#.#-local`).
+
 * Add `.zr-l10n` tool for `cargo zng res`.
     - Auto filter dependencies for langs not translated in the local resources.
       Auto filter test langs. Strip comments.
