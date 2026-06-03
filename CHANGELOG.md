@@ -1,14 +1,18 @@
 # Unreleased
 
+
+# 0.22.8
+
 * Optimize `collect_cargo_about` license collection.
     - Skips optional dependencies not being compiled.
     - Skips local crates (version `#.#.#-local`).
 * Add `collect_cargo_about_for` for workspaces where a local crate collects the licenses, but it is not the executable entry crate.
 
 * Add `.zr-l10n` tool for `cargo zng res`.
-    - Auto filter dependencies for langs not translated in the local resources.
-      Auto filter test langs. Strip comments.
-    - Optional dependency subsetting.
+    - Skip dependencies for langs not translated in the local resources.
+    - Skip resources for test langs (pseudo* and template). 
+    - Strip comments.
+    - Optional dependency subsetting.  Added `"l10n_usage_recorder"` feature.
 
 * Implement subsetting for embedded icon fonts.
     - Added `"material_icons_usage_recorder"` and `"material_icons_subset"` features.
