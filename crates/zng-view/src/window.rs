@@ -1352,15 +1352,14 @@ impl Window {
 
         if self.state.state != new_state.state || force {
             // unset previous state.
-            match self.state.state {
-                WindowState::Normal => {}
-                WindowState::Minimized => self.window.set_minimized(false),
-                WindowState::Maximized => {
-                    if !new_state.state.is_fullscreen() && new_state.state != WindowState::Minimized {
-                        self.window.set_maximized(false);
-                    }
-                }
-                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
+            if self.window.is_minimized().unwrap_or_default() {
+                self.window.set_minimized(false);
+            }
+            if self.window.is_maximized() {
+                self.window.set_maximized(false);
+            }
+            if self.window.fullscreen().is_some() {
+                self.window.set_fullscreen(None);
             }
 
             // set new state.

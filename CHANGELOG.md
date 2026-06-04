@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix invalid window state after changing Normal -> Maximized -> Fullscreen -> Normal.
 
 # 0.22.8
 

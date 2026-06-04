@@ -593,7 +593,12 @@ impl WindowVars {
     }
 
     /// Defines the enabled state of the window chrome buttons.
+    ///
+    /// Note that the operating system may ignore or not implement this.
+    ///
+    /// Note that the window can still enter states represented by a disabled button if set directly.
     pub fn enabled_buttons(&self) -> Var<WindowButton> {
+        // TODO(breaking) replace this with a best effort `enabled_states`.
         self.0.enabled_buttons.clone()
     }
 
