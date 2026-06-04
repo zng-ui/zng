@@ -33,11 +33,15 @@ fn app_main() {
             hsl(angle.deg(), 80.pct(), 30.pct()).into()
         });
 
+        // disable fullscreen shortcut gesture
+        window::cmd::FULLSCREEN_CMD.shortcut().set(gesture::Shortcuts::new());
+
         Window! {
             title = "Countdown Example";
             size = (280, 120);
             start_position = window::StartPosition::CenterMonitor;
             resizable = false;
+            // disable maximize by OS gestures
             enabled_buttons = !window::WindowButton::MAXIMIZE;
 
             color_scheme = color::ColorScheme::Dark;

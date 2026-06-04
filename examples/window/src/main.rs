@@ -17,7 +17,7 @@ use zng::{
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
-    zng::view_process::prebuilt::run_same_process(app_main);
+    zng::view_process::default::run_same_process(app_main);
 }
 
 fn app_main() {
