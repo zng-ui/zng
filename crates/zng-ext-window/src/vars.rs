@@ -64,6 +64,7 @@ pub(crate) struct WindowVarsData {
     pub(crate) refresh_rate: Var<Frequency>,
 
     pub(crate) restore_state: Var<WindowState>,
+    pub(crate) restore_state_fullscreen: Var<Option<WindowState>>,
     pub(crate) restore_rect: Var<DipRect>,
 
     pub(crate) enabled_buttons: Var<WindowButton>,
@@ -150,6 +151,7 @@ impl WindowVars {
             refresh_rate: var(60.hertz()),
 
             restore_state: var(WindowState::Normal),
+            restore_state_fullscreen: var(None),
             restore_rect: var(DipRect::new(
                 DipPoint::new(Dip::new(30), Dip::new(30)),
                 DipSize::new(Dip::new(800), Dip::new(600)),
@@ -375,10 +377,17 @@ impl WindowVars {
 
     /// Window restore state.
     ///
-    /// The restore state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
-    /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
+    /// Defines the state the window will return to when restored from [`Maximized`] or [`Minimized`].
     ///
-    /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
+    /// * If the [current state] is [`Maximized`], this is [`Normal`].
+    /// * If the [current state] is [`Minimized`], this is the pre-minimization state.
+    /// * If the [current state] is [`Fullscreen`] or [`Exclusive`], this retains the previous
+    ///   non-fullscreen state (e.g., [`Maximized`] or [`Normal`]) to restore to when exiting fullscreen.
+    ///
+    /// When this resolves to [`Normal`], the [`restore_rect`] defines the window's position and size.
+    ///
+    /// Note that if a fullscreen window is minimized, [`restore_state_fullscreen`] is set and will
+    /// take precedence over this value upon restoration.
     ///
     /// [current state]: Self::state
     /// [`Maximized`]: WindowState::Maximized
@@ -387,8 +396,25 @@ impl WindowVars {
     /// [`Normal`]: WindowState::Normal
     /// [`Minimized`]: WindowState::Minimized
     /// [`restore_rect`]: Self::restore_rect
+    /// [`restore_state_fullscreen`]: Self::restore_state_fullscreen
     pub fn restore_state(&self) -> Var<WindowState> {
         self.0.restore_state.read_only()
+    }
+
+    /// Fullscreen restore state from minimized.
+    ///
+    /// Stores the fullscreen mode if the window was minimized while in [`Fullscreen`]
+    /// or [`Exclusive`].
+    ///
+    /// When this is `Some` and the window exits [`Minimized`], it restores directly back to
+    /// this fullscreen mode instead of [`restore_state`]. This variable resets to `None` once the window is restored.
+    ///
+    /// [`restore_state`]: Self::restore_state
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    /// [`Minimized`]: WindowState::Minimized
+    pub fn restore_state_fullscreen(&self) -> Var<Option<WindowState>> {
+        self.0.restore_state_fullscreen.read_only()
     }
 
     /// Window restore position and size when restoring to [`Normal`].
@@ -838,11 +864,12 @@ impl WindowVars {
     }
 
     pub(crate) fn window_state_all(&self) -> WindowStateAll {
-        WindowStateAll::new(
+        WindowStateAll::new2(
             self.0.state.get(),
             self.0.global_position.get(),
             self.0.restore_rect.get(),
             self.0.restore_state.get(),
+            self.0.restore_state_fullscreen.get(),
             self.0.actual_min_size.get(),
             self.0.actual_max_size.get(),
             self.0.chrome.get(),

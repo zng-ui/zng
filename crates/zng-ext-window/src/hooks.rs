@@ -181,6 +181,7 @@ pub(crate) fn hook_events() {
                     vars.set_from_view(|v| &v.0.global_position, s.global_position);
                     vars.set_from_view(|v| &v.0.restore_rect, s.restore_rect);
                     vars.set_from_view(|v| &v.0.restore_state, s.restore_state);
+                    vars.set_from_view(|v| &v.0.restore_state_fullscreen, s.restore_state_fullscreen);
                     vars.set_from_view(|v| &v.0.chrome, s.chrome_visible);
                 }
                 if let Some(id) = &args.monitor {
@@ -364,14 +365,13 @@ pub(crate) fn hook_events() {
 pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
     WindowCommands::init(id, vars);
 
-    // update view state
+    // update view state from app changes
     vars.0.state.as_any().hook(move |s| on_state_changed(id, s)).perm();
+    vars.0.chrome.as_any().hook(move |s| on_state_changed(id, s)).perm();
     vars.0.global_position.as_any().hook(move |s| on_state_changed(id, s)).perm();
-    vars.0.restore_rect.as_any().hook(move |s| on_state_changed(id, s)).perm();
-    vars.0.restore_state.as_any().hook(move |s| on_state_changed(id, s)).perm();
     vars.0.actual_min_size.as_any().hook(move |s| on_state_changed(id, s)).perm();
     vars.0.actual_max_size.as_any().hook(move |s| on_state_changed(id, s)).perm();
-    vars.0.chrome.as_any().hook(move |s| on_state_changed(id, s)).perm();
+    vars.0.restore_rect.as_any().hook(move |s| on_state_changed(id, s)).perm();
 
     vars.0
         .scale_factor

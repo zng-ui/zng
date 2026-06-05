@@ -618,6 +618,7 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                         vars.set_from_view(|v| &v.0.global_position, a.data.state.global_position);
                         vars.set_from_view(|v| &v.0.restore_rect, a.data.state.restore_rect);
                         vars.set_from_view(|v| &v.0.restore_state, a.data.state.restore_state);
+                        vars.set_from_view(|v| &v.0.restore_state_fullscreen, a.data.state.restore_state_fullscreen);
                         vars.set_from_view(|v| &v.0.chrome, a.data.state.chrome_visible);
 
                         vars.set_from_view(|v| &v.0.actual_monitor, a.data.monitor);
