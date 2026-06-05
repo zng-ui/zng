@@ -1141,7 +1141,6 @@ impl Window {
         }
 
         let mut new_state = self.probe_state();
-        new_state.set_restore_state_from(self.state.state);
 
         if new_state.state != WindowState::Normal {
             new_state.restore_rect = self.state.restore_rect;
@@ -1158,11 +1157,14 @@ impl Window {
                     && let Some(h) = self.video_mode()
                 {
                     self.window.set_fullscreen(Some(Fullscreen::Exclusive(h)));
+                    new_state.state = WindowState::Exclusive;
                 } else {
                     self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    new_state.state = WindowState::Fullscreen;
                 }
             } else if let WindowState::Maximized = self.state.restore_state {
                 self.window.set_maximized(true);
+                new_state.state = WindowState::Maximized;
             } else {
                 #[cfg(debug_assertions)]
                 if !matches!(self.state.restore_state, WindowState::Normal) {
@@ -1183,9 +1185,11 @@ impl Window {
 
                 self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
                 self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
+
+                new_state.state = WindowState::Normal;
             }
         }
-
+        new_state.set_restore_state_from(self.state.state);
         self.state = new_state.clone();
         Some(new_state)
     }

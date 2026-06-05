@@ -789,6 +789,9 @@ impl WindowStateAll {
     /// [`restore_state_fullscreen`]: Self::restore_state_fullscreen
     /// [`state`]: Self::state
     pub fn set_restore_state_from(&mut self, prev_state: WindowState) {
+        if let WindowState::Minimized = prev_state {
+            return;
+        }
         let new_state = self.state;
         self.state = prev_state;
         self.set_state(new_state);
