@@ -172,6 +172,7 @@ macro_rules! built_in {
 }
 built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n }
 
+pub(crate) use l10n::release_langs;
 pub(crate) use sh::sh_run;
 
 pub fn run() {

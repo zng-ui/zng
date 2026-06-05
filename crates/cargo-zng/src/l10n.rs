@@ -93,6 +93,13 @@ pub struct L10nArgs {
     #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo_w: String,
 
+    /// Output comma separated list of langs that would be included by .zr-l10n
+    /// sourcing localization from the given PATH
+    ///
+    /// See cargo zng res --tool l10n for details
+    #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
+    release_langs: String,
+
     /// Machine translate locale from dir/lang
     ///
     /// EXAMPLE
@@ -195,7 +202,7 @@ pub fn run(mut args: L10nArgs) {
     }
 
     if input.is_empty() {
-        return run_generators(&args);
+        return run_others(&args);
     }
 
     if output.is_empty() {
@@ -265,7 +272,7 @@ pub fn run(mut args: L10nArgs) {
         check_fluent_output(&args, output);
     }
 
-    run_generators(&args);
+    run_others(&args);
 }
 
 fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &mut FluentTemplate) {
@@ -489,6 +496,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     pseudo: String::new(),
                     pseudo_m: String::new(),
                     pseudo_w: String::new(),
+                    release_langs: String::new(),
                     translate: String::new(),
                     translate_from: String::new(),
                     translate_to: String::new(),
@@ -505,7 +513,11 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
     }
 }
 
-fn run_generators(args: &L10nArgs) {
+fn run_others(args: &L10nArgs) {
+    if !args.release_langs.is_empty() {
+        crate::res::built_in::release_langs(Path::new(&args.release_langs));
+        return;
+    }
     if !args.pseudo.is_empty() {
         pseudo::pseudo(&args.pseudo, args.check, args.verbose);
     }

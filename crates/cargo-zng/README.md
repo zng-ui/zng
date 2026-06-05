@@ -313,6 +313,11 @@ Options:
       --pseudo-w <PATH>
           Generate pseudo wide locale
 
+      --release-langs <PATH>
+          Output comma separated list of langs that would be included by .zr-l10n sourcing localization from the given PATH
+
+          See cargo zng res --tool l10n for details
+
       --translate <PATH>
           Machine translate locale from dir/lang
 

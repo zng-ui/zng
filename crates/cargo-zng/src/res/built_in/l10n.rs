@@ -83,6 +83,46 @@ pub(super) fn l10n() {
     }
 }
 
+/// cargo zng l10n --release-langs PATH
+pub(crate) fn release_langs(path: &Path) {
+    let mut sep = "";
+    for from_lang in fs::read_dir(path).unwrap_or_else(|e| fatal!("cannot read {}, {}", path.display(), e)) {
+        let from_lang = from_lang
+            .unwrap_or_else(|e| fatal!("cannot read {} entry, {}", path.display(), e))
+            .path();
+        if !from_lang.is_dir() {
+            continue;
+        }
+        let lang = match from_lang.file_name().and_then(|s| s.to_str()) {
+            Some(l) => l,
+            None => continue,
+        };
+        if lang.starts_with("pseudo") || lang == "template" {
+            continue;
+        }
+
+        let mut any_ftl = false;
+        for from_entry in fs::read_dir(&from_lang).unwrap_or_else(|e| fatal!("cannot read {}, {}", from_lang.display(), e)) {
+            let from_entry = from_entry
+                .unwrap_or_else(|e| fatal!("cannot read {} entry, {}", from_lang.display(), e))
+                .path();
+
+            if from_entry.is_file()
+                && let Some(ext) = from_entry.extension()
+                && ext.eq_ignore_ascii_case("ftl")
+            {
+                any_ftl = true;
+                break;
+            }
+        }
+        if any_ftl {
+            print!("{sep}{lang}");
+            sep = ",";
+        }
+    }
+    println!();
+}
+
 fn l10n_filter_copy(from: PathBuf, to: PathBuf) {
     let subset = allow_subset(&from);
 
