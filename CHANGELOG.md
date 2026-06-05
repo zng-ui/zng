@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `cargo zng l10n --release-langs PATH` for packaging tools.
 * Fix fullscreen toggle from maximized restoring window to normal.
     - Add `restore_state_fullscreen`.
     - Change how `restore_state` operates.
