@@ -646,13 +646,19 @@ pub struct WindowStateAll {
     /// The position is relative to the monitor.
     pub restore_rect: DipRect,
 
-    /// What state the window goes too when "restored".
+    /// Window restore state.
     ///
-    /// The *restore* state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
-    /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
+    /// Defines the state the window will return to when restored from [`Maximized`] or [`Minimized`].
     ///
-    /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
+    /// * If the [current state] is [`Maximized`], this is [`Normal`].
+    /// * If the [current state] is [`Minimized`], this is the pre-minimization state.
+    /// * If the [current state] is [`Fullscreen`] or [`Exclusive`], this retains the previous
+    ///   non-fullscreen state (e.g., [`Maximized`] or [`Normal`]) to restore to when exiting fullscreen.
     ///
+    /// When this is [`Normal`], the [`restore_rect`] defines the window's position and size.
+    ///
+    /// Note that if a fullscreen window is minimized, [`restore_state_fullscreen`] is set and will
+    /// take precedence over this value upon restoration.
     ///
     /// [current state]: Self::state
     /// [`Maximized`]: WindowState::Maximized
@@ -661,7 +667,21 @@ pub struct WindowStateAll {
     /// [`Normal`]: WindowState::Normal
     /// [`Minimized`]: WindowState::Minimized
     /// [`restore_rect`]: Self::restore_rect
+    /// [`restore_state_fullscreen`]: Self::restore_state_fullscreen
     pub restore_state: WindowState,
+    /// Fullscreen restore state from minimized.
+    ///
+    /// Stores the fullscreen mode if the window was minimized while in [`Fullscreen`]
+    /// or [`Exclusive`].
+    ///
+    /// When this is `Some` and the window exits [`Minimized`], it restores directly back to
+    /// this fullscreen mode instead of [`restore_state`]. This variable resets to `None` once the window is restored.
+    ///
+    /// [`restore_state`]: Self::restore_state
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    /// [`Minimized`]: WindowState::Minimized
+    pub restore_state_fullscreen: Option<WindowState>,
 
     /// Minimal `Normal` size allowed.
     pub min_size: DipSize,
@@ -675,6 +695,7 @@ pub struct WindowStateAll {
 }
 impl WindowStateAll {
     /// New state.
+    #[deprecated = "use new2"]
     pub fn new(
         state: WindowState,
         global_position: PxPoint,
@@ -689,6 +710,31 @@ impl WindowStateAll {
             global_position,
             restore_rect,
             restore_state,
+            restore_state_fullscreen: None,
+            min_size,
+            max_size,
+            chrome_visible,
+        }
+    }
+
+    /// New state.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new2(
+        state: WindowState,
+        global_position: PxPoint,
+        restore_rect: DipRect,
+        restore_state: WindowState,
+        restore_state_fullscreen: Option<WindowState>,
+        min_size: DipSize,
+        max_size: DipSize,
+        chrome_visible: bool,
+    ) -> Self {
+        Self {
+            state,
+            global_position,
+            restore_rect,
+            restore_state_fullscreen,
+            restore_state,
             min_size,
             max_size,
             chrome_visible,
@@ -700,44 +746,65 @@ impl WindowStateAll {
         self.restore_rect.size = self.restore_rect.size.min(self.max_size).max(self.min_size)
     }
 
-    /// Compute a value for [`restore_state`] given the previous [`state`] in `self` and the `new_state` and update the [`state`].
+    /// Compute a value for [`restore_state`] and [`restore_state_fullscreen`] given the previous [`state`]
+    /// in `self` and the `new_state` and update the [`state`].
     ///
     /// [`restore_state`]: Self::restore_state
+    /// [`restore_state_fullscreen`]: Self::restore_state_fullscreen
     /// [`state`]: Self::state
     pub fn set_state(&mut self, new_state: WindowState) {
-        self.restore_state = Self::compute_restore_state(self.restore_state, self.state, new_state);
+        if new_state == self.state {
+            return;
+        }
+
+        match new_state {
+            WindowState::Normal => {
+                self.restore_state = WindowState::Normal;
+                self.restore_state_fullscreen = None;
+            }
+            WindowState::Minimized => {
+                if self.state.is_fullscreen() {
+                    self.restore_state_fullscreen = Some(self.state);
+                } else {
+                    self.restore_state_fullscreen = None;
+                    self.restore_state = self.state;
+                };
+            }
+            WindowState::Maximized => {
+                self.restore_state = WindowState::Normal;
+                self.restore_state_fullscreen = None;
+            }
+            WindowState::Fullscreen | WindowState::Exclusive => {
+                self.restore_state = self.state;
+                self.restore_state_fullscreen = None;
+            }
+        }
         self.state = new_state;
     }
 
-    /// Compute a value for [`restore_state`] given the previous `prev_state` and the new [`state`] in `self`.
+    /// Compute a value for [`restore_state`] and [`restore_state_fullscreen`]
+    //// given the assumed previous `prev_state` and the new [`state`] in `self`.
     ///
     /// [`restore_state`]: Self::restore_state
+    /// [`restore_state_fullscreen`]: Self::restore_state_fullscreen
     /// [`state`]: Self::state
     pub fn set_restore_state_from(&mut self, prev_state: WindowState) {
-        self.restore_state = Self::compute_restore_state(self.restore_state, prev_state, self.state);
+        if let WindowState::Minimized = prev_state {
+            return;
+        }
+        let new_state = self.state;
+        self.state = prev_state;
+        self.set_state(new_state);
     }
 
-    fn compute_restore_state(restore_state: WindowState, prev_state: WindowState, new_state: WindowState) -> WindowState {
-        if new_state == WindowState::Minimized {
-            // restore to previous state from minimized.
-            if prev_state != WindowState::Minimized {
-                prev_state
-            } else {
-                WindowState::Normal
-            }
-        } else if new_state.is_fullscreen() && !prev_state.is_fullscreen() {
-            // restore to maximized or normal from fullscreen.
-            if prev_state == WindowState::Maximized {
-                WindowState::Maximized
-            } else {
-                WindowState::Normal
-            }
-        } else if new_state == WindowState::Maximized {
-            WindowState::Normal
-        } else {
-            // Fullscreen to/from Exclusive keeps the previous restore_state.
-            restore_state
+    /// Apply restore state.
+    pub fn restore(&mut self) {
+        if let WindowState::Minimized = self.state
+            && let Some(s) = self.restore_state_fullscreen.take()
+        {
+            self.set_state(s);
         }
+        self.set_state(self.restore_state)
     }
 }
 

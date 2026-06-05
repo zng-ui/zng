@@ -1994,11 +1994,12 @@ impl Api for App {
                 config.extensions,
             ));
             let msg = WindowOpenData::new(
-                WindowStateAll::new(
+                WindowStateAll::new2(
                     WindowState::Fullscreen,
                     PxPoint::zero(),
                     DipRect::from_size(config.state.restore_rect.size),
                     WindowState::Fullscreen,
+                    None,
                     DipSize::zero(),
                     DipSize::new(Dip::MAX, Dip::MAX),
                     false,
@@ -2112,7 +2113,7 @@ impl Api for App {
 
     fn set_state(&mut self, id: WindowId, state: WindowStateAll) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id)
-            && w.set_state(state.clone())
+            && let Some(state) = w.set_state(state)
         {
             let mut change = WindowChanged::state_changed(id, state, EventCause::App);
 

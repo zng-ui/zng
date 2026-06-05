@@ -1142,33 +1142,56 @@ impl Window {
 
         let mut new_state = self.probe_state();
 
-        if self.state.state == WindowState::Minimized && self.state.restore_state == WindowState::Fullscreen {
-            self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-        } else if new_state.state == WindowState::Normal && self.state.state != WindowState::Normal {
+        if new_state.state != WindowState::Normal {
             new_state.restore_rect = self.state.restore_rect;
+        }
 
-            self.set_inner_position(new_state.restore_rect.origin);
-            let new_size = new_state.restore_rect.size.to_winit();
-            if let Some(immediate_new_size) = self.window.request_inner_size(new_size)
-                && immediate_new_size == new_size.to_physical(self.window.scale_factor())
-            {
-                // size changed immediately, winit says: "resize event in such case may not be generated"
-                // * Review of Windows and Linux shows that the resize event is send.
-                tracing::debug!("immediate resize may not have notified, new size: {immediate_new_size:?}");
+        if new_state == self.state {
+            return None;
+        }
+
+        // if unminimized apply restore
+        if self.state.state == WindowState::Minimized && self.state.state != new_state.state {
+            if let Some(full) = self.state.restore_state_fullscreen {
+                if let WindowState::Exclusive = full
+                    && let Some(h) = self.video_mode()
+                {
+                    self.window.set_fullscreen(Some(Fullscreen::Exclusive(h)));
+                    new_state.state = WindowState::Exclusive;
+                } else {
+                    self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    new_state.state = WindowState::Fullscreen;
+                }
+            } else if let WindowState::Maximized = self.state.restore_state {
+                self.window.set_maximized(true);
+                new_state.state = WindowState::Maximized;
+            } else {
+                #[cfg(debug_assertions)]
+                if !matches!(self.state.restore_state, WindowState::Normal) {
+                    tracing::error!("unexpected restore_state {:?}", self.state.restore_state)
+                }
+
+                self.window.set_maximized(false);
+                self.set_inner_position(self.state.restore_rect.origin);
+
+                let new_size = new_state.restore_rect.size.to_winit();
+                if let Some(immediate_new_size) = self.window.request_inner_size(new_size)
+                    && immediate_new_size == new_size.to_physical(self.window.scale_factor())
+                {
+                    // size changed immediately, winit says: "resize event in such case may not be generated"
+                    // * Review of Windows and Linux shows that the resize event is send.
+                    tracing::debug!("immediate resize may not have notified, new size: {immediate_new_size:?}");
+                }
+
+                self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
+                self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
+
+                new_state.state = WindowState::Normal;
             }
-
-            self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
-            self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
         }
-
         new_state.set_restore_state_from(self.state.state);
-
-        if new_state != self.state {
-            self.state = new_state.clone();
-            Some(new_state)
-        } else {
-            None
-        }
+        self.state = new_state.clone();
+        Some(new_state)
     }
 
     fn video_mode(&self) -> Option<GVideoMode> {
@@ -1301,20 +1324,20 @@ impl Window {
     /// Reset all window state.
     ///
     /// Returns `true` if the state changed.
-    pub fn set_state(&mut self, new_state: WindowStateAll) -> bool {
+    pub fn set_state(&mut self, new_state: WindowStateAll) -> Option<WindowStateAll> {
         if self.state == new_state {
-            return false;
+            return None;
         }
 
         if !self.visible {
             // will force apply when set to visible again.
             self.state = new_state;
-            return true;
+            return None;
         }
 
         self.apply_state(new_state, false);
 
-        true
+        Some(self.state.clone())
     }
 
     /// Moves the window with the left mouse button until the button is released.
@@ -1341,8 +1364,11 @@ impl Window {
         self.window.show_window_menu(pos.to_winit())
     }
 
-    fn apply_state(&mut self, new_state: WindowStateAll, force: bool) {
+    fn apply_state(&mut self, mut new_state: WindowStateAll, force: bool) {
         self.state = self.probe_state();
+
+        // ensure restore is correct
+        new_state.set_restore_state_from(self.state.state);
 
         // winit provides a fallback chrome for Wayland, but app-process is expected to render it in Zng
         let chrome_visible = new_state.chrome_visible && std::env::var("WAYLAND_DISPLAY").is_err();

@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix fullscreen toggle from maximized restoring window to normal.
+    - Add `restore_state_fullscreen`.
+    - Change how `restore_state` operates.
 * Fix invalid window state after changing Normal -> Maximized -> Fullscreen -> Normal.
 
 # 0.22.8
