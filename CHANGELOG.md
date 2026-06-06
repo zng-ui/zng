@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.22.9
+
 * Fix `cargo zng res` infinite recursion when a res script also calls `cargo zng`.
 * Add `cargo zng l10n --release-langs PATH` for packaging tools.
 * Fix fullscreen toggle from maximized restoring window to normal.
