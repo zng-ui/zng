@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Deprecated** `zng-tp-licenses` feature `"bundle"`, renamed to `"embed"`.
+    - `write_bundle` renamed to `write_embedding`.
+    - `include_bundle` renamed to `decode_embedding`.
+    - `zng-view` feature `"bundle_licenses"` renamed to `"embed_licenses"`.
 * **Deprecated** `zng` feature `"view_bundle_licenses"`, not needed.
 
 # 0.22.9

@@ -5,20 +5,24 @@ fn main() {
     }
 
     tp_licenses();
+
+    if cfg!(feature = "bundle_licenses") && !cfg!(feature = "_all_features") {
+        println!("cargo::warning=feature \"bundle_licenses\" is deprecated, renamed to \"embed_licenses\"");
+    }
 }
 
 fn tp_licenses() {
-    #[cfg(feature = "bundle_licenses")]
+    #[cfg(feature = "embed_licenses")]
     {
         let mut licenses = zng_tp_licenses::collect_cargo_about("./about.toml");
 
         avif_licenses(&mut licenses);
 
-        zng_tp_licenses::write_bundle(&licenses);
+        zng_tp_licenses::write_embedding(&licenses);
     }
 }
 
-#[cfg(feature = "bundle_licenses")]
+#[cfg(feature = "embed_licenses")]
 fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
     #[cfg(not(any(feature = "image_avif", zng_view_image_has_avif)))]
     let _ = l;

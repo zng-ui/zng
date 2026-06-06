@@ -30,12 +30,15 @@ software = ["dep:swgl", "dep:softbuffer"]
 # Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 hardware = ["dep:glutin"]
 
-# Bundle third party licenses.
+# Deprecated
+bundle_licenses = ["embed_licenses"]
+
+# Embed third party licenses.
 #
 # Needs `cargo-about` and Internet connection during build.
 #
-# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
-bundle_licenses = ["zng-tp-licenses/bundle"]
+# Not enabled by default. Note that `"view_prebuilt"` always embeds licenses.
+embed_licenses = ["zng-tp-licenses/embed"]
 
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
 #
@@ -147,6 +150,9 @@ audio_all = [
     "audio_vorbis",
     "audio_wav",
 ]
+
+# Internal feature, only enabled if built with --all-features
+_all_features = []
 
 [lib]
 crate-type = ["lib", "cdylib"]

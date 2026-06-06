@@ -4,19 +4,19 @@
 //!
 //! Rust projects depend on many crated with a variety of licenses, some of these licenses require that they must be
 //! displayed in the app binary, usually in an "about" screen. This module can be used together with the [`zng_tp_licenses`]
-//! crate to collect and bundle licenses of all used crates in your project.
+//! crate to collect and embed licenses of all used crates in your project.
 //!
 //! The [`LICENSES`] service serves as an aggregation center for licenses of multiple sources, the [`OPEN_LICENSES_CMD`]
 //! can be implemented [`on_pre_event`] to show a custom licenses screen, or it can just be used to show the default
 //! screen provided by the default app.
 //!
-//! # Bundle Setup
+//! # Embedding Setup
 //!
-//! Follow these steps to configure your crate and build workflow to collect and bundle crate licenses.
+//! Follow these steps to configure your crate and build workflow to collect and embed crate licenses.
 //!
 //! ### Install `cargo about`
 //!
-//! To collect and bundle licenses in your project you must have [`cargo-about`] installed:
+//! To collect and embed licenses in your project you must have [`cargo-about`] installed:
 //!
 //! ```console
 //! cargo install cargo-about
@@ -63,45 +63,45 @@
 //! resolver = "2" # recommended, to not include "build" feature in the normal dependency.
 //!
 //! [features]
-//! # Recommended, so you only bundle in release builds.
+//! # Recommended, so you only embed in release builds.
 //! #
-//! # Note that if you use a feature, don't forget to build with `--features bundle_licenses`.
-//! bundle_licenses = ["dep:zng-tp-licenses"]
+//! # Note that if you use a feature, don't forget to build with `--features embed_licenses`.
+//! embed_licenses = ["dep:zng-tp-licenses"]
 //!
 //! [dependencies]
-//! zng-tp-licenses = { version = "0.9.1", features = ["bundle"], optional = true }
+//! zng-tp-licenses = { version = "0.9.1", features = ["embed"], optional = true }
 //!
 //! [build-dependencies]
 //! zng-tp-licenses = { version = "0.2.0", features = ["build"], optional = true }
 //! ```
 //!
-//! ### Implement Bundle
+//! ### Implement Embed
 //!
 //! Next, in your crates build script (`build.rs`) add:
 //!
 //! ```
 //! fn main() {
-//!     #[cfg(feature = "bundle_licenses")]
+//!     #[cfg(feature = "embed_licenses")]
 //!     {
 //!         let licenses = zng_tp_licenses::collect_cargo_about("../.cargo/about.toml");
-//!         zng_tp_licenses::write_bundle(&licenses);
+//!         zng_tp_licenses::write_embedding(&licenses);
 //!     }
 //! }
 //! ```
 //!
-//! Implement a function that includes the bundle and decodes it. Register the function it in your app init code:
+//! Implement a function that includes the embedding and decodes it. Register the function it in your app init code:
 //!
 //! ```
-//! #[cfg(feature = "bundle_licenses")]
-//! fn bundled_licenses() -> Vec<zng::third_party::LicenseUsed> {
-//!     zng_tp_licenses::include_bundle!()
+//! #[cfg(feature = "embed_licenses")]
+//! fn embedded_licenses() -> Vec<zng::third_party::LicenseUsed> {
+//!     zng_tp_licenses::include_embedding!()
 //! }
 //!
 //! # fn demo() {
 //! # use zng::prelude::*;
 //! APP.defaults().run(async {
-//!     #[cfg(feature = "bundle_licenses")]
-//!     zng::third_party::LICENSES.register(bundled_licenses);
+//!     #[cfg(feature = "embed_licenses")]
+//!     zng::third_party::LICENSES.register(embedded_licenses);
 //! });
 //! # }
 //! # fn main() { }
@@ -126,9 +126,9 @@
 //! #### Limitations
 //!
 //! Only crate licenses reachable thought cargo metadata are included. Static linked libraries in `-sys` crates may
-//! have required licenses that are not included. Other bundled resources such as fonts and images may also be licensed.
+//! have required licenses that are not included. Other resources such as fonts and images may also be licensed.
 //!
-//! The [`LICENSES`] service accepts multiple sources, so you can implement your own custom bundle, the [`zng_tp_licenses`]
+//! The [`LICENSES`] service accepts multiple sources, so you can implement your own custom embedding, the [`zng_tp_licenses`]
 //! crate provides helpers for manually encoding (compressing) licenses. See the `zng-view` build script for an example of
 //! how to include more licenses.
 //!
