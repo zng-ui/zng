@@ -315,33 +315,50 @@ pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
     deflate::deflate_bytes(&postcard::to_allocvec(licenses).expect("postard error"))
 }
 
-/// Encode licenses and write to the output file that is included by [`include_bundle!`].
+/// Deprecated
+#[deprecated = "renamed to `write_embedding`"]
+#[cfg(feature = "build")]
+pub fn write_bundle(licenses: &[LicenseUsed]) {
+    write_embedding(licenses);
+}
+
+/// Encode licenses and write to the output file that is included by [`decode_embedding!`].
 ///
 /// # Panics
 ///
 /// Panics in case of any error.
 #[cfg(feature = "build")]
-pub fn write_bundle(licenses: &[LicenseUsed]) {
+pub fn write_embedding(licenses: &[LicenseUsed]) {
     let bin = encode_licenses(licenses);
     std::fs::write(format!("{}/zng-tp-licenses.bin", std::env::var("OUT_DIR").unwrap()), bin).expect("error writing file");
 }
 
-/// Includes the bundle file generated using [`write_bundle`].
+/// Embed the file generated using [`write_embedding`] and expands to a [`decode_licenses`] that decodes the embedding.
 ///
 /// This macro output is a `Vec<LicenseUsed>`.
 #[macro_export]
-#[cfg(feature = "bundle")]
-macro_rules! include_bundle {
+#[cfg(feature = "embed")]
+macro_rules! decode_embedding {
     () => {
-        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
+        $crate::decode_embedding!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
     ($custom_name:expr) => {{ $crate::decode_licenses(include_bytes!($custom_name)) }};
 }
 
+/// Deprecated
+#[deprecated = "renamed to decode_embedding"]
+#[macro_export]
+#[cfg(feature = "embed")]
+macro_rules! include_bundle {
+    ($($tt:tt)*) => {
+        $crate::decode_embedding!($($tt)*)
+    };
+}
+
 /// Decode licenses encoded with [`encode_licenses`]. Note that the encoded format is only guaranteed to work
 /// if both encoding and decoding is made with the same `Cargo.lock` dependencies.
-#[cfg(feature = "bundle")]
+#[cfg(feature = "embed")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
-    let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
-    postcard::from_bytes(&bin).expect("invalid bundle postard binary")
+    let bin = inflate::inflate_bytes(bin).expect("invalid deflate binary");
+    postcard::from_bytes(&bin).expect("invalid postard binary")
 }

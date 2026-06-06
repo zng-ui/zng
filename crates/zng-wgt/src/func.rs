@@ -273,7 +273,7 @@ impl EDITORS {
 
 /// Service that provides icon drawing widgets.
 ///
-/// This service enables widgets to use icons in an optional way, without needing to bundle icon resources. It
+/// This service enables widgets to use icons in an optional way, without needing to embed icon resources. It
 /// also enables app wide icon theming.
 pub struct ICONS;
 impl ICONS {

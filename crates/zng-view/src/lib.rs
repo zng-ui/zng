@@ -2584,11 +2584,11 @@ impl Api for App {
     }
 
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
-        #[cfg(feature = "bundle_licenses")]
+        #[cfg(feature = "embed_licenses")]
         {
-            zng_tp_licenses::include_bundle!()
+            zng_tp_licenses::decode_embedding!()
         }
-        #[cfg(not(feature = "bundle_licenses"))]
+        #[cfg(not(feature = "embed_licenses"))]
         {
             vec![]
         }

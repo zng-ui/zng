@@ -13,8 +13,13 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 # Include helpers for collecting third-party licenses.
 build = ["dep:serde_json", "dep:deflate", "dep:postcard"]
+# Deprecated.
+bundle = ["embed"]
 # Include helpers for deserializing `build` encoded licenses.
-bundle = ["dep:inflate", "dep:postcard"]
+embed = ["dep:inflate", "dep:postcard"]
+
+# Internal feature, only enabled if built with --all-features
+_all_features = []
 
 [dependencies]
 zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }

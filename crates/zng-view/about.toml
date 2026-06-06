@@ -1,4 +1,4 @@
-# config for builds with "bundle_licenses"
+# config for builds with "embed_licenses"
 
 accepted = [
     "Apache-2.0",
