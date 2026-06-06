@@ -290,14 +290,8 @@ view_software = ["zng-view?/software"]
 # Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 view_hardware = ["zng-view?/hardware"]
 
-# Collects and bundles third-party licenses used by the `zng-view` crate.
-#
-# Needs `cargo-about` and Internet connection during build.
-#
-# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
-view_bundle_licenses = ["zng-view?/bundle_licenses"]
-# TODO(breaking) this is called embedding, not bundling, 
-# also we don't need this here, if building with view licenses are already embedded
+# Deprecated
+view_bundle_licenses = []
 
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
 #

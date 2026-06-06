@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Deprecated** `zng` feature `"view_bundle_licenses"`, not needed.
 
 # 0.22.9
 
