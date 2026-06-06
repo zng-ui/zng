@@ -177,6 +177,13 @@ pub(crate) use sh::sh_run;
 
 pub fn run() {
     if let Ok(tool) = env::var(ENV_TOOL) {
+        // SAFETY: cargo-zng is single threaded
+        //
+        // Remove in case the tool calls cargo-zng again
+        unsafe {
+            env::remove_var(ENV_TOOL);
+        }
+
         if let Some(i) = BUILT_INS.iter().position(|n| *n == tool.as_str()) {
             (BUILT_IN_FNS[i])();
             std::process::exit(0);
