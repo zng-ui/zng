@@ -1,6 +1,6 @@
 [package]
 name = "zng-view"
-version = "0.17.6"
+version = "0.17.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -152,7 +152,7 @@ audio_all = [
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-zng-view-api = { path = "../zng-view-api", version = "0.20.4", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.20.5", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.7.0", default-features = false }
 zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.9.1", default-features = false }
