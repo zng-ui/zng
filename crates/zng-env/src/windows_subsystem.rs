@@ -41,7 +41,7 @@ pub fn attach_console() {
 ///
 /// # Code Signing
 ///
-/// If you code sign the full executable or configure any other policy metadata on it you mut repeat the signing for the
+/// If you code sign the full executable or configure any other policy metadata on it you must repeat the signing for the
 /// proxy executable too. Note that the generated .com executable is a normal PE file (.exe), it is just renamed to have higher priority.
 ///
 /// # Panics
@@ -132,6 +132,10 @@ mod imp {
             .arg("panic=abort")
             .arg("-C")
             .arg("strip=symbols")
+            .arg("-C")
+            .arg("lto=fat")
+            .arg("-C")
+            .arg("codegen-units=1")
             .status()?;
         if !status.success() {
             panic!("failed to compile generated cli com proxy");
