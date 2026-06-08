@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.22.9", features = ["view_prebuilt"] }
+zng = { version = "0.22.10", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -265,11 +265,7 @@ Enables GPU renderer in the default view-process.
 Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 
 #### `"view_bundle_licenses"`
-Collects and bundles third-party licenses used by the `zng-view` crate.
-
-Needs `cargo-about` and Internet connection during build.
-
-Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+Deprecated
 
 #### `"ipc"`
 Enables IPC tasks, pre-build views and connecting to views running in another process.
