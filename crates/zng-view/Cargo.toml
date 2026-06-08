@@ -30,6 +30,14 @@ software = ["dep:swgl", "dep:softbuffer"]
 # Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 hardware = ["dep:glutin"]
 
+# Compile with optimized shaders source code.
+# 
+# When built with this and running with `use_optimized_shaders: true` on the GPU the shaders will
+# compile slightly faster on first usage. Compiled shaders performance is the same between optimized and unoptimized.
+# 
+# Adds up to 1.8MB to the executable.
+optimized_shaders = ["webrender/optimized_shaders"]
+
 # Deprecated
 bundle_licenses = ["embed_licenses"]
 
@@ -166,7 +174,7 @@ zng-env = { path = "../zng-env", version = "0.11.2", default-features = false }
 zng-task = { path = "../zng-task", version = "0.13.3", default-features = false }
 
 # path = "../../../zng-webrender/webrender"
-webrender = { version = "0.68.3", default-features = false, features = ["static_freetype", "serialize_program"], package = "zng-webrender" }
+webrender = { version = "0.68.4", default-features = false, features = ["static_freetype", "serialize_program"], package = "zng-webrender" }
 swgl = { version = "0.68.0", default-features = false, optional = true }
 postcard = { version = "1", default-features = false, features = ["alloc", "use-std"] }
 

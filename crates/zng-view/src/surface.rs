@@ -124,7 +124,7 @@ impl Surface {
             // optimize memory usage
             chunk_pool: Some(crate::util::wr_chunk_pool()),
 
-            use_optimized_shaders: !context.is_software(),
+            use_optimized_shaders: cfg!(feature = "optimized_shaders") && !context.is_software(),
             cached_programs: if context.is_software() {
                 None
             } else {

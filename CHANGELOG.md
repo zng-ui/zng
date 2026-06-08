@@ -1,5 +1,9 @@
 # Unreleased
 
+* Optimize renderer for binary size.
+    - Saves up to 1.8MB with a trade-off of slightly slower shader compilation on first use.
+    - Added `"optimized_shaders"` feature to `zng-view` to avoid this.
+    - Minimal impact due to shader cache.
 * Optimize `build_cli_com_proxy` for binary size.
 
 * **Deprecated** `zng-tp-licenses` feature `"bundle"`, renamed to `"embed"`.
