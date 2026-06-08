@@ -1,5 +1,7 @@
 # Unreleased
 
+* Optimize `build_cli_com_proxy` for binary size.
+
 * **Deprecated** `zng-tp-licenses` feature `"bundle"`, renamed to `"embed"`.
     - `write_bundle` renamed to `write_embedding`.
     - `include_bundle` renamed to `decode_embedding`.
