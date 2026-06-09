@@ -12,7 +12,6 @@ use zng_ext_font::*;
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_layout::unit::DistanceKey;
-use zng_wgt::prelude::*;
 
 use crate::node::{RichText, RichTextWidgetInfoExt, notify_leaf_select_op};
 
