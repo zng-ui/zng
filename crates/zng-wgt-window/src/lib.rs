@@ -89,7 +89,7 @@ impl Window {
     /// [`WindowRoot`]: zng_ext_window::WindowRoot
     pub fn widget_build(&mut self) -> WindowRoot {
         let mut wgt = self.widget_take();
-        WindowRoot::new2(
+        WindowRoot::new(
             wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),
             wgt.capture_value_or_default(property_id!(Self::kiosk)),

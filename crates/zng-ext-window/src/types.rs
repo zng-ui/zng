@@ -67,49 +67,12 @@ impl WindowRoot {
     ///   from accidentally exiting fullscreen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
-    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zng_app::window::WindowMode::is_headless).
-    /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
-    /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
-    #[expect(clippy::too_many_arguments)]
-    #[deprecated = "use new2 until next breaking release"]
-    pub fn new(
-        root_id: WidgetId,
-        start_position: StartPosition,
-        kiosk: bool,
-        transparent: bool,
-        render_mode: Option<RenderMode>,
-        headless_monitor: HeadlessMonitor,
-        start_focused: bool,
-        root: impl IntoUiNode,
-    ) -> Self {
-        WindowRoot {
-            id: root_id,
-            start_position,
-            kiosk,
-            transparent,
-            render_mode,
-            cache_shaders: None,
-            headless_monitor,
-            start_focused,
-            child: root.into_node(),
-        }
-    }
-
-    /// New window from a `root` node that forms the window root widget.
-    ///
-    /// * `root_id` - Widget ID of `root`.
-    /// * `start_position` - Position of the window when it first opens.
-    /// * `kiosk` - Only allow fullscreen mode. Note this does not configure the windows manager, only blocks the app itself
-    ///   from accidentally exiting fullscreen. Also causes subsequent open windows to be child of this window.
-    /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
-    /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `cache_shaders` - Shader cache preference overwrite for this window.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zng_app::window::WindowMode::is_headless).
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
-    // TODO(breaking) replace new
     #[expect(clippy::too_many_arguments)]
-    pub fn new2(
+    pub fn new(
         root_id: WidgetId,
         start_position: StartPosition,
         kiosk: bool,
@@ -139,45 +102,11 @@ impl WindowRoot {
     /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
     /// nest group of the root widget.
     ///
-    /// See [`new`] for other parameters.
-    ///
-    /// [`new`]: Self::new
-    #[deprecated = "use `new_container2` until next breaking release"]
-    #[expect(clippy::too_many_arguments)]
-    pub fn new_container(
-        root_id: WidgetId,
-        start_position: StartPosition,
-        kiosk: bool,
-        transparent: bool,
-        render_mode: Option<RenderMode>,
-        headless_monitor: HeadlessMonitor,
-        start_focused: bool,
-        child: impl IntoUiNode,
-    ) -> Self {
-        WindowRoot::new2(
-            root_id,
-            start_position,
-            kiosk,
-            transparent,
-            render_mode,
-            None,
-            headless_monitor,
-            start_focused,
-            zng_app::widget::base::node::widget_inner(child),
-        )
-    }
-
-    /// New window from a `child` node that becomes the child of the window root widget.
-    ///
-    /// The `child` parameter is a node that is the window's content, if it is a full widget the `root_id` is the id of
-    /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
-    /// nest group of the root widget.
-    ///
     /// See [`new2`] for other parameters.
     ///
     /// [`new2`]: Self::new2
     #[expect(clippy::too_many_arguments)]
-    pub fn new_container2(
+    pub fn new_container(
         root_id: WidgetId,
         start_position: StartPosition,
         kiosk: bool,
@@ -188,7 +117,7 @@ impl WindowRoot {
         start_focused: bool,
         child: impl IntoUiNode,
     ) -> Self {
-        WindowRoot::new2(
+        WindowRoot::new(
             root_id,
             start_position,
             kiosk,
@@ -204,7 +133,7 @@ impl WindowRoot {
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn new_test(child: impl IntoUiNode) -> Self {
-        WindowRoot::new_container2(
+        WindowRoot::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
             false,
