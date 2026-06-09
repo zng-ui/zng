@@ -3,10 +3,7 @@
 use zng_app::property_args;
 use zng_ext_input::{focus::FOCUS, gesture::CLICK_EVENT};
 use zng_wgt::prelude::*;
-use zng_wgt_input::{
-    focus::FocusableMix,
-    gesture::{Mnemonic, get_mnemonic, get_mnemonic_char, mnemonic_txt},
-};
+use zng_wgt_input::gesture::{Mnemonic, get_mnemonic, get_mnemonic_char, mnemonic_txt};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn};
 
 #[doc(hidden)]
@@ -43,19 +40,10 @@ use zng_wgt_text::node::TEXT;
         txt = $txt;
     };
 })]
-pub struct Label(FocusableMix<StyleMix<zng_wgt_text::Text>>); // TODO(breaking) remove FocusableMix
+pub struct Label(StyleMix<zng_wgt_text::Text>);
 impl Label {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
-
-        // this used to be true when Label! was only really useful with a `target`,
-        // so as a fallback when it had no target it was at least focusable
-        //
-        // now Label! primary use case is mnemonic shortcuts so this changes
-        widget_set! {
-            self;
-            focusable = false;
-        }
 
         // replace the txt with one that removes the mnemonic marker
         self.widget_builder().push_pre_build_action(|wgt| {

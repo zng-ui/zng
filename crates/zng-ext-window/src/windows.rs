@@ -1304,7 +1304,7 @@ impl zng_ext_image::ImageRenderWindowsService for WINDOWS {
     }
 
     fn new_window_root(&self, node: UiNode, render_mode: RenderMode) -> Box<dyn zng_ext_image::ImageRenderWindowRoot> {
-        Box::new(WindowRoot::new_container2(
+        Box::new(WindowRoot::new_container(
             WidgetId::new_unique(),
             crate::StartPosition::Default,
             false,

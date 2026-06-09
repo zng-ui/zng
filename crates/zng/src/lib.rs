@@ -586,10 +586,9 @@ mod __prelude {
     pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zng_var::{
-        IntoValue, IntoVar, Var, VarValue, const_var, context_var, expr_var, flat_expr_var, merge_var, var, var_from, var_getter,
+        IntoValue, IntoVar, Var, VarEq, VarValue, const_var, context_var, expr_var, flat_expr_var, merge_var, var, var_from, var_getter,
         var_state, when_var,
     };
-    // TODO(breaking) VarEq
 
     pub use crate::var::animation::easing;
 
@@ -646,7 +645,7 @@ mod __prelude {
     pub use zng_wgt_text::Text;
 
     #[cfg(feature = "text_input")]
-    pub use zng_wgt_text_input::{TextInput, selectable::SelectableText};
+    pub use zng_wgt_text_input::{TextInput, label::Label, selectable::SelectableText};
 
     #[cfg(feature = "window")]
     pub use crate::window;
@@ -762,7 +761,6 @@ pub mod prelude_wgt {
     #[doc(no_inline)]
     pub use crate::__prelude_wgt::*;
 }
-// TODO(breaking) WINDOW_Ext
 mod __prelude_wgt {
     pub use zng_app::{
         DInstant, Deadline, INSTANT,
@@ -840,7 +838,7 @@ mod __prelude_wgt {
     };
 
     #[cfg(feature = "window")]
-    pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
+    pub use zng_ext_window::{WINDOW_Ext as _, WidgetInfoBuilderImeArea as _};
 
     #[cfg(hot_reload)]
     pub use crate::hot_reload::hot_node;
