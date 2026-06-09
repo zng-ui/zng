@@ -9,7 +9,7 @@ pub mod android {
     pub use winit::platform::android::activity;
 
     #[cfg(target_os = "android")]
-    static ANDROID_APP: parking_lot::RwLock<Option<activity::AndroidApp>> = parking_lot::RwLock::new(None);
+    static ANDROID_APP: zng_task::parking_lot::RwLock<Option<activity::AndroidApp>> = zng_task::parking_lot::RwLock::new(None);
 
     /// Sets the [`android_app`] instance for this process and the Android paths.
     ///

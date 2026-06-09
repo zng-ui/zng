@@ -7,8 +7,8 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::Mutex;
 use zng_app_context::app_local;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_var::{ArcEq, MergeVarBuilder, Var, WeakVar, const_var, merge_var, var};
 use zng_view_api::config::LocaleConfig;

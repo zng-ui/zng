@@ -9,9 +9,9 @@ use crate::{
         info::{WidgetInfo, WidgetInfoTree},
     },
 };
-use parking_lot::RwLock;
 use zng_app_context::context_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
+use zng_task::parking_lot::RwLock;
 use zng_txt::Txt;
 
 zng_unique_id::unique_id_32! {

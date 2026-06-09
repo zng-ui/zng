@@ -1,6 +1,5 @@
 use std::{any::Any, mem, pin::Pin, sync::Arc};
 
-use parking_lot::Mutex;
 use zng_app::{
     APP, Deadline, async_hn_once,
     render::{FrameBuilder, FrameUpdate},
@@ -28,6 +27,7 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::{ResponderVar, ResponseVar, VarHandle};

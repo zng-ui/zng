@@ -8,10 +8,10 @@ use std::{
     task::Waker,
 };
 
-use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_task::channel::ChannelError;
+use zng_task::parking_lot::Mutex;
 use zng_unique_id::IdSet;
 use zng_var::{VARS, VARS_APP, VarUpdateId};
 

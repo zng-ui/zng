@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs, io, path::PathBuf, sync::LazyLock};
 
-use parking_lot::Mutex;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 
 use crate::LangFilePath;

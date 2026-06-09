@@ -7,7 +7,6 @@
 //!
 //! See the `zng::app::crash_handler` documentation for more details.
 
-use parking_lot::Mutex;
 use std::{
     fmt,
     io::{BufRead, Write},
@@ -17,6 +16,7 @@ use std::{
 };
 use zng_clone_move::clmv;
 use zng_layout::unit::TimeUnits as _;
+use zng_task::parking_lot::Mutex;
 
 use zng_txt::{ToTxt as _, Txt};
 

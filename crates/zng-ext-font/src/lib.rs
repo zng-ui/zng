@@ -59,7 +59,6 @@ pub use self::hyphenation::*;
 mod unit;
 pub use unit::*;
 
-use parking_lot::{Mutex, RwLock};
 use pastey::paste;
 use zng_app::{
     event::{event, event_args},
@@ -76,6 +75,7 @@ use zng_layout::unit::{
     ByteUnits as _, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq,
     about_eq_hash, about_eq_ord, euclid,
 };
+use zng_task::parking_lot::{Mutex, RwLock};
 use zng_task::{self as task, channel::IpcBytes};
 use zng_txt::Txt;
 use zng_var::{IntoVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var};

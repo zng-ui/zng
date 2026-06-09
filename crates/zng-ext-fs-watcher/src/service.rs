@@ -1,11 +1,11 @@
 use std::{mem, path::PathBuf, sync::Arc, time::Duration};
 
-use parking_lot::{Condvar, Mutex};
 use zng_app::{
     APP, DInstant, INSTANT, hn_once,
     timer::{DeadlineHandle, TIMERS},
 };
 use zng_app_context::{LocalContext, app_local};
+use zng_task::parking_lot::{Condvar, Mutex};
 use zng_unit::TimeUnits;
 use zng_var::{Var, var};
 

@@ -743,7 +743,7 @@ pub fn with_data_notes(child: impl IntoUiNode, mut on_changed: impl FnMut(&DataN
 
             let cleaned = notes.notes.cleanup();
             if mem::take(&mut notes.changed) || cleaned {
-                let notes = task::parking_lot::lock_api::RwLockWriteGuard::downgrade(notes);
+                let notes = task::parking_lot::RwLockWriteGuard::downgrade(notes);
                 let notes = &notes.notes;
 
                 if !DATA_NOTES_CTX.is_default() {

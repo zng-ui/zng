@@ -128,7 +128,7 @@ struct SingleInstanceData {
     name: Txt,
 }
 
-static SINGLE_INSTANCE: parking_lot::Mutex<Option<SingleInstanceData>> = parking_lot::Mutex::new(None);
+static SINGLE_INSTANCE: zng_task::parking_lot::Mutex<Option<SingleInstanceData>> = zng_task::parking_lot::Mutex::new(None);
 
 impl SingleInstanceData {
     fn new(_lock: single_instance::SingleInstance, name: Txt) -> Self {

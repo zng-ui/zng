@@ -1,6 +1,5 @@
 use std::{any::Any, mem, pin::Pin, sync::Arc};
 
-use parking_lot::Mutex;
 use zng_app::{
     APP, Deadline, hn_once,
     timer::TIMERS,
@@ -17,6 +16,7 @@ use zng_app::{
 };
 use zng_app_context::{RunOnDrop, app_local};
 use zng_layout::unit::FrequencyUnits;
+use zng_task::parking_lot::Mutex;
 use zng_task::{ParallelIteratorExt, rayon::prelude::*};
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};

@@ -2,10 +2,10 @@
 
 use std::num::NonZeroU32;
 
-use parking_lot::Mutex;
 use unic_langid::LanguageIdentifier;
 use zng_layout::unit::{Factor, PxSize, PxTransform};
 use zng_state_map::{StateId, static_id};
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{IntoVar, Var};

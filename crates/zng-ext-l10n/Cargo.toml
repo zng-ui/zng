@@ -41,7 +41,6 @@ zng-env = { path = "../zng-env", version = "0.11.3", default-features = false }
 fluent = { version = "0.17", default-features = false }
 fluent-syntax = { version = "0.12", default-features = false }
 intl-memoizer = { version = "0.5", default-features = false }
-parking_lot = { version = "0.12", default-features = false }
 unic-langid = { version = "0.9", default-features = false }
 tracing = { version = "0.1", default-features = false }
 unicase = { version = "2.7", default-features = false }

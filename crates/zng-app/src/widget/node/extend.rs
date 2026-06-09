@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::Mutex;
+use zng_task::parking_lot::Mutex;
 
 use crate::widget::WidgetUpdateMode;
 

@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use zng_task::parking_lot::Mutex;
 
 use super::*;
 use std::{mem, sync::Arc};

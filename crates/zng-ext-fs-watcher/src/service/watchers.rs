@@ -1,5 +1,4 @@
 use notify::Watcher as _;
-use parking_lot::Mutex;
 use std::{
     collections::{HashMap, hash_map},
     io, mem,
@@ -8,6 +7,7 @@ use std::{
 };
 use zng_handle::{Handle, HandleOwner};
 use zng_task::channel::{self, ChannelError};
+use zng_task::parking_lot::Mutex;
 use zng_unit::TimeUnits;
 
 use crate::{WatcherHandle, fs_event};

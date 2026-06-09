@@ -8,7 +8,6 @@ use crate::{
     Deadline,
     handler::{Handler, HandlerExt as _},
 };
-use parking_lot::Mutex;
 use std::{
     fmt, mem,
     pin::Pin,
@@ -21,6 +20,7 @@ use std::{
 };
 use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_task::parking_lot::Mutex;
 use zng_time::{DInstant, INSTANT, INSTANT_APP};
 use zng_var::{Var, WeakVar, var};
 

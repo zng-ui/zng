@@ -3,9 +3,9 @@
 use std::pin::Pin;
 use std::sync::Arc;
 
-use parking_lot::Mutex;
 #[doc(hidden)]
 pub use zng_clone_move::*;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 
 use crate::update::UPDATES;

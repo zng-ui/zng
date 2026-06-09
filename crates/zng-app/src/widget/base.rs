@@ -21,8 +21,8 @@ use crate::widget::{
     node::match_node,
     property,
 };
-use parking_lot::Mutex;
 use zng_layout::unit::FactorUnits as _;
+use zng_task::parking_lot::Mutex;
 use zng_var::{IntoValue, Var, animation::Transitionable, context_var, impl_from_and_into_var};
 
 /// Base widget.

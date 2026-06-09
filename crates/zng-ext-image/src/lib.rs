@@ -17,7 +17,6 @@
 
 use std::{any::Any, path::PathBuf, pin::Pin};
 
-use parking_lot::Mutex;
 use zng_app::{
     static_id,
     update::UPDATES,
@@ -39,6 +38,7 @@ use zng_clone_move::clmv;
 use zng_layout::unit::{ByteLength, ByteUnits};
 use zng_state_map::StateId;
 use zng_task::channel::{IpcBytes, IpcReadHandle};
+use zng_task::parking_lot::Mutex;
 use zng_txt::ToTxt;
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{IntoVar, Var, VarHandle, var};

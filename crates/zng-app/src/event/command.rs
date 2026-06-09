@@ -167,8 +167,8 @@ macro_rules! command {
 #[doc(inline)]
 pub use command;
 
-use parking_lot::Mutex;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_unique_id::{static_id, unique_id_64};
 use zng_var::{Var, VarHandles, VarValue, const_var, impl_from_and_into_var, var};

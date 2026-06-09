@@ -45,7 +45,6 @@ bitflags = { version = "2.5", default-features = false, features = ["serde", "by
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 
 postcard = { version = "1", default-features = false, features = ["alloc"] }
-parking_lot = { version = "0.12", default-features = false }
 serde_variant = { version = "0.1", default-features = false }
 
 unic-langid = { version = "0.9", features = ["serde"] }

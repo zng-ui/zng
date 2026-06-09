@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use parking_lot::Mutex;
 use zng_app::{
     view_process::{EncodeError, VIEW_PROCESS, ViewImageHandle, ViewRenderer},
     widget::node::UiNode,
@@ -19,6 +18,7 @@ use zng_layout::{
     context::{LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxDensity2d, PxLine, PxPoint, PxRect, PxSize, about_eq},
 };
+use zng_task::parking_lot::Mutex;
 use zng_task::{
     self as task,
     channel::{IpcBytes, IpcBytesMut, IpcReadHandle},

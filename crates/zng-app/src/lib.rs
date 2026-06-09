@@ -39,11 +39,11 @@ pub mod window;
 
 mod tests;
 
-use parking_lot::Mutex;
 use view_process::VIEW_PROCESS;
 use zng_clone_move::async_clmv;
 #[doc(hidden)]
 pub use zng_layout as layout;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;

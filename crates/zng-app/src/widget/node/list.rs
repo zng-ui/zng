@@ -17,11 +17,11 @@ use crate::{
         info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
     },
 };
-use parking_lot::Mutex;
 use task::ParallelIteratorExt;
 use zng_app_context::context_local;
 use zng_layout::unit::{Factor, PxSize, PxTransform, PxVector};
 use zng_state_map::StateId;
+use zng_task::parking_lot::Mutex;
 use zng_task::{self as task, rayon::prelude::*};
 use zng_unique_id::static_id;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};

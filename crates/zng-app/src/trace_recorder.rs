@@ -16,9 +16,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use parking_lot::Mutex;
 use serde::Deserialize as _;
 use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _};
+use zng_task::parking_lot::Mutex;
 use zng_txt::{ToTxt as _, Txt};
 
 /// Represents a recorded trace.
@@ -631,6 +631,6 @@ zng_env::on_process_start!(|_| {
 zng_app_context::hot_static! {
     static RECORDING: Mutex<Option<tracing_chrome::FlushGuard>> = Mutex::new(None);
 }
-fn recording() -> parking_lot::MutexGuard<'static, Option<tracing_chrome::FlushGuard>> {
+fn recording() -> zng_task::parking_lot::MutexGuard<'static, Option<tracing_chrome::FlushGuard>> {
     zng_app_context::hot_static_ref!(RECORDING).lock()
 }
