@@ -1,5 +1,6 @@
 # Unreleased
 
+**Breaking** Removed `zng` feature `"view_bundle_licenses"`.
 
 # 0.22.10
 

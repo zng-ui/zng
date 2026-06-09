@@ -290,9 +290,6 @@ view_software = ["zng-view?/software"]
 # Requires OpenGL 3.2 driver. Recommended for most apps. Uses ~20MB more RAM.
 view_hardware = ["zng-view?/hardware"]
 
-# Deprecated
-view_bundle_licenses = []
-
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
 #
 # Only enables in `not(any(target_os = "android", target_arch = "wasm32", target_os = "ios"))` builds.
