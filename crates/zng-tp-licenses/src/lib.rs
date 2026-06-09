@@ -152,12 +152,11 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
 /// [`DOCS_RS`]: https://docs.rs/about/builds#detecting-docsrs
 #[cfg(feature = "build")]
-pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
-    // TODO(breaking) &Path
+pub fn collect_cargo_about(about_cfg_path: impl AsRef<std::path::Path>) -> Vec<LicenseUsed> {
     // build.rs current_dir is crate folder
-    collect_cargo_about_for(
-        about_cfg_path,
-        "Cargo.toml",
+    collect_cargo_about_for_impl(
+        about_cfg_path.as_ref(),
+        "Cargo.toml".as_ref(),
         &std::env::var("CARGO_CFG_FEATURE").unwrap_or_default(),
     )
 }
