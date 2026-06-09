@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use crate::{AnyResult, Event, Request, Response};
 
-use parking_lot::Mutex;
 use zng_task::channel::{self, ChannelError, IpcReceiver, IpcSender};
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 
 type AppInitMsg = (

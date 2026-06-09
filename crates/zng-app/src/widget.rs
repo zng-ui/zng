@@ -11,7 +11,6 @@ mod easing;
 pub use easing::*;
 
 use atomic::Atomic;
-use parking_lot::{Mutex, RwLock};
 use std::{
     borrow::Cow,
     pin::Pin,
@@ -23,6 +22,7 @@ use zng_handle::Handle;
 use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
+use zng_task::parking_lot::{Mutex, RwLock};
 use zng_txt::{Txt, formatx};
 use zng_var::{AnyVar, BoxAnyVarValue, ResponseVar, VARS, Var, VarHandle, VarHandles, VarHookArgs, VarUpdateId, VarValue};
 use zng_view_api::display_list::ReuseRange;

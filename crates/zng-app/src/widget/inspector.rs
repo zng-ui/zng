@@ -44,8 +44,8 @@ mod inspector_only {
 #[cfg(feature = "inspector")]
 pub(crate) use inspector_only::*;
 
-use parking_lot::RwLock;
 use zng_state_map::StateId;
+use zng_task::parking_lot::RwLock;
 use zng_txt::Txt;
 use zng_unique_id::static_id;
 use zng_var::{AnyVar, Var, VarValue};

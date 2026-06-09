@@ -9,7 +9,6 @@
 //!
 //! * [`GESTURES`]
 
-use parking_lot::Mutex;
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
@@ -38,6 +37,7 @@ use zng_env::on_process_start;
 use zng_ext_window::WINDOWS;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::DipPoint;
+use zng_task::parking_lot::Mutex;
 use zng_var::{Var, var};
 use zng_view_api::{
     keyboard::{Key, KeyCode, KeyLocation, KeyState, NativeKeyCode},

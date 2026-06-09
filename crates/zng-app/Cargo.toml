@@ -62,8 +62,7 @@ ipc = ["zng-view-api/ipc", "zng-task/ipc"]
 # Not enabled by default, but enabled by `feature="test_util"`.
 #
 # See `zng::app::spawn_deadlock_detection` for more details.
-deadlock_detection = ["zng-task/deadlock_detection"]
-
+deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Enable instrumented allocator and record allocations.
 #

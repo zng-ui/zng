@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** `zng::task::parking_lot` now only reexports primary types.
 * **Breaking** `Label!` no longer inherits `FocusableMix`.
 * Add `WINDOW_Ext as _` to `zng::prelude_wgt`.
 * Add `Label!` to `zng::prelude`.

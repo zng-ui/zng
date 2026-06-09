@@ -2,7 +2,6 @@ use std::fmt;
 use std::sync::atomic::Ordering::Relaxed;
 
 use atomic::Atomic;
-use parking_lot::Mutex;
 use zng_app::{
     widget::{
         WidgetId,
@@ -13,6 +12,7 @@ use zng_app::{
 use zng_ext_window::NestedWindowWidgetInfoExt;
 use zng_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
 use zng_state_map::{StateId, static_id};
+use zng_task::parking_lot::Mutex;
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::FocusIndicator;

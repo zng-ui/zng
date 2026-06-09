@@ -33,7 +33,6 @@ use std::{
     time::Duration,
 };
 
-use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use zng_app::{
     DInstant, INSTANT,
@@ -42,6 +41,7 @@ use zng_app::{
 };
 use zng_clone_move::clmv;
 use zng_handle::Handle;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_unit::TimeUnits;
 use zng_var::{AnyVar, BoxAnyVarValue, Var, VarHandle, VarValue, WeakAnyVar, var};

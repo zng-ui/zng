@@ -15,10 +15,10 @@ use crate::{
     window::{MonitorId, WindowId},
 };
 
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_app_context::app_local;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Frequency, Px, PxPoint, PxRect};
 use zng_task::channel::{self, ChannelError, IpcBytes, IpcReadHandle, IpcReceiver, Receiver};
+use zng_task::parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{ArcEq, ResponderVar, Var, VarHandle, WeakEq};

@@ -292,7 +292,6 @@ version = "0.2"
 features = ["std"]
 
 [target.'cfg(target_os = "android")'.dependencies]
-parking_lot = { version = "0.12", default-features = false }
 # matches winit -> android-activity
 ndk = { version = "0.9.0", default-features = false }
 ndk-context = { version = "0.1.1", default-features = false }

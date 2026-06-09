@@ -1256,7 +1256,6 @@ pub(crate) fn assert_not_view_process() {
 /// You can call it before `zng::env::init!` to detect deadlocks in other processes too.
 #[cfg(feature = "deadlock_detection")]
 pub fn spawn_deadlock_detection() {
-    use parking_lot::deadlock;
     use std::{
         sync::atomic::{self, AtomicBool},
         thread,
@@ -1276,7 +1275,7 @@ pub fn spawn_deadlock_detection() {
             loop {
                 thread::sleep(Duration::from_secs(10));
 
-                let deadlocks = deadlock::check_deadlock();
+                let deadlocks = parking_lot::deadlock::check_deadlock();
                 if deadlocks.is_empty() {
                     continue;
                 }

@@ -14,7 +14,7 @@ mod desktop {
         sync::Arc,
     };
 
-    use parking_lot::Mutex;
+    use zng_task::parking_lot::Mutex;
     use zng_var::ResponseVar;
 
     use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError, WeakFontBytes};
@@ -296,7 +296,7 @@ mod android {
         })
     }
 
-    fn cached_system_all() -> parking_lot::MappedRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
+    fn cached_system_all() -> zng_task::parking_lot::MappedRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
         let lock = SYSTEM_ALL.read();
         if !lock.is_empty() {
             return lock;

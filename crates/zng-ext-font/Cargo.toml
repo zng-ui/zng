@@ -43,7 +43,6 @@ serde = { version = "1.0", default-features = false }
 unicase = { version = "2.7", default-features = false }
 rustybuzz = { version = "0.20", default-features = false, features = ["std"] }
 ttf-parser = { version = "0.25", default-features = false, features = ["std", "apple-layout", "opentype-layout", "variable-fonts"] }
-parking_lot = { version = "0.12", default-features = false }
 byteorder = { version = "1.5", default-features = false, features = ["std"] }
 icu_properties = { version = "2.0", default-features = false, features = ["compiled_data"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }

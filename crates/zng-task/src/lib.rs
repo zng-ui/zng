@@ -22,10 +22,6 @@ use std::{
     task::Poll,
 };
 
-#[doc(no_inline)]
-pub use parking_lot; // TODO(breaking) don't reexport everything? Maybe in `zng` at least
-use parking_lot::Mutex;
-
 use zng_app_context::{LocalContext, app_local};
 use zng_time::Deadline;
 use zng_var::{ResponseVar, VarValue, response_done_var, response_var};
@@ -33,23 +29,24 @@ use zng_var::{ResponseVar, VarValue, response_done_var, response_var};
 #[cfg(test)]
 mod tests;
 
-#[doc(no_inline)]
-pub use rayon;
+mod reexports;
+pub use reexports::*;
+
+use crate::parking_lot::Mutex;
 
 pub mod channel;
 pub mod fs;
 pub mod io;
+
 mod ui;
+pub use ui::*;
 
 pub mod http;
 
 pub mod process;
 
 mod rayon_ctx;
-
 pub use rayon_ctx::*;
-
-pub use ui::*;
 
 mod progress;
 pub use progress::*;

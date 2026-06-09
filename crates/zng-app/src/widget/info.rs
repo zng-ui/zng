@@ -5,8 +5,8 @@ use std::{borrow::Cow, fmt, mem, ops, sync::Arc, time::Duration};
 pub mod access;
 
 mod tree;
-use parking_lot::{MappedMutexGuard, Mutex, MutexGuard, RwLock};
 use tree::Tree;
+use zng_task::parking_lot::{MappedMutexGuard, Mutex, MutexGuard, RwLock};
 
 mod path;
 pub use path::*;

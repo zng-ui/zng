@@ -21,7 +21,6 @@
 
 use std::mem;
 
-use parking_lot::Mutex;
 use zng_app::{
     event::{event, event_args},
     hn, static_id,
@@ -40,6 +39,7 @@ use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
 use zng_task::channel::IpcBytes;
+use zng_task::parking_lot::Mutex;
 use zng_txt::{Txt, formatx};
 use zng_var::{ArcEq, Var, var};
 use zng_view_api::{DragDropId, mouse::ButtonState, touch::TouchPhase};

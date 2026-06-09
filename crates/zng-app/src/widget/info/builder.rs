@@ -1,9 +1,9 @@
-use parking_lot::Mutex;
 use zng_layout::{
     context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT, LayoutMask},
     unit::{Factor, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
+use zng_task::parking_lot::Mutex;
 use zng_unique_id::IdMap;
 
 use crate::{

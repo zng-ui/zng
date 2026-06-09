@@ -6,7 +6,7 @@ use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-use parking_lot::Mutex;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 
 use crate::{VIEW_MODE, VIEW_SERVER, VIEW_VERSION};

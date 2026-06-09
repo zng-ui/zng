@@ -9,8 +9,8 @@ use std::{
 
 use std::time::Duration;
 
-use parking_lot::Mutex;
 use zng_task::channel::ChannelError;
+use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 
 use crate::{

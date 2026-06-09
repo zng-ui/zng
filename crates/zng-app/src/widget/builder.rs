@@ -213,11 +213,11 @@ macro_rules! widget_type {
         $($widget)::+::widget_type()
     };
 }
-use parking_lot::Mutex;
 #[doc(inline)]
 pub use widget_type;
 use zng_app_context::context_local;
 use zng_app_proc_macros::widget;
+use zng_task::parking_lot::Mutex;
 use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{

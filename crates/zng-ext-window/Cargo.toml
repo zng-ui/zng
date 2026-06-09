@@ -39,7 +39,6 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 tracing = { version = "0.1", default-features = false }
-parking_lot = { version = "0.12", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

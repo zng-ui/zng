@@ -7,9 +7,9 @@ use crate::{
     update::UPDATES,
     widget::{AnyVarSubscribe, OnVarArgs},
 };
-use parking_lot::MappedRwLockReadGuard;
 use zng_app_context::AppLocal;
 use zng_task::channel;
+use zng_task::parking_lot::MappedRwLockReadGuard;
 use zng_var::{AnyVar, VARS, Var, VarHandle, VarUpdateId, VarValue};
 
 use crate::{
