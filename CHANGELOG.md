@@ -1,9 +1,10 @@
 # Unreleased
 
+* **Breaking** `Label!` no longer inherits `FocusableMix`.
 * Add `WINDOW_Ext as _` to `zng::prelude_wgt`.
 * Add `Label!` to `zng::prelude`.
 * Add `VarEq` to `zng::prelude`.
-**Breaking** Remove `zng` feature `"view_bundle_licenses"`.
+* **Breaking** Remove `zng` feature `"view_bundle_licenses"`.
 
 # 0.22.10
 
