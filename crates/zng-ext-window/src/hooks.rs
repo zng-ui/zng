@@ -773,20 +773,10 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
 
     // set enabled window buttons
     vars.0
-        .enabled_buttons
+        .enabled_state_cmds
         .hook(move |a| {
-            if VIEW_PROCESS.is_connected()
-                && !VIEW_PROCESS.info().window.intersects(
-                    WindowCapability::DISABLE_CLOSE_BUTTON
-                        | WindowCapability::DISABLE_MINIMIZE_BUTTON
-                        | WindowCapability::DISABLE_MAXIMIZE_BUTTON,
-                )
-            {
-                tracing::warn!("view-process cannot affect window chrome buttons in the current system");
-                return false;
-            }
             with_view(id, |_, v| {
-                let _ = v.set_enabled_buttons(*a.value());
+                let _ = v.set_enabled_state_cmds(*a.value());
             });
             true
         })

@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Remove window `enabled_buttons` and related types.
+    - Added `enabled_state_cmds` that provide a similar feature with greater coverage of user actions.
 * Split `LayoutMask::CONSTRAINTS` into `CONSTRAINTS`, `INLINE_CONSTRAINTS` and `Z_CONSTRAINTS`.
 * **Breaking** Remove deprecated `ImageEntry::with_best_reduce`.
 * **Breaking** Remove deprecated `FontNames::system_ui` and related functions.

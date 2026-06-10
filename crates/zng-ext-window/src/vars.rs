@@ -17,7 +17,7 @@ use zng_unique_id::IdSet;
 use zng_var::{Var, VarValue, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
-    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState, WindowStateAll},
+    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState, WindowStateAll, WindowStateCmd},
 };
 
 #[cfg(feature = "image")]
@@ -67,7 +67,7 @@ pub(crate) struct WindowVarsData {
     pub(crate) restore_state_fullscreen: Var<Option<WindowState>>,
     pub(crate) restore_rect: Var<DipRect>,
 
-    pub(crate) enabled_buttons: Var<WindowButton>,
+    pub(crate) enabled_state_cmds: Var<WindowStateCmd>,
 
     pub(crate) resizable: Var<bool>,
     pub(crate) movable: Var<bool>,
@@ -157,7 +157,7 @@ impl WindowVars {
                 DipSize::new(Dip::new(800), Dip::new(600)),
             )),
 
-            enabled_buttons: var(WindowButton::all()),
+            enabled_state_cmds: var(WindowStateCmd::all()),
 
             min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
@@ -618,14 +618,11 @@ impl WindowVars {
         self.0.movable.clone()
     }
 
-    /// Defines the enabled state of the window chrome buttons.
+    /// Defines the states the user can set the window.
     ///
-    /// Note that the operating system may ignore or not implement this.
-    ///
-    /// Note that the window can still enter states represented by a disabled button if set directly.
-    pub fn enabled_buttons(&self) -> Var<WindowButton> {
-        // TODO(breaking) replace this with a best effort `enabled_states`.
-        self.0.enabled_buttons.clone()
+    /// Note that the window can still enter states represented by a disabled command if set directly.
+    pub fn enabled_state_cmds(&self) -> Var<WindowStateCmd> {
+        self.0.enabled_state_cmds.clone()
     }
 
     /// Defines if the window should always stay on top of other windows.

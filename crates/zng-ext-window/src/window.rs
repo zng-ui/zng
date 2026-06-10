@@ -756,7 +756,7 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                     vars.0.focus_indicator.get(),
                     vars.0.focused.get(),
                     ime_area,
-                    vars.0.enabled_buttons.get(),
+                    vars.0.enabled_state_cmds.get(),
                     vars.0.system_shutdown_warn.get(),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 );

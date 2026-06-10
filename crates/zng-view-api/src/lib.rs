@@ -346,8 +346,11 @@ declare_api! {
     /// if canceled by setting to `None`.
     pub fn set_focus_indicator(&mut self, id: WindowId, indicator: Option<window::FocusIndicator>);
 
-    /// Set enabled window chrome buttons.
-    pub fn set_enabled_buttons(&mut self, id: WindowId, buttons: window::WindowButton);
+    /// Set window states the user can set.
+    ///
+    /// Only disables system UI (chrome buttons, menus) and blocks user actions that set the state,
+    /// direct programmatically requests can still set disabled states.
+    pub fn set_enabled_state_cmds(&mut self, id: WindowId, enabled: window::WindowStateCmd);
 
     /// Brings the window to the front and sets input focus.
     ///

@@ -28,7 +28,7 @@ use zng_view_api::{
     raw_input::InputDeviceId,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
-        WindowButton, WindowId, WindowRequest, WindowState, WindowStateAll,
+        WindowId, WindowRequest, WindowState, WindowStateAll, WindowStateCmd,
     },
 };
 
@@ -521,7 +521,7 @@ impl Window {
 
         win.set_taskbar_visible(cfg.taskbar_visible);
 
-        win.set_enabled_buttons(cfg.enabled_buttons);
+        win.set_enabled_state_cmds(cfg.enabled_state_cmds);
 
         if !cfg.system_shutdown_warn.is_empty() {
             win.set_system_shutdown_warn(cfg.system_shutdown_warn);
@@ -1355,8 +1355,8 @@ impl Window {
     }
 
     /// Set enabled chrome buttons.
-    pub fn set_enabled_buttons(&self, buttons: WindowButton) {
-        self.window.set_enabled_buttons(buttons.to_winit());
+    pub fn set_enabled_state_cmds(&self, enabled: WindowStateCmd) {
+        self.window.set_enabled_buttons(enabled.to_winit());
     }
 
     /// Open windows title bar context menu.

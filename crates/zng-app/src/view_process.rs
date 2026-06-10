@@ -35,7 +35,7 @@ use zng_view_api::{
     image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
-        VideoMode, WindowButton, WindowRequest, WindowStateAll,
+        VideoMode, WindowRequest, WindowStateAll, WindowStateCmd,
     },
 };
 
@@ -924,8 +924,8 @@ impl ViewWindow {
     }
 
     /// Set enabled window chrome buttons.
-    pub fn set_enabled_buttons(&self, buttons: WindowButton) -> Result<()> {
-        self.0.call(|id, p| p.set_enabled_buttons(id, buttons))
+    pub fn set_enabled_state_cmds(&self, enabled: WindowStateCmd) -> Result<()> {
+        self.0.call(|id, p| p.set_enabled_state_cmds(id, enabled))
     }
 
     /// Reference the window renderer.

@@ -20,7 +20,7 @@ fn main() {
         Window! {
             title = "Cursor Example";
             resizable = false;
-            enabled_buttons = !window::WindowButton::MAXIMIZE;
+            enabled_state_cmds = !(window::WindowStateCmd::MAXIMIZE & window::WindowStateCmd::FULLSCREEN);
             auto_size = true;
             padding = 20;
             child = Stack!(

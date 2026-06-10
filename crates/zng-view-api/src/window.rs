@@ -539,8 +539,8 @@ pub struct WindowRequest {
     /// IME cursor area, if IME is enabled.
     pub ime_area: Option<DipRect>,
 
-    /// Enabled window chrome buttons.
-    pub enabled_buttons: WindowButton,
+    /// States the user can set the window.
+    pub enabled_state_cmds: WindowStateCmd,
 
     /// System shutdown warning associated with the window.
     pub system_shutdown_warn: Txt,
@@ -574,7 +574,7 @@ impl WindowRequest {
         focus_indicator: Option<FocusIndicator>,
         focus: bool,
         ime_area: Option<DipRect>,
-        enabled_buttons: WindowButton,
+        enabled_state_cmds: WindowStateCmd,
         system_shutdown_warn: Txt,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
     ) -> Self {
@@ -601,7 +601,7 @@ impl WindowRequest {
             focus,
             extensions,
             ime_area,
-            enabled_buttons,
+            enabled_state_cmds,
             system_shutdown_warn,
         }
     }
@@ -1324,15 +1324,17 @@ pub enum EventCause {
 }
 
 bitflags::bitflags! {
-    /// Window chrome buttons.
+    /// Window state change commands.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct WindowButton: u32 {
-        /// Close button.
-        const CLOSE = 1 << 0;
-        /// Minimize button.
-        const MINIMIZE = 1 << 1;
-        /// Maximize/restore button.
-        const MAXIMIZE = 1 << 2;
+    pub struct WindowStateCmd: u32 {
+        /// Minimize window.
+        const MINIMIZE = (1 << 16);
+        /// Restore window to *normal*.
+        const RESTORE = (1 << 17);
+        /// Maximize window.
+        const MAXIMIZE = (1 << 18);
+        /// Toggle fullscreen.
+        const FULLSCREEN = (1 << 19);
     }
 }
 
@@ -1397,12 +1399,7 @@ bitflags::bitflags! {
         /// Can programmatically resize window after it is open.
         const SET_SIZE = (1 << 23);
 
-        /// Can disable close button.
-        const DISABLE_CLOSE_BUTTON = (1 << 24);
-        /// Can disable minimize button.
-        const DISABLE_MINIMIZE_BUTTON = (1 << 25);
-        /// Can disable maximize button.
-        const DISABLE_MAXIMIZE_BUTTON = (1 << 26);
+        // 24, 25, 26 where removed in zng 0.23
 
         /// Can set a system shutdown warning/blocker associated with the window.
         const SET_SYSTEM_SHUTDOWN_WARN = (1 << 27);
