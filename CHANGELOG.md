@@ -1,5 +1,6 @@
 # Unreleased
 
+* Split `LayoutMask::CONSTRAINTS` into `CONSTRAINTS`, `INLINE_CONSTRAINTS` and `Z_CONSTRAINTS`.
 * **Breaking** Remove deprecated `ImageEntry::with_best_reduce`.
 * **Breaking** Remove deprecated `FontNames::system_ui` and related functions.
 * **Breaking** Remove deprecated `RAW_SCALE_FACTOR_CHANGED_EVENT`.
