@@ -6,8 +6,10 @@
 //! All functions of this module propagate the [`LocalContext`].
 //!
 //! This crate also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
-//! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`LocalContext`]. You can
+//! [`with_ctx`] adapter in rayon iterators to propagate the [`LocalContext`]. You can
 //! also use [`join`] to propagate thread context for a raw rayon join operation.
+//!
+//! [`with_ctx`]: crate::task::rayon::ParallelIteratorExt::with_ctx
 //!
 //! # Examples
 //!
@@ -144,9 +146,9 @@
 //! See [`zng_task`] for the full API.
 
 pub use zng_task::{
-    DeadlineError, McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all,
-    all_ok, all_some, any, any_ok, any_some, block_on, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond,
-    run, run_catch, scope, set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
+    DeadlineError, McWaker, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all, all_ok, all_some, any, any_ok, any_some, block_on,
+    deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond, run, run_catch, scope, set_spawn_panic_handler,
+    spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
 
 #[cfg(any(doc, feature = "test_util"))]
@@ -235,7 +237,63 @@ pub mod channel {
 #[cfg(ipc)]
 pub use zng_task::process;
 
-#[doc(no_inline)]
-pub use zng_task::{parking_lot, rayon};
-
 pub use zng_app::widget::UiTaskWidget;
+
+/// Recommended blocking locks.
+///
+/// The `Mutex` and `RwLock` types reexported here are recommended, they are
+/// more optimized than `std` alternatives because they don't implement lock poisoning,
+/// have `const` initialization and integrate with the `zng` feature `"deadlock_detection"`.
+///
+/// # Full API
+///
+/// See the [`parking_lot`] crate for the full API.
+///
+/// [`parking_lot`]: https://docs.rs/parking_lot
+pub mod parking_lot {
+    use zng_task::parking_lot;
+
+    // no_inline is not imported from zng_task
+    #[doc(no_inline)]
+    pub use parking_lot::{
+        ArcMutexGuard, ArcRwLockReadGuard, ArcRwLockWriteGuard, Condvar, MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard,
+        Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard,
+    };
+}
+
+/// Parallel iterators.
+///
+/// This module mostly reexports the primary traits from the [`rayon`] crate.
+///
+/// This module also includes [`ParallelIteratorWithCtx`] that propagates the
+/// zng app context to rayon tasks.
+///
+/// # Full API
+///
+/// See the [`rayon`] crate for the full API.
+///
+/// [`rayon`]: https://docs.rs/rayon
+/// [`ParallelIteratorWithCtx`]: crate::task::rayon::ParallelIteratorWithCtx
+pub mod rayon {
+    pub use zng_task::rayon::{ParallelIteratorExt, ParallelIteratorWithCtx};
+
+    use zng_task::rayon;
+
+    #[doc(no_inline)]
+    pub use rayon::{iter, slice, str};
+
+    /// Rayon traits imported `as _`.
+    pub mod prelude {
+        use zng_task::rayon;
+
+        #[doc(no_inline)]
+        pub use rayon::{
+            iter::FromParallelIterator as _, iter::IndexedParallelIterator as _, iter::IntoParallelIterator as _,
+            iter::IntoParallelRefIterator as _, iter::IntoParallelRefMutIterator as _, iter::ParallelBridge as _,
+            iter::ParallelDrainFull as _, iter::ParallelDrainRange as _, iter::ParallelExtend as _, iter::ParallelIterator as _,
+            slice::ParallelSlice as _, slice::ParallelSliceMut as _, str::ParallelString as _,
+        };
+
+        pub use zng_task::rayon::ParallelIteratorExt as _;
+    }
+}
