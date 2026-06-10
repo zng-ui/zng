@@ -145,7 +145,7 @@ impl SegmentedText {
                 }
             };
 
-            if c_kind != kind || c_level != level || !c_kind.can_merge() {
+            if c_kind != kind || c_level != level || !c_kind.can_merge_bidi() {
                 if i > 0 {
                     segs.push(TextSegment {
                         kind,
