@@ -13,8 +13,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 # Include helpers for collecting third-party licenses.
 build = ["dep:serde_json", "dep:deflate", "dep:postcard"]
-# Deprecated.
-bundle = ["embed"]
 # Include helpers for deserializing `build` encoded licenses.
 embed = ["dep:inflate", "dep:postcard"]
 

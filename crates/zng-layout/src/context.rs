@@ -867,8 +867,7 @@ impl TextSegmentKind {
     }
 
     /// If multiple segments of this same kind can be represented by a single segment in the Unicode bidi algorithm.
-    pub fn can_merge(self) -> bool {
-        // TODO(breaking) rename to can_merge_bidi
+    pub fn can_merge_bidi(self) -> bool {
         use TextSegmentKind::*;
         !matches!(self, Bracket(_) | BidiCtrl(_))
     }
