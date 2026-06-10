@@ -456,10 +456,9 @@ pub struct LayoutMetricsSnapshot {
 impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
-        (!mask.contains(LayoutMask::CONSTRAINTS)
-            || (self.constraints == other.constraints
-                && self.z_constraints == other.z_constraints
-                && self.inline_constraints == other.inline_constraints))
+        (!mask.contains(LayoutMask::CONSTRAINTS) || self.constraints == other.constraints)
+            && (!mask.contains(LayoutMask::Z_CONSTRAINTS) || self.z_constraints == other.z_constraints)
+            && (!mask.contains(LayoutMask::INLINE_CONSTRAINTS) || self.inline_constraints == other.inline_constraints)
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
@@ -534,7 +533,7 @@ impl LayoutMetrics {
 
     /// Current perspective constraints.
     pub fn z_constraints(&self) -> PxConstraints {
-        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
+        LAYOUT.register_metrics_use(LayoutMask::Z_CONSTRAINTS);
         self.s.z_constraints
     }
 
@@ -542,7 +541,7 @@ impl LayoutMetrics {
     ///
     /// Only present if the parent widget supports inline.
     pub fn inline_constraints(&self) -> Option<InlineConstraints> {
-        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINTS);
+        LAYOUT.register_metrics_use(LayoutMask::INLINE_CONSTRAINTS);
         self.s.inline_constraints.clone()
     }
 
@@ -991,9 +990,12 @@ bitflags! {
     pub struct LayoutMask: u32 {
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The [`LayoutMetrics::constraints`], [`LayoutMetrics::z_constraints`] and [`LayoutMetrics::inline_constraints`].
+        /// The [`LayoutMetrics::constraints`].
         const CONSTRAINTS = 1 << 30;
-        // TODO(breaking) https://github.com/zng-ui/zng/issues/902
+        /// The [`LayoutMetrics::z_constraints`].
+        const Z_CONSTRAINTS = 1 << 29;
+        /// The [`LayoutMetrics::inline_constraints`].
+        const INLINE_CONSTRAINTS = 1 << 28;
 
         /// The [`LayoutMetrics::font_size`].
         const FONT_SIZE = 1;

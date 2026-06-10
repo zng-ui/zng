@@ -408,8 +408,8 @@ impl INSPECTOR {
                 }
                     w! {
                         CONSTRAINTS, constraints;
-                        CONSTRAINTS, inline_constraints;
-                        CONSTRAINTS, z_constraints;
+                        INLINE_CONSTRAINTS, inline_constraints;
+                        Z_CONSTRAINTS, z_constraints;
                         FONT_SIZE, font_size;
                         ROOT_FONT_SIZE, root_font_size;
                         SCALE_FACTOR, scale_factor;
