@@ -320,14 +320,6 @@ impl VIEW_PROCESS {
         Ok(())
     }
 
-    /// Number of frame send that have not finished rendering.
-    ///
-    /// This is the sum of pending frames for all renderers.
-    #[deprecated = "use `is_busy`"]
-    pub fn pending_frames(&self) -> usize {
-        self.read().pending_frames.values().copied().sum()
-    }
-
     /// Gets if any renderer is already processing one frame with another pending.
     ///
     /// The app loop blocks so that it at most generates the next frame while the previous is rendering.

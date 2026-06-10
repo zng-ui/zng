@@ -36,7 +36,7 @@
 //!
 //!     let shaped_icon = FONTS
 //!         .list(
-//!             &FontNames::system_ui(&und),
+//!             &[FontName::system_ui()],
 //!             FontStyle::Normal,
 //!             FontWeight::NORMAL,
 //!             FontStretch::NORMAL,
@@ -60,7 +60,7 @@
 //! ```
 //!
 //! This code is taken from the `examples/calculator.rs` example,
-//! it uses [`FONTS.list`](FONTS::list) to get the font [`system_ui`](FontNames::system_ui) fonts that are used by default. The code
+//! it uses [`FONTS.list`](FONTS::list) to get the font `"system-ui"` fonts that are used by default. The code
 //! then checks if any of system fonts has a glyph for the `⌫` character, if none of the fonts support it a [`CustomFont`] is
 //! loaded from an embedded font and installed using [`FONTS.register`](FONTS::register). Finally the [`FONTS.generics`](FONTS::generics)
 //! is used to override the fallback font.
@@ -87,7 +87,7 @@
 //!
 //!     // start font query in parallel
 //!     let font_face = FONTS.list(
-//!         &FontNames::system_ui(lang),
+//!         &[FontName::system_ui()],
 //!         FontStyle::Normal,
 //!         FontWeight::NORMAL,
 //!         FontStretch::NORMAL,

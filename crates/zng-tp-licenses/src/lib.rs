@@ -314,13 +314,6 @@ pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
     deflate::deflate_bytes(&postcard::to_allocvec(licenses).expect("postard error"))
 }
 
-/// Deprecated
-#[deprecated = "renamed to `write_embedding`"]
-#[cfg(feature = "build")]
-pub fn write_bundle(licenses: &[LicenseUsed]) {
-    write_embedding(licenses);
-}
-
 /// Encode licenses and write to the output file that is included by [`decode_embedding!`].
 ///
 /// # Panics
@@ -342,16 +335,6 @@ macro_rules! decode_embedding {
         $crate::decode_embedding!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
     ($custom_name:expr) => {{ $crate::decode_licenses(include_bytes!($custom_name)) }};
-}
-
-/// Deprecated
-#[deprecated = "renamed to decode_embedding"]
-#[macro_export]
-#[cfg(feature = "embed")]
-macro_rules! include_bundle {
-    ($($tt:tt)*) => {
-        $crate::decode_embedding!($($tt)*)
-    };
 }
 
 /// Decode licenses encoded with [`encode_licenses`]. Note that the encoded format is only guaranteed to work

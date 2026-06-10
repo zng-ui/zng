@@ -281,17 +281,6 @@ impl RunningApp {
                 let args = RawTouchArgs::now(window_id(w_id), self.input_device_id(d_id), touches);
                 RAW_TOUCH_EVENT.notify(args);
             }
-            #[allow(deprecated)]
-            Event::ScaleFactorChanged {
-                monitor: id,
-                windows,
-                scale_factor,
-            } => {
-                let monitor_id = VIEW_PROCESS.monitor_id(id);
-                let windows: Vec<_> = windows.into_iter().map(window_id).collect();
-                let args = RawScaleFactorChangedArgs::now(monitor_id, windows, scale_factor);
-                RAW_SCALE_FACTOR_CHANGED_EVENT.notify(args);
-            }
             Event::MonitorsChanged(monitors) => {
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);

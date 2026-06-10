@@ -447,14 +447,6 @@ impl ImageEntry {
         }
     }
 
-    /// Calls `visit` on [`best_reduce`].
-    ///
-    /// [`best_reduce`]: Self::best_reduce
-    #[deprecated = "use `best_reduce`"]
-    pub fn with_best_reduce<R>(&self, size: PxSize, visit: impl FnOnce(&ImageEntry) -> R) -> Option<R> {
-        Some(self.best_reduce(size).with(visit))
-    }
-
     /// Connection to the image resource in the view-process.
     pub fn view_handle(&self) -> &ViewImageHandle {
         &self.handle

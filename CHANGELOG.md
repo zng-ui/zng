@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Breaking** Remove deprecated `ImageEntry::with_best_reduce`.
+* **Breaking** Remove deprecated `FontNames::system_ui` and related functions.
+* **Breaking** Remove deprecated `RAW_SCALE_FACTOR_CHANGED_EVENT`.
+* **Breaking** Remove deprecated `VIEW_PROCESS.pending_frames`.
 * **Breaking** Rename `TextSegmentKind::can_merge` to `can_merge_bidi`.
 * **Breaking** `ParallelIteratorExt` and related types moved to `zng::task::rayon`.
 * **Breaking** `zng::task::rayon` now only reexports primary traits.

@@ -516,25 +516,6 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_SCALE_FACTOR_CHANGED_EVENT`].
-    pub struct RawScaleFactorChangedArgs {
-        /// Monitor that has changed.
-        pub monitor_id: MonitorId,
-
-        /// Window in the monitor that has changed.
-        pub windows: Vec<WindowId>,
-
-        /// New pixel scale factor.
-        pub scale_factor: Factor,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn is_in_target(&self, id: WidgetId) -> bool {
-            true
-        }
-    }
-
     /// Arguments for the [`RAW_MONITORS_CHANGED_EVENT`].
     pub struct RawMonitorsChangedArgs {
         /// Up-to-date monitors list.
@@ -901,14 +882,6 @@ event! {
 
     /// A window was touched.
     pub static RAW_TOUCH_EVENT: RawTouchArgs;
-
-    /// Pixel scale factor for a monitor screen and its windows has changed.
-    ///
-    /// This can happen if the user change the screen settings. Note that a
-    /// window's scale factor can also change if it is moved to a different monitor,
-    /// this change can be monitored using [`RAW_WINDOW_CHANGED_EVENT`].
-    #[deprecated = "use RAW_MONITORS_CHANGED_EVENT"]
-    pub static RAW_SCALE_FACTOR_CHANGED_EVENT: RawScaleFactorChangedArgs;
 
     /// Monitors added, removed or modified.
     pub static RAW_MONITORS_CHANGED_EVENT: RawMonitorsChangedArgs;

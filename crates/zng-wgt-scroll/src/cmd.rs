@@ -3,7 +3,7 @@
 //! The scroll widget implements all of this commands scoped to its widget ID.
 
 use super::*;
-use zng_app::event::{CommandArgs, CommandParam};
+use zng_app::event::CommandParam;
 use zng_ext_window::WINDOWS;
 use zng_wgt::ICONS;
 
@@ -283,19 +283,6 @@ impl ZoomToFitRequest {
     pub fn from_param(p: &CommandParam) -> Option<Self> {
         p.downcast_ref::<Self>().cloned()
     }
-
-    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
-    /// stop-propagation was not requested for the event.
-    ///
-    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
-    #[deprecated = "use `CommandArgs::param`"]
-    pub fn from_args(args: &CommandArgs) -> Option<Self> {
-        if let Some(p) = &args.param {
-            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
-        } else {
-            None
-        }
-    }
 }
 
 /// Parameters for the scroll and page commands.
@@ -339,19 +326,6 @@ impl ScrollRequest {
                 alternate: alt,
                 ..Default::default()
             })
-        }
-    }
-
-    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
-    /// stop-propagation was not requested for the event.
-    ///
-    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
-    #[deprecated = "use `CommandArgs::param`"]
-    pub fn from_args(args: &CommandArgs) -> Option<Self> {
-        if let Some(p) = &args.param {
-            if args.propagation.is_stopped() { None } else { Self::from_param(p) }
-        } else {
-            None
         }
     }
 }
@@ -442,23 +416,6 @@ impl ScrollToRequest {
                 zoom: None,
                 skip_animation: false,
             })
-        }
-    }
-
-    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
-    /// stop-propagation was not requested for the event and the command was enabled when it was send.
-    ///
-    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
-    #[deprecated = "use `CommandArgs::param`"]
-    pub fn from_args(args: &CommandArgs) -> Option<Self> {
-        if let Some(p) = &args.param {
-            if !args.enabled || args.propagation.is_stopped() {
-                None
-            } else {
-                Self::from_param(p)
-            }
-        } else {
-            None
         }
     }
 }

@@ -84,20 +84,6 @@ struct MonitorsService {
 }
 impl MonitorsService {
     fn new() -> Self {
-        // track monitor scale factors
-        #[allow(deprecated)]
-        zng_app::view_process::raw_events::RAW_SCALE_FACTOR_CHANGED_EVENT
-            .hook(|args| {
-                MONITORS_SV.read().monitors.with(|a| {
-                    if let Some(m) = a.get(&args.monitor_id) {
-                        tracing::trace!("monitor scale factor changed, {:?} {:?}", args.monitor_id, args.scale_factor);
-                        m.scale_factor.set(args.scale_factor);
-                    }
-                });
-                true
-            })
-            .perm();
-
         // track monitors
         RAW_MONITORS_CHANGED_EVENT
             .hook(|args| {

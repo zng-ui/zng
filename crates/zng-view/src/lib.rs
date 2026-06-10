@@ -1994,7 +1994,7 @@ impl Api for App {
                 config.extensions,
             ));
             let msg = WindowOpenData::new(
-                WindowStateAll::new2(
+                WindowStateAll::new(
                     WindowState::Fullscreen,
                     PxPoint::zero(),
                     DipRect::from_size(config.state.restore_rect.size),
