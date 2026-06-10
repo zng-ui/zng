@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** `ParallelIteratorExt` and related types moved to `zng::task::rayon`.
+* **Breaking** `zng::task::rayon` now only reexports primary traits.
 * **Breaking** `zng::task::parking_lot` now only reexports primary types.
 * **Breaking** `Label!` no longer inherits `FocusableMix`.
 * Add `WINDOW_Ext as _` to `zng::prelude_wgt`.

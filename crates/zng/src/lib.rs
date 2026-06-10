@@ -561,11 +561,7 @@ pub mod prelude {
 mod __prelude {
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
 
-    pub use zng_task::rayon::prelude::{
-        FromParallelIterator as _, IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
-        IntoParallelRefMutIterator as _, ParallelBridge as _, ParallelDrainFull as _, ParallelDrainRange as _, ParallelExtend as _,
-        ParallelIterator as _, ParallelSlice as _, ParallelSliceMut as _, ParallelString as _,
-    };
+    pub use zng_task::rayon::prelude::*;
 
     pub use zng_task::io::{
         AsyncBufRead as _, AsyncRead as _, AsyncReadExt as _, AsyncSeek as _, AsyncSeekExt as _, AsyncWrite as _, AsyncWriteExt as _,

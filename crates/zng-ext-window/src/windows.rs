@@ -17,7 +17,7 @@ use zng_app::{
 use zng_app_context::{RunOnDrop, app_local};
 use zng_layout::unit::FrequencyUnits;
 use zng_task::parking_lot::Mutex;
-use zng_task::{ParallelIteratorExt, rayon::prelude::*};
+use zng_task::rayon::prelude::*;
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet};
 use zng_var::{ResponderVar, ResponseVar, VARS, Var, const_var, response_done_var, response_var, var, var_default};

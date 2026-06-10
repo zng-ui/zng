@@ -46,7 +46,6 @@ pub mod http;
 pub mod process;
 
 mod rayon_ctx;
-pub use rayon_ctx::*;
 
 mod progress;
 pub use progress::*;
@@ -184,7 +183,7 @@ struct RayonTask {
 }
 impl RayonTask {
     fn poll(self: Arc<Self>) {
-        rayon::spawn(move || {
+        ::rayon::spawn(move || {
             // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
             let mut task = self.fut.lock();
             if let Some(mut t) = task.take() {
@@ -243,14 +242,14 @@ where
 /// [`LocalContext`]: zng_app_context::LocalContext
 pub fn join_context<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
-    A: FnOnce(rayon::FnContext) -> RA + Send,
-    B: FnOnce(rayon::FnContext) -> RB + Send,
+    A: FnOnce(::rayon::FnContext) -> RA + Send,
+    B: FnOnce(::rayon::FnContext) -> RB + Send,
     RA: Send,
     RB: Send,
 {
     let ctx = LocalContext::capture();
     let ctx = &ctx;
-    rayon::join_context(
+    ::rayon::join_context(
         move |a| {
             if a.migrated() {
                 ctx.clone().with_context(|| op_a(a))
@@ -292,7 +291,7 @@ where
     let ctx_ref: &'_ LocalContext = &ctx;
     let ctx_scope_ref: &'scope LocalContext = unsafe { std::mem::transmute(ctx_ref) };
 
-    let r = rayon::scope(move |s| {
+    let r = ::rayon::scope(move |s| {
         op(ScopeCtx {
             scope: s,
             ctx: ctx_scope_ref,
@@ -309,7 +308,7 @@ where
 /// See [`scope`] for more details.
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeCtx<'a, 'scope: 'a> {
-    scope: &'a rayon::Scope<'scope>,
+    scope: &'a ::rayon::Scope<'scope>,
     ctx: &'scope LocalContext,
 }
 impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
@@ -424,7 +423,7 @@ where
             if sender.is_disconnected() {
                 return; // cancel.
             }
-            rayon::spawn(move || {
+            ::rayon::spawn(move || {
                 // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
                 let mut task = self.fut.lock();
                 if let Some(mut t) = task.take() {
@@ -528,7 +527,7 @@ where
             if responder.strong_count() == 2 {
                 return; // cancel.
             }
-            rayon::spawn(move || {
+            ::rayon::spawn(move || {
                 // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
                 let mut task = self.fut.lock();
                 if let Some(mut t) = task.take() {

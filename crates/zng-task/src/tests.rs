@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use rayon::prelude::*;
+use crate::rayon::prelude::*;
 
 use super::*;
 use zng_unit::TimeUnits;

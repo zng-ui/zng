@@ -393,7 +393,7 @@ pub mod view_side {
         task_keys: HashMap<BlobImageKey, usize>,
         task_params: HashMap<CustomTaskParams, usize>,
         single_threaded: bool,
-        workers: Option<Arc<zng::prelude::task::rayon::ThreadPool>>,
+        workers: Option<Arc<rayon::ThreadPool>>,
     }
 
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
