@@ -22,7 +22,6 @@ use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNode {
     let enabled = enabled.into_var();
-    let child = rich_text_events_broadcast(child);
     let child = rich_text_cmds(child);
     let child = rich_text_component(child, "rich_text");
 
@@ -158,7 +157,7 @@ fn rich_text_cmds(child: impl IntoUiNode) -> UiNode {
 // some visuals (like selection background) depend on focused status of any rich leaf
 //
 // leaf texts also handle pointer input events for the rich text
-fn rich_text_events_broadcast(child: impl IntoUiNode) -> UiNode {
+pub(crate) fn rich_text_events_broadcast(child: impl IntoUiNode) -> UiNode {
     let mut handles = VarHandles::dummy();
     match_node(child, move |c, op| {
         match op {
