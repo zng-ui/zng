@@ -864,7 +864,7 @@ impl WindowVars {
     }
 
     pub(crate) fn window_state_all(&self) -> WindowStateAll {
-        WindowStateAll::new2(
+        WindowStateAll::new(
             self.0.state.get(),
             self.0.global_position.get(),
             self.0.restore_rect.get(),

@@ -692,34 +692,12 @@ pub struct ImageFormat {
     pub capabilities: ImageFormatCapability,
 }
 impl ImageFormat {
-    /// From static str.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `media_type_suffixes` not ASCII.
-    #[deprecated = "use `from_static2`, it will replace this function next breaking release"]
-    pub const fn from_static(
-        display_name: &'static str,
-        media_type_suffixes: &'static str,
-        file_extensions: &'static str,
-        capabilities: ImageFormatCapability,
-    ) -> Self {
-        assert!(media_type_suffixes.is_ascii());
-        Self {
-            display_name: Txt::from_static(display_name),
-            media_type_suffixes: Txt::from_static(media_type_suffixes),
-            file_extensions: Txt::from_static(file_extensions),
-            magic_numbers: Txt::from_static(""),
-            capabilities,
-        }
-    }
-
     /// From static strings.
     ///
     /// # Panics
     ///
     /// Panics if `media_type_suffixes` or `magic_numbers` are not ASCII.
-    pub const fn from_static2(
+    pub const fn from_static(
         display_name: &'static str,
         media_type_suffixes: &'static str,
         file_extensions: &'static str,

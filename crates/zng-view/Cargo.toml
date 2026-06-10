@@ -38,9 +38,6 @@ hardware = ["dep:glutin"]
 # Adds up to 1.8MB to the executable.
 optimized_shaders = ["webrender/optimized_shaders"]
 
-# Deprecated
-bundle_licenses = ["embed_licenses"]
-
 # Embed third party licenses.
 #
 # Needs `cargo-about` and Internet connection during build.

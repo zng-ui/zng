@@ -334,30 +334,6 @@ impl FontNames {
         FontNames(vec![])
     }
 
-    /// Returns the default UI font names for Windows.
-    #[deprecated = "use `FONTS.generics().system_ui`"]
-    pub fn windows_ui(lang: &Lang) -> Self {
-        FONTS.generics().system_ui(lang)
-    }
-
-    /// Returns the default UI font names for MacOS/iOS.
-    #[deprecated = "use `FONTS.generics().system_ui`"]
-    pub fn mac_ui(lang: &Lang) -> Self {
-        FONTS.generics().system_ui(lang)
-    }
-
-    /// Returns the default UI font names for Linux.
-    #[deprecated = "use `FONTS.generics().system_ui`"]
-    pub fn linux_ui(lang: &Lang) -> Self {
-        FONTS.generics().system_ui(lang)
-    }
-
-    /// Returns the default UI font names for the current operating system.
-    #[deprecated = "use `FONTS.generics().system_ui`"]
-    pub fn system_ui(lang: &Lang) -> Self {
-        FONTS.generics().system_ui(lang)
-    }
-
     /// Push a font name from any type that converts to [`FontName`].
     pub fn push(&mut self, font_name: impl Into<FontName>) {
         self.0.push(font_name.into())
@@ -2651,10 +2627,6 @@ impl GenericFontsService {
 /// this delegates the resolution to the operating system. The `set_*` methods can be used to override the default.
 ///
 /// The default `fallback` font is "Segoe UI Symbol" for Windows, "Standard Symbols PS" for Linux and "sans-serif" for others.
-///
-/// See also [`FontNames::system_ui`] for the default font selection for `system-ui`.
-///
-/// [`FontNames::system_ui`]: crate::FontNames::system_ui
 #[non_exhaustive]
 pub struct GenericFonts {}
 macro_rules! impl_fallback_accessors {

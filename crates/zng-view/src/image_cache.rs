@@ -44,11 +44,11 @@ pub(crate) mod lcms2 {
 
 pub(crate) const FORMATS: &[ImageFormat] = &[
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
-    ImageFormat::from_static2("AVIF", "avif", "avif", "xxxxxxxx6674797061766966", Cap::empty()),
+    ImageFormat::from_static("AVIF", "avif", "avif", "xxxxxxxx6674797061766966", Cap::empty()),
     #[cfg(feature = "image_bmp")]
-    ImageFormat::from_static2("BMP", "bmp", "bmp,dib", "424D", Cap::ENCODE),
+    ImageFormat::from_static("BMP", "bmp", "bmp,dib", "424D", Cap::ENCODE),
     #[cfg(feature = "image_dds")]
-    ImageFormat::from_static2(
+    ImageFormat::from_static(
         "DirectDraw Surface",
         "vnd-ms.dds,x-direct-draw-surface",
         "dds",
@@ -56,25 +56,25 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
         Cap::empty(),
     ),
     #[cfg(feature = "image_exr")]
-    ImageFormat::from_static2("OpenEXR", "x-exr", "exr", "762f3101", Cap::ENCODE),
+    ImageFormat::from_static("OpenEXR", "x-exr", "exr", "762f3101", Cap::ENCODE),
     // https://www.wikidata.org/wiki/Q28206109
     #[cfg(feature = "image_ff")]
-    ImageFormat::from_static2("Farbfeld", "x-farbfeld", "ff", "6661726266656C64", Cap::ENCODE),
+    ImageFormat::from_static("Farbfeld", "x-farbfeld", "ff", "6661726266656C64", Cap::ENCODE),
     #[cfg(feature = "image_gif")]
-    ImageFormat::from_static2("GIF", "gif", "gif", "474946383761,474946383961", Cap::ENCODE),
+    ImageFormat::from_static("GIF", "gif", "gif", "474946383761,474946383961", Cap::ENCODE),
     #[cfg(feature = "image_hdr")]
-    ImageFormat::from_static2("Radiance HDR", "vnd.radiance", "hdr", "233f52414449414e43450a", Cap::ENCODE),
+    ImageFormat::from_static("Radiance HDR", "vnd.radiance", "hdr", "233f52414449414e43450a", Cap::ENCODE),
     #[cfg(feature = "image_ico")]
-    ImageFormat::from_static2("ICO", "x-icon,vnd.microsoft.icon", "ico", "00000100", Cap::ENCODE_ENTRIES),
+    ImageFormat::from_static("ICO", "x-icon,vnd.microsoft.icon", "ico", "00000100", Cap::ENCODE_ENTRIES),
     // https://www.nationalarchives.gov.uk/pronom/fmt/385
     #[cfg(feature = "image_cur")]
-    ImageFormat::from_static2("CUR", "x-win-bitmap", "cur", "00000200", Cap::empty()),
+    ImageFormat::from_static("CUR", "x-win-bitmap", "cur", "00000200", Cap::empty()),
     #[cfg(feature = "image_jpeg")]
-    ImageFormat::from_static2("JPEG", "jpeg", "jpg,jpeg", "ffd8ff", Cap::ENCODE),
+    ImageFormat::from_static("JPEG", "jpeg", "jpg,jpeg", "ffd8ff", Cap::ENCODE),
     #[cfg(feature = "image_png")]
-    ImageFormat::from_static2("PNG", "png", "png", "89504e470d0a1a0a", Cap::ENCODE),
+    ImageFormat::from_static("PNG", "png", "png", "89504e470d0a1a0a", Cap::ENCODE),
     #[cfg(feature = "image_pnm")]
-    ImageFormat::from_static2(
+    ImageFormat::from_static(
         "PNM",
         "x-portable-bitmap,x-portable-graymap,x-portable-pixmap,x-portable-anymap",
         "pbm,pgm,ppm,pam",
@@ -83,13 +83,13 @@ pub(crate) const FORMATS: &[ImageFormat] = &[
     ),
     // https://github.com/phoboslab/qoi/issues/167
     #[cfg(feature = "image_qoi")]
-    ImageFormat::from_static2("QOI", "x-qoi", "qoi", "716f6966", Cap::ENCODE),
+    ImageFormat::from_static("QOI", "x-qoi", "qoi", "716f6966", Cap::ENCODE),
     #[cfg(feature = "image_tga")]
-    ImageFormat::from_static2("TGA", "x-tga,x-targa", "tga,icb,vda,vst", "", Cap::ENCODE),
+    ImageFormat::from_static("TGA", "x-tga,x-targa", "tga,icb,vda,vst", "", Cap::ENCODE),
     #[cfg(feature = "image_tiff")]
-    ImageFormat::from_static2("TIFF", "tiff", "tif,tiff", "4d4d002a,49492a00", Cap::ENCODE_ENTRIES),
+    ImageFormat::from_static("TIFF", "tiff", "tif,tiff", "4d4d002a,49492a00", Cap::ENCODE_ENTRIES),
     #[cfg(feature = "image_webp")]
-    ImageFormat::from_static2("WebP", "webp", "webp", "52494646xxxxxxxx57454250565038", Cap::ENCODE),
+    ImageFormat::from_static("WebP", "webp", "webp", "52494646xxxxxxxx57454250565038", Cap::ENCODE),
 ];
 
 #[cfg(feature = "image_fast_downscale")]

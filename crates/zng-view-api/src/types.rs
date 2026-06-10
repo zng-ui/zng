@@ -407,19 +407,6 @@ pub enum Event {
         /// Coalesced touch updates, never empty.
         touches: Vec<TouchUpdate>,
     },
-    /// The monitor’s scale factor has changed.
-    #[deprecated = "use `MonitorsChanged`"]
-    ScaleFactorChanged {
-        /// Monitor that has changed.
-        monitor: MonitorId,
-        /// Windows affected by this change.
-        ///
-        /// Note that a window's scale factor can also change if it is moved to another monitor,
-        /// the [`Event::WindowChanged`] event notifies this using the [`WindowChanged::monitor`].
-        windows: Vec<WindowId>,
-        /// The new scale factor.
-        scale_factor: f32,
-    },
 
     /// The available monitors have changed or some property of a monitor changed.
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
@@ -733,27 +720,6 @@ impl Event {
                 },
             ) if *window == n_window => {
                 *ime = n_ime;
-            }
-            // scale factor.
-            #[allow(deprecated)]
-            (
-                ScaleFactorChanged {
-                    monitor,
-                    windows,
-                    scale_factor,
-                },
-                ScaleFactorChanged {
-                    monitor: n_monitor,
-                    windows: n_windows,
-                    scale_factor: n_scale_factor,
-                },
-            ) if *monitor == n_monitor => {
-                for w in n_windows {
-                    if !windows.contains(&w) {
-                        windows.push(w);
-                    }
-                }
-                *scale_factor = n_scale_factor;
             }
             // fonts changed.
             (FontsChanged, FontsChanged) => {}

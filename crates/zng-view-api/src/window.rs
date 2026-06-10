@@ -695,31 +695,8 @@ pub struct WindowStateAll {
 }
 impl WindowStateAll {
     /// New state.
-    #[deprecated = "use new2"]
-    pub fn new(
-        state: WindowState,
-        global_position: PxPoint,
-        restore_rect: DipRect,
-        restore_state: WindowState,
-        min_size: DipSize,
-        max_size: DipSize,
-        chrome_visible: bool,
-    ) -> Self {
-        Self {
-            state,
-            global_position,
-            restore_rect,
-            restore_state,
-            restore_state_fullscreen: None,
-            min_size,
-            max_size,
-            chrome_visible,
-        }
-    }
-
-    /// New state.
     #[allow(clippy::too_many_arguments)]
-    pub fn new2(
+    pub fn new(
         state: WindowState,
         global_position: PxPoint,
         restore_rect: DipRect,

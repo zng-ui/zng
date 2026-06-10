@@ -1,5 +1,10 @@
 # Unreleased
 
+* **Breaking** Remove deprecated `ImageEntry::with_best_reduce`.
+* **Breaking** Remove deprecated `FontNames::system_ui` and related functions.
+* **Breaking** Remove deprecated `RAW_SCALE_FACTOR_CHANGED_EVENT`.
+* **Breaking** Remove deprecated `VIEW_PROCESS.pending_frames`.
+* **Breaking** Rename `TextSegmentKind::can_merge` to `can_merge_bidi`.
 * **Breaking** `ParallelIteratorExt` and related types moved to `zng::task::rayon`.
 * **Breaking** `zng::task::rayon` now only reexports primary traits.
 * **Breaking** `zng::task::parking_lot` now only reexports primary types.
@@ -7,7 +12,9 @@
 * Add `WINDOW_Ext as _` to `zng::prelude_wgt`.
 * Add `Label!` to `zng::prelude`.
 * Add `VarEq` to `zng::prelude`.
-* **Breaking** Remove `zng` feature `"view_bundle_licenses"`.
+* **Breaking** Remove deprecated feature `"bundle"` from `zng-tp-licenses`.
+* **Breaking** Remove deprecated feature `"bundle_licenses"` from `zng-view`.
+* **Breaking** Remove deprecated feature `"view_bundle_licenses"` from `zng`.
 
 # 0.22.10
 

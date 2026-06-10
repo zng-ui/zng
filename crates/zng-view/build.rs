@@ -5,10 +5,6 @@ fn main() {
     }
 
     tp_licenses();
-
-    if cfg!(feature = "bundle_licenses") && !cfg!(feature = "_all_features") {
-        println!("cargo::warning=feature \"bundle_licenses\" is deprecated, renamed to \"embed_licenses\"");
-    }
 }
 
 fn tp_licenses() {
