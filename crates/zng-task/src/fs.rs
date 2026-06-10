@@ -9,7 +9,7 @@ pub use async_fs::*;
 //
 // Module contains patched version of File
 // TODO(breaking) replace with reexport again after  https://github.com/smol-rs/async-fs/pull/55 is released
-//
+// also remove the async-lock dependency, only used here
 
 use std::fmt;
 use std::future::Future;
