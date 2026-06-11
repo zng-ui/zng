@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.23.0
+
 * **Breaking** Remove window `enabled_buttons` and related types.
     - Added `can_maximize`, `can_minimize`, `can_fullscreen` and `can_close`.
 * Split `LayoutMask::CONSTRAINTS` into `CONSTRAINTS`, `INLINE_CONSTRAINTS` and `Z_CONSTRAINTS`.
