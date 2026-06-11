@@ -2271,6 +2271,30 @@ impl Api for App {
         audio::AudioEncodeId::INVALID
     }
 
+    fn add_video(&mut self, request: video::VideoRequest<IpcReadHandle>) -> video::VideoId {
+        let _ = request;
+        video::VideoId::INVALID
+    }
+
+    fn add_video_pro(&mut self, request: video::VideoRequest<IpcReceiver<IpcBytes>>) -> video::VideoId {
+        let _ = request;
+        video::VideoId::INVALID
+    }
+
+    fn forget_video(&mut self, id: video::VideoId) {
+        let _ = id;
+    }
+
+    fn use_video(&mut self, id: WindowId, video_id: video::VideoId) -> video::VideoTextureId {
+        let _ = (id, video_id);
+        video::VideoTextureId::INVALID
+    }
+
+    /// Under development, see [`video`].
+    fn delete_video_use(&mut self, id: WindowId, texture_id: video::VideoTextureId) {
+        let _ = (id, texture_id);
+    }
+
     fn add_font_face(&mut self, id: WindowId, bytes: font::IpcFontBytes, index: u32) -> FontFaceId {
         with_window_or_surface!(self, id, |w| w.add_font_face(bytes, index), || FontFaceId::INVALID)
     }

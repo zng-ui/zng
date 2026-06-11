@@ -45,6 +45,7 @@ pub mod menu;
 pub mod mouse;
 pub mod raw_input;
 pub mod touch;
+pub mod video;
 pub mod window;
 
 mod types;
@@ -436,9 +437,24 @@ declare_api! {
     /// [`Event::ImageEncoded`] or [`Event::ImageEncodeError`]. The returned ID identifies this request.
     pub fn encode_image(&mut self, request: image::ImageEncodeRequest) -> image::ImageEncodeId;
 
+    /// Under development, see [`video`].
+    pub fn add_video(&mut self, request: video::VideoRequest<IpcReadHandle>) -> video::VideoId;
+
+    /// Under development, see [`video`].
+    pub fn add_video_pro(&mut self, request: video::VideoRequest<IpcReceiver<IpcBytes>>) -> video::VideoId;
+
+    /// Under development, see [`video`].
+    pub fn forget_video(&mut self, id: video::VideoId);
+
+    /// Under development, see [`video`].
+    pub fn use_video(&mut self, id: WindowId, video_id: video::VideoId) -> video::VideoTextureId;
+
+    /// Under development, see [`video`].
+    pub fn delete_video_use(&mut self, id: WindowId, texture_id: video::VideoTextureId);
+
     /// Cache an audio resource.
     ///
-    /// The entire audio source is already loaded in the request, it may be fully decode or decoded on demand depending on the request
+    /// The entire audio source is already loaded in the request, it may be decoded fully or on demand depending on the request,
     /// the returned ID can be played as soon as it starts decoding.
     ///
     /// The events [`Event::AudioMetadataDecoded`], [`Event::AudioDecoded`] and [`Event::AudioDecodeError`] will be send while decoding.

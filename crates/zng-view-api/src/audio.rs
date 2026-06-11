@@ -1,4 +1,4 @@
-//! Audio device types.
+//! Audio types.
 
 use std::{num::NonZeroU16, time::Duration};
 
@@ -108,7 +108,7 @@ pub enum BufferSize {
     Unknown,
 }
 
-/// Represent an audio load/decode request.
+/// Represents an audio load/decode request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AudioRequest<D> {
