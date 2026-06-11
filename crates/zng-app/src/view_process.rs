@@ -35,7 +35,7 @@ use zng_view_api::{
     image::{ImageDecoded, ImageEncodeId, ImageEncodeRequest, ImageMaskMode, ImageMetadata, ImageRequest, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
-        VideoMode, WindowButton, WindowRequest, WindowStateAll,
+        VideoMode, WindowRequest, WindowStateAll,
     },
 };
 
@@ -923,9 +923,21 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_video_mode(id, mode))
     }
 
-    /// Set enabled window chrome buttons.
-    pub fn set_enabled_buttons(&self, buttons: WindowButton) -> Result<()> {
-        self.0.call(|id, p| p.set_enabled_buttons(id, buttons))
+    /// Set if the user can minimize the window.
+    pub fn set_can_minimize(&self, can: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_can_minimize(id, can))
+    }
+    /// Set if the user can maximize the window.
+    pub fn set_can_maximize(&self, can: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_can_maximize(id, can))
+    }
+    /// Set if the user can fullscreen the window.
+    pub fn set_can_fullscreen(&self, can: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_can_fullscreen(id, can))
+    }
+    /// Set if the user can close the window.
+    pub fn set_can_close(&self, can: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_can_close(id, can))
     }
 
     /// Reference the window renderer.

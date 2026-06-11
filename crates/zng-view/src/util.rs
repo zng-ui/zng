@@ -17,7 +17,7 @@ use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
 use zng_view_api::keyboard::{KeyLocation, NativeKeyCode};
-use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection, WindowButton};
+use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection};
 use zng_view_api::{
     keyboard::{Key, KeyCode, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
@@ -230,20 +230,6 @@ impl ResizeDirectionToWinit for ResizeDirection {
             ResizeDirection::SouthWest => SouthWest,
             ResizeDirection::West => West,
         }
-    }
-}
-
-pub trait WindowButtonsToWinit {
-    fn to_winit(self) -> winit::window::WindowButtons;
-}
-impl WindowButtonsToWinit for WindowButton {
-    fn to_winit(self) -> winit::window::WindowButtons {
-        let mut r = winit::window::WindowButtons::empty();
-        r.set(winit::window::WindowButtons::CLOSE, self.contains(WindowButton::CLOSE));
-        r.set(winit::window::WindowButtons::MINIMIZE, self.contains(WindowButton::MINIMIZE));
-        r.set(winit::window::WindowButtons::MAXIMIZE, self.contains(WindowButton::MAXIMIZE));
-
-        r
     }
 }
 

@@ -732,6 +732,10 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                     vars.0.always_on_top.get(),
                     vars.0.movable.get(),
                     vars.0.resizable.get(),
+                    vars.0.can_minimize.get(),
+                    vars.0.can_maximize.get(),
+                    vars.0.can_fullscreen.get(),
+                    vars.0.can_close.get(),
                     #[cfg(feature = "image")]
                     vars.0.actual_icon.with(|w| w.as_ref().map(|w| w.view_handle().image_id())),
                     #[cfg(not(feature = "image"))]
@@ -756,7 +760,6 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                     vars.0.focus_indicator.get(),
                     vars.0.focused.get(),
                     ime_area,
-                    vars.0.enabled_buttons.get(),
                     vars.0.system_shutdown_warn.get(),
                     WINDOWS_EXTENSIONS.take_view_extensions_init(id),
                 );

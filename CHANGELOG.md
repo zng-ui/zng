@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Remove window `enabled_buttons` and related types.
+    - Added `can_maximize`, `can_minimize`, `can_fullscreen` and `can_close`.
 * Split `LayoutMask::CONSTRAINTS` into `CONSTRAINTS`, `INLINE_CONSTRAINTS` and `Z_CONSTRAINTS`.
 * **Breaking** Remove deprecated `ImageEntry::with_best_reduce`.
 * **Breaking** Remove deprecated `FontNames::system_ui` and related functions.

@@ -17,7 +17,8 @@ fn main() {
             data = var(Calculator::default());
             resizable = false;
             auto_size = true;
-            enabled_buttons = !window::WindowButton::MAXIMIZE;
+            can_maximize = false;
+            can_fullscreen = false;
             padding = 5;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();

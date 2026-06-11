@@ -17,7 +17,7 @@ use zng_var::WeakVarEq;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
-pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowCapability, WindowState};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowCapability, WindowState};
 use zng_wgt::prelude::IntoUiNode;
 
 use crate::{HeadlessMonitor, WINDOWS};
@@ -204,22 +204,6 @@ impl fmt::Debug for StartPosition {
             StartPosition::CenterMonitor => write!(f, "CenterMonitor"),
             StartPosition::CenterParent => write!(f, "CenterParent"),
         }
-    }
-}
-
-bitflags! {
-    /// Mask of allowed [`WindowState`] states of a window.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-    #[serde(transparent)]
-    pub struct WindowStateAllowed: u8 {
-        /// Enable minimize.
-        const MINIMIZE = 0b0001;
-        /// Enable maximize.
-        const MAXIMIZE = 0b0010;
-        /// Enable fullscreen, but only windowed not exclusive video.
-        const FULLSCREEN_WN_ONLY = 0b0100;
-        /// Allow fullscreen windowed or exclusive video.
-        const FULLSCREEN = 0b1100;
     }
 }
 
