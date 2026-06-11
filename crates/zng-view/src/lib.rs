@@ -1894,7 +1894,13 @@ impl Api for App {
             // Winit says "not implemented" for Wayland/x11 so may be in the future?
             info.window |= WindowCapability::SET_CAN_CLOSE;
             info.window |= WindowCapability::SET_CAN_MINIMIZE;
-            info.window |= WindowCapability::SET_CAN_MAXIMIZE;
+
+            if cfg!(target_os = "macos") {
+                info.window |= WindowCapability::SET_CAN_FULLSCREEN;
+            }
+            if cfg!(target_os = "windows") {
+                info.window |= WindowCapability::SET_CAN_MAXIMIZE;
+            }
         }
         info.window |= WindowCapability::SET_IME_AREA;
 

@@ -1361,14 +1361,21 @@ impl Window {
     pub fn set_can_minimize(&self, can: bool) {
         self.set_enabled_button(WindowButtons::MINIMIZE, can);
     }
+    // winit disables the "zoom" (fullscreen mode) for MAXIMIZE in macos
+    // https://github.com/rust-windowing/winit/blob/81b272976588c767954df51b26999723fdb7cab4/winit-appkit/src/window_delegate.rs#L1208
     pub fn set_can_maximize(&self, can: bool) {
+        #[cfg(not(target_os = "macos"))]
         self.set_enabled_button(WindowButtons::MAXIMIZE, can);
+        let _ = can;
     }
-    pub fn set_can_fullscreen(&self, _can: bool) {}
+    pub fn set_can_fullscreen(&self, can: bool) {
+        #[cfg(target_os = "macos")]
+        self.set_enabled_button(WindowButtons::MAXIMIZE, can);
+        let _ = can;
+    }
     pub fn set_can_close(&self, can: bool) {
         self.set_enabled_button(WindowButtons::CLOSE, can);
     }
-
     fn set_enabled_button(&self, btn: WindowButtons, can: bool) {
         let mut buttons = self.window.enabled_buttons();
         buttons.set(btn, can);
