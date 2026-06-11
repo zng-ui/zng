@@ -69,7 +69,7 @@
 //! embed_licenses = ["dep:zng-tp-licenses"]
 //!
 //! [dependencies]
-//! zng-tp-licenses = { version = "0.9.2", features = ["embed"], optional = true }
+//! zng-tp-licenses = { version = "0.10.0", features = ["embed"], optional = true }
 //!
 //! [build-dependencies]
 //! zng-tp-licenses = { version = "0.2.0", features = ["build"], optional = true }

@@ -5,10 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 6 feature flags, 0 enabled by default.
-
-#### `"deadlock_detection"`
-Enables parking_lot deadlock detection.
+This crate provides 5 feature flags, 0 enabled by default.
 
 #### `"ipc"`
 Enables real worker processes and IPC channels.
