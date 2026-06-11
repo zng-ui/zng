@@ -353,6 +353,7 @@ pub fn handle_settings_cmd() {
                     Window! {
                         title = l10n!("window.title", "{$app} - Settings", app = zng_env::about().app.clone());
                         parent;
+                        can_fullscreen = false;
                         child = SettingsEditor! {
                             id = "zng-config-settings-default-editor";
                         };

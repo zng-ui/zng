@@ -173,6 +173,7 @@ pub(crate) fn setup_default_view() {
                             app = zng::env::about().app.clone()
                         );
                         child = default_view();
+                        can_fullscreen = false;
                         parent;
                     }
                 });

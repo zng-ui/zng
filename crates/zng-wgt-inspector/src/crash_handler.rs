@@ -45,6 +45,8 @@ pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
         );
         start_position = StartPosition::CenterMonitor;
         color_scheme = ColorScheme::Dark;
+        can_fullscreen = false;
+        can_maximize = false;
 
         on_load = hn_once!(|_| {
             // force to foreground
