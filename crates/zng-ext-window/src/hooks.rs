@@ -771,17 +771,6 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
         })
         .perm();
 
-    // set enabled window buttons
-    vars.0
-        .enabled_state_cmds
-        .hook(move |a| {
-            with_view(id, |_, v| {
-                let _ = v.set_enabled_state_cmds(*a.value());
-            });
-            true
-        })
-        .perm();
-
     // enable/disable resizable
     vars.0
         .resizable
@@ -807,6 +796,63 @@ pub(crate) fn hook_window_vars_cmds(id: WindowId, vars: &WindowVars) {
             }
             with_view(id, |_, v| {
                 let _ = v.set_movable(*a.value());
+            });
+            true
+        })
+        .perm();
+
+    // enable/disable minimize
+    vars.0
+        .can_minimize
+        .hook(move |a| {
+            if VIEW_PROCESS.is_connected() && !VIEW_PROCESS.info().window.contains(WindowCapability::SET_CAN_MINIMIZE) {
+                tracing::debug!("view-process cannot SET_CAN_MINIMIZE in the current system");
+                return false;
+            }
+            with_view(id, |_, v| {
+                let _ = v.set_can_minimize(*a.value());
+            });
+            true
+        })
+        .perm();
+    // enable/disable maximize
+    vars.0
+        .can_maximize
+        .hook(move |a| {
+            if VIEW_PROCESS.is_connected() && !VIEW_PROCESS.info().window.contains(WindowCapability::SET_CAN_MAXIMIZE) {
+                tracing::debug!("view-process cannot SET_CAN_MAXIMIZE in the current system");
+                return false;
+            }
+            with_view(id, |_, v| {
+                let _ = v.set_can_maximize(*a.value());
+            });
+            true
+        })
+        .perm();
+    // enable/disable fullscreen
+    vars.0
+        .can_minimize
+        .hook(move |a| {
+            if VIEW_PROCESS.is_connected() && !VIEW_PROCESS.info().window.contains(WindowCapability::SET_CAN_FULLSCREEN) {
+                tracing::debug!("view-process cannot SET_CAN_FULLSCREEN in the current system");
+                return false;
+            }
+            with_view(id, |_, v| {
+                let _ = v.set_can_fullscreen(*a.value());
+            });
+            true
+        })
+        .perm();
+    // enable/disable close
+    vars.0
+        .can_close
+        .hook(move |a| {
+            if VIEW_PROCESS.is_connected() && !VIEW_PROCESS.info().window.contains(WindowCapability::SET_CAN_CLOSE) {
+                tracing::debug!("view-process cannot SET_CAN_CLOSE in the current system");
+                return false;
+            }
+            with_view(id, |_, v| {
+                let _ = v.set_can_close(*a.value());
             });
             true
         })

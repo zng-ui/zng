@@ -7,8 +7,7 @@ use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValu
 
 use zng_app::widget::base::Parallel;
 use zng_ext_window::{
-    AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState,
-    WindowStateCmd, WindowVars,
+    AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
 };
 use zng_var::AnyVar;
 use zng_wgt::prelude::*;
@@ -80,6 +79,11 @@ set_properties! {
 
     always_on_top: bool,
 
+    can_minimize: bool,
+    can_maximize: bool,
+    can_fullscreen: bool,
+    can_close: bool,
+
     visible: bool,
     taskbar_visible: bool,
 
@@ -88,8 +92,6 @@ set_properties! {
 
     color_scheme: Option<ColorScheme>,
     accent_color: Option<LightDark>,
-
-    enabled_state_cmds: WindowStateCmd, // !: TODO can_maximize, can_minimize etc
 
     parallel: Parallel,
 }

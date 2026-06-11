@@ -17,7 +17,7 @@ use zng_var::WeakVarEq;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::{CursorIcon, EventCause};
 
-pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowCapability, WindowState, WindowStateCmd};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowCapability, WindowState};
 use zng_wgt::prelude::IntoUiNode;
 
 use crate::{HeadlessMonitor, WINDOWS};

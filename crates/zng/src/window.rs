@@ -167,7 +167,7 @@ pub use zng_ext_window::{
     MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
     WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS,
     WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowCapability, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
-    WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateCmd, WindowVars,
+    WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowVars,
 };
 
 #[cfg(feature = "image")]

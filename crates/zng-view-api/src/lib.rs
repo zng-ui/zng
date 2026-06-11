@@ -319,6 +319,15 @@ declare_api! {
     /// Set if the user can resize the window when it is in `Normal` mode.
     pub fn set_resizable(&mut self, id: WindowId, resizable: bool);
 
+    /// Set if the user can minimize the window.
+    pub fn set_can_minimize(&mut self, id: WindowId, can: bool);
+    /// Set if the user can maximize/restore the window.
+    pub fn set_can_maximize(&mut self, id: WindowId, can: bool);
+    /// Set if the user can toggle fullscreen the window.
+    pub fn set_can_fullscreen(&mut self, id: WindowId, can: bool);
+    /// Set if the user can make window close requests.
+    pub fn set_can_close(&mut self, id: WindowId, can: bool);
+
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, id: WindowId, visible: bool);
 
@@ -345,12 +354,6 @@ declare_api! {
     /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
     /// if canceled by setting to `None`.
     pub fn set_focus_indicator(&mut self, id: WindowId, indicator: Option<window::FocusIndicator>);
-
-    /// Set window states the user can set.
-    ///
-    /// Only disables system UI (chrome buttons, menus) and blocks user actions that set the state,
-    /// direct programmatically requests can still set disabled states.
-    pub fn set_enabled_state_cmds(&mut self, id: WindowId, enabled: window::WindowStateCmd);
 
     /// Brings the window to the front and sets input focus.
     ///

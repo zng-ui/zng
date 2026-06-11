@@ -41,8 +41,8 @@ fn app_main() {
             size = (280, 120);
             start_position = window::StartPosition::CenterMonitor;
             resizable = false;
-            // disable maximize by OS gestures
-            enabled_state_cmds = !(window::WindowStateCmd::MAXIMIZE & window::WindowStateCmd::FULLSCREEN);
+            can_maximize = false;
+            can_fullscreen = false;
 
             color_scheme = color::ColorScheme::Dark;
 

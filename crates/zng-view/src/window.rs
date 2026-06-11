@@ -16,7 +16,7 @@ use webrender::{
 use winit::{
     event_loop::ActiveEventLoop,
     monitor::{MonitorHandle, VideoModeHandle as GVideoMode},
-    window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes},
+    window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes, WindowButtons},
 };
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Frequency, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
@@ -28,7 +28,7 @@ use zng_view_api::{
     raw_input::InputDeviceId,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
-        WindowId, WindowRequest, WindowState, WindowStateAll, WindowStateCmd,
+        WindowId, WindowRequest, WindowState, WindowStateAll,
     },
 };
 
@@ -49,8 +49,8 @@ use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{
-        CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WindowButtonsToWinit as _, WinitToDip, WinitToPx,
-        frame_render_reasons, frame_update_render_reasons,
+        CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WinitToDip, WinitToPx, frame_render_reasons,
+        frame_update_render_reasons,
     },
 };
 
@@ -521,7 +521,11 @@ impl Window {
 
         win.set_taskbar_visible(cfg.taskbar_visible);
 
-        win.set_enabled_state_cmds(cfg.enabled_state_cmds);
+        let mut buttons = WindowButtons::empty();
+        buttons.set(WindowButtons::CLOSE, cfg.can_close);
+        buttons.set(WindowButtons::MAXIMIZE, cfg.can_maximize);
+        buttons.set(WindowButtons::MINIMIZE, cfg.can_minimize);
+        win.window.set_enabled_buttons(buttons);
 
         if !cfg.system_shutdown_warn.is_empty() {
             win.set_system_shutdown_warn(cfg.system_shutdown_warn);
@@ -1354,9 +1358,21 @@ impl Window {
         }
     }
 
-    /// Set enabled chrome buttons.
-    pub fn set_enabled_state_cmds(&self, enabled: WindowStateCmd) {
-        self.window.set_enabled_buttons(enabled.to_winit());
+    pub fn set_can_minimize(&self, can: bool) {
+        self.set_enabled_button(WindowButtons::MINIMIZE, can);
+    }
+    pub fn set_can_maximize(&self, can: bool) {
+        self.set_enabled_button(WindowButtons::MAXIMIZE, can);
+    }
+    pub fn set_can_fullscreen(&self, _can: bool) {}
+    pub fn set_can_close(&self, can: bool) {
+        self.set_enabled_button(WindowButtons::CLOSE, can);
+    }
+
+    fn set_enabled_button(&self, btn: WindowButtons, can: bool) {
+        let mut buttons = self.window.enabled_buttons();
+        buttons.set(btn, can);
+        self.window.set_enabled_buttons(buttons);
     }
 
     /// Open windows title bar context menu.

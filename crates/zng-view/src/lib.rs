@@ -1890,6 +1890,12 @@ impl Api for App {
             info.window |= WindowCapability::EXCLUSIVE;
             info.window |= WindowCapability::SET_POSITION;
         }
+        if !headless & (cfg!(windows) || cfg!(target_os = "macos")) {
+            // Winit says "not implemented" for Wayland/x11 so may be in the future?
+            info.window |= WindowCapability::SET_CAN_CLOSE;
+            info.window |= WindowCapability::SET_CAN_MINIMIZE;
+            info.window |= WindowCapability::SET_CAN_MAXIMIZE;
+        }
         info.window |= WindowCapability::SET_IME_AREA;
 
         use zng_view_api::dialog::DialogCapability;
@@ -2167,8 +2173,17 @@ impl Api for App {
         self.with_window(id, |w| w.drag_resize(direction), || ())
     }
 
-    fn set_enabled_state_cmds(&mut self, id: WindowId, enabled: zng_view_api::window::WindowStateCmd) {
-        self.with_window(id, |w| w.set_enabled_state_cmds(enabled), || ())
+    fn set_can_minimize(&mut self, id: WindowId, can: bool) {
+        self.with_window(id, |w| w.set_can_minimize(can), || ())
+    }
+    fn set_can_maximize(&mut self, id: WindowId, can: bool) {
+        self.with_window(id, |w| w.set_can_maximize(can), || ())
+    }
+    fn set_can_fullscreen(&mut self, id: WindowId, can: bool) {
+        self.with_window(id, |w| w.set_can_fullscreen(can), || ())
+    }
+    fn set_can_close(&mut self, id: WindowId, can: bool) {
+        self.with_window(id, |w| w.set_can_close(can), || ())
     }
 
     fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint) {

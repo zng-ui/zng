@@ -17,7 +17,7 @@ use zng_unique_id::IdSet;
 use zng_var::{Var, VarValue, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
-    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState, WindowStateAll, WindowStateCmd},
+    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState, WindowStateAll},
 };
 
 #[cfg(feature = "image")]
@@ -67,7 +67,10 @@ pub(crate) struct WindowVarsData {
     pub(crate) restore_state_fullscreen: Var<Option<WindowState>>,
     pub(crate) restore_rect: Var<DipRect>,
 
-    pub(crate) enabled_state_cmds: Var<WindowStateCmd>,
+    pub(crate) can_minimize: Var<bool>,
+    pub(crate) can_maximize: Var<bool>,
+    pub(crate) can_fullscreen: Var<bool>,
+    pub(crate) can_close: Var<bool>,
 
     pub(crate) resizable: Var<bool>,
     pub(crate) movable: Var<bool>,
@@ -157,7 +160,10 @@ impl WindowVars {
                 DipSize::new(Dip::new(800), Dip::new(600)),
             )),
 
-            enabled_state_cmds: var(WindowStateCmd::all()),
+            can_minimize: var(true),
+            can_maximize: var(true),
+            can_fullscreen: var(true),
+            can_close: var(true),
 
             min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
@@ -618,11 +624,40 @@ impl WindowVars {
         self.0.movable.clone()
     }
 
-    /// Defines the states the user can set the window.
+    /// Defines if the user can minimize the window.
     ///
-    /// Note that the window can still enter states represented by a disabled command if set directly.
-    pub fn enabled_state_cmds(&self) -> Var<WindowStateCmd> {
-        self.0.enabled_state_cmds.clone()
+    /// Note that even if disabled the window can still be minimized by setting the state directly.
+    ///
+    /// The default value is `true`.
+    pub fn can_minimize(&self) -> Var<bool> {
+        self.0.can_minimize.clone()
+    }
+
+    /// Defines if the user can maximize/restore the window.
+    ///
+    /// Note that even if disabled the window can still be maximized by setting the state directly.
+    ///
+    /// The default value is `true`.
+    pub fn can_maximize(&self) -> Var<bool> {
+        self.0.can_maximize.clone()
+    }
+
+    /// Defines if the user can toggle fullscreen the window.
+    ///
+    /// Note that even if disabled the window can still enter fullscreen by setting the state directly.
+    ///
+    /// The default value is `true`.
+    pub fn can_fullscreen(&self) -> Var<bool> {
+        self.0.can_fullscreen.clone()
+    }
+
+    /// Defines if the user can request close the window.
+    ///
+    /// Note that even if disabled the window can still be closed directly.
+    ///
+    /// The default value is `true`.
+    pub fn can_close(&self) -> Var<bool> {
+        self.0.can_close.clone()
     }
 
     /// Defines if the window should always stay on top of other windows.

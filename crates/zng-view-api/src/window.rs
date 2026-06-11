@@ -509,6 +509,15 @@ pub struct WindowRequest {
     pub movable: bool,
     /// If the user can resize the window.
     pub resizable: bool,
+    /// If the user can minimize the window.
+    pub can_minimize: bool,
+    /// If the user can maximize/restore the window.
+    pub can_maximize: bool,
+    /// If the user can toggle fullscreen the window.
+    pub can_fullscreen: bool,
+    /// If the user can request close the window.
+    pub can_close: bool,
+
     /// Window icon.
     pub icon: Option<ImageId>,
     /// Window cursor icon and visibility.
@@ -539,9 +548,6 @@ pub struct WindowRequest {
     /// IME cursor area, if IME is enabled.
     pub ime_area: Option<DipRect>,
 
-    /// States the user can set the window.
-    pub enabled_state_cmds: WindowStateCmd,
-
     /// System shutdown warning associated with the window.
     pub system_shutdown_warn: Txt,
 
@@ -565,6 +571,10 @@ impl WindowRequest {
         always_on_top: bool,
         movable: bool,
         resizable: bool,
+        can_minimize: bool,
+        can_maximize: bool,
+        can_fullscreen: bool,
+        can_close: bool,
         icon: Option<ImageId>,
         cursor: Option<CursorIcon>,
         cursor_image: Option<(ImageId, PxPoint)>,
@@ -574,7 +584,6 @@ impl WindowRequest {
         focus_indicator: Option<FocusIndicator>,
         focus: bool,
         ime_area: Option<DipRect>,
-        enabled_state_cmds: WindowStateCmd,
         system_shutdown_warn: Txt,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
     ) -> Self {
@@ -590,6 +599,10 @@ impl WindowRequest {
             always_on_top,
             movable,
             resizable,
+            can_minimize,
+            can_maximize,
+            can_fullscreen,
+            can_close,
             icon,
             cursor,
             cursor_image,
@@ -601,7 +614,6 @@ impl WindowRequest {
             focus,
             extensions,
             ime_area,
-            enabled_state_cmds,
             system_shutdown_warn,
         }
     }
@@ -1324,21 +1336,6 @@ pub enum EventCause {
 }
 
 bitflags::bitflags! {
-    /// Window state change commands.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct WindowStateCmd: u32 {
-        /// Minimize window.
-        const MINIMIZE = (1 << 16);
-        /// Restore window to *normal*.
-        const RESTORE = (1 << 17);
-        /// Maximize window.
-        const MAXIMIZE = (1 << 18);
-        /// Toggle fullscreen.
-        const FULLSCREEN = (1 << 19);
-    }
-}
-
-bitflags::bitflags! {
     /// Window operations the view-process implements.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct WindowCapability: u64 {
@@ -1399,12 +1396,20 @@ bitflags::bitflags! {
         /// Can programmatically resize window after it is open.
         const SET_SIZE = (1 << 23);
 
-        // 24, 25, 26 where removed in zng 0.23
+        /// Can disable close button, menu.
+        const SET_CAN_CLOSE = (1 << 24);
+        /// Can disable minimize button, menu.
+        const SET_CAN_MINIMIZE = (1 << 25);
+        /// Can disable maximize/restore toggle, menu.
+        const SET_CAN_MAXIMIZE = (1 << 26);
 
         /// Can set a system shutdown warning/blocker associated with the window.
         const SET_SYSTEM_SHUTDOWN_WARN = (1 << 27);
 
         /// Can set the IME area, show virtual keyboard.
         const SET_IME_AREA = (1 << 28);
+
+        /// Can disable fullscreen toggle, menu.
+        const SET_CAN_FULLSCREEN = (1 << 29);
     }
 }
