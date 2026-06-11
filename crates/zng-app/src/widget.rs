@@ -467,7 +467,8 @@ pub use zng_app_proc_macros::{property, widget, widget_mixin};
 /// are custom proc-macro attributes that operate on property assigns.
 ///
 /// An example of custom attribute is `#[easing]`, it provides animation transitions between the default and `when` assigns. Custom
-/// attribute implementers must parse data in a specific format, see `PropertyAssignAttributeData` in the `zng-app-proc-macros` crate.
+/// attribute implementers must parse data in a specific format, see the `struct PropertyAssignAttributeData` source code in the
+/// `zng-app-proc-macros` crate.
 ///
 /// [`WidgetBase`]: struct@crate::widget::base::WidgetBase
 /// [`WidgetBuilder::push_unset`]: crate::widget::builder::WidgetBuilder::push_unset
