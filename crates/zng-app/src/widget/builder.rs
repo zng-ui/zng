@@ -1060,10 +1060,7 @@ pub fn new_dyn_var<'a, T: VarValue>(
     let item = item.downcast::<T>().expect("input did not match expected var types");
     apply_attributes(item, attributes)
 }
-fn new_dyn_var_build(
-    inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
-    value_type: TypeId,
-) -> AnyVar {
+fn new_dyn_var_build(inputs: &mut std::vec::IntoIter<Box<dyn Any>>, value_type: TypeId) -> AnyVar {
     let item = inputs.next().expect("missing input");
 
     match item.downcast::<AnyWhenVarBuilder>() {
