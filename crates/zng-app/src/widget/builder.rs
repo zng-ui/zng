@@ -1032,6 +1032,7 @@ pub fn iter_input_attributes<'a>(
     })
 }
 
+// TODO(breaking) type erase this
 fn apply_attributes<'a, I: Any + Send>(
     mut item: I,
     mut attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
@@ -1055,17 +1056,17 @@ pub fn new_dyn_var<'a, T: VarValue>(
     inputs: &mut std::vec::IntoIter<Box<dyn Any>>,
     attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,
 ) -> Var<T> {
+    let item = new_dyn_var_build(inputs, std::any::TypeId::of::<T>());
+    let item = item.downcast::<T>().expect("input did not match expected var types");
+    apply_attributes(item, attributes)
+}
+fn new_dyn_var_build(inputs: &mut std::vec::IntoIter<Box<dyn Any>>, value_type: TypeId) -> AnyVar {
     let item = inputs.next().expect("missing input");
 
-    let item = match item.downcast::<AnyWhenVarBuilder>() {
-        Ok(builder) => builder.into_typed::<T>().build(),
-        Err(item) => {
-            let any = *item.downcast::<AnyVar>().expect("input did not match expected var types");
-            any.downcast::<T>().expect("input did not match expected var types")
-        }
-    };
-
-    apply_attributes(item, attributes)
+    match item.downcast::<AnyWhenVarBuilder>() {
+        Ok(builder) => builder.build(value_type),
+        Err(item) => *item.downcast::<AnyVar>().expect("input did not match expected var types"),
+    }
 }
 
 #[doc(hidden)]
@@ -1079,7 +1080,6 @@ pub fn new_dyn_ui_node<'a>(
         Ok(builder) => ArcNode::new(builder.build()),
         Err(item) => *item.downcast::<ArcNode>().expect("input did not match expected UiNode types"),
     };
-
     apply_attributes(item, attributes)
 }
 
