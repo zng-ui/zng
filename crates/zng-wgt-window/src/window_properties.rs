@@ -7,7 +7,7 @@ use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValu
 
 use zng_app::widget::base::Parallel;
 use zng_ext_window::{
-    AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
+    AutoSize, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
 };
 use zng_var::AnyVar;
 use zng_wgt::prelude::*;
@@ -160,7 +160,7 @@ pub enum SaveState {
     Enabled {
         /// Config key that identifies the window or widget.
         ///
-        /// If `None` a key is generated from the widget ID and window ID name, see [`enabled_key`] for
+        /// If `None` a key is generated from the widget ID or window ID name, see [`enabled_key`] for
         /// details about how key generation.
         ///
         /// [`enabled_key`]: Self::enabled_key
@@ -187,8 +187,8 @@ impl SaveState {
     ///
     /// If is enabled without a key, the key is generated from the widget or window name:
     ///
-    /// * If the widget ID has a name the key is `"wgt-{name}-state"`.
-    /// * If the context is the window root or just a window and the window ID has a name the key is `"win-{name}-state"`.
+    /// * If the widget ID has a name the key is `"wgt-{name}"`.
+    /// * If the context is the window root widget or just a window and the window ID has a name the key is `"win-{name}"`.
     pub fn enabled_key(&self) -> Option<ConfigKey> {
         match self {
             Self::Enabled { key } => {
@@ -384,14 +384,8 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
                 // restore state
                 state.set(cfg.state);
 
-                // restore normal position if it is valid (visible in a monitor)
                 let restore_rect: DipRect = cfg.restore_rect.cast();
-                let visible = MONITORS
-                    .available_monitors()
-                    .with(|w| w.iter().any(|m| m.dip_rect().intersects(&restore_rect)));
-                if visible {
-                    vars.position().set(restore_rect.origin);
-                }
+                vars.position().set(restore_rect.origin);
                 vars.size().set(restore_rect.size);
             }
         },
