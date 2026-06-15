@@ -387,6 +387,60 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
                 let restore_rect: DipRect = cfg.restore_rect.cast();
                 vars.position().set(restore_rect.origin);
                 vars.size().set(restore_rect.size);
+
+                if !vars.instance_state().get().is_loaded() {
+                    // enforce values until loaded, window properties can set the value
+                    // after the state loads in some cases
+                    let win_id = WINDOW.id();
+                    let forced_position = Point::from(restore_rect.origin);
+                    vars.position()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_position {
+                                    tracing::debug!("forced position to saved data");
+                                    vars.position().set(forced_position.clone());
+                                }
+                                // continue enforcing
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                    let forced_size = Size::from(restore_rect.size);
+                    vars.size()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_size {
+                                    tracing::debug!("forced size to saved data");
+                                    vars.size().set(forced_size.clone());
+                                }
+                                // continue enforcing
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                    let forced_state = cfg.state;
+                    vars.state()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_state {
+                                    tracing::debug!("forced state to saved data");
+                                    vars.state().set(forced_state);
+                                }
+                                // continue enforcing
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                }
             }
         },
         |required| {

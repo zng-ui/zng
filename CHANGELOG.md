@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix window `save_state` not always restoring position and size.
 
 # 0.23.0
 
