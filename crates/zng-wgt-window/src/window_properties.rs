@@ -6,6 +6,8 @@ use std::time::Duration;
 use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
 
 use zng_app::widget::base::Parallel;
+#[cfg(feature = "config")]
+use zng_ext_window::MONITORS;
 use zng_ext_window::{
     AutoSize, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
 };
@@ -371,6 +373,8 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
     struct WindowStateCfg {
         state: WindowState,
         restore_rect: euclid::Rect<f32, Dip>,
+        #[serde(default)]
+        monitor: euclid::Rect<i32, Px>,
     }
     save_state_node::<WindowStateCfg>(
         child,
@@ -378,15 +382,41 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
         |cfg| {
             let vars = WINDOW.vars();
             let state = vars.state();
-            WIDGET.sub_var(&state).sub_var(&vars.restore_rect());
+            WIDGET.sub_var(&state).sub_var(&vars.restore_rect()).sub_var(&vars.actual_monitor());
 
             if let Some(cfg) = cfg {
                 // restore state
                 state.set(cfg.state);
 
+                // restore position and size in monitor
                 let restore_rect: DipRect = cfg.restore_rect.cast();
                 vars.position().set(restore_rect.origin);
                 vars.size().set(restore_rect.size);
+
+                // restore monitor
+                let monitor_q = if !cfg.monitor.is_empty() {
+                    let r: PxRect = cfg.monitor.cast();
+                    Some(MonitorQuery::new(move || {
+                        MONITORS.available_monitors().with(|ms| {
+                            for m in ms {
+                                if m.px_rect() == r {
+                                    return Some(m.clone());
+                                }
+                            }
+                            for m in ms {
+                                if m.px_rect().size == r.size {
+                                    return Some(m.clone());
+                                }
+                            }
+                            None
+                        })
+                    }))
+                } else {
+                    None
+                };
+                if let Some(q) = &monitor_q {
+                    vars.monitor().set(q.clone());
+                }
 
                 if !vars.instance_state().get().is_loaded() {
                     // enforce values until loaded, window properties can set the value
@@ -402,7 +432,6 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
                                     tracing::debug!("forced position to saved data");
                                     vars.position().set(forced_position.clone());
                                 }
-                                // continue enforcing
                                 return true;
                             }
                             false
@@ -418,7 +447,6 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
                                     tracing::debug!("forced size to saved data");
                                     vars.size().set(forced_size.clone());
                                 }
-                                // continue enforcing
                                 return true;
                             }
                             false
@@ -434,12 +462,27 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
                                     tracing::debug!("forced state to saved data");
                                     vars.state().set(forced_state);
                                 }
-                                // continue enforcing
                                 return true;
                             }
                             false
                         })
                         .perm();
+                    if let Some(forced_monitor) = monitor_q {
+                        vars.monitor()
+                            .hook(move |a| {
+                                if let Some(vars) = WINDOWS.vars(win_id)
+                                    && !vars.instance_state().get().is_loaded()
+                                {
+                                    if a.value() != &forced_monitor {
+                                        tracing::debug!("forced monitor to saved data");
+                                        vars.monitor().set(forced_monitor.clone());
+                                    }
+                                    return true;
+                                }
+                                false
+                            })
+                            .perm();
+                    }
                 }
             }
         },
@@ -447,10 +490,18 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
             let vars = WINDOW.vars();
             let state = vars.state();
             let rect = vars.restore_rect();
-            if required || state.is_new() || rect.is_new() {
+            let monitor = vars.actual_monitor();
+            if required || state.is_new() || rect.is_new() || monitor.is_new() {
                 Some(WindowStateCfg {
                     state: state.get(),
                     restore_rect: rect.get().cast(),
+                    monitor: if let Some(id) = vars.actual_monitor().get()
+                        && let Some(info) = MONITORS.monitor(id)
+                    {
+                        info.px_rect().cast()
+                    } else {
+                        euclid::Rect::zero()
+                    },
                 })
             } else {
                 None

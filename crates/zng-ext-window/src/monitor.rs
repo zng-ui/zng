@@ -461,9 +461,11 @@ impl MonitorQuery {
     }
 }
 impl PartialEq for MonitorQuery {
-    /// Returns `true` only if both are [`MonitorQuery::Primary`].
     fn eq(&self, other: &Self) -> bool {
-        matches!((self, other), (Self::Primary, Self::Primary))
+        match (self, other) {
+            (Self::Query(l0), Self::Query(r0)) => Arc::ptr_eq(l0, r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
     }
 }
 impl_from_and_into_var! {
