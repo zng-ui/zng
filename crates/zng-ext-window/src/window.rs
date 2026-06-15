@@ -662,7 +662,15 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                                     position = pos.to_dip(scale_factor);
                                     global_position = monitor_rect.origin + pos.to_vector();
                                 });
-                            } else {
+
+                                let window_rect = PxRect::new(global_position, final_size);
+                                if !matches!(window_rect.intersection(&monitor_rect), Some(inter) if inter.area() > window_rect.area() / Px(2))
+                                {
+                                    // manual position not in monitor rect
+                                    system_pos = true;
+                                }
+                            }
+                            if system_pos {
                                 // in case system does not implement position
                                 position = DipPoint::splat(Dip::new(60));
                                 global_position = monitor_rect.origin + position.to_px(scale_factor).to_vector();
