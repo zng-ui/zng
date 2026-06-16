@@ -6,8 +6,10 @@ use std::time::Duration;
 use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
 
 use zng_app::widget::base::Parallel;
+#[cfg(feature = "config")]
+use zng_ext_window::MONITORS;
 use zng_ext_window::{
-    AutoSize, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
+    AutoSize, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
 };
 use zng_var::AnyVar;
 use zng_wgt::prelude::*;
@@ -160,7 +162,7 @@ pub enum SaveState {
     Enabled {
         /// Config key that identifies the window or widget.
         ///
-        /// If `None` a key is generated from the widget ID and window ID name, see [`enabled_key`] for
+        /// If `None` a key is generated from the widget ID or window ID name, see [`enabled_key`] for
         /// details about how key generation.
         ///
         /// [`enabled_key`]: Self::enabled_key
@@ -187,8 +189,8 @@ impl SaveState {
     ///
     /// If is enabled without a key, the key is generated from the widget or window name:
     ///
-    /// * If the widget ID has a name the key is `"wgt-{name}-state"`.
-    /// * If the context is the window root or just a window and the window ID has a name the key is `"win-{name}-state"`.
+    /// * If the widget ID has a name the key is `"wgt-{name}"`.
+    /// * If the context is the window root widget or just a window and the window ID has a name the key is `"win-{name}"`.
     pub fn enabled_key(&self) -> Option<ConfigKey> {
         match self {
             Self::Enabled { key } => {
@@ -371,6 +373,8 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
     struct WindowStateCfg {
         state: WindowState,
         restore_rect: euclid::Rect<f32, Dip>,
+        #[serde(default)]
+        monitor: euclid::Rect<i32, Px>,
     }
     save_state_node::<WindowStateCfg>(
         child,
@@ -378,31 +382,126 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
         |cfg| {
             let vars = WINDOW.vars();
             let state = vars.state();
-            WIDGET.sub_var(&state).sub_var(&vars.restore_rect());
+            WIDGET.sub_var(&state).sub_var(&vars.restore_rect()).sub_var(&vars.actual_monitor());
 
             if let Some(cfg) = cfg {
                 // restore state
                 state.set(cfg.state);
 
-                // restore normal position if it is valid (visible in a monitor)
+                // restore position and size in monitor
                 let restore_rect: DipRect = cfg.restore_rect.cast();
-                let visible = MONITORS
-                    .available_monitors()
-                    .with(|w| w.iter().any(|m| m.dip_rect().intersects(&restore_rect)));
-                if visible {
-                    vars.position().set(restore_rect.origin);
-                }
+                vars.position().set(restore_rect.origin);
                 vars.size().set(restore_rect.size);
+
+                // restore monitor
+                let monitor_q = if !cfg.monitor.is_empty() {
+                    let r: PxRect = cfg.monitor.cast();
+                    Some(MonitorQuery::new(move || {
+                        MONITORS.available_monitors().with(|ms| {
+                            for m in ms {
+                                if m.px_rect() == r {
+                                    return Some(m.clone());
+                                }
+                            }
+                            for m in ms {
+                                if m.px_rect().size == r.size {
+                                    return Some(m.clone());
+                                }
+                            }
+                            None
+                        })
+                    }))
+                } else {
+                    None
+                };
+                if let Some(q) = &monitor_q {
+                    vars.monitor().set(q.clone());
+                }
+
+                if !vars.instance_state().get().is_loaded() {
+                    // enforce values until loaded, window properties can set the value
+                    // after the state loads in some cases
+                    let win_id = WINDOW.id();
+                    let forced_position = Point::from(restore_rect.origin);
+                    vars.position()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_position {
+                                    tracing::debug!("forced position to saved data");
+                                    vars.position().set(forced_position.clone());
+                                }
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                    let forced_size = Size::from(restore_rect.size);
+                    vars.size()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_size {
+                                    tracing::debug!("forced size to saved data");
+                                    vars.size().set(forced_size.clone());
+                                }
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                    let forced_state = cfg.state;
+                    vars.state()
+                        .hook(move |a| {
+                            if let Some(vars) = WINDOWS.vars(win_id)
+                                && !vars.instance_state().get().is_loaded()
+                            {
+                                if *a.value() != forced_state {
+                                    tracing::debug!("forced state to saved data");
+                                    vars.state().set(forced_state);
+                                }
+                                return true;
+                            }
+                            false
+                        })
+                        .perm();
+                    if let Some(forced_monitor) = monitor_q {
+                        vars.monitor()
+                            .hook(move |a| {
+                                if let Some(vars) = WINDOWS.vars(win_id)
+                                    && !vars.instance_state().get().is_loaded()
+                                {
+                                    if a.value() != &forced_monitor {
+                                        tracing::debug!("forced monitor to saved data");
+                                        vars.monitor().set(forced_monitor.clone());
+                                    }
+                                    return true;
+                                }
+                                false
+                            })
+                            .perm();
+                    }
+                }
             }
         },
         |required| {
             let vars = WINDOW.vars();
             let state = vars.state();
             let rect = vars.restore_rect();
-            if required || state.is_new() || rect.is_new() {
+            let monitor = vars.actual_monitor();
+            if required || state.is_new() || rect.is_new() || monitor.is_new() {
                 Some(WindowStateCfg {
                     state: state.get(),
                     restore_rect: rect.get().cast(),
+                    monitor: if let Some(id) = vars.actual_monitor().get()
+                        && let Some(info) = MONITORS.monitor(id)
+                    {
+                        info.px_rect().cast()
+                    } else {
+                        euclid::Rect::zero()
+                    },
                 })
             } else {
                 None
