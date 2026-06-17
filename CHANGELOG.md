@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix view-process not reporting as connected after a respawn.
+
 * Fix window `save_state` not always restoring position and size.
     - When `size` is set and config is already loaded on open.
     - When the window was closed in a second monitor.

@@ -63,6 +63,8 @@ use zng_view_api::api_extension::*;
 use zng_wgt::prelude::*;
 
 fn init(win_id: WindowId) {
+    debug_assert!(VIEW_PROCESS.is_connected());
+
     const EXT_NAME: &str = "zng-view.prefer_angle";
     let ext_id = VIEW_PROCESS
         .extension_id(EXT_NAME)
