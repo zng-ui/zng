@@ -384,7 +384,12 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
             let state = vars.state();
             WIDGET.sub_var(&state).sub_var(&vars.restore_rect()).sub_var(&vars.actual_monitor());
 
-            if let Some(cfg) = cfg {
+            if let Some(mut cfg) = cfg {
+                if let WindowState::Minimized = cfg.state {
+                    // old configs can include Minimized
+                    cfg.state = WindowState::Normal;
+                }
+
                 // restore state
                 state.set(cfg.state);
 
@@ -493,7 +498,10 @@ pub fn save_state(child: impl IntoUiNode, enabled: impl IntoValue<SaveState>) ->
             let monitor = vars.actual_monitor();
             if required || state.is_new() || rect.is_new() || monitor.is_new() {
                 Some(WindowStateCfg {
-                    state: state.get(),
+                    state: match state.get() {
+                        WindowState::Minimized => vars.restore_state().get(),
+                        s => s,
+                    },
                     restore_rect: rect.get().cast(),
                     monitor: if let Some(id) = vars.actual_monitor().get()
                         && let Some(info) = MONITORS.monitor(id)
