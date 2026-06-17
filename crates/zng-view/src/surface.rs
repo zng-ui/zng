@@ -128,7 +128,10 @@ impl Surface {
             cached_programs: if context.is_software() {
                 None
             } else {
-                Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(cfg.cache_shaders))))
+                Some(webrender::ProgramCache::new(Some(crate::util::wr_shader_cache(
+                    cfg.cache_shaders,
+                    context.gl(),
+                ))))
             },
 
             //panic_on_gl_error: true,

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix shader cache not invalidating after driver update.
 * Fix view-process not reporting as connected after a respawn.
 
 * Fix window `save_state` not always restoring position and size.
