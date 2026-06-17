@@ -6,6 +6,7 @@
 * Fix window `save_state` not always restoring position and size.
     - When `size` is set and config is already loaded on open.
     - When the window was closed in a second monitor.
+    - When window was closed minimized.
 
 # 0.23.0
 
