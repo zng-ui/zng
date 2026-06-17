@@ -9,3 +9,6 @@ zng = { path = "../../crates/zng", features = ["view"] }
 zng-view = { path = "../../crates/zng-view" }
 zng-app = { path = "../../crates/zng-app", default-features = false }
 tracing = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+zng-view-angle = { path = "../../crates/zng-view-angle", features = ["download"] }

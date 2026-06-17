@@ -20,6 +20,8 @@ fn main() {
             title = "Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = window::StartPosition::CenterMonitor;
+            #[cfg(windows)]
+            zng_view_angle::prefer_angle_egl = true;
             widget::foreground = window_status();
             child_align = Align::TOP;
             child = Stack! {
