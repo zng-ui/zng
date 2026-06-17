@@ -2,8 +2,10 @@ use std::any::Any;
 use std::backtrace::Backtrace;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hash::Hasher;
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::LazyLock;
 use std::{cell::Cell, sync::Arc};
 use std::{fmt, ops};
@@ -1242,32 +1244,38 @@ pub(crate) fn wr_chunk_pool() -> Arc<webrender::ChunkPool> {
     POOL.clone()
 }
 
-pub(crate) fn wr_shader_cache(disk_cache: bool) -> Box<dyn webrender::ProgramCacheObserver> {
+pub(crate) fn wr_shader_cache(disk_cache: bool, gl: &Rc<dyn gleam::gl::Gl>) -> Box<dyn webrender::ProgramCacheObserver> {
+    let renderer = gl.get_string(gleam::gl::RENDERER);
+    let version = gl.get_string(gleam::gl::VERSION);
+    let is_angle = renderer.contains("ANGLE");
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    hasher.write(renderer.as_bytes());
+    hasher.write(version.as_bytes());
+    let driver_digest = hasher.finish();
+
     static CACHE: LazyLock<Arc<WrShaderCacheData>> = LazyLock::new(|| Arc::new(WrShaderCacheData::new()));
     Box::new(WrShaderCache {
         d: CACHE.clone(),
         disk_cache,
+        driver_digest,
+        is_angle,
     })
 }
 struct WrShaderCacheData {
-    // disk cache
-    dir: PathBuf,
     // memory cache, for better perf for multiple windows
     mem: Mutex<HashMap<webrender::ProgramSourceDigest, Arc<webrender::ProgramBinary>>>,
 }
 impl WrShaderCacheData {
     fn new() -> Self {
-        Self {
-            dir: zng_env::cache("zng-view-wr-shaders"),
-            mem: Mutex::default(),
-        }
+        Self { mem: Mutex::default() }
     }
 }
-// https://searchfox.org/firefox-main/source/gfx/webrender_bindings/src/program_cache.rs#100
 #[derive(Clone)]
 struct WrShaderCache {
     d: Arc<WrShaderCacheData>,
     disk_cache: bool,
+    is_angle: bool,
+    driver_digest: u64,
 }
 impl webrender::ProgramCacheObserver for WrShaderCache {
     fn save_shaders_to_disk(&self, entries: Vec<Arc<webrender::ProgramBinary>>) {
@@ -1278,15 +1286,17 @@ impl webrender::ProgramCacheObserver for WrShaderCache {
         if !self.disk_cache {
             return;
         }
-        let cache = self.d.clone();
+        let is_angle = self.is_angle;
+        let driver_digest = self.driver_digest;
         zng_task::spawn_wait(move || {
             for entry in entries {
-                let file = cache.dir.join(wr_shader_cache_file_name(entry.source_digest()));
+                let file = wr_shader_cache_file(is_angle, driver_digest, entry.source_digest());
                 let file = loop {
                     match std::fs::File::create(&file) {
                         Ok(f) => break f,
                         Err(e) => {
-                            if !cache.dir.exists() && std::fs::create_dir_all(&cache.dir).is_ok() {
+                            let dir = file.parent().unwrap();
+                            if !dir.exists() && wr_shader_cache_dir_init(dir) {
                                 continue;
                             }
                             tracing::error!("cannot save shader, {e}");
@@ -1314,7 +1324,7 @@ impl webrender::ProgramCacheObserver for WrShaderCache {
             return;
         }
 
-        let file = self.d.dir.join(wr_shader_cache_file_name(digest));
+        let file = wr_shader_cache_file(self.is_angle, self.driver_digest, digest);
         match std::fs::read(file) {
             Ok(b) => match postcard::from_bytes::<webrender::ProgramBinary>(&b) {
                 Ok(p) => {
@@ -1338,13 +1348,40 @@ impl webrender::ProgramCacheObserver for WrShaderCache {
         let mut mem = self.d.mem.lock();
         mem.remove(program_binary.source_digest());
         if self.disk_cache {
-            let file = self.d.dir.join(wr_shader_cache_file_name(program_binary.source_digest()));
+            let file = wr_shader_cache_file(self.is_angle, self.driver_digest, program_binary.source_digest());
             let _ = std::fs::remove_file(file);
         }
     }
 }
-fn wr_shader_cache_file_name(digest: &webrender::ProgramSourceDigest) -> String {
-    format!("{digest}.v1.bin")
+fn wr_shader_cache_file(is_angle: bool, driver_digest: u64, digest: &webrender::ProgramSourceDigest) -> PathBuf {
+    // distinguish ANGLE because apps can use both on the same run (config is per window)
+    let angle = if is_angle { "/ANGLE" } else { "/GL" };
+    zng_env::cache(format!("zng-view-wr-shaders{angle}/{driver_digest:02x}/{digest}.v1.bin"))
+}
+fn wr_shader_cache_dir_init(driver_dir: &Path) -> bool {
+    let mode_dir = driver_dir.parent().unwrap();
+    if mode_dir.exists() {
+        // cleanup old driver
+        let _ = std::fs::remove_dir_all(mode_dir);
+    } else {
+        let cache_dir = mode_dir.parent().unwrap();
+        if cache_dir.exists() {
+            // cleanup old dir layout
+            if let Ok(dir) = std::fs::read_dir(cache_dir) {
+                for entry in dir.flatten() {
+                    let entry = entry.path();
+                    if entry.is_file() {
+                        let _ = std::fs::remove_file(&entry);
+                    }
+                }
+            }
+        }
+    }
+    // new cache
+    if std::fs::create_dir_all(driver_dir).is_ok() {
+        return true;
+    }
+    false
 }
 
 #[cfg(not(any(windows, target_os = "android")))]
