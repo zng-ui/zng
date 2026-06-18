@@ -44,6 +44,7 @@ macro_rules! merge_var {
 use core::fmt;
 use std::{
     any::TypeId,
+    fmt::Write as _,
     marker::PhantomData,
     ops,
     sync::{Arc, Weak},
@@ -52,6 +53,7 @@ use std::{
 use parking_lot::Mutex;
 use smallbox::{SmallBox, smallbox};
 use zng_clone_move::clmv;
+use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
@@ -354,6 +356,23 @@ impl<I: VarValue> MergeVarBuilder<I> {
 impl<I: VarValue> Default for MergeVarBuilder<I> {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl<T: VarValue + AsRef<str>> MergeVarBuilder<T> {
+    /// Build to a var that joins texts placing a `separator` between each.
+    pub fn join_txt(self, separator: impl Into<Txt>) -> Var<Txt> {
+        self.join_txt_impl(separator.into())
+    }
+    fn join_txt_impl(self, separator: Txt) -> Var<Txt> {
+        self.build(move |t| {
+            let mut s = String::new();
+            let mut sep = "";
+            for t in t.iter() {
+                write!(&mut s, "{sep}{}", t.as_ref()).unwrap();
+                sep = &separator;
+            }
+            s.into()
+        })
     }
 }
 
