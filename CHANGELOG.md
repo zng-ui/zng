@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `MergeVarBuilder::join_txt`.
 
 # 0.23.1
 
