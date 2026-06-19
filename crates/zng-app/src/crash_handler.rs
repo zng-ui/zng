@@ -9,7 +9,6 @@
 
 use std::{
     fmt,
-    io::BufRead,
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicBool},
     time::SystemTime,
@@ -18,7 +17,10 @@ use zng_clone_move::clmv;
 use zng_layout::unit::TimeUnits as _;
 use zng_task::{parking_lot::Mutex, process::tap};
 
-use zng_txt::{ToTxt as _, Txt};
+// TODO(breaking) remove this
+pub use tap::{BacktraceFrame, PanicInfo as CrashPanic};
+
+use zng_txt::Txt;
 
 /// Environment variable that causes the crash handler to not start if set.
 ///
@@ -524,321 +526,6 @@ pub fn remove_ansi_csi(mut s: &str) -> Txt {
     r.into()
 }
 
-/// Panic parsed from a `stderr` dump.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[non_exhaustive]
-pub struct CrashPanic {
-    /// Name of thread that panicked.
-    pub thread: Txt,
-    /// Panic message.
-    pub message: Txt,
-    /// Path to file that defines the panic.
-    pub file: Txt,
-    /// Line of code that defines the panic.
-    pub line: u32,
-    /// Column in the line of code that defines the panic.
-    pub column: u32,
-    /// Widget where the panic happened.
-    pub widget_path: Txt,
-    /// Stack backtrace.
-    pub backtrace: Txt,
-}
-
-/// Alternate mode `{:#}` prints full backtrace.
-impl fmt::Display for CrashPanic {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "thread '{}' panicked at {}:{}:{}:",
-            self.thread, self.file, self.line, self.column
-        )?;
-        for line in self.message.lines() {
-            writeln!(f, "   {line}")?;
-        }
-        writeln!(f, "widget path:\n   {}", self.widget_path)?;
-
-        if f.alternate() {
-            writeln!(f, "stack backtrace:\n{}", self.backtrace)
-        } else {
-            writeln!(f, "stack backtrace:")?;
-            let mut snippet = 9;
-            for frame in self.backtrace_frames().skip_while(|f| f.is_after_panic) {
-                write!(f, "{frame}")?;
-                if snippet > 0 {
-                    let code = frame.code_snippet();
-                    if !code.is_empty() {
-                        snippet -= 1;
-                        writeln!(f, "{code}")?;
-                    }
-                }
-            }
-            Ok(())
-        }
-    }
-}
-impl CrashPanic {
-    /// Gets if `stderr` contains a panic that can be parsed by [`find`].
-    ///
-    /// [`find`]: Self::find
-    pub fn contains(stderr: &str) -> bool {
-        Self::find_impl(stderr, false).is_some()
-    }
-
-    /// Gets if `stderr` contains a panic that can be parsed by [`find`] and traced a widget/window path.
-    ///
-    /// [`find`]: Self::find
-    pub fn contains_widget(stderr: &str) -> bool {
-        match Self::find_impl(stderr, false) {
-            Some(p) => !p.widget_path.is_empty(),
-            None => false,
-        }
-    }
-
-    /// Try parse `stderr` for the crash panic.
-    ///
-    /// Only reliably works if the panic fully printed correctly and was formatted by the panic
-    /// hook installed by `crash_handler` or by the display print of this type.
-    pub fn find(stderr: &str) -> Option<Self> {
-        Self::find_impl(stderr, true)
-    }
-
-    fn find_impl(stderr: &str, parse: bool) -> Option<Self> {
-        let mut panic_at = usize::MAX;
-        let mut widget_path = usize::MAX;
-        let mut stack_backtrace = usize::MAX;
-        let mut i = 0;
-        for line in stderr.lines() {
-            if line.starts_with("thread '") && line.contains("' panicked at ") && line.ends_with(':') {
-                panic_at = i;
-                widget_path = usize::MAX;
-                stack_backtrace = usize::MAX;
-            } else if line == "widget path:" {
-                widget_path = i + "widget path:\n".len();
-            } else if line == "stack backtrace:" {
-                stack_backtrace = i + "stack backtrace:\n".len();
-            }
-            i += line.len() + "\n".len();
-        }
-
-        if panic_at == usize::MAX {
-            return None;
-        }
-
-        if !parse {
-            return Some(Self {
-                thread: Txt::from(""),
-                message: Txt::from(""),
-                file: Txt::from(""),
-                line: 0,
-                column: 0,
-                widget_path: if widget_path < stderr.len() {
-                    Txt::from("true")
-                } else {
-                    Txt::from("")
-                },
-                backtrace: Txt::from(""),
-            });
-        }
-
-        let panic_str = stderr[panic_at..].lines().next().unwrap();
-        let (thread, location) = panic_str.strip_prefix("thread '").unwrap().split_once("' panicked at ").unwrap();
-        let mut location = location.split(':');
-        let file = location.next().unwrap_or("");
-        let line: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
-        let column: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
-
-        let mut message = String::new();
-        let mut sep = "";
-        for line in stderr[panic_at + panic_str.len() + "\n".len()..].lines() {
-            if let Some(line) = line.strip_prefix("   ") {
-                message.push_str(sep);
-                message.push_str(line);
-                sep = "\n";
-            } else {
-                if message.is_empty() && line != "widget path:" && line != "stack backtrace:" {
-                    // not formatted by us, probably by Rust
-                    line.clone_into(&mut message);
-                }
-                break;
-            }
-        }
-
-        let widget_path = if widget_path < stderr.len() {
-            stderr[widget_path..].lines().next().unwrap().trim()
-        } else {
-            ""
-        };
-
-        let backtrace = if stack_backtrace < stderr.len() {
-            let mut i = stack_backtrace;
-            'backtrace_seek: for line in stderr[stack_backtrace..].lines() {
-                if !line.starts_with(' ') {
-                    'digit_check: for c in line.chars() {
-                        if !c.is_ascii_digit() {
-                            if c == ':' {
-                                break 'digit_check;
-                            } else {
-                                break 'backtrace_seek;
-                            }
-                        }
-                    }
-                }
-                i += line.len() + "\n".len();
-            }
-            &stderr[stack_backtrace..i]
-        } else {
-            ""
-        };
-
-        Some(Self {
-            thread: thread.to_txt(),
-            message: message.into(),
-            file: file.to_txt(),
-            line,
-            column,
-            widget_path: widget_path.to_txt(),
-            backtrace: backtrace.to_txt(),
-        })
-    }
-
-    /// Iterate over frames parsed from the `backtrace`.
-    pub fn backtrace_frames(&self) -> impl Iterator<Item = BacktraceFrame> + '_ {
-        BacktraceFrame::parse(&self.backtrace)
-    }
-}
-
-/// Represents a frame parsed from a stack backtrace.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[non_exhaustive]
-pub struct BacktraceFrame {
-    /// Position on the backtrace.
-    pub n: usize,
-
-    /// Function name.
-    pub name: Txt,
-    /// Source code file.
-    pub file: Txt,
-    /// Source code line.
-    pub line: u32,
-
-    /// If this frame is inside the Rust panic code.
-    pub is_after_panic: bool,
-}
-impl fmt::Display for BacktraceFrame {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:>4}: {}", self.n, self.name)?;
-        if !self.file.is_empty() {
-            writeln!(f, "      at {}:{}", self.file, self.line)?;
-        }
-        Ok(())
-    }
-}
-impl BacktraceFrame {
-    /// Iterate over frames parsed from the `backtrace`.
-    pub fn parse(mut backtrace: &str) -> impl Iterator<Item = BacktraceFrame> + '_ {
-        let mut is_after_panic = backtrace.lines().any(|l| l.ends_with("core::panicking::panic_fmt"));
-        std::iter::from_fn(move || {
-            if backtrace.is_empty() {
-                None
-            } else {
-                let n_name = backtrace.lines().next().unwrap();
-                let (n, name) = if let Some((n, name)) = n_name.split_once(':') {
-                    let n = match n.trim_start().parse() {
-                        Ok(n) => n,
-                        Err(_) => {
-                            backtrace = "";
-                            return None;
-                        }
-                    };
-                    let name = name.trim();
-                    if name.is_empty() {
-                        backtrace = "";
-                        return None;
-                    }
-                    (n, name)
-                } else {
-                    backtrace = "";
-                    return None;
-                };
-
-                backtrace = &backtrace[n_name.len() + 1..];
-                let r = if backtrace.trim_start().starts_with("at ") {
-                    let file_line = backtrace.lines().next().unwrap();
-                    let (file, line) = if let Some((file, line)) = file_line.rsplit_once(':') {
-                        let file = file.trim_start().strip_prefix("at ").unwrap();
-                        let line = match line.trim_end().parse() {
-                            Ok(l) => l,
-                            Err(_) => {
-                                backtrace = "";
-                                return None;
-                            }
-                        };
-                        (file, line)
-                    } else {
-                        backtrace = "";
-                        return None;
-                    };
-
-                    backtrace = &backtrace[file_line.len() + 1..];
-
-                    BacktraceFrame {
-                        n,
-                        name: name.to_txt(),
-                        file: file.to_txt(),
-                        line,
-                        is_after_panic,
-                    }
-                } else {
-                    BacktraceFrame {
-                        n,
-                        name: name.to_txt(),
-                        file: Txt::from(""),
-                        line: 0,
-                        is_after_panic,
-                    }
-                };
-
-                if is_after_panic && name == "core::panicking::panic_fmt" {
-                    is_after_panic = false;
-                }
-
-                Some(r)
-            }
-        })
-    }
-
-    /// Reads the code line + four surrounding lines if the code file can be found.
-    pub fn code_snippet(&self) -> Txt {
-        if !self.file.is_empty()
-            && self.line > 0
-            && let Ok(file) = std::fs::File::open(&self.file)
-        {
-            use std::fmt::Write as _;
-            let mut r = String::new();
-
-            let reader = std::io::BufReader::new(file);
-
-            let line_s = self.line - 2.min(self.line - 1);
-            let lines = reader.lines().skip(line_s as usize - 1).take(5);
-            for (line, line_n) in lines.zip(line_s..) {
-                let line = match line {
-                    Ok(l) => l,
-                    Err(_) => return Txt::from(""),
-                };
-
-                if line_n == self.line {
-                    writeln!(&mut r, "      {line_n:>4} > {line}").unwrap();
-                } else {
-                    writeln!(&mut r, "      {line_n:>4} │ {line}").unwrap();
-                }
-            }
-
-            return r.into();
-        }
-        Txt::from("")
-    }
-}
-
 fn crash_handler_monitor_process(
     dump_dir: Option<PathBuf>,
     mut cfg_app: ConfigProcess,
@@ -1173,7 +860,7 @@ impl minidumper::ServerHandler for MinidumpServerHandler {
 }
 
 fn crash_handler_app_process(dump_enabled: bool) {
-    std::panic::set_hook(Box::new(panic_handler));
+    CrashPanic::set_hook(|| crate::widget::WIDGET.trace_path());
     if dump_enabled {
         minidump_attach();
     }
@@ -1184,7 +871,7 @@ fn crash_handler_app_process(dump_enabled: bool) {
 fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, args_file: String) -> ! {
     zng_env::set_process_name("crash-dialog-process");
 
-    std::panic::set_hook(Box::new(panic_handler));
+    CrashPanic::set_hook(|| crate::widget::WIDGET.trace_path());
     if dump_enabled {
         minidump_attach();
     }
@@ -1209,13 +896,6 @@ fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, 
         dialog_crash: None,
     }
     .exit(0)
-}
-
-fn panic_handler(info: &std::panic::PanicHookInfo) {
-    let backtrace = std::backtrace::Backtrace::capture();
-    let path = crate::widget::WIDGET.trace_path();
-    let panic = PanicInfo::from_hook(info);
-    eprintln!("{panic}widget path:\n   {path}\nstack backtrace:\n{backtrace}");
 }
 
 fn minidump_attach() {
@@ -1251,57 +931,3 @@ fn minidump_attach() {
     *CRASH_HANDLER.lock() = Some(handler);
 }
 static CRASH_HANDLER: Mutex<Option<crash_handler::CrashHandler>> = Mutex::new(None);
-
-#[derive(Debug)]
-struct PanicInfo {
-    pub thread: Txt,
-    pub msg: Txt,
-    pub file: Txt,
-    pub line: u32,
-    pub column: u32,
-}
-impl PanicInfo {
-    pub fn from_hook(info: &std::panic::PanicHookInfo) -> Self {
-        let current_thread = std::thread::current();
-        let thread = current_thread.name().unwrap_or("<unnamed>");
-        let msg = Self::payload(info.payload());
-
-        let (file, line, column) = if let Some(l) = info.location() {
-            (l.file(), l.line(), l.column())
-        } else {
-            ("<unknown>", 0, 0)
-        };
-        Self {
-            thread: thread.to_txt(),
-            msg,
-            file: file.to_txt(),
-            line,
-            column,
-        }
-    }
-
-    fn payload(p: &dyn std::any::Any) -> Txt {
-        match p.downcast_ref::<&'static str>() {
-            Some(s) => s,
-            None => match p.downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<dyn Any>",
-            },
-        }
-        .to_txt()
-    }
-}
-impl std::error::Error for PanicInfo {}
-impl fmt::Display for PanicInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "thread '{}' panicked at {}:{}:{}:",
-            self.thread, self.file, self.line, self.column
-        )?;
-        for line in self.msg.lines() {
-            writeln!(f, "   {line}")?;
-        }
-        Ok(())
-    }
-}

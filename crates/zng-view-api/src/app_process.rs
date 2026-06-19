@@ -332,7 +332,7 @@ impl Controller {
                     .env(VIEW_SERVER, init.name())
                     .env(VIEW_MODE, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
-                    .spawn()?;
+                    .spawn()?; // !!: TODO tap stderr
                 Some(process)
             }
         };

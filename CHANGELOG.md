@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::task::process::tap::PanicInfo` for parsing panic printouts from captured stderr.
 * Fix `zng::task::process` not included when `"ipc"` feature is not enabled.
     - Now only `zng::task::process::worker` is `"ipc"` conditional, as intended.
 * Add `zng::task::process::tap` for capturing and propagating child process output.

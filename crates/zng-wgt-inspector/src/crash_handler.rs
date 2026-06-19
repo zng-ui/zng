@@ -11,6 +11,7 @@ use zng_ext_config::CONFIG;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{StartPosition, WINDOWS_FOCUS, WindowRoot};
 use zng_wgt::node::VarPresent as _;
+use zng_wgt::prelude::task::process::tap::PanicInfo;
 use zng_wgt::prelude::*;
 use zng_wgt::{align, corner_radius, enabled, margin};
 use zng_wgt_ansi_text::AnsiText;
@@ -208,7 +209,7 @@ fn std_panel(std: Txt, config_key: &'static str) -> UiNode {
         };
     }
 }
-fn panic_panel(panic: CrashPanic) -> UiNode {
+fn panic_panel(panic: PanicInfo) -> UiNode {
     plain_panel(panic.to_txt(), "panic")
 }
 fn widget_panel(widget_path: Txt) -> UiNode {
