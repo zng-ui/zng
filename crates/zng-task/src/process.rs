@@ -7,5 +7,7 @@
 #[cfg(ipc)]
 pub mod worker;
 
+pub mod tap;
+
 #[doc(no_inline)]
 pub use async_process::*;
