@@ -234,7 +234,7 @@ pub mod channel {
     };
 }
 
-#[cfg(ipc)]
+#[cfg(not(wasm))]
 pub use zng_task::process;
 
 pub use zng_app::widget::UiTaskWidget;

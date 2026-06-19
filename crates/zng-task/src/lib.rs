@@ -730,9 +730,6 @@ where
 
 /// Blocks the thread until the `task` future finishes.
 ///
-/// This function is useful for implementing async tests, using it in an app will probably cause
-/// the app to stop responding.
-///
 /// The crate [`futures-lite`] is used to execute the task.
 ///
 /// # Examples

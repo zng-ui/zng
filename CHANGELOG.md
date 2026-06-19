@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix `zng::task::process` not included when `"ipc"` feature is not enabled.
+    - Now only `zng::task::process::worker` is `"ipc"` conditional, as intended.
+* Add `zng::task::process::tap` for capturing and propagating child process output.
+* Optimized crash-handler-process stdout/err capture.
 * Add `MergeVarBuilder::join_txt`.
 
 # 0.23.1

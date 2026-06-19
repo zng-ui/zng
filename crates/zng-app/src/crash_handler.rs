@@ -9,14 +9,14 @@
 
 use std::{
     fmt,
-    io::{BufRead, Write},
+    io::BufRead,
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicBool},
     time::SystemTime,
 };
 use zng_clone_move::clmv;
 use zng_layout::unit::TimeUnits as _;
-use zng_task::parking_lot::Mutex;
+use zng_task::{parking_lot::Mutex, process::tap};
 
 use zng_txt::{ToTxt as _, Txt};
 
@@ -869,7 +869,7 @@ fn crash_handler_monitor_process(
                 .env(APP_PROCESS, format!("restart-{}", dialog_args.app_crashes.len()))
                 .args(args.iter()),
         ) {
-            Ok((status, [stdout, stderr], dump_file)) => {
+            Ok((status, stdout, stderr, dump_file)) => {
                 if status.success() {
                     let code = status.code().unwrap_or(0);
                     tracing::info!(
@@ -919,8 +919,8 @@ fn crash_handler_monitor_process(
                         timestamp,
                         code,
                         signal,
-                        stdout.into(),
-                        stderr.into(),
+                        stdout.into_txt_blocking(),
+                        stderr.into_txt_blocking(),
                         dump_file,
                         args.clone(),
                     ));
@@ -972,7 +972,12 @@ fn crash_handler_monitor_process(
                             }
                             run_process(dump_dir.as_deref(), dialog_process.env(DIALOG_PROCESS, &crash_file))
                         } else {
-                            Ok((std::process::ExitStatus::default(), [String::new(), String::new()], None))
+                            Ok((
+                                std::process::ExitStatus::default(),
+                                tap::StdoutTap::null(),
+                                tap::StderrTap::null(),
+                                None,
+                            ))
                         };
 
                         for _ in 0..5 {
@@ -983,8 +988,9 @@ fn crash_handler_monitor_process(
                         }
 
                         let response = match dialog_result {
-                            Ok((dlg_status, [dlg_stdout, dlg_stderr], dlg_dump_file)) => {
+                            Ok((dlg_status, dlg_stdout, dlg_stderr, dlg_dump_file)) => {
                                 if dlg_status.success() {
+                                    let dlg_stdout = dlg_stdout.into_string_blocking();
                                     dlg_stdout
                                         .lines()
                                         .filter_map(|l| l.trim().strip_prefix(RESPONSE_PREFIX))
@@ -1024,8 +1030,8 @@ fn crash_handler_monitor_process(
                                         SystemTime::now(),
                                         code,
                                         signal,
-                                        dlg_stdout.into(),
-                                        dlg_stderr.into(),
+                                        dlg_stdout.into_txt_blocking(),
+                                        dlg_stderr.into_txt_blocking(),
                                         dlg_dump_file,
                                         Box::new([]),
                                     );
@@ -1063,7 +1069,7 @@ fn crash_handler_monitor_process(
 fn run_process(
     dump_dir: Option<&Path>,
     command: &mut std::process::Command,
-) -> std::io::Result<(std::process::ExitStatus, [String; 2], Option<PathBuf>)> {
+) -> std::io::Result<(std::process::ExitStatus, tap::StdoutTap, tap::StderrTap, Option<PathBuf>)> {
     struct DumpServer {
         shutdown: Arc<AtomicBool>,
         runner: std::thread::JoinHandle<Option<PathBuf>>,
@@ -1113,19 +1119,10 @@ fn run_process(
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 
-    let stdout = capture_and_print(app_process.stdout.take().unwrap(), false);
-    let stderr = capture_and_print(app_process.stderr.take().unwrap(), true);
+    let stdout = tap::StdoutTap::new_blocking(app_process.stdout.take().unwrap());
+    let stderr = tap::StderrTap::new_blocking(app_process.stderr.take().unwrap());
 
     let status = app_process.wait()?;
-
-    let stdout = match stdout.join() {
-        Ok(r) => r,
-        Err(p) => std::panic::resume_unwind(p),
-    };
-    let stderr = match stderr.join() {
-        Ok(r) => r,
-        Err(p) => std::panic::resume_unwind(p),
-    };
 
     let mut dump_file = None;
     if let Some(s) = dump_server {
@@ -1136,7 +1133,7 @@ fn run_process(
         };
     }
 
-    Ok((status, [stdout, stderr], dump_file))
+    Ok((status, stdout, stderr, dump_file))
 }
 struct MinidumpServerHandler {
     dump_file: PathBuf,
@@ -1173,40 +1170,6 @@ impl minidumper::ServerHandler for MinidumpServerHandler {
         }
         minidumper::LoopAction::Exit
     }
-}
-fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
-    std::thread::Builder::new()
-        .name(format!("{}-reader", if is_err { "stderr" } else { "stdout" }))
-        .stack_size(256 * 1024)
-        .spawn(move || {
-            let mut capture = vec![];
-            let mut buffer = [0u8; 32];
-            loop {
-                match stream.read(&mut buffer) {
-                    Ok(n) => {
-                        if n == 0 {
-                            break;
-                        }
-
-                        let new = &buffer[..n];
-                        capture.write_all(new).unwrap();
-                        let r = if is_err {
-                            let mut s = std::io::stderr();
-                            s.write_all(new).and_then(|_| s.flush())
-                        } else {
-                            let mut s = std::io::stdout();
-                            s.write_all(new).and_then(|_| s.flush())
-                        };
-                        if let Err(e) = r {
-                            panic!("{} write error, {}", if is_err { "stderr" } else { "stdout" }, e)
-                        }
-                    }
-                    Err(e) => panic!("{} read error, {}", if is_err { "stderr" } else { "stdout" }, e),
-                }
-            }
-            String::from_utf8_lossy(&capture).into_owned()
-        })
-        .expect("failed to spawn thread")
 }
 
 fn crash_handler_app_process(dump_enabled: bool) {

@@ -159,7 +159,7 @@ impl ByteLength {
     /// Length in bytes.
     ///
     /// This is the same as `.0`.
-    pub fn bytes(&self) -> u64 {
+    pub const fn bytes(&self) -> u64 {
         self.0
     }
 
