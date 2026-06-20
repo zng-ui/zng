@@ -2176,7 +2176,7 @@ impl TaskPanicError {
 
     /// Get the panic string if the `payload` is string like.
     pub fn panic_str(&self) -> Option<&str> {
-        crate::process::tap::PanicFromHook::payload(&self.payload)
+        extract_panic_message(&self.payload)
     }
 }
 impl fmt::Debug for TaskPanicError {
@@ -2192,6 +2192,16 @@ impl fmt::Display for TaskPanicError {
 impl std::error::Error for TaskPanicError {}
 
 type SpawnPanicHandler = Box<dyn FnMut(TaskPanicError) + Send + 'static>;
+
+pub(crate) fn extract_panic_message(p: &dyn Any) -> Option<&str> {
+    if let Some(s) = p.downcast_ref::<&str>() {
+        Some(s)
+    } else if let Some(s) = p.downcast_ref::<String>() {
+        Some(s)
+    } else {
+        None
+    }
+}
 
 app_local! {
     // Mutex for Sync only

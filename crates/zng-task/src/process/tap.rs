@@ -615,7 +615,7 @@ impl PanicFromHook {
             Some(n) => n.to_txt(),
             None => formatx!("{:?}", std::thread::current().id()),
         };
-        let msg = Self::payload(info.payload()).unwrap_or("Box<dyn  Any>").to_txt();
+        let msg = crate::extract_panic_message(info.payload()).unwrap_or("Box<dyn  Any>").to_txt();
 
         let (file, line, column) = if let Some(l) = info.location() {
             (l.file(), l.line(), l.column())
@@ -628,16 +628,6 @@ impl PanicFromHook {
             file: file.to_txt(),
             line,
             column,
-        }
-    }
-
-    pub fn payload(p: &dyn std::any::Any) -> Option<&str> {
-        if let Some(s) = p.downcast_ref::<&str>() {
-            Some(s)
-        } else if let Some(s) = p.downcast_ref::<String>() {
-            Some(s)
-        } else {
-            None
         }
     }
 }
