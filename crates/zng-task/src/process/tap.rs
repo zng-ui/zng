@@ -31,8 +31,8 @@ impl StdoutTap {
     }
 
     /// Placeholder tap that records nothing.
-    pub fn null() -> Self {
-        Self(StdTap::null())
+    pub fn dummy() -> Self {
+        Self(StdTap::dummy())
     }
 
     /// Block until the child process closes stdout and converts the capture to string.
@@ -77,8 +77,8 @@ impl StderrTap {
     }
 
     /// Placeholder tap that records nothing.
-    pub fn null() -> Self {
-        Self(StdTap::null())
+    pub fn dummy() -> Self {
+        Self(StdTap::dummy())
     }
 
     /// Block until the child process closes stderr and converts the capture to string.
@@ -131,7 +131,7 @@ impl<const E: bool> StdTap<E> {
         Self(Some(tap_async(stream, E)))
     }
 
-    fn null() -> Self {
+    fn dummy() -> Self {
         Self(None)
     }
 

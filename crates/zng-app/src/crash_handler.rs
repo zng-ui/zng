@@ -661,8 +661,8 @@ fn crash_handler_monitor_process(
                         } else {
                             Ok((
                                 std::process::ExitStatus::default(),
-                                tap::StdoutTap::null(),
-                                tap::StderrTap::null(),
+                                tap::StdoutTap::dummy(),
+                                tap::StderrTap::dummy(),
                                 None,
                             ))
                         };
