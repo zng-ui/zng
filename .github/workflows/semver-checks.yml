@@ -6,6 +6,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
+  CARGO_NET_RETRY: 10
 
 jobs:
   semver-checks:
