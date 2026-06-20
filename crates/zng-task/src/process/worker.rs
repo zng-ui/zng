@@ -98,6 +98,8 @@ use crate::{
     channel::{self, ChannelError, IpcReceiver, IpcSender, IpcValue, NamedIpcSender},
 };
 
+use super::tap::PanicInfo;
+
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
 const WORKER_NAME: &str = "ZNG_TASK_IPC_WORKER_NAME";
@@ -158,7 +160,6 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .env(WORKER_SERVER, chan_sender.name())
             .env(WORKER_NAME, worker_name)
             .env("RUST_BACKTRACE", "full");
-        // !!: TODO tap stderr
         let mut worker = blocking::unblock(move || worker.spawn()).await?;
 
         let timeout = match std::env::var(WORKER_TIMEOUT) {
@@ -253,11 +254,11 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
     /// Awaits current tasks and kills the worker process.
     pub async fn shutdown(mut self) -> std::io::Result<()> {
-        if let Some((receiver, mut process)) = self.running.take() {
+        if let Some((receiver, mut worker)) = self.running.take() {
             while !self.requests.lock().is_empty() {
                 crate::deadline(100.ms()).await;
             }
-            let r = blocking::unblock(move || process.kill()).await;
+            let r = blocking::unblock(move || worker.kill()).await;
 
             match crate::with_deadline(blocking::unblock(move || receiver.join()), 1.secs()).await {
                 Ok(r) => {
@@ -347,7 +348,10 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
             match p.wait() {
                 Ok(o) => {
-                    self.crash = Some(WorkerCrashError { status: o });
+                    self.crash = Some(WorkerCrashError {
+                        status: o,
+                        stderr: Txt::from("!!: TODO"),
+                    });
                 }
                 Err(e) => tracing::error!("error reading crashed worker output, {e}"),
             }
@@ -469,6 +473,21 @@ impl std::error::Error for RunError {}
 pub struct WorkerCrashError {
     /// Worker process exit code.
     pub status: std::process::ExitStatus,
+    /// Recorded stderr of the worker process.
+    pub stderr: Txt,
+}
+impl WorkerCrashError {
+    /// Try parse `stderr` for the crash panic.
+    ///
+    /// Only reliably works if the panic fully printed correctly and was formatted by the panic
+    /// hook installed by `crash_handler` or by the display print of [`PanicInfo`].
+    pub fn find_panic(&self) -> Option<PanicInfo> {
+        if self.status.code() == Some(101) {
+            PanicInfo::find(&self.stderr)
+        } else {
+            None
+        }
+    }
 }
 impl fmt::Display for WorkerCrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
