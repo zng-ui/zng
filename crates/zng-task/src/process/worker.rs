@@ -85,7 +85,7 @@
 //! timeout in seconds. The minimum value is 1 second, set to 0 or empty use the default timeout.
 
 use core::fmt;
-use std::{marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
+use std::{marker::PhantomData, path::PathBuf, pin::Pin, process::Stdio, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::{async_clmv, clmv};
@@ -96,6 +96,7 @@ use zng_unit::TimeUnits as _;
 use crate::{
     TaskPanicError,
     channel::{self, ChannelError, IpcReceiver, IpcSender, IpcValue, NamedIpcSender},
+    process::tap::{StderrTap, contains_ansi_csi, remove_ansi_csi},
 };
 
 use super::tap::PanicInfo;
@@ -112,7 +113,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Represents a running worker process.
 pub struct Worker<I: IpcValue, O: IpcValue> {
-    running: Option<(std::thread::JoinHandle<()>, std::process::Child)>,
+    running: Option<(std::thread::JoinHandle<()>, std::process::Child, StderrTap)>,
 
     sender: IpcSender<(RequestId, Request<I>)>,
     requests: Arc<Mutex<IdMap<RequestId, channel::Sender<O>>>>,
@@ -160,6 +161,9 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .env(WORKER_SERVER, chan_sender.name())
             .env(WORKER_NAME, worker_name)
             .env("RUST_BACKTRACE", "full");
+
+        worker.stderr(Stdio::piped());
+
         let mut worker = blocking::unblock(move || worker.spawn()).await?;
 
         let timeout = match std::env::var(WORKER_TIMEOUT) {
@@ -228,8 +232,10 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             }))
             .expect("failed to spawn thread");
 
+        let stderr_tap = StderrTap::new_blocking(worker.stderr.take().unwrap());
+
         Ok(Self {
-            running: Some((receiver, worker)),
+            running: Some((receiver, worker, stderr_tap)),
             sender: request_sender,
             _p: PhantomData,
             crash: None,
@@ -254,11 +260,16 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 
     /// Awaits current tasks and kills the worker process.
     pub async fn shutdown(mut self) -> std::io::Result<()> {
-        if let Some((receiver, mut worker)) = self.running.take() {
+        if let Some((receiver, mut worker, _)) = self.running.take() {
             while !self.requests.lock().is_empty() {
                 crate::deadline(100.ms()).await;
             }
-            let r = blocking::unblock(move || worker.kill()).await;
+            let r = blocking::unblock(move || {
+                worker.kill()?;
+                worker.wait()?;
+                Ok(())
+            })
+            .await;
 
             match crate::with_deadline(blocking::unblock(move || receiver.join()), 1.secs()).await {
                 Ok(r) => {
@@ -330,10 +341,11 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     ///
     /// The worker cannot be used if this is set, run requests will immediately disconnect.
     pub fn crash_error(&mut self) -> Option<&WorkerCrashError> {
-        if let Some((t, _)) = &self.running
+        // TODO(breaking) make this async
+        if let Some((t, _, _)) = &self.running
             && t.is_finished()
         {
-            let (t, mut p) = self.running.take().unwrap();
+            let (t, mut p, stderr) = self.running.take().unwrap();
 
             if let Err(e) = t.join() {
                 tracing::error!(
@@ -350,7 +362,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 Ok(o) => {
                     self.crash = Some(WorkerCrashError {
                         status: o,
-                        stderr: Txt::from("!!: TODO"),
+                        stderr: stderr.into_txt_blocking(false),
                     });
                 }
                 Err(e) => tracing::error!("error reading crashed worker output, {e}"),
@@ -362,7 +374,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
 }
 impl<I: IpcValue, O: IpcValue> Drop for Worker<I, O> {
     fn drop(&mut self) {
-        if let Some((receiver, mut process)) = self.running.take() {
+        if let Some((receiver, mut process, _)) = self.running.take() {
             if !receiver.is_finished() {
                 tracing::error!("dropped worker without shutdown");
             }
@@ -477,7 +489,21 @@ pub struct WorkerCrashError {
     pub stderr: Txt,
 }
 impl WorkerCrashError {
-    /// Try parse `stderr` for the crash panic.
+    /// Gets if `stderr` does not contain any ANSI scape sequences.
+    pub fn is_stderr_plain(&self) -> bool {
+        !contains_ansi_csi(&self.stderr)
+    }
+
+    /// Get `stderr` without any ANSI escape sequences (CSI).
+    pub fn stderr_plain(&self) -> Txt {
+        if self.is_stderr_plain() {
+            self.stderr.clone()
+        } else {
+            remove_ansi_csi(&self.stderr)
+        }
+    }
+
+    /// Try parse `stderr` for the crash panic if exit code was `101`.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
     /// hook installed by `crash_handler` or by the display print of [`PanicInfo`].
