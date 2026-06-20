@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
 
 //! Demonstrates app-process crash handler and view-process respawn.
 

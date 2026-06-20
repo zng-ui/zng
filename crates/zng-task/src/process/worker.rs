@@ -158,6 +158,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
             .env(WORKER_SERVER, chan_sender.name())
             .env(WORKER_NAME, worker_name)
             .env("RUST_BACKTRACE", "full");
+        // !!: TODO tap stderr
         let mut worker = blocking::unblock(move || worker.spawn()).await?;
 
         let timeout = match std::env::var(WORKER_TIMEOUT) {
