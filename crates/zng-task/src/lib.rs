@@ -2176,13 +2176,7 @@ impl TaskPanicError {
 
     /// Get the panic string if the `payload` is string like.
     pub fn panic_str(&self) -> Option<&str> {
-        if let Some(s) = self.payload.downcast_ref::<&str>() {
-            Some(s)
-        } else if let Some(s) = self.payload.downcast_ref::<String>() {
-            Some(s)
-        } else {
-            None
-        }
+        crate::process::tap::PanicFromHook::payload(&self.payload)
     }
 }
 impl fmt::Debug for TaskPanicError {

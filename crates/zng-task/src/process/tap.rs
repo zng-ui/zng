@@ -1,4 +1,17 @@
-//! Helper types for recording stdout/err while still passing through.
+//! Helper types for recording stdout/err and parsing the error output.
+//!
+//! Both [`StdoutTap`] and [`StderrTap`] record a child process stream while still propagating to
+//! the parent stream. After the child closes the stream the recording can be converted to string
+//! and parsed to retrieve data such as a panic printout.
+//!
+//! # ANSI Escape Sequences
+//!
+//! Use [`contains_ansi_csi`] and [`remove_ansi_csi`] to convert styled output to plain text.
+//!
+//! # Panic
+//!
+//! Use the [`PanicInfo::find`] to find and parse the last panic printout from stderr. Use [`PanicInfo::set_hook`]
+//! on the child process to ensure the panic message is formatted in a compatible way.
 
 use std::{
     collections::VecDeque,
@@ -29,37 +42,12 @@ impl StdoutTap {
     pub fn new(stream: super::ChildStdout) -> Self {
         Self(StdTap::new(stream))
     }
-
-    /// Placeholder tap that records nothing.
-    pub fn dummy() -> Self {
-        Self(StdTap::dummy())
-    }
-
-    /// Block until the child process closes stdout and converts the capture to string.
-    pub fn into_string_blocking(self) -> String {
-        self.0.into_string_blocking()
-    }
-
-    /// Await until the child process closes stdout and converts the capture to string.
-    pub async fn into_string(self) -> String {
-        blocking::unblock(move || self.into_string_blocking()).await
-    }
-
-    /// Block until the child process closes stdout and converts the capture to [`Txt`].
-    pub fn into_txt_blocking(self) -> Txt {
-        self.0.into_txt_blocking()
-    }
-
-    /// Await until the child process closes stdout and converts the capture to [`Txt`].
-    pub async fn into_txt(self) -> Txt {
-        blocking::unblock(move || self.into_txt_blocking()).await
-    }
 }
 
 /// Record stderr of a child process while also passing though the output to the running process output.
 ///
 /// Both blocking and async APIs are provided, the blocking API is slightly more efficient.
-pub struct StderrTap(StdTap<false>);
+pub struct StderrTap(StdTap<true>);
 impl fmt::Debug for StderrTap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("StderrTap").finish_non_exhaustive()
@@ -76,36 +64,14 @@ impl StderrTap {
         Self(StdTap::new(stream))
     }
 
-    /// Placeholder tap that records nothing.
-    pub fn dummy() -> Self {
-        Self(StdTap::dummy())
-    }
-
-    /// Block until the child process closes stderr and converts the capture to string.
-    pub fn into_string_blocking(self) -> String {
-        self.0.into_string_blocking()
-    }
-
-    /// Await until the child process closes stderr and converts the capture to string.
-    pub async fn into_string(self) -> String {
-        blocking::unblock(move || self.into_string_blocking()).await
-    }
-
-    /// Block until the child process closes stderr and converts the capture to [`Txt`].
-    pub fn into_txt_blocking(self) -> Txt {
-        self.0.into_txt_blocking()
-    }
-
-    /// Await until the child process closes stderr and converts the capture to [`Txt`].
-    pub async fn into_txt(self) -> Txt {
-        blocking::unblock(move || self.into_txt_blocking()).await
-    }
-
     /// Block until the child process closes stderr and attempts to parse the last panic info from it.
     ///
     /// If cannot find a panic returns `Err` with the captured stderr converted to [`Txt`].
+    ///
+    /// Note that the exit code for a fatal panic is `101`, checking the exit code is the reliable
+    /// way to verify the child process exited due to panic.
     pub fn into_panic_blocking(self) -> Result<PanicInfo, Txt> {
-        let s = self.into_string_blocking();
+        let s = self.into_string_blocking(false);
         match PanicInfo::find(&s) {
             Some(p) => Ok(p),
             None => Err(s.into()),
@@ -115,9 +81,54 @@ impl StderrTap {
     /// Await until the child process closes stderr and attempts to parse the last panic info from it.
     ///
     /// If cannot find a panic returns `Err` with the captured stderr converted to [`Txt`].
+    ///
+    /// Note that the exit code for a fatal panic is `101`, checking the exit code is the reliable
+    /// way to verify the child process exited due to panic.
     pub async fn into_panic(self) -> Result<PanicInfo, Txt> {
         blocking::unblock(move || self.into_panic_blocking()).await
     }
+}
+
+macro_rules! impl_common {
+    ($($StreamTap:ident;)+) => {
+        $(
+impl $StreamTap {
+    /// Placeholder tap that records nothing.
+    pub fn dummy() -> Self {
+        Self(StdTap::dummy())
+    }
+
+    /// Block until the child process closes the stream and converts the capture to [`String`].
+    pub fn into_string_blocking(self, remove_ansi_csi: bool) -> String {
+        let s = deque_to_string(self.0.capture());
+        if remove_ansi_csi && contains_ansi_csi(&s) {
+            self::remove_ansi_csi_str(&s)
+        } else {
+            s
+        }
+    }
+
+    /// Await until the child process closes the stream and converts the capture to [`String`].
+    pub async fn into_string(self, remove_ansi_csi: bool) -> String {
+        blocking::unblock(move || self.into_string_blocking(remove_ansi_csi)).await
+    }
+
+    /// Block until the child process closes the stream and converts the capture to [`Txt`].
+    pub fn into_txt_blocking(self, remove_ansi_csi: bool) -> Txt {
+        self.into_string_blocking(remove_ansi_csi).into()
+    }
+
+    /// Await until the child process closes the stream and converts the capture to [`Txt`].
+    pub async fn into_txt(self, remove_ansi_csi: bool) -> Txt {
+        blocking::unblock(move || self.into_txt_blocking(remove_ansi_csi)).await
+    }
+}
+        )+
+    };
+}
+impl_common! {
+    StdoutTap;
+    StderrTap;
 }
 
 struct StdTap<const E: bool>(Option<std::thread::JoinHandle<VecDeque<u8>>>);
@@ -143,14 +154,6 @@ impl<const E: bool> StdTap<E> {
             },
             None => VecDeque::new(),
         }
-    }
-
-    fn into_string_blocking(self) -> String {
-        deque_to_string(self.capture())
-    }
-
-    fn into_txt_blocking(self) -> Txt {
-        self.into_string_blocking().into()
     }
 }
 
@@ -598,7 +601,7 @@ impl PanicInfo {
 }
 
 #[derive(Debug)]
-struct PanicFromHook {
+pub(crate) struct PanicFromHook {
     pub thread: Txt,
     pub msg: Txt,
     pub file: Txt,
@@ -612,7 +615,7 @@ impl PanicFromHook {
             Some(n) => n.to_txt(),
             None => formatx!("{:?}", std::thread::current().id()),
         };
-        let msg = Self::payload(info.payload());
+        let msg = Self::payload(info.payload()).unwrap_or("Box<dyn  Any>").to_txt();
 
         let (file, line, column) = if let Some(l) = info.location() {
             (l.file(), l.line(), l.column())
@@ -628,15 +631,14 @@ impl PanicFromHook {
         }
     }
 
-    fn payload(p: &dyn std::any::Any) -> Txt {
-        match p.downcast_ref::<&'static str>() {
-            Some(s) => s,
-            None => match p.downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<dyn Any>",
-            },
+    pub fn payload(p: &dyn std::any::Any) -> Option<&str> {
+        if let Some(s) = p.downcast_ref::<&str>() {
+            Some(s)
+        } else if let Some(s) = p.downcast_ref::<String>() {
+            Some(s)
+        } else {
+            None
         }
-        .to_txt()
     }
 }
 impl std::error::Error for PanicFromHook {}
@@ -653,3 +655,35 @@ impl fmt::Display for PanicFromHook {
         Ok(())
     }
 }
+
+fn remove_ansi_csi_str(mut s: &str) -> String {
+    fn is_esc_end(byte: u8) -> bool {
+        (0x40..=0x7e).contains(&byte)
+    }
+
+    let mut r = String::new();
+    while let Some(i) = s.find(CSI) {
+        r.push_str(&s[..i]);
+        s = &s[i + CSI.len()..];
+        let mut esc_end = 0;
+        while esc_end < s.len() && !is_esc_end(s.as_bytes()[esc_end]) {
+            esc_end += 1;
+        }
+        esc_end += 1;
+        s = &s[esc_end..];
+    }
+    r.push_str(s);
+    r
+}
+
+/// Remove ANSI escape sequences (CSI) from `s`.
+pub fn remove_ansi_csi(s: &str) -> Txt {
+    remove_ansi_csi_str(s).into()
+}
+
+/// If `s` contains ANSI escape sequences (CSI).
+pub fn contains_ansi_csi(s: &str) -> bool {
+    s.contains(CSI)
+}
+
+const CSI: &str = "\x1b[";

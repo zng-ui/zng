@@ -18,7 +18,8 @@ use zng_layout::unit::TimeUnits as _;
 use zng_task::{parking_lot::Mutex, process::tap};
 
 // TODO(breaking) remove this
-pub use tap::{BacktraceFrame, PanicInfo as CrashPanic};
+use tap::contains_ansi_csi;
+pub use tap::{BacktraceFrame, PanicInfo as CrashPanic, remove_ansi_csi};
 
 use zng_txt::Txt;
 
@@ -337,28 +338,36 @@ impl CrashError {
 
     /// Gets if `stdout` does not contain any ANSI scape sequences.
     pub fn is_stdout_plain(&self) -> bool {
-        !self.stdout.contains(CSI)
+        !contains_ansi_csi(&self.stdout)
     }
 
     /// Gets if `stderr` does not contain any ANSI scape sequences.
     pub fn is_stderr_plain(&self) -> bool {
-        !self.stderr.contains(CSI)
+        !contains_ansi_csi(&self.stderr)
     }
 
     /// Get `stdout` without any ANSI escape sequences (CSI).
     pub fn stdout_plain(&self) -> Txt {
-        remove_ansi_csi(&self.stdout)
+        if self.is_stdout_plain() {
+            self.stdout.clone()
+        } else {
+            remove_ansi_csi(&self.stdout)
+        }
     }
 
     /// Get `stderr` without any ANSI escape sequences (CSI).
     pub fn stderr_plain(&self) -> Txt {
-        remove_ansi_csi(&self.stderr)
+        if self.is_stderr_plain() {
+            self.stderr.clone()
+        } else {
+            remove_ansi_csi(&self.stderr)
+        }
     }
 
     /// Gets if `stderr` contains a crash panic.
     pub fn has_panic(&self) -> bool {
         if self.code == Some(101) {
-            CrashPanic::contains(&self.stderr_plain())
+            CrashPanic::contains(&self.stderr)
         } else {
             false
         }
@@ -367,7 +376,7 @@ impl CrashError {
     /// Gets if `stderr` contains a crash panic that traced widget/window path.
     pub fn has_panic_widget(&self) -> bool {
         if self.code == Some(101) {
-            CrashPanic::contains_widget(&self.stderr_plain())
+            CrashPanic::contains_widget(&self.stderr)
         } else {
             false
         }
@@ -379,7 +388,7 @@ impl CrashError {
     /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
     pub fn find_panic(&self) -> Option<CrashPanic> {
         if self.code == Some(101) {
-            CrashPanic::find(&self.stderr_plain())
+            CrashPanic::find(&self.stderr)
         } else {
             None
         }
@@ -503,29 +512,6 @@ impl CrashError {
     }
 }
 
-const CSI: &str = "\x1b[";
-
-/// Remove ANSI escape sequences (CSI) from `s`.
-pub fn remove_ansi_csi(mut s: &str) -> Txt {
-    fn is_esc_end(byte: u8) -> bool {
-        (0x40..=0x7e).contains(&byte)
-    }
-
-    let mut r = String::new();
-    while let Some(i) = s.find(CSI) {
-        r.push_str(&s[..i]);
-        s = &s[i + CSI.len()..];
-        let mut esc_end = 0;
-        while esc_end < s.len() && !is_esc_end(s.as_bytes()[esc_end]) {
-            esc_end += 1;
-        }
-        esc_end += 1;
-        s = &s[esc_end..];
-    }
-    r.push_str(s);
-    r.into()
-}
-
 fn crash_handler_monitor_process(
     dump_dir: Option<PathBuf>,
     mut cfg_app: ConfigProcess,
@@ -606,8 +592,8 @@ fn crash_handler_monitor_process(
                         timestamp,
                         code,
                         signal,
-                        stdout.into_txt_blocking(),
-                        stderr.into_txt_blocking(),
+                        stdout.into_txt_blocking(false),
+                        stderr.into_txt_blocking(false),
                         dump_file,
                         args.clone(),
                     ));
@@ -677,7 +663,7 @@ fn crash_handler_monitor_process(
                         let response = match dialog_result {
                             Ok((dlg_status, dlg_stdout, dlg_stderr, dlg_dump_file)) => {
                                 if dlg_status.success() {
-                                    let dlg_stdout = dlg_stdout.into_string_blocking();
+                                    let dlg_stdout = dlg_stdout.into_string_blocking(false);
                                     dlg_stdout
                                         .lines()
                                         .filter_map(|l| l.trim().strip_prefix(RESPONSE_PREFIX))
@@ -717,8 +703,8 @@ fn crash_handler_monitor_process(
                                         SystemTime::now(),
                                         code,
                                         signal,
-                                        dlg_stdout.into_txt_blocking(),
-                                        dlg_stderr.into_txt_blocking(),
+                                        dlg_stdout.into_txt_blocking(false),
+                                        dlg_stderr.into_txt_blocking(false),
                                         dlg_dump_file,
                                         Box::new([]),
                                     );
