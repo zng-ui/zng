@@ -481,7 +481,6 @@ impl BacktraceFrame {
     /// Iterate over frames parsed from the `backtrace`.
     pub fn parse(mut backtrace: &str) -> impl Iterator<Item = BacktraceFrame> + '_ {
         let mut is_after_panic = backtrace.lines().any(|l| l.ends_with("core::panicking::panic_fmt"));
-        dbg!(is_after_panic);
         std::iter::from_fn(move || {
             if backtrace.is_empty() {
                 None
