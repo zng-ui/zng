@@ -98,6 +98,8 @@ use crate::{
     channel::{self, ChannelError, IpcReceiver, IpcSender, IpcValue, NamedIpcSender},
 };
 
+use super::tap::PanicInfo;
+
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
 const WORKER_NAME: &str = "ZNG_TASK_IPC_WORKER_NAME";
@@ -478,10 +480,10 @@ impl WorkerCrashError {
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
-    /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
-    pub fn find_panic(&self) -> Option<super::tap::PanicInfo> {
+    /// hook installed by `crash_handler` or by the display print of [`PanicInfo`].
+    pub fn find_panic(&self) -> Option<PanicInfo> {
         if self.status.code() == Some(101) {
-            super::tap::PanicInfo::find(&self.stderr)
+            PanicInfo::find(&self.stderr)
         } else {
             None
         }
