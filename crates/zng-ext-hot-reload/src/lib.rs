@@ -23,7 +23,6 @@
 
 mod cargo;
 mod node;
-mod util;
 use std::{collections::HashMap, fmt, io, mem, path::PathBuf, sync::Arc, time::Duration};
 
 pub use cargo::BuildError;
@@ -114,7 +113,7 @@ pub mod zng_hot_entry {
     pub fn init(statics: &StaticPatch) {
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
-            crate::util::crash_handler(args);
+            zng_task::process::tap::PanicInfo::eprint_panic(args, "");
             zng_env::exit(101);
         }));
 

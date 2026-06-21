@@ -126,7 +126,7 @@ impl GlContextManager {
                         recover: "will try other modes".into(),
                         panic: panic.to_txt(),
                     }));
-                    panic.msg.into()
+                    panic.panic_str().unwrap_or_default().into()
                 }
             };
 
@@ -195,7 +195,7 @@ impl GlContextManager {
                         recover: "will try other modes".into(),
                         panic: panic.to_txt(),
                     }));
-                    panic.msg.into()
+                    panic.panic_str().unwrap_or_default().into()
                 }
             };
 

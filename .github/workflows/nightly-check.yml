@@ -11,6 +11,7 @@ env:
   RUSTDOCFLAGS: '--deny=warnings -A unused_assignments'
   CARGO_TERM_COLOR: always
   CARGO_NET_RETRY: 20
+  CARGO_HTTP_MULTIPLEXING: false
 
 jobs:
   check-ubuntu:

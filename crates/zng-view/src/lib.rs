@@ -337,12 +337,19 @@ fn ffi_abort(info: &std::panic::PanicHookInfo) {
 fn panic_hook(info: &std::panic::PanicHookInfo, details: &str) {
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
 
-    let panic = util::SuppressedPanic::from_hook(info, std::backtrace::Backtrace::force_capture());
-
     if crate::util::suppress_panic() {
-        crate::util::set_suppressed_panic(panic);
+        let p = info.payload();
+        let msg = if let Some(s) = p.downcast_ref::<&str>() {
+            (*s).to_owned()
+        } else if let Some(s) = p.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            String::new()
+        };
+        crate::util::set_suppressed_panic(zng_task::TaskPanicError::new(Box::new(msg)));
     } else {
-        eprintln!("{panic}\n{details}");
+        zng_task::process::tap::PanicInfo::eprint_panic(info, "");
+        eprintln!("{details}");
         zng_env::exit(101) // Rust panic exit code.
     }
 }
