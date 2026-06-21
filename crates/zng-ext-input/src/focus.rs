@@ -668,11 +668,7 @@ impl FOCUS {
     }
 }
 
-zng_env::on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
-
+zng_env::on_process_start!(|_| {
     APP.on_init(hn!(|args| {
         WINDOWS_FOCUS.hook_focus_service(FOCUS.focused());
     }));

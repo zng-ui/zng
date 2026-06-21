@@ -847,11 +847,7 @@ mod __prelude_wgt {
 #[cfg(feature = "svg")]
 extern crate zng_ext_svg as _;
 
-zng_env::on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
-
+zng_env::on_process_start!(|_| {
     zng_app::APP.on_init(zng_app::hn!(|args| {
         if !args.is_minimal {
             defaults();

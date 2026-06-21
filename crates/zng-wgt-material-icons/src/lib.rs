@@ -27,11 +27,12 @@ mod usage_recorder;
     feature = "embedded",
     any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
 ))]
-zng_env::on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
-    zng_app::APP.on_init(zng_app::hn!(|_| {
+zng_env::on_process_start!(|_| {
+    zng_app::APP.on_init(zng_app::hn!(|args| {
+        if args.is_minimal {
+            return;
+        }
+
         use zng_wgt::{ICONS, IconRequestArgs, prelude::UiNode, wgt_fn};
         use zng_wgt_text::icon::{GlyphIcon, Icon};
 

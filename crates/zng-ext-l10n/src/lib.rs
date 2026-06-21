@@ -55,12 +55,12 @@ mod usage_recorder;
 /// Localization service.
 pub struct L10N;
 
-on_process_start!(|args: &zng_env::ProcessStartArgs| {
-    if args.yield_until_app() {
-        return;
-    }
+on_process_start!(|_| {
+    APP.on_init(hn!(|args| {
+        if args.is_minimal {
+            return;
+        }
 
-    APP.on_init(hn!(|_| {
         #[cfg(feature = "usage_recorder")]
         usage_recorder::on_init();
 

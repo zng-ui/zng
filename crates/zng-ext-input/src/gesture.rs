@@ -1188,10 +1188,7 @@ impl CommandShortcutMatchesExt for Command {
     }
 }
 
-on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
+on_process_start!(|_| {
     APP.on_init(hn!(|args| {
         if !args.is_minimal {
             // command shortcuts are fully detached from the GESTURES service
