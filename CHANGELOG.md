@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.23.2
+
 * **Deprecated** `yield_until_app` in `on_process_start!` args.
 * Fix `ContextMenu!` in `Markdown!` and `AnsiText!` having the parent text font and size.
 * View-process crash respawn now logs panic location and message extracted from stderr.
