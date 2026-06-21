@@ -568,6 +568,14 @@ impl CaptureFilter {
         set.insert_app();
         Self::Include(set)
     }
+
+    /// Capture all variables, no [`context_local!`], no [`TracingDispatcherContext`] and none of the variables
+    /// added by `exclude` to the set.
+    pub fn context_vars_except(exclude: impl FnOnce(&mut ContextValueSet)) -> Self {
+        let mut set = ContextValueSet::new();
+        exclude(&mut set);
+        Self::ContextVars { exclude: set }
+    }
 }
 
 /// Provides an identifying key for a context local value.

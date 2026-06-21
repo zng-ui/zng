@@ -16,6 +16,7 @@ use zng_wgt::{prelude::*, *};
 use zng_wgt_fill::*;
 use zng_wgt_filter::*;
 use zng_wgt_input::{CursorIcon, cursor};
+use zng_wgt_layer::popup;
 use zng_wgt_scroll::{LazyMode, lazy};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::*;
@@ -53,6 +54,7 @@ impl AnsiText {
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
             rich_text = true;
 
+            popup::context_capture = default_popup_context_capture();
             when #txt_selectable {
                 cursor = CursorIcon::Text;
                 zng_wgt_menu::context::context_menu_fn = WidgetFn::new(default_context_menu);
@@ -768,6 +770,15 @@ pub fn default_context_menu(args: zng_wgt_menu::context::ContextMenuArgs) -> UiN
         Button!(zng_ext_clipboard::COPY_CMD.scoped(id)),
         Button!(zng_wgt_text::cmd::SELECT_ALL_CMD.scoped(id)),
     ])
+}
+
+/// Context captured for the context menu, set by the [`AnsiText!`].
+///
+/// Captures all context vars, except text style vars.
+///
+/// [`AnsiText!`]: struct@AnsiText
+pub fn default_popup_context_capture() -> popup::ContextCapture {
+    popup::ContextCapture::context_vars_except(Text::context_vars_set_except_lang)
 }
 
 static X_TERM_256: [(u8, u8, u8); 256] = [
