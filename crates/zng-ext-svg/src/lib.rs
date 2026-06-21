@@ -20,12 +20,12 @@ use zng_txt::{Txt, formatx};
 use zng_unit::{ByteLength, ByteUnits as _, Px, PxDensity2d, PxDensityUnits as _, PxSize};
 use zng_var::const_var;
 
-zng_env::on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
+zng_env::on_process_start!(|_| {
+    APP.on_init(hn!(|args| {
+        if args.is_minimal {
+            return;
+        }
 
-    APP.on_init(hn!(|_| {
         tracing::trace!("register SVG extension");
         IMAGES.extend(Box::new(SvgRenderExtension::default()));
     }));

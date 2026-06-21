@@ -17,10 +17,7 @@ pub mod selectable;
 mod text_input;
 pub use text_input::*;
 
-zng_env::on_process_start!(|args| {
-    if args.yield_until_app() {
-        return;
-    }
+zng_env::on_process_start!(|_| {
     zng_wgt_menu::MENU_TEXT_INPUT.init_label(menu_label, set_menu_label_style);
 });
 fn menu_label(txt: zng_var::Var<zng_wgt::prelude::Txt>) -> zng_app::widget::node::UiNode {

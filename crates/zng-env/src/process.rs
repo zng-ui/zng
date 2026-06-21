@@ -150,6 +150,7 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
     let mut yielded = vec![];
+    // TODO(breaking) remove this
     let mut yield_until_app = vec![];
     let mut next_handlers_count = handlers.len();
     for h in handlers {
@@ -290,23 +291,11 @@ impl ProcessStartArgs {
         self.yield_requested.store(Self::YIELD_ONCE, Ordering::Relaxed);
     }
 
-    /// Yields until is running the the app-process.
+    /// Deprecated.
     ///
-    /// Returns `true` if should skip the handler.
-    ///
-    /// ```rust
-    /// # macro_rules! on_process_start { ($($tt:tt)*) => { } }
-    /// on_process_start!(|args| {
-    ///     if args.yield_until_app() {
-    ///         return;
-    ///     }
-    ///
-    ///     println!("Is running in the app-process");
-    /// });
-    /// ```
-    ///
-    /// Note that the handler is still called before the `APP` context starts, you can register a `APP.on_init` handler
-    /// to run in the new app context.
+    /// There is actually no way to know if the process is an app-process until `APP.on_init` runs
+    /// because any process can start an app.
+    #[deprecated = "use `APP.on_init` to register a closure that runs if the process becomes an app process"]
     pub fn yield_until_app(&self) -> bool {
         if self.next_handlers_count > 0 && self.yield_count < Self::MAX_YIELD_COUNT {
             // yield until we are the last handler, this ensures we are running in the app-process
