@@ -35,7 +35,7 @@ env:
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
   NEXTEST_RETRIES: 3
-  CARGO_NET_RETRY: 10
+  CARGO_NET_RETRY: 20
 
 jobs:
   check-ubuntu:
