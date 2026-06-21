@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 //! IPC types.
 
 use std::time::Duration;

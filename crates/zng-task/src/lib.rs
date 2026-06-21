@@ -2194,7 +2194,7 @@ impl std::error::Error for TaskPanicError {}
 type SpawnPanicHandler = Box<dyn FnMut(TaskPanicError) + Send + 'static>;
 
 pub(crate) fn extract_panic_message(p: &dyn Any) -> Option<&str> {
-    if let Some(s) = p.downcast_ref::<&str>() {
+    if let Some(s) = p.downcast_ref::<&'static str>() {
         Some(s)
     } else if let Some(s) = p.downcast_ref::<String>() {
         Some(s)

@@ -1,21 +1,20 @@
-use std::any::Any;
-use std::backtrace::Backtrace;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hasher;
 use std::marker::PhantomData;
+use std::ops;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::LazyLock;
 use std::{cell::Cell, sync::Arc};
-use std::{fmt, ops};
 
 use rayon::ThreadPoolBuilder;
 use webrender::api as wr;
 use winit::event_loop::ActiveEventLoop;
 use winit::{event::ElementState, monitor::MonitorHandle};
+use zng_task::TaskPanicError;
 use zng_task::parking_lot::Mutex;
-use zng_txt::{ToTxt, Txt};
+use zng_txt::Txt;
 use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
 use zng_view_api::keyboard::{KeyLocation, NativeKeyCode};
@@ -1032,7 +1031,7 @@ pub(crate) fn winit_physical_key_to_key_code(key: WinitPhysicalKey) -> KeyCode {
 
 thread_local! {
     static SUPPRESS: Cell<bool> = const { Cell::new(false) };
-    static SUPPRESSED_PANIC: RefCell<Option<SuppressedPanic>> = const { RefCell::new(None) };
+    static SUPPRESSED_PANIC: RefCell<Option<TaskPanicError>> = const { RefCell::new(None) };
 }
 
 /// If `true` our custom panic hook must not log anything.
@@ -1041,82 +1040,18 @@ pub(crate) fn suppress_panic() -> bool {
     SUPPRESS.get()
 }
 #[cfg(ipc)]
-pub(crate) fn set_suppressed_panic(panic: SuppressedPanic) {
+pub(crate) fn set_suppressed_panic(panic: TaskPanicError) {
     SUPPRESSED_PANIC.set(Some(panic));
 }
 
-#[derive(Debug)]
-pub(crate) struct SuppressedPanic {
-    pub thread: Txt,
-    pub msg: Txt,
-    pub file: Txt,
-    pub line: u32,
-    pub column: u32,
-    pub backtrace: Backtrace,
-}
-impl SuppressedPanic {
-    #[cfg(ipc)]
-    pub fn from_hook(info: &std::panic::PanicHookInfo, backtrace: Backtrace) -> Self {
-        let current_thread = std::thread::current();
-        let thread = current_thread.name().unwrap_or("<unnamed>");
-        let msg = Self::payload(info.payload());
-
-        let (file, line, column) = if let Some(l) = info.location() {
-            (l.file(), l.line(), l.column())
-        } else {
-            ("<unknown>", 0, 0)
-        };
-        Self {
-            thread: thread.to_txt(),
-            msg,
-            file: file.to_txt(),
-            line,
-            column,
-            backtrace,
-        }
-    }
-
-    pub fn from_catch(p: Box<dyn Any>) -> Self {
-        Self {
-            thread: Txt::from("<unknown>"),
-            msg: Self::payload(&*p),
-            file: Txt::from("<unknown>"),
-            line: 0,
-            column: 0,
-            backtrace: Backtrace::disabled(),
-        }
-    }
-
-    fn payload(p: &dyn Any) -> Txt {
-        match p.downcast_ref::<&'static str>() {
-            Some(s) => s,
-            None => match p.downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<dyn Any>",
-            },
-        }
-        .to_txt()
-    }
-}
-impl std::error::Error for SuppressedPanic {}
-impl fmt::Display for SuppressedPanic {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "thread '{}' panicked at {}:{}:{}:\n{}\n{}",
-            self.thread, self.file, self.line, self.column, self.msg, self.backtrace,
-        )
-    }
-}
-
 /// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
-pub(crate) fn catch_suppress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, Box<SuppressedPanic>> {
+pub(crate) fn catch_suppress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, TaskPanicError> {
     SUPPRESS.set(true);
     let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
     std::panic::catch_unwind(f).map_err(|e| {
         SUPPRESSED_PANIC.with_borrow_mut(|p| match p.take() {
-            Some(p) => Box::new(p),
-            None => Box::new(SuppressedPanic::from_catch(e)),
+            Some(p) => p,
+            None => TaskPanicError::new(e),
         })
     })
 }

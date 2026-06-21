@@ -36,6 +36,7 @@ env:
   ZNG_TP_LICENSES: false
   NEXTEST_RETRIES: 3
   CARGO_NET_RETRY: 20
+  CARGO_HTTP_MULTIPLEXING: false
 
 jobs:
   check-ubuntu:

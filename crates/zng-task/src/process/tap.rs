@@ -279,18 +279,12 @@ pub struct PanicInfo {
     pub backtrace: Txt,
 }
 
-/// Alternate mode `{:#}` prints full backtrace.
+/// Alternate mode `{:#}` writes raw backtrace without cleanup and code snippets.
+///
+/// See also [`PanicInfo::display_no_backtrace`]
 impl fmt::Display for PanicInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "thread '{}'", self.thread)?;
-        writeln!(f, " panicked at {}:{}:{}:", self.file, self.line, self.column)?;
-        for line in self.message.lines() {
-            writeln!(f, "   {line}")?;
-        }
-        if !self.widget_path.is_empty() {
-            writeln!(f, "widget path:\n   {}", self.widget_path)?;
-        }
-
+        fmt::Display::fmt(&self.display_no_backtrace(), f)?;
         if f.alternate() {
             writeln!(f, "stack backtrace:\n{}", self.backtrace)
         } else {
@@ -308,6 +302,26 @@ impl fmt::Display for PanicInfo {
             }
             Ok(())
         }
+    }
+}
+impl PanicInfo {
+    /// Returns an object that implements [`fmt::Display`] to write only the thread name, location, message and widget path.
+    pub fn display_no_backtrace(&self) -> impl fmt::Display {
+        struct D<'a>(&'a PanicInfo);
+        impl<'a> fmt::Display for D<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let p = &self.0;
+                writeln!(f, "thread '{}' panicked at {}:{}:{}:", p.thread, p.file, p.line, p.column)?;
+                for line in p.message.lines() {
+                    writeln!(f, "   {line}")?;
+                }
+                if !p.widget_path.is_empty() {
+                    writeln!(f, "widget path:\n   {}", p.widget_path)?;
+                }
+                Ok(())
+            }
+        }
+        D(self)
     }
 }
 impl PanicInfo {
@@ -590,13 +604,30 @@ impl PanicInfo {
     ///
     /// The `widget_trace_path` should be a closure that return `WIDGET.trace_path()` if the process can run
     /// an `APP`, otherwise it must be `Txt::default`.
+    ///
+    /// The panic hook calls simply [`eprint_panic`].
+    ///
+    /// [`eprint_panic`]: PanicInfo::eprint_panic
     pub fn set_hook(widget_trace_path: impl Fn() -> Txt + Send + Sync + 'static) {
         std::panic::set_hook(Box::new(move |a| {
-            let backtrace = std::backtrace::Backtrace::capture();
             let path = widget_trace_path();
-            let panic = PanicFromHook::from_hook(a);
-            eprintln!("{panic}widget path:\n   {path}\nstack backtrace:\n{backtrace}");
+            Self::eprint_panic(a, &path);
         }));
+    }
+
+    /// Print panic to stderr in a format compatible with [`PanicInfo`] parsing.
+    ///
+    /// This function is called by the hook set by [`set_hook`].
+    ///
+    /// [`set_hook`]: PanicInfo::set_hook
+    pub fn eprint_panic(info: &std::panic::PanicHookInfo, widget_trace_path: &str) {
+        let backtrace = std::backtrace::Backtrace::capture();
+        let panic = PanicFromHook::from_hook(info);
+        if widget_trace_path.is_empty() {
+            eprintln!("{panic}\nstack backtrace:\n{backtrace}");
+        } else {
+            eprintln!("{panic}widget path:\n   {widget_trace_path}\nstack backtrace:\n{backtrace}");
+        }
     }
 }
 

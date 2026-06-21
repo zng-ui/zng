@@ -1,5 +1,6 @@
 # Unreleased
 
+* View-process crash respawn now logs panic location and message extracted from stderr.
 * Add `WorkerCrashError::stderr` and helper methods.
 * Add `zng::task::process::tap::PanicInfo` for parsing panic printouts from captured stderr.
 * Fix `zng::task::process` not included when `"ipc"` feature is not enabled.

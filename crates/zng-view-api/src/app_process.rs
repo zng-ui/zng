@@ -1,3 +1,5 @@
+#![cfg_attr(not(ipc), allow(unused))]
+
 use std::{
     collections::HashMap,
     panic,
@@ -32,6 +34,11 @@ enum ViewState {
     Suspended,
 }
 
+#[cfg(ipc)]
+use zng_task::process::tap::StderrTap;
+#[cfg(not(ipc))]
+struct StderrTap;
+
 /// View Process controller, used in the App Process.
 ///
 /// # Exit
@@ -44,9 +51,8 @@ enum ViewState {
 ///
 /// [killed]: std::process::Child::kill
 /// [exits]: std::process::exit
-#[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
-    process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
+    process: Arc<Mutex<Option<(std::process::Child, StderrTap, bool)>>>,
     view_state: ViewState,
     generation: ViewProcessGen,
     is_respawn: bool,
@@ -109,11 +115,18 @@ impl Controller {
         let (process, request_sender, response_receiver, event_receiver) =
             Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
         let same_process = process.is_none();
-        let process = Arc::new(Mutex::new(process.map(|p| (p, false))));
+        let process = Arc::new(Mutex::new(process.map(|(p, e)| (p, e, false))));
         let ev = if same_process {
             Self::spawn_same_process_listener(on_event, event_receiver, ViewProcessGen::first())
         } else {
-            Self::spawn_other_process_listener(on_event, event_receiver, process.clone(), ViewProcessGen::first())
+            #[cfg(ipc)]
+            {
+                Self::spawn_other_process_listener(on_event, event_receiver, process.clone(), ViewProcessGen::first())
+            }
+            #[cfg(not(ipc))]
+            {
+                unreachable!()
+            }
         };
 
         let mut c = Controller {
@@ -156,10 +169,11 @@ impl Controller {
             })
             .expect("failed to spawn thread")
     }
+    #[cfg(ipc)]
     fn spawn_other_process_listener(
         mut on_event: Box<dyn FnMut(Event) + Send>,
         mut event_receiver: EventReceiver,
-        process: Arc<Mutex<Option<(std::process::Child, bool)>>>,
+        process: Arc<Mutex<Option<(std::process::Child, StderrTap, bool)>>>,
         generation: ViewProcessGen,
     ) -> std::thread::JoinHandle<Box<dyn FnMut(Event) + Send>> {
         // spawns a thread that receives view-process events and monitors for process responsiveness
@@ -189,7 +203,7 @@ impl Controller {
                                             if check_count == timeout {
                                                 tracing::error!("view-process not responding for {timeout}s, will respawn");
                                                 let _ = p.0.kill();
-                                                p.1 = true;
+                                                p.2 = true;
                                                 break;
                                             }
                                         }
@@ -292,12 +306,13 @@ impl Controller {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn spawn_view_process(
         view_process_exe: &Path,
         view_process_env: &HashMap<Txt, Txt>,
         headless: bool,
     ) -> AnyResult<(
-        Option<std::process::Child>,
+        Option<(std::process::Child, StderrTap)>,
         ipc::RequestSender,
         ipc::ResponseReceiver,
         ipc::EventReceiver,
@@ -327,13 +342,17 @@ impl Controller {
                 for (name, val) in view_process_env {
                     process.env(name, val);
                 }
-                let process = process
+                let mut process = process
                     .env(VIEW_VERSION, crate::VERSION)
                     .env(VIEW_SERVER, init.name())
                     .env(VIEW_MODE, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
-                    .spawn()?; // !!: TODO tap stderr
-                Some(process)
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?;
+
+                let stderr = StderrTap::new_blocking(process.stderr.take().unwrap());
+
+                Some((process, stderr))
             }
         };
 
@@ -341,7 +360,7 @@ impl Controller {
             Ok(r) => r,
             Err(e) => {
                 #[cfg(ipc)]
-                if let Some(mut p) = process {
+                if let Some((mut p, _)) = process {
                     if let Err(ke) = p.kill() {
                         tracing::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {e:?}\n kill error: {ke:?}",
@@ -459,7 +478,7 @@ impl Controller {
         self.view_state = ViewState::NotRunning;
         self.is_respawn = true;
 
-        let (mut process, mut killed_by_us) = if let Some(p) = self.process.lock().take() {
+        let (mut process, stderr, mut killed_by_us) = if let Some(p) = self.process.lock().take() {
             p
         } else {
             if self.same_process {
@@ -547,7 +566,13 @@ impl Controller {
             if !killed_by_us {
                 let code = code.unwrap_or(0);
                 let signal = signal.unwrap_or(0);
-                tracing::error!(target: "vp_respawn", "view-process exit code: {code:#X}, signal: {signal}");
+                if code == 101
+                    && let Ok(panic) = stderr.into_panic_blocking()
+                {
+                    tracing::error!(target: "vp_respawn", "view-process exit code: {code:#X}, signal: {signal}, panic: {}", panic.display_no_backtrace());
+                } else {
+                    tracing::error!(target: "vp_respawn", "view-process exit code: {code:#X}, signal: {signal}");
+                }
             }
 
             if ViewConfig::is_version_err(code, None) {
@@ -583,7 +608,8 @@ impl Controller {
         };
 
         // update connections
-        self.process = Arc::new(Mutex::new(Some((new_process.unwrap(), false))));
+        let (new_process, new_stderr) = new_process.unwrap();
+        self.process = Arc::new(Mutex::new(Some((new_process, new_stderr, false))));
         self.request_sender = request;
         self.response_receiver = response;
 
@@ -603,7 +629,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(ipc)]
-        if let Some((mut process, _)) = self.process.lock().take()
+        if let Some((mut process, _, _)) = self.process.lock().take()
             && process.try_wait().is_err()
         {
             std::thread::sleep(Duration::from_secs(1));
