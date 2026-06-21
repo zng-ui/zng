@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `ContextMenu!` in `Markdown!` and `AnsiText!` having the parent text font and size.
 * View-process crash respawn now logs panic location and message extracted from stderr.
 * Add `WorkerCrashError::stderr` and helper methods.
 * Add `zng::task::process::tap::PanicInfo` for parsing panic printouts from captured stderr.

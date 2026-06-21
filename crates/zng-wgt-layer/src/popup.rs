@@ -376,6 +376,17 @@ pub enum ContextCapture {
         over: bool,
     },
 }
+impl ContextCapture {
+    /// Captures all context-vars except those added to the set by `exclude`.
+    ///
+    /// The variables blend over the node context.
+    pub fn context_vars_except(exclude: impl FnOnce(&mut ContextValueSet)) -> Self {
+        ContextCapture::CaptureBlend {
+            filter: CaptureFilter::context_vars_except(exclude),
+            over: true,
+        }
+    }
+}
 impl Default for ContextCapture {
     /// Captures all context-vars by default, and blend then over the node context.
     fn default() -> Self {

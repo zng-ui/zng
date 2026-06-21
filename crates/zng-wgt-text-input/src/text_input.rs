@@ -111,21 +111,7 @@ pub fn default_selection_toolbar(args: text::SelectionToolbarArgs) -> UiNode {
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
 pub fn default_popup_context_capture() -> popup::ContextCapture {
-    popup::ContextCapture::CaptureBlend {
-        filter: CaptureFilter::ContextVars {
-            exclude: {
-                let mut exclude = ContextValueSet::new();
-                Text::context_vars_set(&mut exclude);
-
-                let mut allow = ContextValueSet::new();
-                LangMix::<()>::context_vars_set(&mut allow);
-                exclude.remove_all(&allow);
-
-                exclude
-            },
-        },
-        over: false,
-    }
+    popup::ContextCapture::context_vars_except(Text::context_vars_set_except_lang)
 }
 
 /// Text input default style.

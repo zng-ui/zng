@@ -124,6 +124,12 @@ pub struct Text(
 impl Text {
     /// Context variables used by properties in text.
     pub fn context_vars_set(set: &mut ContextValueSet) {
+        Self::context_vars_set_except_lang(set);
+        LangMix::<()>::context_vars_set(set);
+    }
+
+    /// Context variables used by properties in text, except [`LangMix::context_vars_set`].
+    pub fn context_vars_set_except_lang(set: &mut ContextValueSet) {
         FontMix::<()>::context_vars_set(set);
         TextFillMix::<()>::context_vars_set(set);
         TextAlignMix::<()>::context_vars_set(set);
@@ -135,8 +141,6 @@ impl Text {
         TextEditMix::<()>::context_vars_set(set);
         SelectionToolbarMix::<()>::context_vars_set(set);
         TextInspectMix::<()>::context_vars_set(set);
-
-        LangMix::<()>::context_vars_set(set);
     }
 }
 
