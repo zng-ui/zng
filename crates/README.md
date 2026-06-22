@@ -11,7 +11,7 @@ crate provides the documentation, it re-exports or wraps the proc-macros in decl
 
 ### Foundation
 
-Foundation crates define primitive types and utilities, they are used by all other crates.
+Foundation crates define primitive types and utilities, they are used by other project crates.
 
 - `zng-unique-id`
 - `zng-clone-move`
@@ -30,7 +30,6 @@ Foundation crates define primitive types and utilities, they are used by all oth
 - `zng-color`
     - `zng-color-proc-macros`
 - `zng-time`
-- `zng-tp-licenses`
 
 ### View
 
@@ -69,6 +68,7 @@ with prefix `zng-ext-`.
 - `zng-ext-hot-reload`
     - `zng-ext-hot-reload-proc-macros`
 - `zng-ext-image`
+    - `zng-ext-svg`
 - `zng-ext-audio`
 - `zng-ext-clipboard`
 - `zng-ext-window`
@@ -122,6 +122,12 @@ or for custom properties that deeply integrate with a widget.
 - `zng-wgt-material-icons`
 - `zng-wgt-webrender-debug`
 
+### App Build
+
+Miscellaneous crates that provide APIs as both `[build-dependencies]` and `[dependencies]`.
+
+- `zng-tp-licenses`
+
 ### Tools
 
 Tools that can be installed by cargo for use in Zng apps.
@@ -132,8 +138,7 @@ Tools that can be installed by cargo for use in Zng apps.
 ### Webrender
 
 The Zng project publishes a fork of [`servo/webrender`] called [`zng-ui/zng-webrender`]. The fork code has minimal
-modification, the crates uses by the Zng project are renamed with the `zng-` prefix and some Mozilla specific
-dependencies are removed.
+modification, the crates uses by the Zng project are renamed with the `zng-` prefix and some small patches applied.
 
 [`servo/webrender`]: https://github.com/servo/webrender
 [`zng-ui/zng-webrender`]: https://github.com/zng-ui/zng-webrender
