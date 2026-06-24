@@ -400,3 +400,8 @@ impl<I: VarValue> ops::Index<usize> for VarMergeInputs<'_, I> {
         self.inputs[index].downcast_ref().unwrap()
     }
 }
+impl<I: VarValue> fmt::Debug for VarMergeInputs<'_, I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt::Debug::fmt(self.inputs, f)
+    }
+}
