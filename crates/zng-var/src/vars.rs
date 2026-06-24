@@ -453,7 +453,7 @@ impl VARS {
         tracing::error!(
             "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
             will skip next updates"
-        );        
+        );
     }
 
     fn animate_impl(&self, mut animation: SmallBox<dyn FnMut(&Animation) + Send + 'static, smallbox::space::S4>) -> AnimationHandle {
