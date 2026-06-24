@@ -148,6 +148,7 @@ fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
                                 // already applied
                                 return;
                             }
+                            m.1 = m.1.wrapping_add(1);
 
                             let new_value = m.0(&data.inputs);
                             output.set(new_value);
@@ -323,7 +324,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
         self.inputs.push(input.into_merge_input().into())
     }
 
-    /// Build the merge var.
+    /// Build a red-only merge var.
     pub fn build<O: VarValue>(self, merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
         if self.inputs.iter().any(|i| i.capabilities().is_contextual()) {
             let merge = Arc::new(Mutex::new(merge));
@@ -338,7 +339,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
         self.build_tail(merge)
     }
     fn build_tail<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
-        let any = var_merge_impl(
+        let any = var_merge_tail(
             self.inputs.into_boxed_slice(),
             smallbox!(move |vars: &[AnyVar]| {
                 let values: Box<[BoxAnyVarValue]> = vars.iter().map(|v| v.get()).collect();
@@ -348,7 +349,6 @@ impl<I: VarValue> MergeVarBuilder<I> {
                 });
                 BoxAnyVarValue::new(out)
             }),
-            TypeId::of::<O>(),
         );
         Var::new_any(any)
     }
