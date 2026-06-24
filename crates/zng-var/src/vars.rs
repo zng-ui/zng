@@ -1,6 +1,6 @@
 //!: Vars service.
 
-use std::{mem, sync::Arc, thread::ThreadId, time::Duration};
+use std::{mem, sync::Arc, time::Duration};
 
 use parking_lot::Mutex;
 use smallbox::SmallBox;
@@ -55,6 +55,30 @@ context_local! {
 
 type AnimationFn = SmallBox<dyn FnMut(AnimationUpdateInfo) -> Option<Deadline> + Send, smallbox::space::S8>;
 
+#[derive(Default)]
+struct UpdatesBuf {
+    updates: Vec<(ModifyInfo, VarUpdateFn)>,
+    reuse: Vec<(ModifyInfo, VarUpdateFn)>,
+}
+impl UpdatesBuf {
+    fn push(&mut self, info: ModifyInfo, update: VarUpdateFn) {
+        self.updates.push((info, update));
+    }
+
+    fn begin_updates(&mut self) -> Option<Vec<(ModifyInfo, VarUpdateFn)>> {
+        if self.updates.is_empty() {
+            return None;
+        }
+        mem::swap(&mut self.updates, &mut self.reuse);
+        Some(mem::take(&mut self.reuse))
+    }
+
+    fn end_updates(&mut self, updates: Vec<(ModifyInfo, VarUpdateFn)>) {
+        debug_assert!(updates.is_empty());
+        self.reuse = updates;
+    }
+}
+
 pub(crate) struct VarsService {
     // animation config
     animations_enabled: Var<bool>,
@@ -71,9 +95,7 @@ pub(crate) struct VarsService {
 
     // update state
     update_id: VarUpdateId,
-    updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
-    updating_thread: Option<ThreadId>,
-    updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
+    updates: Mutex<UpdatesBuf>,
 
     // animations state
     ans_animations: Mutex<Vec<AnimationFn>>,
@@ -97,9 +119,7 @@ impl VarsService {
             perm: Mutex::new(vec![]),
 
             update_id: VarUpdateId::never(),
-            updates: Mutex::new(vec![]),
-            updating_thread: None,
-            updates_after: Mutex::new(vec![]),
+            updates: Mutex::default(),
 
             ans_animations: Mutex::new(vec![]),
             ans_animation_imp: 0,
@@ -359,7 +379,7 @@ impl VARS_APP {
     ///
     /// [`apply_updates`]: Self::apply_updates
     pub fn has_pending_updates(&self) -> bool {
-        !VARS_SV.write().updates.get_mut().is_empty()
+        !VARS_SV.write().updates.get_mut().updates.is_empty()
     }
 
     /// Sets the `sys_animations_enabled` read-only variable.
@@ -373,7 +393,7 @@ impl VARS_APP {
     pub fn apply_updates(&self) {
         let _s = tracing::trace_span!("VARS").entered();
         let _t = INSTANT_APP.pause_for_update();
-        VARS.apply_updates_and_after(0)
+        VARS.apply_updates_impl()
     }
 
     /// Does one animation frame if the frame duration has elapsed.
@@ -402,82 +422,38 @@ impl VARS {
             None => vars.ans_current_modify.clone(),
         };
 
-        if let Some(id) = vars.updating_thread {
-            if std::thread::current().id() == id {
-                // is binding request, enqueue for immediate exec.
-                vars.updates.lock().push((cur_modify, update));
-            } else {
-                // is request from app task thread when we are already updating, enqueue for exec after current update.
-                vars.updates_after.lock().push((cur_modify, update));
-            }
-        } else {
-            // request from any app thread,
-            vars.updates.lock().push((cur_modify, update));
-            vars.wake_app();
-        }
+        vars.updates.lock().push(cur_modify, update);
+        vars.wake_app();
     }
 
-    fn apply_updates_and_after(&self, depth: u8) {
+    fn apply_updates_impl(&self) {
         let mut vars = VARS_SV.write();
 
-        match depth {
-            0 => {
-                vars.update_id.next();
-                vars.ans_animation_start_time = None;
-            }
-            10 => {
-                // high-pressure from worker threads, skip
-                return;
-            }
-            _ => {}
-        }
+        vars.update_id.next();
+        vars.ans_animation_start_time = None;
 
-        // updates requested by other threads while was applying updates
-        let mut updates = mem::take(vars.updates_after.get_mut());
-        // normal updates
-        if updates.is_empty() {
-            updates = mem::take(vars.updates.get_mut());
-        } else {
-            updates.append(vars.updates.get_mut());
-        }
-        // apply pending updates
-        if !updates.is_empty() {
-            debug_assert!(vars.updating_thread.is_none());
-            vars.updating_thread = Some(std::thread::current().id());
-
-            drop(vars);
-            update_each_and_bindings(updates, 0);
-
-            vars = VARS_SV.write();
-            vars.updating_thread = None;
-
-            if !vars.updates_after.get_mut().is_empty() {
+        for _ in 0..1000 {
+            // apply pending updates
+            if let Some(mut updates) = vars.updates.get_mut().begin_updates() {
                 drop(vars);
-                VARS.apply_updates_and_after(depth + 1)
-            }
-        }
 
-        fn update_each_and_bindings(updates: Vec<(ModifyInfo, VarUpdateFn)>, depth: u16) {
-            if depth == 1000 {
-                tracing::error!(
-                    "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
-                    will skip next updates"
-                );
-                return;
-            }
+                for (info, mut update) in updates.drain(..) {
+                    #[allow(clippy::redundant_closure)] // false positive
+                    VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), || (update)());
+                }
 
-            for (info, mut update) in updates {
-                #[allow(clippy::redundant_closure)] // false positive
-                VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), || (update)());
-
-                let mut vars = VARS_SV.write();
-                let updates = mem::take(vars.updates.get_mut());
-                if !updates.is_empty() {
-                    drop(vars);
-                    update_each_and_bindings(updates, depth + 1);
+                vars = VARS_SV.write();
+                vars.updates.get_mut().end_updates(updates);
+                if !vars.updates.get_mut().updates.is_empty() {
+                    continue;
                 }
             }
+            return;
         }
+        tracing::error!(
+            "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
+            will skip next updates"
+        );        
     }
 
     fn animate_impl(&self, mut animation: SmallBox<dyn FnMut(&Animation) + Send + 'static, smallbox::space::S4>) -> AnimationHandle {
