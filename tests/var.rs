@@ -302,7 +302,7 @@ mod bindings {
     }
 
     #[test]
-    fn binding_update_order() {
+    fn binding_update_order1() {
         let mut app = APP.minimal().run_headless(false);
 
         let a = var(0);
