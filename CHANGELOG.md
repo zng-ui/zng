@@ -1,9 +1,5 @@
 # Unreleased
 
-* Fix var bindings not updating in the order documented in `zng::app`.
-    - Changes caused by hooks now do not skip line.
-    - Fixes `merge_var!` and `expr_var!` generating output multiple times when multiple inputs update on the same cycle.
-
 # 0.23.2
 
 * **Deprecated** `yield_until_app` in `on_process_start!` args.

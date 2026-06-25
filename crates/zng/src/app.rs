@@ -279,6 +279,7 @@
 //! 2. Var hooks are called.
 //!     * The mapping and binding mechanism is implemented using hooks.
 //! 3. The loop repeats until hooks have stopped modifying variables.
+//!     * Modifications requested by a hook apply immediately after it.
 //!     * The loop breaks if it repeats over 1000 times.
 //!     * An error is logged if this happens.
 //!
