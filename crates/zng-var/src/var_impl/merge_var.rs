@@ -51,7 +51,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use smallbox::{SmallBox, smallbox};
+use smallbox::SmallBox;
 use zng_clone_move::clmv;
 use zng_txt::Txt;
 #[doc(hidden)]
@@ -59,7 +59,7 @@ pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
     AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, DynAnyVar, DynWeakAnyVar, Response, ResponseVar, Var, VarHandle, VarImpl,
-    VarInstanceTag, VarValue, WeakVarImpl, any_contextual_var, any_var, contextual_var,
+    VarInstanceTag, VarValue, WeakVarImpl, any_contextual_var, any_var,
 };
 
 use super::VarCapability;
@@ -81,7 +81,7 @@ pub fn merge_var_output<O: VarValue>(output: O) -> BoxAnyVarValue {
 
 #[doc(hidden)]
 pub fn merge_var<O: VarValue>(inputs: Box<[AnyVar]>, merge: impl FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static) -> Var<O> {
-    Var::new_any(var_merge_impl(inputs, smallbox!(merge), TypeId::of::<O>()))
+    Var::new_any(merge_var_impl(inputs, Arc::new(Mutex::new(merge)), TypeId::of::<O>()))
 }
 
 #[doc(hidden)]
@@ -105,9 +105,8 @@ impl<T: VarValue> MergeInput<Response<T>> for ResponseVar<T> {
     }
 }
 
-fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn, value_type: TypeId) -> AnyVar {
+fn merge_var_impl(inputs: Box<[AnyVar]>, merge: MergeFn, value_type: TypeId) -> AnyVar {
     if inputs.iter().any(|i| i.capabilities().is_contextual()) {
-        let merge = Arc::new(Mutex::new(merge));
         return any_contextual_var(
             move || {
                 let mut inputs = inputs.clone();
@@ -116,20 +115,16 @@ fn var_merge_impl(inputs: Box<[AnyVar]>, merge: MergeFn, value_type: TypeId) -> 
                         *v = v.current_context();
                     }
                 }
-                var_merge_tail(inputs, smallbox!(clmv!(merge, |inputs: &[AnyVar]| { merge.lock()(inputs) })))
+                merge_var_tail(inputs, merge.clone())
             },
             value_type,
         );
     }
-    var_merge_tail(inputs, merge)
+    merge_var_tail(inputs, merge)
 }
-fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
-    let output = any_var(merge(&inputs));
-    let data = Arc::new(MergeVarData {
-        inputs,
-        merge: Mutex::new(merge),
-        output,
-    });
+fn merge_var_tail(inputs: Box<[AnyVar]>, merge: MergeFn) -> AnyVar {
+    let output = any_var(merge.lock()(&inputs));
+    let data = Arc::new(MergeVarData { inputs, merge, output });
 
     for input in &data.inputs {
         let weak = Arc::downgrade(&data);
@@ -161,11 +156,11 @@ fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
     AnyVar(DynAnyVar::Merge(MergeVar(data)))
 }
 
-type MergeFn = SmallBox<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static, smallbox::space::S4>;
+type MergeFn = Arc<Mutex<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static>>;
 
 struct MergeVarData {
     inputs: Box<[AnyVar]>,
-    merge: Mutex<MergeFn>,
+    merge: MergeFn,
     output: AnyVar,
 }
 
@@ -292,17 +287,83 @@ impl WeakVarImpl for WeakMergeVar {
     }
 }
 
+/// Build a [`merge_var!`] from any number of input vars of any type.
+#[derive(Clone)]
+pub struct AnyMergeVarBuilder {
+    inputs: Vec<AnyVar>,
+}
+impl Default for AnyMergeVarBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl AnyMergeVarBuilder {
+    /// new empty.
+    pub fn new() -> Self {
+        Self { inputs: vec![] }
+    }
+
+    /// New with pre-allocated inputs.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            inputs: Vec::with_capacity(capacity),
+        }
+    }
+
+    /// Push an input.
+    pub fn push(&mut self, input: AnyVar) {
+        self.inputs.push(input);
+    }
+
+    fn read_only_inputs(self) -> Box<[AnyVar]> {
+        let mut inputs = self.inputs;
+        for input in &mut inputs {
+            if !input.capabilities().is_always_read_only() {
+                let v = input.read_only();
+                *input = v;
+            }
+        }
+        inputs.into_boxed_slice()
+    }
+
+    /// Build a read-only merge var.
+    pub fn build_any(self, merge: impl FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static, output_type: TypeId) -> AnyVar {
+        merge_var_impl(self.read_only_inputs(), Arc::new(Mutex::new(merge)), output_type)
+    }
+
+    /// Build a read-only strongly typed merge var.
+    pub fn build<O: VarValue>(self, mut merge: impl FnMut(&[AnyVar]) -> O + Send + 'static) -> Var<O> {
+        merge_var(self.read_only_inputs(), move |inputs| BoxAnyVarValue::new(merge(inputs)))
+    }
+
+    /// Convert into a [`MergeVarBuilder<I>`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if any input is not of type `I`.
+    pub fn into_typed<I: VarValue>(self) -> MergeVarBuilder<I> {
+        let i_id = TypeId::of::<I>();
+        for input in &self.inputs {
+            assert_eq!(i_id, input.value_type());
+        }
+        MergeVarBuilder {
+            builder: self,
+            _type: PhantomData,
+        }
+    }
+}
+
 /// Build a [`merge_var!`] from any number of input vars of the same type `I`.
 #[derive(Clone)]
 pub struct MergeVarBuilder<I: VarValue> {
-    inputs: Vec<AnyVar>,
+    builder: AnyMergeVarBuilder,
     _type: PhantomData<fn() -> I>,
 }
 impl<I: VarValue> MergeVarBuilder<I> {
     /// New empty.
     pub fn new() -> Self {
         Self {
-            inputs: vec![],
+            builder: AnyMergeVarBuilder::new(),
             _type: PhantomData,
         }
     }
@@ -310,43 +371,27 @@ impl<I: VarValue> MergeVarBuilder<I> {
     /// New with pre-allocated inputs.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            inputs: Vec::with_capacity(capacity),
+            builder: AnyMergeVarBuilder::with_capacity(capacity),
             _type: PhantomData,
         }
     }
 
     /// Push an input.
     pub fn push(&mut self, input: impl MergeInput<I>) {
-        self.inputs.push(input.into_merge_input().into())
+        self.builder.push(input.into_merge_input().into())
     }
 
     /// Build a red-only merge var.
-    pub fn build<O: VarValue>(self, merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
-        if self.inputs.iter().any(|i| i.capabilities().is_contextual()) {
-            let merge = Arc::new(Mutex::new(merge));
-            return contextual_var(move || {
-                let builder = MergeVarBuilder {
-                    inputs: self.inputs.iter().map(|v| v.current_context()).collect(),
-                    _type: PhantomData,
-                };
-                builder.build_tail(clmv!(merge, |inputs| merge.lock()(inputs)))
-            });
-        }
-        self.build_tail(merge)
-    }
-    fn build_tail<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
-        let any = var_merge_tail(
-            self.inputs.into_boxed_slice(),
-            smallbox!(move |vars: &[AnyVar]| {
-                let values: Box<[BoxAnyVarValue]> = vars.iter().map(|v| v.get()).collect();
-                let out = merge(VarMergeInputs {
-                    inputs: &values[..],
-                    _type: PhantomData,
-                });
-                BoxAnyVarValue::new(out)
-            }),
-        );
-        Var::new_any(any)
+    pub fn build<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
+        self.builder.build(move |inputs| {
+            // TODO(breaking) optimize this so that we don't need to alloc vec,
+            // maybe VarMergeInputs can offer an with(&self, index: usize, visitor...)
+            let values: Vec<_> = inputs.iter().map(AnyVar::get).collect();
+            merge(VarMergeInputs {
+                inputs: &values,
+                _type: PhantomData,
+            })
+        })
     }
 }
 impl<I: VarValue> Default for MergeVarBuilder<I> {
@@ -374,6 +419,7 @@ impl<T: VarValue + AsRef<str>> MergeVarBuilder<T> {
 
 /// Input arguments for the merge closure of [`MergeVarBuilder`] merge vars.
 pub struct VarMergeInputs<'a, I: VarValue> {
+    // TODO(breaking) rename to MergeVarInputs
     inputs: &'a [BoxAnyVarValue],
     _type: PhantomData<&'a I>,
 }
