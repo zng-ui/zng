@@ -11,7 +11,7 @@ use zng_var::impl_from_and_into_var;
 #[derive(Clone)]
 pub struct Progress {
     factor: Factor,
-    msg: Txt,
+    msg: Txt, // TODO(breaking) change  this to Var<Txt>, so contextual `l10n!` text can be set from tasks.
     meta: Arc<RwLock<OwnedStateMap<Progress>>>,
 }
 impl Progress {

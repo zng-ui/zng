@@ -470,6 +470,8 @@ impl VARS {
                 #[allow(clippy::redundant_closure)] // false positive
                 VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), || (update)());
 
+                // propagate bindings immediately, services operating on hooks expect
+                // binding effects to propagate fully before next hook
                 let mut vars = VARS_SV.write();
                 let updates = mem::take(vars.updates.get_mut());
                 if !updates.is_empty() {

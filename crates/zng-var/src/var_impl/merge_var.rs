@@ -127,30 +127,27 @@ fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
     let output = any_var(merge(&inputs));
     let data = Arc::new(MergeVarData {
         inputs,
-        merge: Mutex::new((merge, 0)),
+        merge: Mutex::new(merge),
         output,
     });
 
     for input in &data.inputs {
         let weak = Arc::downgrade(&data);
         input
-            .hook(move |_| {
+            .hook(move |a| {
                 if let Some(data) = weak.upgrade() {
-                    // Multiple inputs can update on the same cycle,
-                    // to avoid running merge multiple times schedule an output modify
-                    // so it runs after the current burst on the same cycle, and use
-                    // this counter to skip subsequent modify requests on the same cycle
-                    let modify_id = data.merge.lock().1;
+                    // modify on each input update, if multiple inputs update on the same cycle
+                    // modify multiple times anyway, because services may be responding to the
+                    // *partial* merge state as it happens.
+                    let update = a.update();
                     data.output.modify(clmv!(weak, |output| {
                         if let Some(data) = weak.upgrade() {
                             let mut m = data.merge.lock();
-                            if m.1 != modify_id {
-                                // already applied
-                                return;
-                            }
-
-                            let new_value = m.0(&data.inputs);
+                            let new_value = m(&data.inputs);
                             output.set(new_value);
+                            if update {
+                                output.update();
+                            }
                         }
                     }));
                     true
@@ -168,7 +165,7 @@ type MergeFn = SmallBox<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static,
 
 struct MergeVarData {
     inputs: Box<[AnyVar]>,
-    merge: Mutex<(MergeFn, usize)>,
+    merge: Mutex<MergeFn>,
     output: AnyVar,
 }
 
@@ -323,7 +320,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
         self.inputs.push(input.into_merge_input().into())
     }
 
-    /// Build the merge var.
+    /// Build a red-only merge var.
     pub fn build<O: VarValue>(self, merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
         if self.inputs.iter().any(|i| i.capabilities().is_contextual()) {
             let merge = Arc::new(Mutex::new(merge));
@@ -338,7 +335,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
         self.build_tail(merge)
     }
     fn build_tail<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
-        let any = var_merge_impl(
+        let any = var_merge_tail(
             self.inputs.into_boxed_slice(),
             smallbox!(move |vars: &[AnyVar]| {
                 let values: Box<[BoxAnyVarValue]> = vars.iter().map(|v| v.get()).collect();
@@ -348,7 +345,6 @@ impl<I: VarValue> MergeVarBuilder<I> {
                 });
                 BoxAnyVarValue::new(out)
             }),
-            TypeId::of::<O>(),
         );
         Var::new_any(any)
     }
@@ -398,5 +394,10 @@ impl<I: VarValue> ops::Index<usize> for VarMergeInputs<'_, I> {
 
     fn index(&self, index: usize) -> &Self::Output {
         self.inputs[index].downcast_ref().unwrap()
+    }
+}
+impl<I: VarValue> fmt::Debug for VarMergeInputs<'_, I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt::Debug::fmt(self.inputs, f)
     }
 }
