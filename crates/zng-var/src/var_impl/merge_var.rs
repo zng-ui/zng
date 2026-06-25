@@ -127,31 +127,27 @@ fn var_merge_tail(inputs: Box<[AnyVar]>, mut merge: MergeFn) -> AnyVar {
     let output = any_var(merge(&inputs));
     let data = Arc::new(MergeVarData {
         inputs,
-        merge: Mutex::new((merge, 0)),
+        merge: Mutex::new(merge),
         output,
     });
 
     for input in &data.inputs {
         let weak = Arc::downgrade(&data);
         input
-            .hook(move |_| {
+            .hook(move |a| {
                 if let Some(data) = weak.upgrade() {
-                    // Multiple inputs can update on the same cycle,
-                    // to avoid running merge multiple times schedule an output modify
-                    // so it runs after the current burst on the same cycle, and use
-                    // this counter to skip subsequent modify requests on the same cycle
-                    let modify_id = data.merge.lock().1;
+                    // modify on each input update, if multiple inputs update on the same cycle
+                    // modify multiple times anyway, because services may be responding to the
+                    // *partial* merge state as it happens.
+                    let update = a.update();
                     data.output.modify(clmv!(weak, |output| {
                         if let Some(data) = weak.upgrade() {
                             let mut m = data.merge.lock();
-                            if m.1 != modify_id {
-                                // already applied
-                                return;
-                            }
-                            m.1 = m.1.wrapping_add(1);
-
-                            let new_value = m.0(&data.inputs);
+                            let new_value = m(&data.inputs);
                             output.set(new_value);
+                            if update {
+                                output.update();
+                            }
                         }
                     }));
                     true
@@ -169,7 +165,7 @@ type MergeFn = SmallBox<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static,
 
 struct MergeVarData {
     inputs: Box<[AnyVar]>,
-    merge: Mutex<(MergeFn, usize)>,
+    merge: Mutex<MergeFn>,
     output: AnyVar,
 }
 
