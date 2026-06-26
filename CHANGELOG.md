@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
+* Add `zng::var::AnyMergeVarBuilder`.
+
 # 0.23.2
 
 * **Deprecated** `yield_until_app` in `on_process_start!` args.

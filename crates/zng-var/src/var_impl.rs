@@ -2,7 +2,7 @@ use std::{
     any::{Any, TypeId},
     fmt,
     marker::PhantomData,
-    ops,
+    mem, ops,
     sync::{Arc, atomic::AtomicBool},
 };
 
@@ -30,7 +30,8 @@ pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge_var;
 pub use merge_var::{
-    __merge_var, MergeInput, MergeVarBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output, merge_var_with,
+    __merge_var, AnyMergeVarBuilder, MergeInput, MergeVarBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output,
+    merge_var_with,
 };
 
 pub(crate) mod response_var;
@@ -44,7 +45,6 @@ pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
 pub(crate) enum DynAnyVar {
     Const(const_var::ConstVar),
-    Merge(merge_var::MergeVar),
     When(when_var::WhenVar),
 
     Shared(shared_var::SharedVar),
@@ -61,7 +61,6 @@ macro_rules! dispatch {
     ($self:ident, $var:ident => $($tt:tt)+) => {
         match $self {
             DynAnyVar::Const($var) => $($tt)+,
-            DynAnyVar::Merge($var) => $($tt)+,
             DynAnyVar::FlatMap($var) => $($tt)+,
             DynAnyVar::When($var) => $($tt)+,
 
@@ -84,7 +83,6 @@ impl fmt::Debug for DynAnyVar {
 
 pub(crate) enum DynWeakAnyVar {
     Const(const_var::WeakConstVar),
-    Merge(merge_var::WeakMergeVar),
     When(when_var::WeakWhenVar),
 
     Shared(shared_var::WeakSharedVar),
@@ -105,7 +103,6 @@ macro_rules! dispatch_weak {
             DynWeakAnyVar::Context($var) => $($tt)+,
             DynWeakAnyVar::Contextual($var) => $($tt)+,
             DynWeakAnyVar::FlatMap($var) => $($tt)+,
-            DynWeakAnyVar::Merge($var) => $($tt)+,
             DynWeakAnyVar::When($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyShared($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyContext($var) => $($tt)+,
@@ -402,6 +399,21 @@ impl<'a> AnyVarModify<'a> {
     pub fn value_mut(&mut self) -> &mut dyn AnyVarValue {
         &mut **self
     }
+
+    /// Call `f` and check if it touched the value ([`value_mut`] or [`deref_mut`]),
+    /// changed it ([`set`] returns `true`) or requested [`update`].
+    ///
+    /// [`value_mut`]: Self::value_mut
+    /// [`set`]: Self::set
+    /// [`update`]: Self::update
+    /// [`deref_mut`]: ops::DerefMut::deref_mut
+    pub fn check_update(&mut self, f: impl FnOnce(&mut Self)) -> bool {
+        let u = mem::replace(&mut self.update, VarModifyUpdate::empty());
+        f(self);
+        let has_update = !self.update.is_empty();
+        self.update |= u;
+        has_update
+    }
 }
 impl<'a> ops::Deref for AnyVarModify<'a> {
     type Target = dyn AnyVarValue;
@@ -486,6 +498,21 @@ impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
     /// Note that you can also simply deref to the value.
     pub fn value_mut(&mut self) -> &mut T {
         self
+    }
+
+    /// Call `f` and check if it touched the value ([`value_mut`] or [`deref_mut`]),
+    /// changed it ([`set`] returns `true`) or requested [`update`].
+    ///
+    /// [`value_mut`]: Self::value_mut
+    /// [`set`]: Self::set
+    /// [`update`]: Self::update
+    /// [`deref_mut`]: ops::DerefMut::deref_mut
+    pub fn check_update(&mut self, f: impl FnOnce(&mut Self)) -> bool {
+        let u = mem::replace(&mut self.inner.update, VarModifyUpdate::empty());
+        f(self);
+        let has_update = !self.inner.update.is_empty();
+        self.inner.update |= u;
+        has_update
     }
 }
 impl<'s, 'a, T: VarValue> ops::Deref for VarModify<'s, 'a, T> {
