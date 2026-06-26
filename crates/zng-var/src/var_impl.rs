@@ -45,7 +45,6 @@ pub use expr_var::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
 
 pub(crate) enum DynAnyVar {
     Const(const_var::ConstVar),
-    Merge(merge_var::MergeVar),
     When(when_var::WhenVar),
 
     Shared(shared_var::SharedVar),
@@ -62,7 +61,6 @@ macro_rules! dispatch {
     ($self:ident, $var:ident => $($tt:tt)+) => {
         match $self {
             DynAnyVar::Const($var) => $($tt)+,
-            DynAnyVar::Merge($var) => $($tt)+,
             DynAnyVar::FlatMap($var) => $($tt)+,
             DynAnyVar::When($var) => $($tt)+,
 
@@ -85,7 +83,6 @@ impl fmt::Debug for DynAnyVar {
 
 pub(crate) enum DynWeakAnyVar {
     Const(const_var::WeakConstVar),
-    Merge(merge_var::WeakMergeVar),
     When(when_var::WeakWhenVar),
 
     Shared(shared_var::WeakSharedVar),
@@ -106,7 +103,6 @@ macro_rules! dispatch_weak {
             DynWeakAnyVar::Context($var) => $($tt)+,
             DynWeakAnyVar::Contextual($var) => $($tt)+,
             DynWeakAnyVar::FlatMap($var) => $($tt)+,
-            DynWeakAnyVar::Merge($var) => $($tt)+,
             DynWeakAnyVar::When($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyShared($var) => $($tt)+,
             DynWeakAnyVar::ReadOnlyContext($var) => $($tt)+,
