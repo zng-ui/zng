@@ -2,7 +2,7 @@ use std::{
     any::{Any, TypeId},
     fmt,
     marker::PhantomData,
-    ops,
+    mem, ops,
     sync::{Arc, atomic::AtomicBool},
 };
 
@@ -399,6 +399,21 @@ impl<'a> AnyVarModify<'a> {
     pub fn value_mut(&mut self) -> &mut dyn AnyVarValue {
         &mut **self
     }
+
+    /// Call `f` and check if it touched the value ([`value_mut`] or [`deref_mut`]),
+    /// changed it ([`set`] returns `true`) or requested [`update`].
+    ///
+    /// [`value_mut`]: Self::value_mut
+    /// [`set`]: Self::set
+    /// [`update`]: Self::update
+    /// [`deref_mut`]: ops::DerefMut::deref_mut
+    pub fn check_update(&mut self, f: impl FnOnce(&mut Self)) -> bool {
+        let u = mem::replace(&mut self.update, VarModifyUpdate::empty());
+        f(self);
+        let has_update = !self.update.is_empty();
+        self.update |= u;
+        has_update
+    }
 }
 impl<'a> ops::Deref for AnyVarModify<'a> {
     type Target = dyn AnyVarValue;
@@ -483,6 +498,21 @@ impl<'s, 'a, T: VarValue> VarModify<'s, 'a, T> {
     /// Note that you can also simply deref to the value.
     pub fn value_mut(&mut self) -> &mut T {
         self
+    }
+
+    /// Call `f` and check if it touched the value ([`value_mut`] or [`deref_mut`]),
+    /// changed it ([`set`] returns `true`) or requested [`update`].
+    ///
+    /// [`value_mut`]: Self::value_mut
+    /// [`set`]: Self::set
+    /// [`update`]: Self::update
+    /// [`deref_mut`]: ops::DerefMut::deref_mut
+    pub fn check_update(&mut self, f: impl FnOnce(&mut Self)) -> bool {
+        let u = mem::replace(&mut self.inner.update, VarModifyUpdate::empty());
+        f(self);
+        let has_update = !self.inner.update.is_empty();
+        self.inner.update |= u;
+        has_update
     }
 }
 impl<'s, 'a, T: VarValue> ops::Deref for VarModify<'s, 'a, T> {

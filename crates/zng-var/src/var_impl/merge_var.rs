@@ -51,8 +51,8 @@ use zng_txt::Txt;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    AnyVar, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarModify, VarValue, WeakAnyVar,
-    any_contextual_var, any_var,
+    AnyVar, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarInstanceTag, VarModify,
+    VarValue, WeakAnyVar, any_contextual_var, any_var,
 };
 
 #[doc(hidden)]
@@ -259,6 +259,12 @@ fn merge_var_bidi_modify_tail(inputs: Box<[AnyVar]>, merge: MergeFn, modify_back
         modify_back,
         output_wk: output.downgrade(),
     });
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    struct InputToOutputTag(VarInstanceTag);
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    struct OutputToInputsTag(VarInstanceTag);
+    let input_to_output_tag = InputToOutputTag(output.var_instance_tag());
+    let output_to_inputs_tag = OutputToInputsTag(output.var_instance_tag());
     for input in &input_data.inputs {
         let input_data_wk = Arc::downgrade(&input_data);
         input
@@ -269,12 +275,19 @@ fn merge_var_bidi_modify_tail(inputs: Box<[AnyVar]>, merge: MergeFn, modify_back
                 if let Some(input_data) = input_data_wk.upgrade()
                     && let Some(output) = input_data.output_wk.upgrade()
                 {
+                    if a.contains_tag(&output_to_inputs_tag) {
+                        return true;
+                    }
+
                     let update = a.update();
                     output.modify(clmv!(input_data_wk, |output| if let Some(input_data) = input_data_wk.upgrade() {
                         let new_value = input_data.merge.lock()(&input_data.inputs);
-                        output.set(new_value);
+                        let changed = output.set(new_value);
                         if update {
                             output.update();
+                        }
+                        if changed || update {
+                            output.push_tag(input_to_output_tag);
                         }
                     }));
                     true
@@ -286,16 +299,28 @@ fn merge_var_bidi_modify_tail(inputs: Box<[AnyVar]>, merge: MergeFn, modify_back
     }
 
     output
-        .hook(move |_| {
+        .hook(move |a| {
+            if a.contains_tag(&input_to_output_tag) {
+                return true;
+            }
             for (i, input) in input_data.inputs.iter().enumerate() {
                 if input.capabilities().can_modify() {
                     let output_wk = input_data.output_wk.clone();
                     let modify_back = input_data.modify_back.clone();
+                    let update = a.update();
                     input.modify(move |m| {
                         if let Some(output) = output_wk.upgrade() {
-                            output.with(|o| {
-                                modify_back.lock()(o, i, m);
+                            let has_updated = m.check_update(|m| {
+                                output.with(|o| {
+                                    modify_back.lock()(o, i, m);
+                                });
+                                if update {
+                                    m.update();
+                                }
                             });
+                            if has_updated {
+                                m.push_tag(output_to_inputs_tag);
+                            }
                         }
                     });
                 }
@@ -508,7 +533,7 @@ impl<I: VarValue> MergeVarBuilder<I> {
                     _type: PhantomData,
                 })
             },
-            move |output, input_idx, m| modify_back(output, input_idx, VarModify { inner: m, _t: PhantomData }),
+            move |output, input_idx, m| modify_back(output, input_idx, m.downcast().unwrap()),
         )
     }
 }
