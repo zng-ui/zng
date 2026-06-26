@@ -42,13 +42,7 @@ macro_rules! merge_var {
 }
 
 use core::fmt;
-use std::{
-    any::TypeId,
-    fmt::Write as _,
-    marker::PhantomData,
-    ops,
-    sync::Arc,
-};
+use std::{any::TypeId, fmt::Write as _, marker::PhantomData, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::clmv;
@@ -57,9 +51,9 @@ use zng_txt::Txt;
 pub use zng_var_proc_macros::merge_var as __merge_var;
 
 use crate::{
-    AnyVar, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarValue, WeakAnyVar, any_contextual_var, any_var,
+    AnyVar, AnyVarModify, AnyVarValue, BoxAnyVarValue, ContextVar, Response, ResponseVar, Var, VarImpl, VarModify, VarValue, WeakAnyVar,
+    any_contextual_var, any_var,
 };
-
 
 #[doc(hidden)]
 pub fn merge_var_input<I: VarValue>(input: impl MergeInput<I>) -> AnyVar {
@@ -177,7 +171,7 @@ fn merge_var_bidi_impl(inputs: Box<[AnyVar]>, merge: MergeFn, map_back: MapBackF
             value_type,
         );
     }
-    merge_var_tail(inputs, merge)
+    merge_var_bidi_tail(inputs, merge, map_back)
 }
 fn merge_var_bidi_tail(inputs: Box<[AnyVar]>, merge: MergeFn, map_back: MapBackFn) -> AnyVar {
     let output = any_var(merge.lock()(&inputs));
@@ -234,8 +228,88 @@ fn merge_var_bidi_tail(inputs: Box<[AnyVar]>, merge: MergeFn, map_back: MapBackF
     output
 }
 
+fn merge_var_bidi_modify_impl(inputs: Box<[AnyVar]>, merge: MergeFn, modify_back: ModifyBackFn, value_type: TypeId) -> AnyVar {
+    if inputs.iter().any(|i| i.capabilities().is_contextual()) {
+        return any_contextual_var(
+            move || {
+                let mut inputs = inputs.clone();
+                for v in inputs.iter_mut() {
+                    if v.capabilities().is_contextual() {
+                        *v = v.current_context();
+                    }
+                }
+                merge_var_bidi_modify_tail(inputs, merge.clone(), modify_back.clone())
+            },
+            value_type,
+        );
+    }
+    merge_var_bidi_modify_tail(inputs, merge, modify_back)
+}
+fn merge_var_bidi_modify_tail(inputs: Box<[AnyVar]>, merge: MergeFn, modify_back: ModifyBackFn) -> AnyVar {
+    let output = any_var(merge.lock()(&inputs));
+    struct InputData {
+        inputs: Box<[AnyVar]>,
+        merge: MergeFn,
+        modify_back: ModifyBackFn,
+        output_wk: WeakAnyVar,
+    }
+    let input_data = Arc::new(InputData {
+        inputs,
+        merge,
+        modify_back,
+        output_wk: output.downgrade(),
+    });
+    for input in &input_data.inputs {
+        let input_data_wk = Arc::downgrade(&input_data);
+        input
+            .hook(move |a| {
+                // modify on each input update, if multiple inputs update on the same cycle
+                // modify multiple times anyway, because services may be responding to the
+                // *partial* merge state as it happens.
+                if let Some(input_data) = input_data_wk.upgrade()
+                    && let Some(output) = input_data.output_wk.upgrade()
+                {
+                    let update = a.update();
+                    output.modify(clmv!(input_data_wk, |output| if let Some(input_data) = input_data_wk.upgrade() {
+                        let new_value = input_data.merge.lock()(&input_data.inputs);
+                        output.set(new_value);
+                        if update {
+                            output.update();
+                        }
+                    }));
+                    true
+                } else {
+                    false
+                }
+            })
+            .perm();
+    }
+
+    output
+        .hook(move |_| {
+            for (i, input) in input_data.inputs.iter().enumerate() {
+                if input.capabilities().can_modify() {
+                    let output_wk = input_data.output_wk.clone();
+                    let modify_back = input_data.modify_back.clone();
+                    input.modify(move |m| {
+                        if let Some(output) = output_wk.upgrade() {
+                            output.with(|o| {
+                                modify_back.lock()(o, i, m);
+                            });
+                        }
+                    });
+                }
+            }
+            true
+        })
+        .perm();
+
+    output
+}
+
 type MergeFn = Arc<Mutex<dyn FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static>>;
 type MapBackFn = Arc<Mutex<dyn FnMut(&dyn AnyVarValue, usize) -> BoxAnyVarValue + Send + 'static>>;
+type ModifyBackFn = Arc<Mutex<dyn FnMut(&dyn AnyVarValue, usize, &mut AnyVarModify) + Send + 'static>>;
 
 /// Build a [`merge_var!`] from any number of input vars of any type.
 #[derive(Clone)]
@@ -301,6 +375,21 @@ impl AnyMergeVarBuilder {
         )
     }
 
+    /// Build a read-write merge var that modifies each input back.
+    pub fn build_bidi_any_modify(
+        self,
+        merge: impl FnMut(&[AnyVar]) -> BoxAnyVarValue + Send + 'static,
+        modify_back: impl FnMut(&dyn AnyVarValue, usize, &mut AnyVarModify) + Send + 'static,
+        output_type: TypeId,
+    ) -> AnyVar {
+        merge_var_bidi_modify_impl(
+            self.inputs.into_boxed_slice(),
+            Arc::new(Mutex::new(merge)),
+            Arc::new(Mutex::new(modify_back)),
+            output_type,
+        )
+    }
+
     /// Build a read-write strongly typed merge var.
     pub fn build_bidi<O: VarValue>(
         self,
@@ -310,6 +399,19 @@ impl AnyMergeVarBuilder {
         Var::new_any(self.build_bidi_any(
             move |inputs| BoxAnyVarValue::new(merge(inputs)),
             move |output, input_idx| map_back(output.downcast_ref::<O>().unwrap(), input_idx),
+            TypeId::of::<O>(),
+        ))
+    }
+
+    /// Build a read-write strongly typed merge var that modifies each input back.
+    pub fn build_bidi_modify<O: VarValue>(
+        self,
+        mut merge: impl FnMut(&[AnyVar]) -> O + Send + 'static,
+        mut modify_back: impl FnMut(&O, usize, &mut AnyVarModify) + Send + 'static,
+    ) -> Var<O> {
+        Var::new_any(self.build_bidi_any_modify(
+            move |inputs| BoxAnyVarValue::new(merge(inputs)),
+            move |output, input_idx, m| modify_back(output.downcast_ref::<O>().unwrap(), input_idx, m),
             TypeId::of::<O>(),
         ))
     }
@@ -388,6 +490,25 @@ impl<I: VarValue> MergeVarBuilder<I> {
                 })
             },
             move |output, input_idx| BoxAnyVarValue::new(map_back(output, input_idx)),
+        )
+    }
+
+    /// Build a read-write merge var that modifies each input back.
+    pub fn build_bidi_modify<O: VarValue>(
+        self,
+        mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static,
+        mut modify_back: impl FnMut(&O, usize, VarModify<I>) + Send + 'static,
+    ) -> Var<O> {
+        self.builder.build_bidi_modify(
+            move |inputs| {
+                // TODO(breaking) see build
+                let values: Vec<_> = inputs.iter().map(AnyVar::get).collect();
+                merge(VarMergeInputs {
+                    inputs: &values,
+                    _type: PhantomData,
+                })
+            },
+            move |output, input_idx, m| modify_back(output, input_idx, VarModify { inner: m, _t: PhantomData }),
         )
     }
 }
