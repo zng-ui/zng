@@ -6,8 +6,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
-  CARGO_NET_RETRY: 20
-  CARGO_HTTP_MULTIPLEXING: false
+  # CARGO_NET_RETRY: 20
+  # CARGO_HTTP_MULTIPLEXING: false
 
 jobs:
   semver-checks:
