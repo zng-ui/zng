@@ -647,7 +647,7 @@ impl Command {
         r
     }
 
-    /// Visit the latest update that targets the context widget.
+    /// If has latest update that targets the context widget.
     ///
     /// This is similar to [`Event::has_update`], but with extra filtering.
     pub fn has_update(&self, direct_scope_only: bool, ignore_propagation: bool) -> bool {

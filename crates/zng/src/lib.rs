@@ -694,7 +694,10 @@ mod __prelude {
 
     pub use zng_wgt::{
         WidgetFn,
-        node::{VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter as _, VarPresentOpt as _},
+        node::{
+            VarPresent as _, VarPresentData as _, VarPresentList as _, VarPresentListFromIter as _, VarPresentListFromNode as _,
+            VarPresentOpt as _,
+        },
         wgt_fn,
     };
 

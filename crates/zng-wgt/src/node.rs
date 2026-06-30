@@ -1754,34 +1754,22 @@ pub fn with_index_len_node(
 /// Node that presents `data` using `wgt_fn`.
 ///
 /// The node's child is always the result of `wgt_fn` called for the `data` value, it is reinited every time
-/// either variable changes. If the child is an widget the node becomes it.
+/// either variable changes. If the child is an widget the node becomes it. If the child is a list the presenter
+/// node does not become a list.
 ///
 /// See also [`presenter_opt`] for a presenter that is nil with the data is `None`.
 ///
 /// See also the [`present`](VarPresent::present) method that can be called on the `data`` variable and [`present_data`](VarPresentData::present_data)
 /// that can be called on the `wgt_fn` variable.
+///
+/// See [`list_presenter_from_node`] to generate node lists from data.
 pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
-    let data = data.into_var();
-    let wgt_fn = wgt_fn.into_var();
-
-    match_widget(UiNode::nil(), move |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&data).sub_var(&wgt_fn);
-            *c.node() = wgt_fn.get()(data.get());
-        }
-        UiNodeOp::Deinit => {
-            c.deinit();
-            *c.node() = UiNode::nil();
-        }
-        UiNodeOp::Update { .. } if (data.is_new() || wgt_fn.is_new()) => {
-            c.node().deinit();
-            *c.node() = wgt_fn.get()(data.get());
-            c.node().init();
-            c.delegated();
-            WIDGET.update_info().layout().render();
-        }
-        _ => {}
-    })
+    Presenter {
+        data: data.into_var(),
+        wgt_fn: wgt_fn.into_var(),
+        child: UiNode::nil(),
+    }
+    .into_node()
 }
 
 /// Node that presents `data` using `wgt_fn` if data is available, otherwise presents nil.
@@ -1790,36 +1778,15 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
 ///
 /// See also the [`present_opt`](VarPresentOpt::present_opt) method that can be called on the data variable.
 pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
-    let data = data.into_var();
-    let wgt_fn = wgt_fn.into_var();
-
-    match_widget(UiNode::nil(), move |c, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_var(&data).sub_var(&wgt_fn);
-            if let Some(data) = data.get() {
-                *c.node() = wgt_fn.get()(data);
-            }
-        }
-        UiNodeOp::Deinit => {
-            c.deinit();
-            *c.node() = UiNode::nil();
-        }
-        UiNodeOp::Update { .. } if data.is_new() || wgt_fn.is_new() => {
-            if let Some(data) = data.get() {
-                c.node().deinit();
-                *c.node() = wgt_fn.get()(data);
-                c.node().init();
-                c.delegated();
-                WIDGET.update_info().layout().render();
-            } else if !c.node().is_nil() {
-                c.node().deinit();
-                *c.node() = UiNode::nil();
-                c.delegated();
-                WIDGET.update_info().layout().render();
-            }
-        }
-        _ => {}
-    })
+    presenter(
+        data,
+        wgt_fn.into_var().map(|w_fn| {
+            crate::wgt_fn!(w_fn, |d| match d {
+                Some(d) => w_fn(d),
+                None => UiNode::nil(),
+            })
+        }),
+    )
 }
 
 /// Node list that presents `list` using `item_fn` for each new list item.
@@ -1832,7 +1799,6 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
         list: list.into_var(),
         item_fn: item_fn.into_var(),
         view: ui_vec![],
-        _e: std::marker::PhantomData,
     }
     .into_node()
 }
@@ -1851,9 +1817,188 @@ where
         list: list.into_var(),
         item_fn: item_fn.into_var(),
         view: ui_vec![],
-        _e: std::marker::PhantomData,
     }
     .into_node()
+}
+
+/// Node list that presents `list` using `list_fn` to generate the list node.
+///
+/// See also [`present_list_from_node`](VarPresentListFromIter::present_list_from_node) method that can be called on the list variable.
+pub fn list_presenter_from_node<D>(list: impl IntoVar<D>, list_fn: impl IntoVar<WidgetFn<D>>) -> UiNode
+where
+    D: VarValue,
+{
+    Presenter {
+        data: list.into_var(),
+        wgt_fn: list_fn.into_var(),
+        child: ui_vec![].into_node(),
+    }
+    .into_node()
+}
+
+struct Presenter<D>
+where
+    D: VarValue,
+{
+    data: Var<D>,
+    wgt_fn: Var<WidgetFn<D>>,
+    child: UiNode,
+}
+impl<D> Presenter<D>
+where
+    D: VarValue,
+{
+    fn on_update(&mut self) -> bool {
+        if self.data.is_new() || self.wgt_fn.is_new() {
+            let was_list = self.child.is_list();
+
+            self.child.deinit();
+
+            let new_child = self.wgt_fn.get()(self.data.get());
+            if was_list {
+                if !new_child.is_list() {
+                    #[cfg(debug_assertions)]
+                    tracing::warn!("presenter changed to !is_list, will convert to list");
+                }
+                self.child = new_child.into_list();
+            } else {
+                #[cfg(debug_assertions)]
+                if self.child.is_list() {
+                    tracing::warn!("presenter changed to is_list, likely only first entry node will be used");
+                }
+                self.child = new_child;
+            }
+
+            self.child.init();
+            WIDGET.update_info().layout().render();
+            true
+        } else {
+            false
+        }
+    }
+}
+impl<D> UiNodeImpl for Presenter<D>
+where
+    D: VarValue,
+{
+    fn children_len(&self) -> usize {
+        self.child.children_len()
+    }
+
+    fn with_child(&mut self, index: usize, visitor: &mut dyn FnMut(&mut UiNode)) {
+        self.child.with_child(index, visitor)
+    }
+
+    fn is_list(&self) -> bool {
+        self.child.is_list()
+    }
+
+    fn for_each_child(&mut self, visitor: &mut dyn FnMut(usize, &mut UiNode)) {
+        self.child.as_dyn().for_each_child(visitor);
+    }
+
+    fn try_for_each_child(
+        &mut self,
+        visitor: &mut dyn FnMut(usize, &mut UiNode) -> std::ops::ControlFlow<BoxAnyVarValue>,
+    ) -> std::ops::ControlFlow<BoxAnyVarValue> {
+        self.child.as_dyn().try_for_each_child(visitor)
+    }
+
+    fn par_each_child(&mut self, visitor: &(dyn Fn(usize, &mut UiNode) + Sync)) {
+        self.child.as_dyn().par_each_child(visitor);
+    }
+
+    fn par_fold_reduce(
+        &mut self,
+        identity: BoxAnyVarValue,
+        fold: &(dyn Fn(BoxAnyVarValue, usize, &mut UiNode) -> BoxAnyVarValue + Sync),
+        reduce: &(dyn Fn(BoxAnyVarValue, BoxAnyVarValue) -> BoxAnyVarValue + Sync),
+    ) -> BoxAnyVarValue {
+        self.child.as_dyn().par_fold_reduce(identity, fold, reduce)
+    }
+
+    fn init(&mut self) {
+        WIDGET.sub_var(&self.data).sub_var(&self.wgt_fn);
+        self.child = self.wgt_fn.get()(self.data.get());
+        self.child.init();
+    }
+
+    fn deinit(&mut self) {
+        self.child.deinit();
+        if self.child.is_list() {
+            self.child = ui_vec![].into_node();
+        } else {
+            self.child = UiNode::nil();
+        }
+    }
+
+    fn info(&mut self, info: &mut zng_app::widget::info::WidgetInfoBuilder) {
+        self.child.info(info);
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        if !self.on_update() {
+            self.child.update(updates);
+        }
+    }
+
+    fn update_list(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if self.on_update() {
+            observer.reset();
+        } else {
+            self.child.as_dyn().update_list(updates, observer);
+        }
+    }
+
+    fn measure(&mut self, wm: &mut zng_app::widget::info::WidgetMeasure) -> PxSize {
+        self.child.as_dyn().measure(wm)
+    }
+
+    fn measure_list(
+        &mut self,
+        wm: &mut zng_app::widget::info::WidgetMeasure,
+        measure: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetMeasure) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.child.as_dyn().measure_list(wm, measure, fold_size)
+    }
+
+    fn layout(&mut self, wl: &mut zng_app::widget::info::WidgetLayout) -> PxSize {
+        self.child.as_dyn().layout(wl)
+    }
+
+    fn layout_list(
+        &mut self,
+        wl: &mut zng_app::widget::info::WidgetLayout,
+        layout: &(dyn Fn(usize, &mut UiNode, &mut zng_app::widget::info::WidgetLayout) -> PxSize + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Sync),
+    ) -> PxSize {
+        self.child.as_dyn().layout_list(wl, layout, fold_size)
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        self.child.as_dyn().render(frame);
+    }
+
+    fn render_list(&mut self, frame: &mut FrameBuilder, render: &(dyn Fn(usize, &mut UiNode, &mut FrameBuilder) + Sync)) {
+        self.child.as_dyn().render_list(frame, render);
+    }
+
+    fn render_update(&mut self, update: &mut zng_app::render::FrameUpdate) {
+        self.child.as_dyn().render_update(update);
+    }
+
+    fn render_update_list(
+        &mut self,
+        update: &mut zng_app::render::FrameUpdate,
+        render_update: &(dyn Fn(usize, &mut UiNode, &mut zng_app::render::FrameUpdate) + Sync),
+    ) {
+        self.child.as_dyn().render_update_list(update, render_update);
+    }
+
+    fn as_widget(&mut self) -> Option<&mut dyn WidgetUiNodeImpl> {
+        self.child.as_dyn().as_widget()
+    }
 }
 
 struct ListPresenter<D>
@@ -1863,7 +2008,6 @@ where
     list: Var<ObservableVec<D>>,
     item_fn: Var<WidgetFn<D>>,
     view: UiVec,
-    _e: std::marker::PhantomData<D>,
 }
 
 impl<D> UiNodeImpl for ListPresenter<D>
@@ -2066,7 +2210,6 @@ where
     list: Var<L>,
     item_fn: Var<WidgetFn<D>>,
     view: UiVec,
-    _e: std::marker::PhantomData<(D, L)>,
 }
 
 impl<D, L> UiNodeImpl for ListPresenterFromIter<D, L>
@@ -2239,6 +2382,17 @@ pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarVal
 impl<D: VarValue, L: IntoIterator<Item = D> + VarValue> VarPresentListFromIter<D, L> for Var<L> {
     fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> UiNode {
         list_presenter_from_iter(self.clone(), wgt_fn)
+    }
+}
+
+/// Extension method to *convert* a variable to a node list.
+pub trait VarPresentListFromNode<L: VarValue> {
+    /// Present the variable data using a [`list_presenter_from_node`] node list.
+    fn present_list_from_node(&self, list_fn: impl IntoVar<WidgetFn<L>>) -> UiNode;
+}
+impl<L: VarValue> VarPresentListFromNode<L> for Var<L> {
+    fn present_list_from_node(&self, list_fn: impl IntoVar<WidgetFn<L>>) -> UiNode {
+        list_presenter_from_node(self.clone(), list_fn)
     }
 }
 

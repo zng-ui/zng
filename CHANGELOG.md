@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `list_presenter_from_node`.
+    - Add `present_list_from_node` extension method to all vars.
+    - Surface present extension traits in `zng::var`.
 * Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
 * Add `zng::var::AnyMergeVarBuilder`.
 
