@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `l10n!` args not supporting all `T: Display`.
 * Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
 * Add `zng::var::AnyMergeVarBuilder`.
 
