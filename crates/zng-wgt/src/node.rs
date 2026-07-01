@@ -1823,7 +1823,7 @@ where
 
 /// Node list that presents `list` using `list_fn` to generate the list node.
 ///
-/// See also [`present_list_from_node`](VarPresentListFromIter::present_list_from_node) method that can be called on the list variable.
+/// See also [`present_list_from_node`](VarPresentListFromNode::present_list_from_node) method that can be called on the list variable.
 pub fn list_presenter_from_node<D>(list: impl IntoVar<D>, list_fn: impl IntoVar<WidgetFn<D>>) -> UiNode
 where
     D: VarValue,
