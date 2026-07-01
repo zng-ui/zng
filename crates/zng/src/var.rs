@@ -317,6 +317,8 @@ pub use zng_var::{
 
 pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};
 
+pub use zng_wgt::node::{VarPresent, VarPresentData, VarPresentList, VarPresentListFromIter, VarPresentListFromNode, VarPresentOpt};
+
 /// Var animation types and functions.
 pub mod animation {
     pub use zng_var::animation::{
