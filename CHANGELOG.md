@@ -1,5 +1,6 @@
 # Unreleased
 
+* Surface `zng::button::cmd_child_fn` standalone property.
 * Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
 * Add `zng::var::AnyMergeVarBuilder`.
 
