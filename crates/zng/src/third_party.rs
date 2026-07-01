@@ -42,7 +42,6 @@
 //!
 //! ignore-build-dependencies = true
 //! ignore-dev-dependencies = true
-//! filter-noassertion = true
 //! private = { ignore = true }
 //! ```
 //!
