@@ -3,6 +3,8 @@
 * Add `list_presenter_from_node`.
     - Add `present_list_from_node` extension method to all vars.
     - Surface present extension traits in `zng::var`.
+* Fix `l10n!` args not supporting all `T: Display`.
+* Surface `zng::button::cmd_child_fn` standalone property.
 * Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
 * Add `zng::var::AnyMergeVarBuilder`.
 
