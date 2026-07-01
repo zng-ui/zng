@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" # daily
-env:
-  CARGO_NET_RETRY: 20
-  CARGO_HTTP_MULTIPLEXING: false
+# env:
+  # CARGO_NET_RETRY: 20
+  # CARGO_HTTP_MULTIPLEXING: false
 jobs:
   security_audit:
     permissions:
