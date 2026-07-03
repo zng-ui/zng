@@ -44,7 +44,7 @@ anyhow = { version = "1.0", features = ["std"], default-features = false }
 dunce = { version = "1.0", default-features = false }
 zng-env = { path = "../zng-env", version = "0.11.4", default-features = false, features = ["parse"] }
 directories = { version = "6.0", default-features = false }
-quick-xml = { version = "0.40", features = ["serialize"], default-features = false }
+quick-xml = { version = "0.41", features = ["serialize"], default-features = false }
 
 # fmt
 regex = { version = "1.10", features = ["std", "perf", "unicode"], default-features = false }

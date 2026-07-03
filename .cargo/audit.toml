@@ -11,7 +11,7 @@ ignore = [
     #         └── arboard 3.4.1
     #             └── zng-view 0.8.0
     #
-    # remove this ignore when all dependencies are fixes
+    # remove this ignore when all dependencies are fixed
     "RUSTSEC-2024-0436",
 
     # `bincode` is unmaintained
@@ -24,7 +24,7 @@ ignore = [
     # └── zng-webrender v0.68.4
     #     └── zng-view v0.18.2
     #
-    # remove this ignore when all dependencies are fixes
+    # remove this ignore when all dependencies are fixed
     "RUSTSEC-2025-0141",
 
     # `ttf-parser` is unmaintained
@@ -34,4 +34,20 @@ ignore = [
     # │   └── zng-ext-font v0.15.2
     # └── zng-ext-font v0.15.2
     "RUSTSEC-2026-0192",
+
+    # Quadratic run time when checking a start tag for duplicate attribute names
+    #
+    # quick-xml v0.39.4
+    # ├── wayland-scanner v0.31.10 (proc-macro)
+    # │   ├── smithay-client-toolkit v0.19.2
+    # │   │   └── winit v0.30.13
+    # │   │       ├── accesskit_winit v0.33.1
+    # │   │       │   └── zng-view v0.18.3 
+    # │   │       └── zng-view v0.18.3
+    # │   ├── wayland-client v0.31.14
+    # │   │   └── zng-view v0.18.3
+    # 
+    # Remove this ignore when dependencies are fixed
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
 ]
