@@ -1,5 +1,5 @@
-use std::fmt;
 use std::sync::atomic::Ordering::Relaxed;
+use std::{fmt, ops};
 
 use atomic::Atomic;
 use zng_app::{
@@ -42,6 +42,9 @@ impl TabIndex {
 
     /// Last possible widget index.
     pub const LAST: TabIndex = TabIndex(u32::MAX - 1);
+
+    /// First possible widget index.
+    pub const FIRST: TabIndex = TabIndex(0);
 
     /// If is [`SKIP`](TabIndex::SKIP).
     pub fn is_skip(self) -> bool {
@@ -122,6 +125,30 @@ impl_from_and_into_var! {
     /// Calls [`TabIndex::not_skip`].
     fn from(index: u32) -> TabIndex {
         TabIndex::not_skip(index)
+    }
+}
+impl ops::Add<u32> for TabIndex {
+    type Output = Self;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        TabIndex(self.0.saturating_add(rhs).min(TabIndex::LAST.0))
+    }
+}
+impl ops::Sub<u32> for TabIndex {
+    type Output = Self;
+
+    fn sub(self, rhs: u32) -> Self::Output {
+        TabIndex(self.0.saturating_sub(rhs))
+    }
+}
+impl ops::AddAssign<u32> for TabIndex {
+    fn add_assign(&mut self, rhs: u32) {
+        *self = *self + rhs
+    }
+}
+impl ops::SubAssign<u32> for TabIndex {
+    fn sub_assign(&mut self, rhs: u32) {
+        *self = *self - rhs
     }
 }
 #[derive(serde::Serialize, serde::Deserialize)]
