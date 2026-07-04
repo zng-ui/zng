@@ -20,6 +20,7 @@ use zng_var::AnyVar;
 use zng_view_api::{access::AccessCmdName, keyboard::Key};
 use zng_wgt::{node::bind_state_info, prelude::*};
 
+use zng_ext_input::focus::WidgetInfoFocusExt as _;
 pub use zng_ext_input::gesture::ClickArgs;
 
 event_property! {
@@ -529,7 +530,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
 
                         // collect ::Auto
                         if let Mnemonic::Auto = m {
-                            auto.push(d);
+                            auto.push(d.into_focus_info(true, true));
                         }
                     }
                 }
@@ -539,7 +540,9 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                 // - Prefers uppercase chars
                 let mut mnemonic_words = HashMap::<Txt, IdSet<WidgetId>>::new();
                 let mut id_words = IdMap::<WidgetId, Vec<Txt>>::new();
+                auto.sort_by_key(|w| w.focus_info().tab_index());
                 for d in &auto {
+                    let d = d.info();
                     let mut found_txt = false;
 
                     let mnemonic_and_descendants = d.self_and_descendants().tree_filter(|w| {
@@ -573,6 +576,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                     }
                 }
                 'select: for d in auto {
+                    let d = d.info();
                     if let Some(mut words) = id_words.remove(&d.id()) {
                         words.sort_by_key(|w| mnemonic_words.get(w).unwrap().len());
 
