@@ -1,5 +1,6 @@
 # Unreleased
 
+* Change auto mnemonic key to be selected by tab index order.
 
 # 0.23.3
 
