@@ -81,7 +81,7 @@ impl Scroll {
             clip_to_bounds = true;
             focusable = true;
             focus_scope = true;
-            focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+            focus_scope_behavior = FocusScopeOnFocus::LastFocusedIgnoreBounds;
         }
         self.widget_builder().push_build_action(on_build);
     }
