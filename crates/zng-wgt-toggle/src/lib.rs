@@ -1061,11 +1061,11 @@ fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
         accessible = false;
         size = 1.2.em();
         corner_radius = 0.1.em();
-        align = Align::CENTER;
+        align = Align::TOP;
 
         #[easing(150.ms())]
         background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
-        when *#{parent_hovered} {
+        when *#{parent_hovered.clone()} {
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
@@ -1077,6 +1077,10 @@ fn checkmark_visual(parent_hovered: Var<bool>) -> UiNode {
             child = checked;
             #[easing(0.ms())]
             background_color = colors::ACCENT_COLOR_VAR.shade(-1);
+        }
+        when *#{IS_CHECKED_VAR} == Some(true) && *#{parent_hovered} {
+            #[easing(0.ms())]
+            background_color = colors::ACCENT_COLOR_VAR.shade(1);
         }
     }
 }
