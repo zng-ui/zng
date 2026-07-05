@@ -1316,43 +1316,18 @@ impl WidgetFocusInfo {
             return oriented.find(filter);
         }
 
-        let parent_range = self.parent().map(|w| w.info.descendants_range()).unwrap_or_default();
-
-        let mut ancestor_dist = DistanceKey::NONE_MAX;
-        let mut ancestor = None;
-        let mut sibling_dist = DistanceKey::NONE_MAX;
-        let mut sibling = None;
         let mut other_dist = DistanceKey::NONE_MAX;
         let mut other = None;
-
         for w in oriented {
             if filter(&w) {
                 let dist = w.info.distance_key(origin_center);
-
-                let mut is_ancestor = None;
-                let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| w.info.is_ancestor(&self.info));
-
-                let mut is_sibling = None;
-                let mut is_sibling = || *is_sibling.get_or_insert_with(|| parent_range.contains(&w.info));
-
-                if dist <= ancestor_dist && is_ancestor() {
-                    ancestor_dist = dist;
-                    ancestor = Some(w);
-                } else if dist <= sibling_dist && is_sibling() {
-                    sibling_dist = dist;
-                    sibling = Some(w);
-                } else if dist <= other_dist && !is_ancestor() && !is_sibling() {
+                if dist <= other_dist {
                     other_dist = dist;
                     other = Some(w);
                 }
             }
         }
-
-        if other_dist <= ancestor_dist && other_dist <= sibling_dist {
-            other
-        } else {
-            sibling.or(ancestor)
-        }
+        other
     }
 
     fn directional_next(&self, orientation: Orientation2D) -> Option<WidgetFocusInfo> {
