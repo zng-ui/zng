@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix keyboard focus navigation not entering `Scroll!` automatically.
 * Implement add/sub operations from `u32` for `TabIndex`.
 * Add `TabIndex::FIRST`.
 * Change auto mnemonic key to be selected by tab index order.
