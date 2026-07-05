@@ -1,5 +1,10 @@
 # Unreleased
 
+* Change `toggle::RadioStyle!`.
+    - Align mark to top in multi-line content.
+* Change `toggle::CheckStyle!`.
+    - Highlight hover when is already checked.
+    - Align check mark box to top in multi-line content.
 * Fix keyboard focus navigation not entering `Scroll!` automatically.
 * Implement add/sub operations from `u32` for `TabIndex`.
 * Add `TabIndex::FIRST`.
