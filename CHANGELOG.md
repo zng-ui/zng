@@ -1,5 +1,7 @@
 # Unreleased
 
+* Change `toggle::RadioStyle!`.
+    - Align mark to top in multi-line content.
 * Change `toggle::CheckStyle!`.
     - Highlight hover when is already checked.
     - Align check mark box to top in multi-line content.

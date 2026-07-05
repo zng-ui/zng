@@ -24,7 +24,7 @@ use zng_ext_input::{
 };
 use zng_ext_l10n::lang;
 use zng_var::{AnyVar, AnyVarValue, BoxAnyVarValue, Var, VarIsReadOnlyError};
-use zng_wgt::{ICONS, Wgt, align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*};
+use zng_wgt::{ICONS, Wgt, align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, margin, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, accessible};
 use zng_wgt_container::{child_align, child_end, child_spacing, child_start, padding};
 use zng_wgt_fill::background_color;
@@ -1381,8 +1381,9 @@ fn radio_visual(parent_hovered: Var<bool>) -> UiNode {
         hit_test_mode = false;
         size = 0.9.em();
         corner_radius = 0.9.em();
-        align = Align::CENTER;
+        align = Align::TOP;
         border_align = 100.pct();
+        margin = (0.24.em(), 0, 0, 0);
 
         #[easing(150.ms())]
         background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
