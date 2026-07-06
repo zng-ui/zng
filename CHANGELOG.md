@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add focus highlight indicator for `Scroll!` with no focusable children.
 * Change `toggle::RadioStyle!`.
     - Align mark to top in multi-line content.
 * Change `toggle::CheckStyle!`.

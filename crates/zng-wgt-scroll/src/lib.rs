@@ -82,6 +82,15 @@ impl Scroll {
             focusable = true;
             focus_scope = true;
             focus_scope_behavior = FocusScopeOnFocus::LastFocusedIgnoreBounds;
+
+            // in case the scroll has no focusable children
+            when *#zng_wgt_input::focus::is_focused_hgl {
+                zng_wgt_fill::foreground_highlight = {
+                    offsets: zng_wgt_input::focus::FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                    widths: zng_wgt_input::focus::FOCUS_HIGHLIGHT_WIDTHS_VAR,
+                    sides: zng_wgt_input::focus::FOCUS_HIGHLIGHT_SIDES_VAR,
+                };
+            }
         }
         self.widget_builder().push_build_action(on_build);
     }
