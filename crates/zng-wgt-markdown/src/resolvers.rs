@@ -252,7 +252,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path, 
+/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path,
 /// returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
     if args.propagation.is_stopped() {
@@ -412,7 +412,9 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                                 }
                             }
                             #[cfg(target_os = "linux")]
-                            {
+                            if let Err(e) = reveal_in_file_manager(format!("file://{}", p.display())).await {
+                                tracing::error!("cannot reveal in file manager, {e}\nwill try open parent folder");
+
                                 let parent = p.parent().unwrap_or(&p);
                                 let r = std::process::Command::new("xdg-open").arg(parent).spawn();
                                 if let Err(e) = r {
@@ -550,4 +552,20 @@ fn slugify(c: char) -> Option<char> {
     } else {
         None
     }
+}
+
+#[cfg(target_os = "linux")]
+#[zbus::proxy(
+    interface = "org.freedesktop.FileManager1",
+    default_service = "org.freedesktop.FileManager1",
+    default_path = "/org/freedesktop/FileManager1"
+)]
+trait FileManager {
+    fn show_items(&self, uris: Vec<String>, startup_id: &str) -> zbus::Result<()>;
+}
+#[cfg(target_os = "linux")]
+async fn reveal_in_file_manager(uri: String) -> zbus::Result<()> {
+    let conn = zbus::Connection::session().await?;
+    let proxy = FileManagerProxy::new(&conn).await?;
+    proxy.show_items(vec![uri], "").await
 }
