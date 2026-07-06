@@ -252,7 +252,8 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is valid or a file path, returns if the confirm tooltip is visible.
+/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path,
+/// returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
     if args.propagation.is_stopped() {
         return false;
@@ -264,10 +265,17 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         Path(PathBuf),
     }
 
-    let link = if let Ok(url) = args.url.parse() {
+    let link = if let Ok(url) = args.url.parse::<Uri>()
+        && let Some(sc) = url.scheme()
+        && (sc == &http::uri::Scheme::HTTP || sc == &http::uri::Scheme::HTTPS)
+    {
         Link::Url(url)
     } else {
-        Link::Path(PathBuf::from(args.url.as_str()))
+        let path = PathBuf::from(args.url.as_str());
+        if !path.exists() {
+            return false;
+        }
+        Link::Path(path)
     };
 
     let popup_id = WidgetId::new_unique();
@@ -345,63 +353,94 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
                 args.propagation.stop();
 
-                let (uri, kind) = match link {
-                    Link::Url(u) => (u.to_string(), "url"),
+                match link {
+                    Link::Url(u) => {
+                        let u = u.to_string();
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            let r = task::wait(|| open::that_detached(u)).await;
+                            if let Err(e) = &r {
+                                tracing::error!("error opening url, {e}");
+                            }
+
+                            status.set(if r.is_ok() { Status::Ok } else { Status::Err });
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            match web_sys::window() {
+                                Some(w) => match w.open_with_url_and_target(u.as_str(), "_blank") {
+                                    Ok(w) => match w {
+                                        Some(w) => {
+                                            let _ = w.focus();
+                                            status.set(Status::Ok);
+                                        }
+                                        None => {
+                                            tracing::error!("error opening url, no new tab/window");
+                                            status.set(Status::Err);
+                                        }
+                                    },
+                                    Err(e) => {
+                                        tracing::error!("error opening url, {e:?}");
+                                        status.set(Status::Err);
+                                    }
+                                },
+                                None => {
+                                    tracing::error!("error opening url, no window");
+                                    status.set(Status::Err);
+                                }
+                            }
+                        }
+                    }
                     Link::Path(p) => match dunce::canonicalize(&p) {
                         Ok(p) => {
-                            let p = p.display().to_string();
                             #[cfg(windows)]
-                            let p = p.replace('/', "\\");
+                            {
+                                let p = p.display().to_string();
+                                let p = p.replace('/', "\\");
+                                let r = std::process::Command::new("explorer").arg(format!("/select,{p}")).spawn();
+                                if let Err(e) = r {
+                                    tracing::error!("cannot spawn explorer to reveal path, {e}");
+                                    status.set(Status::Err);
+                                }
+                            }
+                            #[cfg(target_os = "macos")]
+                            {
+                                let r = std::process::Command::new("open").arg("-R").arg(p).spawn();
+                                if let Err(e) = r {
+                                    tracing::error!("cannot spawn reveal in finder, {e}");
+                                    status.set(Status::Err);
+                                }
+                            }
+                            #[cfg(target_os = "linux")]
+                            if let Err(e) = reveal_in_file_manager(format!("file://{}", p.display())).await {
+                                tracing::error!("cannot reveal in file manager, {e}\nwill try open parent folder");
 
+                                let parent = p.parent().unwrap_or(&p);
+                                let r = std::process::Command::new("xdg-open").arg(parent).spawn();
+                                if let Err(e) = r {
+                                    tracing::error!("cannot spawn xdg-open to reveal path, {e}");
+                                    status.set(Status::Err);
+                                }
+                            }
                             #[cfg(target_arch = "wasm32")]
-                            let p = format!("file:///{p}");
+                            {
+                                tracing::error!("cannot reveal path in wasm");
+                                status.set(Status::Err);
+                            }
 
-                            (p, "path")
+                            #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+                            {
+                                let _ = p;
+                            }
                         }
                         Err(e) => {
                             tracing::error!("error canonicalizing \"{}\", {e}", p.display());
-                            return;
-                        }
-                    },
-                };
-
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let r = task::wait(|| open::that_detached(uri)).await;
-                    if let Err(e) = &r {
-                        tracing::error!("error opening {kind}, {e}");
-                    }
-
-                    status.set(if r.is_ok() { Status::Ok } else { Status::Err });
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    match web_sys::window() {
-                        Some(w) => match w.open_with_url_and_target(uri.as_str(), "_blank") {
-                            Ok(w) => match w {
-                                Some(w) => {
-                                    let _ = w.focus();
-                                    status.set(Status::Ok);
-                                }
-                                None => {
-                                    tracing::error!("error opening {kind}, no new tab/window");
-                                    status.set(Status::Err);
-                                }
-                            },
-                            Err(e) => {
-                                tracing::error!("error opening {kind}, {e:?}");
-                                status.set(Status::Err);
-                            }
-                        },
-                        None => {
-                            tracing::error!("error opening {kind}, no window");
                             status.set(Status::Err);
                         }
-                    }
+                    },
                 }
 
                 task::deadline(200.ms()).await;
-
                 LAYERS.remove(popup_id);
             });
         };
@@ -513,4 +552,20 @@ fn slugify(c: char) -> Option<char> {
     } else {
         None
     }
+}
+
+#[cfg(target_os = "linux")]
+#[zbus::proxy(
+    interface = "org.freedesktop.FileManager1",
+    default_service = "org.freedesktop.FileManager1",
+    default_path = "/org/freedesktop/FileManager1"
+)]
+trait FileManager {
+    fn show_items(&self, uris: Vec<String>, startup_id: &str) -> zbus::Result<()>;
+}
+#[cfg(target_os = "linux")]
+async fn reveal_in_file_manager(uri: String) -> zbus::Result<()> {
+    let conn = zbus::Connection::session().await?;
+    let proxy = FileManagerProxy::new(&conn).await?;
+    proxy.show_items(vec![uri], "").await
 }
