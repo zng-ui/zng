@@ -70,7 +70,7 @@ impl<D: Send + Sync> Handle<D> {
     ///
     /// Note that a clone can still force drop a perm handle and perm does nothing if the handle is already force dropped.
     pub fn perm(self) {
-        let _ = self.0.state.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |s| {
+        let _ = self.0.state.try_update(Ordering::Relaxed, Ordering::Relaxed, |s| {
             if s != State::ForceDrop as u8 {
                 Some(State::Permanent as u8)
             } else {
