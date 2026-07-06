@@ -24,7 +24,7 @@ use zng_wgt_filter::{child_opacity, saturate};
 use zng_wgt_input::{
     CursorIcon, cursor,
     focus::FocusableMix,
-    gesture::{ClickArgs, on_click, on_disabled_click},
+    gesture::{ClickArgs, on_click},
     is_cap_hovered, is_pressed,
     pointer_capture::{CaptureMode, capture_pointer},
 };
@@ -144,13 +144,12 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
 ///
 /// When this is set the button widget sets these properties if they are not set:
 ///
-/// * [`child`]: Set to a widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Text!(cmd.name())`.
+/// * [`child`]: Set to a widget produced by [`cmd_child_fn`](fn@cmd_child_fn), by default is `Label!(cmd.name())`.
 /// * [`tooltip_fn`]: Set to a widget function provided by [`cmd_tooltip_fn`](fn@cmd_tooltip_fn), by default it
 ///   shows the command info and first shortcut.
 /// * [`enabled`]: Set to `cmd.is_enabled()`.
 /// * [`visibility`]: Set to `cmd.has_handlers().into()`.
 /// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.
-/// * [`on_disabled_click`]: Set to a handler that notifies the command if `!cmd.is_enabled()`.
 ///
 /// [`child`]: struct@Container#method.child
 /// [`tooltip_fn`]: fn@tooltip_fn
@@ -158,7 +157,6 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> UiNode {
 /// [`enabled`]: fn@zng_wgt::enabled
 /// [`visibility`]: fn@zng_wgt::visibility
 /// [`on_click`]: fn@on_click
-/// [`on_disabled_click`]: fn@on_disabled_click
 #[property(CHILD, widget_impl(Button))]
 pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
     let cmd = cmd.into_var();
@@ -185,12 +183,11 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
     );
 
     let on_click = wgt.property(property_id!(on_click)).is_none();
-    let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
     #[cfg(feature = "tooltip")]
     let tooltip = wgt.property(property_id!(tooltip)).is_none() && wgt.property(property_id!(tooltip_fn)).is_none();
     #[cfg(not(feature = "tooltip"))]
     let tooltip = false;
-    if on_click || on_disabled_click || tooltip {
+    if on_click || tooltip {
         wgt.push_intrinsic(
             NestGroup::EVENT,
             "cmd_event",
@@ -201,22 +198,6 @@ pub fn cmd(wgt: &mut WidgetBuilding, cmd: impl IntoVar<Command>) {
                         hn!(cmd, |args| {
                             let cmd = cmd.get();
                             if cmd.is_enabled().get() {
-                                if let Some(param) = CMD_PARAM_VAR.get() {
-                                    cmd.notify_param(param);
-                                } else {
-                                    cmd.notify();
-                                }
-                                args.propagation.stop();
-                            }
-                        }),
-                    );
-                }
-                if on_disabled_click {
-                    child = self::on_disabled_click(
-                        child,
-                        hn!(cmd, |args| {
-                            let cmd = cmd.get();
-                            if !cmd.is_enabled().get() {
                                 if let Some(param) = CMD_PARAM_VAR.get() {
                                     cmd.notify_param(param);
                                 } else {
