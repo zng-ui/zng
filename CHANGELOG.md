@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.23.4
+
 * Fix `Markdown!` default link handling.
     - "Reveal in File Manager" now never opens the file.
     - "Open in Browser" no longer used for some rooted paths.

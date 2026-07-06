@@ -1,6 +1,6 @@
 [package]
 name = "zng-var"
-version = "0.14.5"
+version = "0.14.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -23,7 +23,7 @@ zng-unit = { path = "../zng-unit", version = "0.7.1", default-features = false }
 zng-app-context = { path = "../zng-app-context", version = "0.13.4", default-features = false }
 zng-time = { path = "../zng-time", version = "0.10.4", default-features = false }
 zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }
-zng-handle = { path = "../zng-handle", version = "0.4.0", default-features = false }
+zng-handle = { path = "../zng-handle", version = "0.4.1", default-features = false }
 
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
