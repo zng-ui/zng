@@ -1,5 +1,7 @@
 # Unreleased
 
+* Change `Button::cmd` defaults.
+    - No longer sets `on_disabled_click`.
 * Change `toggle::RadioStyle!`.
     - Align mark to top in multi-line content.
 * Change `toggle::CheckStyle!`.
