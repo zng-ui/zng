@@ -252,7 +252,8 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is valid or a file path, returns if the confirm tooltip is visible.
+/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path, 
+/// returns if the confirm tooltip is visible.
 pub fn try_open_link(args: &LinkArgs) -> bool {
     if args.propagation.is_stopped() {
         return false;
@@ -264,10 +265,17 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         Path(PathBuf),
     }
 
-    let link = if let Ok(url) = args.url.parse() {
+    let link = if let Ok(url) = args.url.parse::<Uri>()
+        && let Some(sc) = url.scheme()
+        && (sc == &http::uri::Scheme::HTTP || sc == &http::uri::Scheme::HTTPS)
+    {
         Link::Url(url)
     } else {
-        Link::Path(PathBuf::from(args.url.as_str()))
+        let path = PathBuf::from(args.url.as_str());
+        if !path.exists() {
+            return false;
+        }
+        Link::Path(path)
     };
 
     let popup_id = WidgetId::new_unique();

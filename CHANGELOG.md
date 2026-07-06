@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix "Reveal in File Manager" in `Markdown!` opening the file.
+* Fix `Markdown!` default link handling.
+    - "Reveal in File Manager" now never opens the file.
+    - "Open in Browser" no longer used for some rooted paths.
+    - No longer shows popup if the file/dir does not exist.
 * Add focus highlight indicator for `Scroll!` with no focusable children.
 * Change `Button::cmd` defaults.
     - No longer sets `on_disabled_click`.
