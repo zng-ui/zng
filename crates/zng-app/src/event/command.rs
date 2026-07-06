@@ -974,7 +974,7 @@ impl CommandArgs {
                         t.widgets_path().iter().position(|i| *i == scope_id).unwrap_or(usize::MAX)
                             <= t.widgets_path().iter().position(|i| *i == args_id).unwrap_or(usize::MAX)
                     } else {
-                        todo!()
+                        false
                     }
                 }
                 _ => false,
