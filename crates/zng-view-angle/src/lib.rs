@@ -12,7 +12,7 @@
 //!
 //! ```toml
 //! [target.'cfg(windows)'.dependencies]
-//! zng-view-angle = { version = "0.2.3", features = ["download"] }
+//! zng-view-angle = { version = "0.2.4", features = ["download"] }
 //! ```
 //!
 //! With the `"download"` feature enabled the crate will download the required ANGLE DLLs from [zng-ui/build-angle]
