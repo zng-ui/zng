@@ -397,7 +397,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                             {
                                 let p = p.display().to_string();
                                 let p = p.replace('/', "\\");
-                                let r = std::process::Command::new("explorer").arg(format!("/select,{p}")).spawn();
+                                let r = std::process::Command::new("explorer").arg(format!("/select,\"{p}\"")).spawn();
                                 if let Err(e) = r {
                                     tracing::error!("cannot spawn explorer to reveal path, {e}");
                                     status.set(Status::Err);
