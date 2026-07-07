@@ -708,3 +708,14 @@ pub fn contains_ansi_csi(s: &str) -> bool {
 }
 
 const CSI: &str = "\x1b[";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn remove_ansi() {
+        let r = remove_ansi_csi_str("\x1b[32m INFO\x1b[0m \x1b[2mzng_env::process\x1b[0m\x1b[2m:\x1b[0m pid: 16196, name: crash-dialog-process");
+        assert_eq!(r, " INFO zng_env::process: pid: 16196, name: crash-dialog-process");
+    }
+}

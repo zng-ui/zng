@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix crash dialog crash logging stdio with ANSI escape sequences.
 
 # 0.23.4
 
