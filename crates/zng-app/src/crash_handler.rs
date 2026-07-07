@@ -708,7 +708,7 @@ fn crash_handler_monitor_process(
                                         dlg_dump_file,
                                         Box::new([]),
                                     );
-                                    tracing::error!("crash dialog-process crashed, {dialog_crash}");
+                                    tracing::error!("crash dialog-process crashed, {dialog_crash:#}");
 
                                     if dialog_args.dialog_crash.is_none() {
                                         dialog_args.dialog_crash = Some(dialog_crash);

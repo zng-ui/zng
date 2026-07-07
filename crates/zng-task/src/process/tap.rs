@@ -17,6 +17,7 @@ use std::{
     collections::VecDeque,
     fmt,
     io::{self, BufRead as _, Read, Write as _},
+    mem,
     process::{ChildStderr, ChildStdout},
 };
 
@@ -351,24 +352,44 @@ impl PanicInfo {
     }
 
     fn find_impl(stderr: &str, parse: bool) -> Option<Self> {
-        let mut panic_at = usize::MAX;
-        let mut widget_path = usize::MAX;
-        let mut stack_backtrace = usize::MAX;
-        let mut i = 0;
+        let mut thread = "";
+        let mut location = "";
+        let mut message = "";
+        let mut widget_path = "";
+        let mut backtrace = "";
+
+        let mut nl_message = false;
+        let mut nl_widget_path = false;
+        let mut nl_backtrace = false;
+
         for line in stderr.lines() {
-            if line.starts_with("thread '") && line.contains(" panicked at ") && line.ends_with(':') {
-                panic_at = i;
-                widget_path = usize::MAX;
-                stack_backtrace = usize::MAX;
+            if let Some(panic) = line.strip_prefix("thread '")
+                && let Some((t, l)) = panic.split_once(" panicked at ")
+            {
+                thread = t;
+                location = l;
+                message = "";
+                nl_message = true;
+                widget_path = "";
+                nl_widget_path = false;
+                backtrace = "";
+                nl_backtrace = false;
             } else if line == "widget path:" {
-                widget_path = i + "widget path:\n".len();
+                nl_widget_path = true;
             } else if line == "stack backtrace:" {
-                stack_backtrace = i + "stack backtrace:\n".len();
+                nl_backtrace = true;
+            } else if mem::take(&mut nl_message) {
+                let i = line.as_ptr() as usize - stderr.as_ptr() as usize;
+                message = &stderr[i..];
+            } else if mem::take(&mut nl_widget_path) {
+                widget_path = line.trim();
+            } else if mem::take(&mut nl_backtrace) {
+                let i = line.as_ptr() as usize - stderr.as_ptr() as usize;
+                backtrace = &stderr[i..];
             }
-            i += line.len() + "\n".len();
         }
 
-        if panic_at == usize::MAX {
+        if thread.is_empty() {
             return None;
         }
 
@@ -379,7 +400,7 @@ impl PanicInfo {
                 file: Txt::from(""),
                 line: 0,
                 column: 0,
-                widget_path: if widget_path < stderr.len() {
+                widget_path: if !widget_path.is_empty() {
                     Txt::from("true")
                 } else {
                     Txt::from("")
@@ -388,12 +409,11 @@ impl PanicInfo {
             });
         }
 
-        let panic_str = stderr[panic_at..].lines().next().unwrap();
-        let (thread, location) = panic_str.strip_prefix("thread '").unwrap().split_once(" panicked at ").unwrap();
-        let mut location = location.split(':');
-        let file = location.next().unwrap_or("");
-        let line: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
+        let mut location = location.rsplitn(3, ':');
         let column: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
+        let line: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
+        let file = location.next().unwrap_or("");
+
         let mut thread = thread.split('\'');
         let mut thread_name = thread.next().unwrap_or("<unnamed>");
         let thread_id = thread.next().unwrap_or("");
@@ -404,52 +424,42 @@ impl PanicInfo {
             thread_name = id;
         }
 
-        let mut message = String::new();
+        let mut m = String::new();
         let mut sep = "";
-        for line in stderr[panic_at + panic_str.len() + "\n".len()..].lines() {
+        for line in message.lines() {
             if let Some(line) = line.strip_prefix("   ") {
-                message.push_str(sep);
-                message.push_str(line);
+                m.push_str(sep);
+                m.push_str(line);
                 sep = "\n";
             } else {
-                if message.is_empty() && line != "widget path:" && line != "stack backtrace:" {
+                if m.is_empty() && line != "widget path:" && line != "stack backtrace:" {
                     // not formatted by us, probably by Rust
-                    line.clone_into(&mut message);
+                    line.clone_into(&mut m);
                 }
                 break;
             }
         }
+        let message = m;
 
-        let widget_path = if widget_path < stderr.len() {
-            stderr[widget_path..].lines().next().unwrap().trim()
-        } else {
-            ""
-        };
-
-        let backtrace = if stack_backtrace < stderr.len() {
-            let mut i = stack_backtrace;
-            'backtrace_seek: for line in stderr[stack_backtrace..].lines() {
-                let s = line.trim_start();
-                if s.is_empty() {
-                    break;
-                } else if !s.starts_with("at ") {
-                    for c in s.chars() {
-                        if !c.is_ascii_digit() {
-                            if c != ':' {
-                                break 'backtrace_seek;
-                            }
-                            break;
+        let mut backtrace_end = backtrace.len();
+        'backtrace_seek: for line in backtrace.lines() {
+            let s = line.trim_start();
+            if s.is_empty() {
+                break;
+            } else if !s.starts_with("at ") {
+                for c in s.chars() {
+                    if !c.is_ascii_digit() {
+                        if c != ':' {
+                            break 'backtrace_seek;
                         }
+                        break;
                     }
                 }
-
-                // matches "\s*\d+:" OR "\s*at "
-                i += line.len() + "\n".len();
             }
-            &stderr[stack_backtrace..i]
-        } else {
-            ""
-        };
+            // matches "\s*\d+:" OR "\s*at "
+            backtrace_end = line.as_ptr() as usize - backtrace.as_ptr() as usize + line.len();
+        }
+        backtrace = &backtrace[..backtrace_end];
 
         Some(Self {
             thread: thread_name.to_txt(),
@@ -708,3 +718,16 @@ pub fn contains_ansi_csi(s: &str) -> bool {
 }
 
 const CSI: &str = "\x1b[";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn remove_ansi() {
+        let r = remove_ansi_csi_str(
+            "\x1b[32m INFO\x1b[0m \x1b[2mzng_env::process\x1b[0m\x1b[2m:\x1b[0m pid: 16196, name: crash-dialog-process",
+        );
+        assert_eq!(r, " INFO zng_env::process: pid: 16196, name: crash-dialog-process");
+    }
+}

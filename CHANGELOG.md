@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix panics on `zng::task::process::tap::PanicInfo::find` parser.
+* Fix crash dialog crash logging stdio with ANSI escape sequences.
 
 # 0.23.4
 
