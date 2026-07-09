@@ -922,13 +922,7 @@ impl WidgetFocusInfo {
                         if is_tab_cycle_reentry { None } else { last_focused(self.info.id()) }
                             .and_then(|id| self.info.tree().get(id))
                             .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
-                            .and_then(|f| {
-                                if f.info.is_descendant(&self.info) {
-                                    Some(f) // valid last focused
-                                } else {
-                                    None
-                                }
-                            })
+                            .filter(|f| f.info.is_descendant(&self.info))
                             .or_else(|| {
                                 if reverse {
                                     self.last_tab_descendant()

@@ -350,7 +350,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
             socket_sender.send_blocking((socket, r)).map_err(serde::de::Error::custom)?;
 
             use sendfd::RecvWithFd as _;
-            let mut ignore = [b'z', b'n', b'g'];
+            let mut ignore = *b"zng";
             let mut fd = [0 as std::os::fd::RawFd];
             fd_recv.recv_with_fd(&mut ignore, &mut fd).map_err(serde::de::Error::custom)?;
 

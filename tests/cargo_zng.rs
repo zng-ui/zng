@@ -374,18 +374,14 @@ fn git_init(dir: &Path) -> io::Result<()> {
         .env("GIT_COMMITTER_NAME", "cargo_zng::git_init")
         .env("GIT_COMMITTER_EMAIL", "test@test.com");
     for mut cmd in [init, add, commit] {
-        match cmd.current_dir(dir).output() {
-            Ok(s) => {
-                if !s.status.success() {
-                    let stdout = String::from_utf8_lossy(&s.stdout);
-                    let stderr = String::from_utf8_lossy(&s.stderr);
-                    return Err(io::Error::other(format!(
-                        "git exited with {}\n--stdout--\n{stdout}\n--stderr--\n{stderr}",
-                        s.status.code().unwrap_or(0)
-                    )));
-                }
-            }
-            Err(e) => return Err(e),
+        let s = cmd.current_dir(dir).output()?;
+        if !s.status.success() {
+            let stdout = String::from_utf8_lossy(&s.stdout);
+            let stderr = String::from_utf8_lossy(&s.stderr);
+            return Err(io::Error::other(format!(
+                "git exited with {}\n--stdout--\n{stdout}\n--stderr--\n{stderr}",
+                s.status.code().unwrap_or(0)
+            )));
         }
     }
     Ok(())
