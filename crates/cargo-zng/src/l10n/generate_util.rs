@@ -242,7 +242,6 @@ key-count = {NUMBER($n) ->
             }
         }
 
-        let _ =
-            fluent_syntax::parser::parse(output.clone()).unwrap_or_else(|e| panic!("write_entry output invalid\n{}\n{output}", &e.1[0]));
+        let _ = fluent_syntax::parser::parse(output.clone()).unwrap_or_else(|e| panic!("write_entry output invalid\n{}\n{output}", e.1[0]));
     }
 }

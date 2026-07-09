@@ -407,10 +407,9 @@ impl ScrollToRequest {
                     target.clone()
                 } else if let Some(target) = p.downcast_ref::<WidgetId>() {
                     ScrollToTarget::Descendant(*target)
-                } else if let Some(target) = p.downcast_ref::<Rect>() {
-                    ScrollToTarget::Rect(target.clone())
                 } else {
-                    return None;
+                    let target = p.downcast_ref::<Rect>()?;
+                    ScrollToTarget::Rect(target.clone())
                 },
                 mode: ScrollToMode::default(),
                 zoom: None,

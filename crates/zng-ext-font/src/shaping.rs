@@ -2155,12 +2155,10 @@ where
                     self.maybe_img = None;
                     return Some(r);
                 }
-            } else if let Some(seq) = self.glyphs.next() {
+            } else {
+                let seq = self.glyphs.next()?;
                 // all sequences can contain images
                 self.maybe_img = Some(seq);
-            } else {
-                // no more glyphs to yield
-                return None;
             }
         }
     }

@@ -396,20 +396,18 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.iter.next() {
-                Some(wgt) => match (self.filter)(&wgt) {
-                    TreeFilter::Include => return Some(wgt),
-                    TreeFilter::Skip => continue,
-                    TreeFilter::SkipAll => {
-                        self.iter.skip_all(&wgt);
-                        continue;
-                    }
-                    TreeFilter::SkipDescendants => {
-                        self.iter.skip_all(&wgt);
-                        return Some(wgt);
-                    }
-                },
-                None => return None,
+            let wgt = self.iter.next()?;
+            match (self.filter)(&wgt) {
+                TreeFilter::Include => return Some(wgt),
+                TreeFilter::Skip => continue,
+                TreeFilter::SkipAll => {
+                    self.iter.skip_all(&wgt);
+                    continue;
+                }
+                TreeFilter::SkipDescendants => {
+                    self.iter.skip_all(&wgt);
+                    return Some(wgt);
+                }
             }
         }
     }

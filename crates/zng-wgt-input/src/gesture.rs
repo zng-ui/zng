@@ -608,7 +608,7 @@ pub fn mnemonic_scope(child: impl IntoUiNode, is_scope: impl IntoVar<bool>) -> U
                 }
 
                 // register shortcuts
-                for (_, (id, c)) in chars.iter() {
+                for (id, c) in chars.values() {
                     let h = GESTURES.click_shortcut(GestureKey::Key(Key::Char(*c)), ShortcutClick::Primary, *id);
                     shortcut_subs.push(h);
                 }
