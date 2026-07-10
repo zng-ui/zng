@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix measure metrics use not tracking for invalidation.
+    - Fixes grid cells width sometimes getting stuck.
 * Fix `Markdown!` default link handling on Windows.
 * Fix panics on `zng::task::process::tap::PanicInfo::find` parser.
 * Fix crash dialog crash logging stdio with ANSI escape sequences.
