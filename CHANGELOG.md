@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `Markdown!` parser including Fluent bidi markers in URIs.
 * Fix measure metrics use not tracking for invalidation.
     - Fixes grid cells width sometimes getting stuck.
 * Fix `Markdown!` default link handling on Windows.

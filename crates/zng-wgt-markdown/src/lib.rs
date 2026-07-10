@@ -633,6 +633,8 @@ fn markdown_view_fn(md: &str) -> UiNode {
             TagEnd::Link => {
                 let (inlines_start, kind, url, title, _id) = link.take().unwrap();
                 let title = html_escape::decode_html_entities(title.as_ref());
+                // trim bidi markers inserted by Fluent
+                let url = url.as_ref().trim_start_matches('\u{2068}').trim_end_matches('\u{2069}');
                 let url = link_resolver.resolve(url.as_ref());
                 match kind {
                     LinkType::Autolink | LinkType::Email => {
