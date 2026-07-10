@@ -252,8 +252,11 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
     false
 }
 
-/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path,
+/// Try open link, only works if the `url` is a full HTTP(S) URL or a dir/file path that exists,
 /// returns if the confirm tooltip is visible.
+///
+/// The popup will offer "Open in Browser" for HTTP links and "Reveal in File Manager" for file paths. The
+/// popup also offers alternative to copy the full link.
 pub fn try_open_link(args: &LinkArgs) -> bool {
     if args.propagation.is_stopped() {
         return false;
