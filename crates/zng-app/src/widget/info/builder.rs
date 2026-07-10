@@ -852,7 +852,7 @@ impl WidgetMeasure {
                 }
 
                 if reused {
-                    // LAYOUT.register_metrics_use(measure_uses); // measure does not propagate uses.
+                    LAYOUT.register_metrics_use(measure_uses); // propagate to parent if it is measuring
                     return bounds.measure_outer_size();
                 }
             }
@@ -865,6 +865,7 @@ impl WidgetMeasure {
 
         let (measure_uses, size) = LAYOUT.capture_metrics_use(|| measure(self));
 
+        LAYOUT.register_metrics_use(measure_uses);
         bounds.set_measure_metrics(Some(snap), measure_uses);
         bounds.set_measure_outer_size(size);
 

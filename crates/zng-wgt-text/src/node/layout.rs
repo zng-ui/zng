@@ -420,6 +420,7 @@ impl LayoutTextFinal {
         self.pending |= resolved.pending_layout;
 
         let font_size = metrics.font_size();
+        let constraints = metrics.constraints();
 
         let mut ctx = TEXT.layout();
 
@@ -428,8 +429,8 @@ impl LayoutTextFinal {
             self.pending.insert(PendingLayout::RESHAPE);
         }
 
-        if TEXT_WRAP_VAR.get() && !metrics.constraints().x.is_unbounded() {
-            let max_width = metrics.constraints().x.max().unwrap();
+        if TEXT_WRAP_VAR.get() && !constraints.x.is_unbounded() {
+            let max_width = constraints.x.max().unwrap();
             if self.shaping_args.max_width != max_width {
                 self.shaping_args.max_width = max_width;
 
@@ -488,7 +489,7 @@ impl LayoutTextFinal {
 
         if !self.pending.contains(PendingLayout::RESHAPE_LINES) {
             let size = ctx.shaped_text.size();
-            if metrics.constraints().fill_size_or(size) != ctx.shaped_text.align_size() {
+            if constraints.fill_size_or(size) != ctx.shaped_text.align_size() {
                 self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
         }
@@ -593,7 +594,7 @@ impl LayoutTextFinal {
         }
 
         if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-            && ctx.shaped_text.align_size() != metrics.constraints().fill_size_or(ctx.shaped_text.block_size())
+            && ctx.shaped_text.align_size() != constraints.fill_size_or(ctx.shaped_text.block_size())
         {
             self.pending.insert(PendingLayout::RESHAPE_LINES);
         }
@@ -607,7 +608,7 @@ impl LayoutTextFinal {
             // Not sure if it is a bug that it does not work inlining, but it is not needed there anyway, so for now
             // this fix is sufficient.
             let mut args = TextReshapingArgs::default();
-            args.constraints = metrics.constraints();
+            args.constraints = constraints;
             args.inline_constraints = metrics.inline_constraints().map(|c| c.layout());
             args.align = align;
             args.overflow_align = overflow_align;
@@ -627,7 +628,7 @@ impl LayoutTextFinal {
                 if metrics.inline_constraints().is_some() {
                     // when inlining, only reshape lines in layout passes
                     let mut args = TextReshapingArgs::default();
-                    args.constraints = metrics.constraints();
+                    args.constraints = constraints;
                     args.inline_constraints = metrics.inline_constraints().map(|c| c.layout());
                     args.align = align;
                     args.overflow_align = overflow_align;
@@ -650,7 +651,7 @@ impl LayoutTextFinal {
             }
             if self.pending.contains(PendingLayout::OVERFLOW) {
                 let txt_size = ctx.shaped_text.size();
-                let max_size = metrics.constraints().fill_size_or(txt_size);
+                let max_size = constraints.fill_size_or(txt_size);
                 if txt_size.width > max_size.width || txt_size.height > max_size.height {
                     let suf_width = ctx.overflow_suffix.as_ref().map(|s| s.size().width).unwrap_or(Px(0));
                     ctx.overflow = ctx.shaped_text.overflow_info(max_size, suf_width);
@@ -865,7 +866,7 @@ impl LayoutTextFinal {
         }
         self.txt_is_measured = is_measure;
 
-        metrics.constraints().inner().fill_size_or(ctx.shaped_text.size())
+        constraints.inner().fill_size_or(ctx.shaped_text.size())
     }
 
     /// See `layout` docs.
