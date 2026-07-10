@@ -343,6 +343,8 @@ impl GridLayout {
 
             row_info.y = Px::MIN;
             row_info.height = Px::MIN;
+            row_info.min_height = Px::MIN;
+            row_info.max_height = Px::MAX;
 
             match row_kind {
                 WidgetLength::Default => {
