@@ -12,7 +12,7 @@ use core::cmp;
 use byteorder::{BigEndian, ReadBytesExt};
 use zng_view_api::font::GlyphIndex;
 
-const GDEF: u32 = u32::from_be_bytes(*b"GDEF");
+const GDEF: skrifa::Tag = skrifa::Tag::new(b"GDEF");
 
 #[derive(Clone)]
 pub struct LigatureCaretList {
@@ -29,8 +29,8 @@ impl LigatureCaretList {
         }
     }
 
-    pub fn load(font: &ttf_parser::RawFace) -> std::io::Result<Self> {
-        let table = match font.table(ttf_parser::Tag(GDEF)) {
+    pub(crate) fn load(font: &read_fonts::FontRef) -> std::io::Result<Self> {
+        let table = match font.table_data(GDEF) {
             Some(d) => d,
             None => return Ok(Self::empty()),
         };

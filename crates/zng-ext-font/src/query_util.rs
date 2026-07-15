@@ -191,7 +191,7 @@ mod desktop {
             match ve {
                 font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
                 font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
-                font_kit::error::FontLoadingError::Parse => Self::Parse(ttf_parser::FaceParsingError::MalformedFont),
+                font_kit::error::FontLoadingError::Parse => Self::Parse(read_fonts::ReadError::MalformedData("")),
                 font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
                 font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
             }
@@ -371,11 +371,13 @@ mod android {
 
         for (_, path) in &lock[start_i..=end_i] {
             if let Ok(bytes) = FontBytes::from_file(path.clone()) {
-                if let Ok(f) = ttf_parser::Face::parse(&bytes, 0) {
+                if let Ok(f) = skrifa::FontRef::from_index(&bytes, 0) {
+                    use skrifa::MetadataProvider as _;
+                    let a = f.attributes();
                     candidates.push(matching::Properties {
-                        style: f.style(),
-                        weight: f.weight(),
-                        stretch: f.width(),
+                        style: a.style,
+                        weight: a.weight,
+                        stretch: a.stretch,
                     });
                     options.push(bytes);
                 }
@@ -419,7 +421,7 @@ mod android {
 
         //! Determines the closest font matching a description per the CSS Fonts Level 3 specification.
 
-        use ttf_parser::{Style, Weight, Width as Stretch};
+        use skrifa::attribute::{Stretch, Style, Weight};
 
         use crate::FontLoadingError;
 
@@ -439,22 +441,26 @@ mod android {
                 return Err(FontLoadingError::NoSuchFontInCollection);
             }
 
+            fn k(f: f32) -> i32 {
+                (f * 64.0) as i32
+            }
+
             // Step 4a (`font-stretch`).
             let matching_stretch = if matching_set.iter().any(|&index| candidates[index].stretch == query.stretch) {
                 // Exact match.
                 query.stretch
-            } else if query.stretch <= Stretch::Normal {
+            } else if query.stretch <= Stretch::NORMAL {
                 // Closest width, first checking narrower values and then wider values.
                 match matching_set
                     .iter()
                     .filter(|&&index| candidates[index].stretch < query.stretch)
-                    .min_by_key(|&&index| query.stretch.to_number() - candidates[index].stretch.to_number())
+                    .min_by_key(|&&index| k(query.stretch.ratio() - candidates[index].stretch.ratio()))
                 {
                     Some(&matching_index) => candidates[matching_index].stretch,
                     None => {
                         let matching_index = *matching_set
                             .iter()
-                            .min_by_key(|&&index| candidates[index].stretch.to_number() - query.stretch.to_number())
+                            .min_by_key(|&&index| k(candidates[index].stretch.ratio() - query.stretch.ratio()))
                             .unwrap();
                         candidates[matching_index].stretch
                     }
@@ -464,13 +470,13 @@ mod android {
                 match matching_set
                     .iter()
                     .filter(|&&index| candidates[index].stretch > query.stretch)
-                    .min_by_key(|&&index| candidates[index].stretch.to_number() - query.stretch.to_number())
+                    .min_by_key(|&&index| k(candidates[index].stretch.ratio() - query.stretch.ratio()))
                 {
                     Some(&matching_index) => candidates[matching_index].stretch,
                     None => {
                         let matching_index = *matching_set
                             .iter()
-                            .min_by_key(|&&index| query.stretch.to_number() - candidates[index].stretch.to_number())
+                            .min_by_key(|&&index| k(query.stretch.ratio() - candidates[index].stretch.ratio()))
                             .unwrap();
                         candidates[matching_index].stretch
                     }
@@ -480,9 +486,9 @@ mod android {
 
             // Step 4b (`font-style`).
             let style_preference = match query.style {
-                Style::Italic => [Style::Italic, Style::Oblique, Style::Normal],
-                Style::Oblique => [Style::Oblique, Style::Italic, Style::Normal],
-                Style::Normal => [Style::Normal, Style::Oblique, Style::Italic],
+                Style::Italic => [Style::Italic, Style::Oblique(None), Style::Normal],
+                Style::Oblique(_) => [Style::Oblique(None), Style::Italic, Style::Normal],
+                Style::Normal => [Style::Normal, Style::Oblique(None), Style::Italic],
             };
             let matching_style = *style_preference
                 .iter()
@@ -496,30 +502,30 @@ mod android {
             // just use 450 as the cutoff.
             let matching_weight = if matching_set.iter().any(|&index| candidates[index].weight == query.weight) {
                 query.weight
-            } else if query.weight.to_number() >= 400
-                && query.weight.to_number() < 450
-                && matching_set.iter().any(|&index| candidates[index].weight == Weight::from(500))
+            } else if query.weight.value() >= 400.0
+                && query.weight.value() < 450.0
+                && matching_set.iter().any(|&index| candidates[index].weight == Weight::new(500.0))
             {
                 // Check 500 first.
-                Weight::from(500)
-            } else if query.weight.to_number() >= 450
-                && query.weight.to_number() <= 500
-                && matching_set.iter().any(|&index| candidates[index].weight.to_number() == 400)
+                Weight::new(500.0)
+            } else if query.weight.value() >= 450.0
+                && query.weight.value() <= 500.0
+                && matching_set.iter().any(|&index| candidates[index].weight.value() == 400.0)
             {
                 // Check 400 first.
-                Weight::from(400)
-            } else if query.weight.to_number() <= 500 {
+                Weight::new(400.0)
+            } else if query.weight.value() <= 500.0 {
                 // Closest weight, first checking thinner values and then fatter ones.
                 match matching_set
                     .iter()
-                    .filter(|&&index| candidates[index].weight.to_number() <= query.weight.to_number())
-                    .min_by_key(|&&index| query.weight.to_number() - candidates[index].weight.to_number())
+                    .filter(|&&index| candidates[index].weight.value() <= query.weight.value())
+                    .min_by_key(|&&index| k(query.weight.value() - candidates[index].weight.value()))
                 {
                     Some(&matching_index) => candidates[matching_index].weight,
                     None => {
                         let matching_index = *matching_set
                             .iter()
-                            .min_by_key(|&&index| candidates[index].weight.to_number() - query.weight.to_number())
+                            .min_by_key(|&&index| k(candidates[index].weight.value() - query.weight.value()))
                             .unwrap();
                         candidates[matching_index].weight
                     }
@@ -528,14 +534,14 @@ mod android {
                 // Closest weight, first checking fatter values and then thinner ones.
                 match matching_set
                     .iter()
-                    .filter(|&&index| candidates[index].weight.to_number() >= query.weight.to_number())
-                    .min_by_key(|&&index| candidates[index].weight.to_number() - query.weight.to_number())
+                    .filter(|&&index| candidates[index].weight.value() >= query.weight.value())
+                    .min_by_key(|&&index| k(candidates[index].weight.value() - query.weight.value()))
                 {
                     Some(&matching_index) => candidates[matching_index].weight,
                     None => {
                         let matching_index = *matching_set
                             .iter()
-                            .min_by_key(|&&index| query.weight.to_number() - candidates[index].weight.to_number())
+                            .min_by_key(|&&index| k(query.weight.value() - candidates[index].weight.value()))
                             .unwrap();
                         candidates[matching_index].weight
                     }

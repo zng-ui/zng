@@ -4,12 +4,13 @@ use std::{
     mem, ops,
 };
 
+use skrifa::MetadataProvider;
 use zng_app::widget::info::InlineSegmentInfo;
 use zng_ext_image::{ColorType, IMAGES, ImageDataFormat, ImageOptions, ImageSource, ImageVar};
 use zng_ext_l10n::{Lang, lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize, about_eq, euclid},
+    unit::{Align, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize, about_eq, euclid},
 };
 use zng_txt::Txt;
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
@@ -2270,7 +2271,7 @@ trait FontListRef {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[rustybuzz::Feature],
+        features: &[harfrust::Feature],
         out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R;
 }
@@ -2279,7 +2280,7 @@ impl FontListRef for [Font] {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[rustybuzz::Feature],
+        features: &[harfrust::Feature],
         out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R {
         let mut out = Some(out);
@@ -2528,7 +2529,7 @@ impl ShapedTextBuilder {
         static LIG: [&[u8]; 4] = [b"liga", b"clig", b"dlig", b"hlig"];
         let ligature_enabled = fonts[0].face().has_ligatures()
             && features.iter().any(|f| {
-                let tag = f.tag.to_bytes();
+                let tag = f.tag.to_be_bytes();
                 LIG.iter().any(|l| *l == tag)
             });
 
@@ -2814,16 +2815,20 @@ impl ShapedTextBuilder {
             self.out.has_colored_glyphs = true;
         }
         if (font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()))
-            && let Some(ttf) = font.face().ttf()
+            && let Some(ttf) = font.face().raw()
         {
             for (i, g) in shaped_seg.glyphs.iter().enumerate() {
-                let id = ttf_parser::GlyphId(g.index as _);
-                let ppm = font.size().0 as u16;
+                use read_fonts::TableProvider as _;
+                use skrifa::MetadataProvider as _;
+
+                let id = skrifa::GlyphId::new(g.index as _);
+                let ppm = skrifa::instance::Size::new(font.size().0 as f32);
                 let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
-                if let Some(img) = ttf.glyph_raster_image(id, ppm) {
+                if let Some(img) = ttf.bitmap_strikes().glyph_for_size(ppm, id) {
                     self.push_glyph_raster(glyphs_i as _, img);
                 } else if cfg!(feature = "svg")
-                    && let Some(img) = ttf.glyph_svg_image(id)
+                    && let Ok(img) = ttf.svg()
+                    && let Ok(Some(img)) = img.glyph_data(id)
                 {
                     self.push_glyph_svg(glyphs_i as _, img);
                 }
@@ -2831,133 +2836,12 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn push_glyph_raster(&mut self, glyphs_i: u32, img: ttf_parser::RasterGlyphImage) {
-        use ttf_parser::RasterImageFormat;
+    fn push_glyph_raster(&mut self, glyphs_i: u32, img: skrifa::bitmap::BitmapGlyph) {
         let size = PxSize::new(Px(img.width as _), Px(img.height as _));
-        let bgra_fmt = ImageDataFormat::Bgra8 {
-            size,
-            density: None,
-            original_color_type: ColorType::BGRA8,
-        };
-        let bgra_len = img.width as usize * img.height as usize * 4;
-        let (data, fmt) = match img.format {
-            RasterImageFormat::PNG => (img.data.to_vec(), ImageDataFormat::from("png")),
-            RasterImageFormat::BitmapMono => {
-                // row aligned 1-bitmap
-                let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize).div_ceil(8);
-                for y in 0..img.height as usize {
-                    let row_start = y * bytes_per_row;
-                    for x in 0..img.width as usize {
-                        let byte_index = row_start + x / 8;
-                        let bit_index = 7 - (x % 8);
-                        let bit = (img.data[byte_index] >> bit_index) & 1;
-                        let color = if bit == 1 { [0, 0, 0, 255] } else { [255, 255, 255, 255] };
-                        bgra.extend_from_slice(&color);
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapMonoPacked => {
-                // packed 1-bitmap
-                let mut bgra = Vec::with_capacity(bgra_len);
-                for &c8 in img.data {
-                    for bit in 0..8 {
-                        let color = if (c8 >> (7 - bit)) & 1 == 1 {
-                            [0, 0, 0, 255]
-                        } else {
-                            [255, 255, 255, 255]
-                        };
-                        bgra.extend_from_slice(&color);
-                        if bgra.len() == bgra_len {
-                            break;
-                        }
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapGray2 => {
-                // row aligned 2-bitmap
-                let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize).div_ceil(4);
-                for y in 0..img.height as usize {
-                    let row_start = y * bytes_per_row;
-                    for x in 0..img.width as usize {
-                        let byte_index = row_start + x / 4;
-                        let shift = (3 - (x % 4)) * 2;
-                        let gray = (img.data[byte_index] >> shift) & 0b11;
-                        let color = match gray {
-                            0b00 => [0, 0, 0, 255],       // Black
-                            0b01 => [85, 85, 85, 255],    // Dark gray
-                            0b10 => [170, 170, 170, 255], // Light gray
-                            0b11 => [255, 255, 255, 255], // White
-                            _ => unreachable!(),
-                        };
-                        bgra.extend_from_slice(&color);
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapGray2Packed => {
-                // packed 2-bitmap
-                let mut bgra = Vec::with_capacity(bgra_len);
-                for &c4 in img.data {
-                    for i in 0..4 {
-                        let gray = (c4 >> (7 - i * 2)) & 0b11;
-                        let color = match gray {
-                            0b00 => [0, 0, 0, 255],       // Black
-                            0b01 => [85, 85, 85, 255],    // Dark gray
-                            0b10 => [170, 170, 170, 255], // Light gray
-                            0b11 => [255, 255, 255, 255], // White
-                            _ => unreachable!(),
-                        };
-                        bgra.extend_from_slice(&color);
-                        if bgra.len() == bgra_len {
-                            break;
-                        }
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapGray4 => {
-                // row aligned 4-bitmap
-                let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize).div_ceil(2);
-                for y in 0..img.height as usize {
-                    let row_start = y * bytes_per_row;
-                    for x in 0..img.width as usize {
-                        let byte_index = row_start + x / 2;
-                        let shift = if x % 2 == 0 { 4 } else { 0 };
-                        let gray = (img.data[byte_index] >> shift) & 0b1111;
-                        let g = gray * 17;
-                        bgra.extend_from_slice(&[g, g, g, 255]);
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapGray4Packed => {
-                let mut bgra = Vec::with_capacity(bgra_len);
-                for &c2 in img.data {
-                    for i in 0..2 {
-                        let gray = (c2 >> (7 - i * 4)) & 0b1111;
-                        let g = gray * 17;
-                        bgra.extend_from_slice(&[g, g, g, 255]);
-                        if bgra.len() == bgra_len {
-                            break;
-                        }
-                    }
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapGray8 => {
-                let mut bgra = Vec::with_capacity(bgra_len);
-                for &c in img.data {
-                    bgra.extend_from_slice(&[c, c, c, 255]);
-                }
-                (bgra, bgra_fmt)
-            }
-            RasterImageFormat::BitmapPremulBgra32 => {
-                let mut bgra = img.data.to_vec();
+
+        let (data, fmt) = match img.data {
+            skrifa::bitmap::BitmapData::Bgra(d) => {
+                let mut bgra = d.to_vec();
                 for c in bgra.chunks_exact_mut(4) {
                     let (b, g, r, a) = (c[0], c[1], c[2], c[3]);
                     let unp = if a == 255 {
@@ -2971,14 +2855,30 @@ impl ShapedTextBuilder {
                     };
                     c.copy_from_slice(&unp);
                 }
+                let bgra_fmt = ImageDataFormat::Bgra8 {
+                    size,
+                    density: None,
+                    original_color_type: ColorType::BGRA8,
+                };
                 (bgra, bgra_fmt)
+            }
+            skrifa::bitmap::BitmapData::Png(d) => (d.to_vec(), ImageDataFormat::from("png")),
+            skrifa::bitmap::BitmapData::Mask(d) => {
+                let d = match d.decode(img.width, img.height) {
+                    Ok(g) => g,
+                    Err(e) => {
+                        tracing::error!("cannot decode glyph bitmap mask, {e:?}");
+                        vec![0; img.width as usize * img.height as usize]
+                    }
+                };
+                (d, ImageDataFormat::A8 { size })
             }
         };
         self.push_glyph_img(glyphs_i, ImageSource::from((data, fmt)));
     }
 
-    fn push_glyph_svg(&mut self, glyphs_i: u32, img: ttf_parser::svg::SvgDocument) {
-        self.push_glyph_img(glyphs_i, ImageSource::from((img.data, ImageDataFormat::from("svg"))));
+    fn push_glyph_svg(&mut self, glyphs_i: u32, img: &[u8]) {
+        self.push_glyph_img(glyphs_i, ImageSource::from((img, ImageDataFormat::from("svg"))));
     }
 
     fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource) {
@@ -4353,12 +4253,13 @@ impl WordContextKey {
         if !font_features.is_empty() {
             features.reserve(font_features.len() * if is_64 { 3 } else { 4 });
             for feature in font_features {
+                let tag = u32::from_be_bytes(feature.tag.to_be_bytes());
                 if is_64 {
-                    let mut h = feature.tag.0 as u64;
+                    let mut h = tag as u64;
                     h |= (feature.value as u64) << 32;
                     features.push(h as usize);
                 } else {
-                    features.push(feature.tag.0 as usize);
+                    features.push(tag as usize);
                     features.push(feature.value as usize);
                 }
 
@@ -4375,17 +4276,17 @@ impl WordContextKey {
         }
     }
 
-    pub fn harfbuzz_lang(&self) -> Option<rustybuzz::Language> {
+    pub fn harfbuzz_lang(&self) -> Option<harfrust::Language> {
         self.lang.as_str().parse().ok()
     }
 
-    pub fn harfbuzz_script(&self) -> Option<rustybuzz::Script> {
+    pub fn harfbuzz_script(&self) -> Option<harfrust::Script> {
         let t: u32 = self.script?.into();
         let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
-        rustybuzz::Script::from_iso15924_tag(ttf_parser::Tag::from_bytes(&[t[0], t[1], t[2], t[3]]))
+        harfrust::Script::from_iso15924_tag(skrifa::Tag::new(&[t[0], t[1], t[2], t[3]]))
     }
 
-    pub fn harfbuzz_direction(&self) -> rustybuzz::Direction {
+    pub fn harfbuzz_direction(&self) -> harfrust::Direction {
         into_harf_direction(self.direction)
     }
 }
@@ -4406,10 +4307,10 @@ struct ShapedGlyph {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> rustybuzz::UnicodeBuffer {
-        let mut buffer = rustybuzz::UnicodeBuffer::new();
+    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfrust::UnicodeBuffer {
+        let mut buffer = harfrust::UnicodeBuffer::new();
         buffer.set_direction(key.harfbuzz_direction());
-        buffer.set_cluster_level(rustybuzz::BufferClusterLevel::MonotoneCharacters);
+        buffer.set_cluster_level(harfrust::BufferClusterLevel::MonotoneCharacters);
 
         if let Some(lang) = key.harfbuzz_lang() {
             buffer.set_language(lang);
@@ -4422,10 +4323,14 @@ impl Font {
         buffer
     }
 
-    fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[rustybuzz::Feature]) -> ShapedSegmentData {
-        let buffer = if let Some(font) = self.harfbuzz() {
+    fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[harfrust::Feature]) -> ShapedSegmentData {
+        let buffer = if let Some(font) = self.face().raw()
+            && let Some(shaper_data) = &self.0.shaper_cache
+        {
             let buffer = self.buffer_segment(seg, key);
-            rustybuzz::shape(&font, features, buffer)
+            let shaper_builder = shaper_data.shaper(&font);
+            let shaper = shaper_builder.build();
+            shaper.shape(buffer, harfrust::ShapeOptions::new().features(features))
         } else {
             return ShapedSegmentData {
                 glyphs: vec![],
@@ -4434,7 +4339,7 @@ impl Font {
             };
         };
 
-        let size_scale = self.metrics().size_scale;
+        let size_scale = self.0.size.0 as f32 / self.0.metrics.units_per_em as f32;
         let to_layout = |p: i32| p as f32 * size_scale;
 
         let mut w_x_advance = 0.0;
@@ -4473,7 +4378,7 @@ impl Font {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[rustybuzz::Feature],
+        features: &[harfrust::Feature],
         out: impl FnOnce(&ShapedSegmentData) -> R,
     ) -> R {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) || self.face().is_empty() {
@@ -4584,27 +4489,37 @@ impl Font {
     pub fn outline(&self, glyph_id: GlyphIndex, sink: &mut impl OutlineSink) -> Option<PxRect> {
         struct AdapterSink<'a, S> {
             sink: &'a mut S,
-            scale: f32,
+            bounds: euclid::Box2D<f32, Px>,
         }
-        impl<S: OutlineSink> ttf_parser::OutlineBuilder for AdapterSink<'_, S> {
+        impl<S> AdapterSink<'_, S> {
+            fn point(&mut self, x: f32, y: f32) -> euclid::Point2D<f32, Px> {
+                let p = euclid::point2(x, y);
+                self.bounds.min = self.bounds.min.min(p);
+                self.bounds.max = self.bounds.max.max(p);
+                p
+            }
+        }
+        impl<S: OutlineSink> skrifa::outline::OutlinePen for AdapterSink<'_, S> {
             fn move_to(&mut self, x: f32, y: f32) {
-                self.sink.move_to(euclid::point2(x, y) * self.scale)
+                let p = self.point(x, y);
+                self.sink.move_to(p)
             }
 
             fn line_to(&mut self, x: f32, y: f32) {
-                self.sink.line_to(euclid::point2(x, y) * self.scale)
+                let p = self.point(x, y);
+                self.sink.line_to(p)
             }
 
             fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-                let ctrl = euclid::point2(x1, y1) * self.scale;
-                let to = euclid::point2(x, y) * self.scale;
+                let ctrl = self.point(x1, y1);
+                let to = self.point(x, y);
                 self.sink.quadratic_curve_to(ctrl, to)
             }
 
             fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-                let l_from = euclid::point2(x1, y1) * self.scale;
-                let l_to = euclid::point2(x2, y2) * self.scale;
-                let to = euclid::point2(x, y) * self.scale;
+                let l_from = self.point(x1, y1);
+                let l_to = self.point(x2, y2);
+                let to = self.point(x, y);
                 self.sink.cubic_curve_to((l_from, l_to), to)
             }
 
@@ -4612,17 +4527,20 @@ impl Font {
                 self.sink.close()
             }
         }
+        let size = skrifa::instance::Size::new(self.size().0 as f32);
 
-        let scale = self.metrics().size_scale;
-
-        let f = self.harfbuzz()?;
-        let r = f.outline_glyph(ttf_parser::GlyphId(glyph_id as _), &mut AdapterSink { sink, scale })?;
-        Some(
-            PxRect::new(
-                PxPoint::new(Px(r.x_min as _), Px(r.y_min as _)),
-                PxSize::new(Px(r.width() as _), Px(r.height() as _)),
-            ) * Factor2d::uniform(scale),
+        let f = self.face().raw()?;
+        let o = f.outline_glyphs().get(skrifa::GlyphId::new(glyph_id))?;
+        let mut sink = AdapterSink {
+            sink,
+            bounds: euclid::Box2D::zero(),
+        };
+        o.draw(
+            skrifa::outline::DrawSettings::unhinted(size, skrifa::instance::LocationRef::default()),
+            &mut sink,
         )
+        .ok()?;
+        Some(sink.bounds.to_rect().cast())
     }
 
     /// Ray cast an horizontal line across the glyph and returns the entry and exit hits.
@@ -4812,10 +4730,10 @@ pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {
     a.partial_cmp(b).unwrap()
 }
 
-fn into_harf_direction(d: LayoutDirection) -> rustybuzz::Direction {
+fn into_harf_direction(d: LayoutDirection) -> harfrust::Direction {
     match d {
-        LayoutDirection::LTR => rustybuzz::Direction::LeftToRight,
-        LayoutDirection::RTL => rustybuzz::Direction::RightToLeft,
+        LayoutDirection::LTR => harfrust::Direction::LeftToRight,
+        LayoutDirection::RTL => harfrust::Direction::RightToLeft,
     }
 }
 

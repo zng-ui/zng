@@ -1,5 +1,9 @@
 # Unreleased
 
+* Replace unmaintained font parsing and shaping dependencies.
+    - **Breaking** Removed `harfbuzz` and `ttf` methods from `FontFace`.
+    - **Breaking** Removed `Font::harfbuzz`.
+    - **Breaking** Removed `FontFaceMetrics` and `FontFace::metrics`.
 
 # 0.23.5
 
