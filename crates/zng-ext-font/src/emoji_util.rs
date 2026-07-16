@@ -36,10 +36,10 @@ Offset32 = uint32
 // OpenType is Big Endian, table IDs are their ASCII name (4 chars) as an `u32`.
 
 /// Color Palette Table
-const CPAL: u32 = u32::from_be_bytes(*b"CPAL");
+const CPAL: skrifa::Tag = skrifa::Tag::new(b"CPAL");
 
 /// Color Table.
-const COLR: u32 = u32::from_be_bytes(*b"COLR");
+const COLR: skrifa::Tag = skrifa::Tag::new(b"COLR");
 
 /// CPAL table.
 ///
@@ -48,7 +48,7 @@ const COLR: u32 = u32::from_be_bytes(*b"COLR");
 /// [`FontFace::color_palettes`]: crate::FontFace::color_palettes
 #[derive(Clone, Copy)]
 pub struct ColorPalettes<'a> {
-    table: &'a [u8],
+    table: read_fonts::FontData<'a>,
     num_palettes: u16,
     num_palette_entries: u16,
     color_records_array_offset: u32,
@@ -60,7 +60,7 @@ impl ColorPalettes<'static> {
     /// No color palettes.
     pub fn empty() -> Self {
         Self {
-            table: &[],
+            table: read_fonts::FontData::new(&[]),
             num_palettes: 0,
             num_palette_entries: 0,
             color_records_array_offset: 0,
@@ -72,7 +72,7 @@ impl ColorPalettes<'static> {
     /// New from font.
     ///
     /// Palettes are parsed on demand.
-    pub fn new<'a>(font: ttf_parser::RawFace<'a>) -> ColorPalettes<'a> {
+    pub(crate) fn new<'a>(font: read_fonts::FontRef<'a>) -> ColorPalettes<'a> {
         match Self::new_impl(font) {
             Ok(g) => g,
             Err(e) => {
@@ -81,8 +81,8 @@ impl ColorPalettes<'static> {
             }
         }
     }
-    fn new_impl<'a>(font: ttf_parser::RawFace<'a>) -> std::io::Result<ColorPalettes<'a>> {
-        let table = match font.table(ttf_parser::Tag(CPAL)) {
+    fn new_impl<'a>(font: read_fonts::FontRef<'a>) -> std::io::Result<ColorPalettes<'a>> {
+        let table = match font.table_data(CPAL) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
@@ -161,7 +161,7 @@ impl<'a> ColorPalettes<'a> {
     }
 
     fn palette_types_iter(&self) -> impl Iterator<Item = ColorPaletteType> + 'a {
-        let mut cursor = std::io::Cursor::new(&self.table[self.palette_types_array_offset as usize..]);
+        let mut cursor = std::io::Cursor::new(&self.table.as_bytes()[self.palette_types_array_offset as usize..]);
         let mut i = if self.palette_types_array_offset > 0 {
             self.num_palettes
         } else {
@@ -202,19 +202,20 @@ impl<'a> ColorPalettes<'a> {
         if self.palette_types_array_offset == 0 || i >= self.num_palettes {
             return ColorPaletteType::empty();
         }
-        let t = &self.table[self.palette_types_array_offset as usize + i as usize * 4..];
+        let t = &self.table.as_ref()[self.palette_types_array_offset as usize + i as usize * 4..];
         let flags = BigEndian::read_u32(t);
         ColorPaletteType::from_bits_retain(flags)
     }
 
     fn palette_get(&self, i: u16) -> Option<ColorPalette<'a>> {
         if i < self.num_palettes {
-            let byte_i = BigEndian::read_u16(&self.table[self.color_record_indices_offset as usize + i as usize * 2..]) as usize * 4;
+            let byte_i =
+                BigEndian::read_u16(&self.table.as_bytes()[self.color_record_indices_offset as usize + i as usize * 2..]) as usize * 4;
 
             let start = self.color_records_array_offset as usize + byte_i;
             let palette_len = self.num_palette_entries as usize * 4;
             Some(ColorPalette {
-                table: &self.table[start..start + palette_len],
+                table: &self.table.as_bytes()[start..start + palette_len],
                 flags: self.index_palette_type(i),
             })
         } else {
@@ -291,7 +292,7 @@ impl<'a> ColorPalette<'a> {
 /// [`FontFace::color_glyphs`]: crate::FontFace::color_glyphs
 #[derive(Clone, Copy)]
 pub struct ColorGlyphs<'a> {
-    table: &'a [u8],
+    table: read_fonts::FontData<'a>,
     num_base_glyph_records: u16,
     base_glyph_records_offset: u32,
     layer_records_offset: u32,
@@ -300,7 +301,7 @@ impl ColorGlyphs<'static> {
     /// No color glyphs.
     pub fn empty() -> Self {
         Self {
-            table: &[],
+            table: read_fonts::FontData::new(&[]),
             num_base_glyph_records: 0,
             base_glyph_records_offset: 0,
             layer_records_offset: 0,
@@ -310,7 +311,7 @@ impl ColorGlyphs<'static> {
     /// New from font.
     ///
     /// Color glyphs are parsed on demand.
-    pub fn new<'a>(font: ttf_parser::RawFace<'a>) -> ColorGlyphs<'a> {
+    pub(crate) fn new<'a>(font: read_fonts::FontRef<'a>) -> ColorGlyphs<'a> {
         match Self::new_impl(font) {
             Ok(g) => g,
             Err(e) => {
@@ -319,8 +320,8 @@ impl ColorGlyphs<'static> {
             }
         }
     }
-    fn new_impl<'a>(font: ttf_parser::RawFace<'a>) -> std::io::Result<ColorGlyphs<'a>> {
-        let table = match font.table(ttf_parser::Tag(COLR)) {
+    fn new_impl<'a>(font: read_fonts::FontRef<'a>) -> std::io::Result<ColorGlyphs<'a>> {
+        let table = match font.table_data(COLR) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
@@ -379,7 +380,7 @@ impl<'a> ColorGlyphs<'a> {
         let (first_layer_index, num_layers) = self.find_base_glyph(base_glyph)?;
 
         let record_size = 4;
-        let table = &self.table[self.layer_records_offset as usize + (first_layer_index as usize * record_size)..];
+        let table = &self.table.as_bytes()[self.layer_records_offset as usize + (first_layer_index as usize * record_size)..];
         Some(ColorGlyph { table, num_layers })
     }
 
@@ -413,11 +414,11 @@ impl<'a> ColorGlyphs<'a> {
                 return None;
             }
 
-            let glyph_id = BigEndian::read_u16(&self.table[pos..pos + 2]);
+            let glyph_id = BigEndian::read_u16(&self.table.as_ref()[pos..pos + 2]);
             match glyph_id.cmp(&base_glyph) {
                 std::cmp::Ordering::Equal => {
-                    let first_layer_index = BigEndian::read_u16(&self.table[pos + 2..pos + 4]);
-                    let num_layers = BigEndian::read_u16(&self.table[pos + 4..pos + 6]);
+                    let first_layer_index = BigEndian::read_u16(&self.table.as_ref()[pos + 2..pos + 4]);
+                    let num_layers = BigEndian::read_u16(&self.table.as_ref()[pos + 4..pos + 6]);
                     return if num_layers > 0 {
                         Some((first_layer_index, num_layers))
                     } else {

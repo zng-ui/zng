@@ -27,6 +27,7 @@
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
+use skrifa::MetadataProvider;
 use std::{borrow::Cow, fmt, io, ops, path::PathBuf, slice::SliceIndex, sync::Arc};
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 use zng_task::channel::WeakIpcBytes;
@@ -72,12 +73,12 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_l10n::{Lang, LangMap, lang};
 use zng_layout::unit::{
-    ByteUnits as _, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq,
-    about_eq_hash, about_eq_ord, euclid,
+    ByteUnits as _, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxRect, TimeUnits as _, about_eq, about_eq_hash,
+    about_eq_ord, euclid,
 };
 use zng_task::parking_lot::{Mutex, RwLock};
 use zng_task::{self as task, channel::IpcBytes};
-use zng_txt::Txt;
+use zng_txt::{ToTxt, Txt};
 use zng_var::{IntoVar, ResponseVar, Var, animation::Transitionable, const_var, impl_from_and_into_var, response_done_var, response_var};
 use zng_view_api::{config::FontAntiAliasing, font::IpcFontBytes};
 
@@ -261,6 +262,9 @@ impl_from_and_into_var! {
     }
     fn from(f: FontName) -> Txt {
         f.into_text()
+    }
+    fn from(s: Txt) -> FontName {
+        FontName::new(s)
     }
 }
 impl fmt::Display for FontName {
@@ -744,35 +748,11 @@ impl FONTS {
     }
 }
 
-impl<'a> From<ttf_parser::Face<'a>> for FontFaceMetrics {
-    fn from(f: ttf_parser::Face<'a>) -> Self {
-        let underline = f
-            .underline_metrics()
-            .unwrap_or(ttf_parser::LineMetrics { position: 0, thickness: 0 });
-        FontFaceMetrics {
-            units_per_em: f.units_per_em() as _,
-            ascent: f.ascender() as f32,
-            descent: f.descender() as f32,
-            line_gap: f.line_gap() as f32,
-            underline_position: underline.position as f32,
-            underline_thickness: underline.thickness as f32,
-            cap_height: f.capital_height().unwrap_or(0) as f32,
-            x_height: f.x_height().unwrap_or(0) as f32,
-            bounds: euclid::rect(
-                f.global_bounding_box().x_min as f32,
-                f.global_bounding_box().x_max as f32,
-                f.global_bounding_box().width() as f32,
-                f.global_bounding_box().height() as f32,
-            ),
-        }
-    }
-}
-
 #[derive(PartialEq, Eq, Hash)]
-struct FontInstanceKey(Px, Box<[(ttf_parser::Tag, i32)]>);
+struct FontInstanceKey(Px, Box<[(skrifa::Tag, i32)]>);
 impl FontInstanceKey {
     /// Returns the key.
-    pub fn new(size: Px, variations: &[rustybuzz::Variation]) -> Self {
+    pub(crate) fn new(size: Px, variations: &[harfrust::Variation]) -> Self {
         let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
         FontInstanceKey(size, variations_key.into_boxed_slice())
     }
@@ -795,7 +775,6 @@ struct LoadedFontFace {
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
-    metrics: FontFaceMetrics,
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     m: Mutex<FontFaceMut>,
@@ -826,7 +805,6 @@ impl fmt::Debug for FontFace {
             .field("style", &self.0.style)
             .field("weight", &self.0.weight)
             .field("stretch", &self.0.stretch)
-            .field("metrics", &self.0.metrics)
             .field("instances.len()", &m.instances.len())
             .field("render_keys.len()", &m.render_ids.len())
             .field("unregistered", &m.unregistered)
@@ -852,19 +830,6 @@ impl FontFace {
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
             stretch: FontStretch::NORMAL,
-            // values copied from a monospace font
-            metrics: FontFaceMetrics {
-                units_per_em: 2048,
-                ascent: 1616.0,
-                descent: -432.0,
-                line_gap: 0.0,
-                underline_position: -205.0,
-                underline_thickness: 102.0,
-                cap_height: 1616.0,
-                x_height: 1616.0,
-                // `xMin`/`xMax`/`yMin`/`yMax`
-                bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
-            },
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
@@ -907,7 +872,6 @@ impl FontFace {
                         style: other_font.0.style,
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
-                        metrics: other_font.0.metrics.clone(),
                         m: Mutex::new(FontFaceMut {
                             instances: Default::default(),
                             render_ids: Default::default(),
@@ -921,40 +885,41 @@ impl FontFace {
             }
         }
 
-        let ttf_face = match ttf_parser::Face::parse(&bytes, face_index) {
+        let ttf_face = match skrifa::FontRef::from_index(&bytes, face_index) {
             Ok(f) => f,
             Err(e) => {
                 match e {
                     // try again with font 0 (font-kit selects a high index for Ubuntu Font)
-                    ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                    read_fonts::ReadError::InvalidCollectionIndex(_) if face_index != 0 => face_index = 0,
                     e => return Err(FontLoadingError::Parse(e)),
                 }
 
-                match ttf_parser::Face::parse(&bytes, face_index) {
+                match skrifa::FontRef::from_index(&bytes, face_index) {
                     Ok(f) => f,
                     Err(_) => return Err(FontLoadingError::Parse(e)),
                 }
             }
         };
+        use read_fonts::TableProvider as _;
 
-        let has_ligatures = ttf_face.tables().gsub.is_some();
+        let has_ligatures = ttf_face.gsub().is_ok();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
-            LigatureCaretList::load(ttf_face.raw_face())?
-        };
-
-        // all tables used by `ttf_parser::Face::glyph_raster_image`
-        let has_raster_images = {
-            let t = ttf_face.tables();
-            t.sbix.is_some() || t.bdat.is_some() || t.ebdt.is_some() || t.cbdt.is_some()
+            LigatureCaretList::load(&ttf_face)?
         };
 
         let mut flags = FontFaceFlags::empty();
-        flags.set(FontFaceFlags::IS_MONOSPACE, ttf_face.is_monospaced());
+        flags.set(
+            FontFaceFlags::IS_MONOSPACE,
+            ttf_face.post().map(|p| p.is_fixed_pitch() != 0).unwrap_or(false),
+        );
         flags.set(FontFaceFlags::HAS_LIGATURES, has_ligatures);
-        flags.set(FontFaceFlags::HAS_RASTER_IMAGES, has_raster_images);
-        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.tables().svg.is_some());
+        flags.set(
+            FontFaceFlags::HAS_RASTER_IMAGES,
+            ttf_face.sbix().is_ok() || ttf_face.ebdt().is_ok() || ttf_face.cbdt().is_ok(),
+        );
+        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.svg().is_ok());
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
@@ -964,7 +929,6 @@ impl FontFace {
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
-            metrics: ttf_face.into(),
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -979,88 +943,89 @@ impl FontFace {
     fn load(bytes: FontBytes, mut face_index: u32) -> Result<Self, FontLoadingError> {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
-        let ttf_face = match ttf_parser::Face::parse(&bytes, face_index) {
+        let ttf_face = match skrifa::FontRef::from_index(&bytes, face_index) {
             Ok(f) => f,
             Err(e) => {
                 match e {
                     // try again with font 0 (font-kit selects a high index for Ubuntu Font)
-                    ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                    read_fonts::ReadError::InvalidCollectionIndex(_) if face_index != 0 => face_index = 0,
                     e => return Err(FontLoadingError::Parse(e)),
                 }
 
-                match ttf_parser::Face::parse(&bytes, face_index) {
+                match skrifa::FontRef::from_index(&bytes, face_index) {
                     Ok(f) => f,
                     Err(_) => return Err(FontLoadingError::Parse(e)),
                 }
             }
         };
+        use read_fonts::TableProvider as _;
 
-        let has_ligatures = ttf_face.tables().gsub.is_some();
+        let has_ligatures = ttf_face.gsub().is_ok();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
-            LigatureCaretList::load(ttf_face.raw_face())?
+            LigatureCaretList::load(&ttf_face)?
         };
 
         let mut display_name = None;
         let mut family_name = None;
         let mut postscript_name = None;
-        let mut any_name = None::<String>;
-        for name in ttf_face.names() {
-            if let Some(n) = name.to_string() {
-                match name.name_id {
-                    ttf_parser::name_id::FULL_NAME => display_name = Some(n),
-                    ttf_parser::name_id::FAMILY => family_name = Some(n),
-                    ttf_parser::name_id::POST_SCRIPT_NAME => postscript_name = Some(n),
-                    _ => match &mut any_name {
-                        Some(s) => {
-                            if n.len() > s.len() {
-                                *s = n;
+        let mut any_name = None::<Txt>;
+        if let Ok(name) = ttf_face.name() {
+            for record in name.name_record() {
+                let n = match record.string(name.string_data()) {
+                    Ok(n) => n.to_txt(),
+                    Err(_) => continue,
+                };
+                match record.name_id() {
+                    read_fonts::tables::name::NameId::FULL_NAME => display_name = Some(n),
+                    read_fonts::tables::name::NameId::FAMILY_NAME => family_name = Some(n),
+                    read_fonts::tables::name::NameId::POSTSCRIPT_NAME => postscript_name = Some(n),
+                    _ => {
+                        if let Some(t) = &mut any_name {
+                            if t.len() < n.len() {
+                                *t = n;
                             }
+                        } else {
+                            any_name = Some(n)
                         }
-                        None => any_name = Some(n),
-                    },
+                    }
                 }
             }
         }
-        let display_name = FontName::new(Txt::from_str(
+        let display_name = FontName::new(
             display_name
-                .as_ref()
-                .or(family_name.as_ref())
-                .or(postscript_name.as_ref())
-                .or(any_name.as_ref())
-                .unwrap(),
-        ));
+                .clone()
+                .or_else(|| family_name.clone())
+                .or_else(|| postscript_name.clone())
+                .or_else(|| any_name.clone())
+                .unwrap_or_default(),
+        );
         let family_name = family_name.map(FontName::from).unwrap_or_else(|| display_name.clone());
-        let postscript_name = postscript_name.map(Txt::from);
-
-        if ttf_face.units_per_em() == 0 {
-            // observed this in Noto Color Emoji (with font_kit)
-            tracing::debug!("font {display_name:?} units_per_em 0");
-            return Err(FontLoadingError::UnknownFormat);
-        }
-
-        // all tables used by `ttf_parser::Face::glyph_raster_image`
-        let has_raster_images = {
-            let t = ttf_face.tables();
-            t.sbix.is_some() || t.bdat.is_some() || t.ebdt.is_some() || t.cbdt.is_some()
-        };
+        let postscript_name = postscript_name;
 
         let mut flags = FontFaceFlags::empty();
-        flags.set(FontFaceFlags::IS_MONOSPACE, ttf_face.is_monospaced());
+        flags.set(
+            FontFaceFlags::IS_MONOSPACE,
+            ttf_face.post().map(|p| p.is_fixed_pitch() != 0).unwrap_or(false),
+        );
         flags.set(FontFaceFlags::HAS_LIGATURES, has_ligatures);
-        flags.set(FontFaceFlags::HAS_RASTER_IMAGES, has_raster_images);
-        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.tables().svg.is_some());
+        flags.set(
+            FontFaceFlags::HAS_RASTER_IMAGES,
+            ttf_face.sbix().is_ok() || ttf_face.ebdt().is_ok() || ttf_face.cbdt().is_ok(),
+        );
+        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.svg().is_ok());
+
+        let attr = ttf_face.attributes();
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
             family_name,
             display_name,
             postscript_name,
-            style: ttf_face.style().into(),
-            weight: ttf_face.weight().into(),
-            stretch: ttf_face.width().into(),
-            metrics: ttf_face.into(),
+            style: attr.style.into(),
+            weight: attr.weight.into(),
+            stretch: attr.stretch.into(),
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1107,35 +1072,11 @@ impl FontFace {
         key
     }
 
-    /// Loads the harfbuzz face.
-    ///
-    /// Loads from in memory [`bytes`].
-    ///
-    /// Returns `None` if [`is_empty`].
-    ///
-    /// [`is_empty`]: Self::is_empty
-    /// [`bytes`]: Self::bytes
-    pub fn harfbuzz(&self) -> Option<rustybuzz::Face<'_>> {
+    pub(crate) fn raw(&self) -> Option<harfrust::FontRef<'_>> {
         if self.is_empty() {
             None
         } else {
-            Some(rustybuzz::Face::from_slice(&self.0.data, self.0.face_index).unwrap())
-        }
-    }
-
-    /// Loads the full TTF face.
-    ///
-    /// Loads from in memory [`bytes`].
-    ///
-    /// Returns `None` if [`is_empty`].
-    ///
-    /// [`is_empty`]: Self::is_empty
-    /// [`bytes`]: Self::bytes
-    pub fn ttf(&self) -> Option<ttf_parser::Face<'_>> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(ttf_parser::Face::parse(&self.0.data, self.0.face_index).unwrap())
+            Some(harfrust::FontRef::from_index(&self.0.data, self.0.face_index).unwrap())
         }
     }
 
@@ -1181,11 +1122,6 @@ impl FontFace {
     /// Font is monospace (fixed-width).
     pub fn is_monospace(&self) -> bool {
         self.0.flags.contains(FontFaceFlags::IS_MONOSPACE)
-    }
-
-    /// Font metrics in font units.
-    pub fn metrics(&self) -> &FontFaceMetrics {
-        &self.0.metrics
     }
 
     /// Gets a cached sized [`Font`].
@@ -1238,8 +1174,8 @@ impl FontFace {
     ///
     /// Is empty if not provided by the font.
     pub fn color_palettes(&self) -> ColorPalettes<'_> {
-        match self.ttf() {
-            Some(ttf) => ColorPalettes::new(*ttf.raw_face()),
+        match self.raw() {
+            Some(ttf) => ColorPalettes::new(ttf),
             None => ColorPalettes::empty(),
         }
     }
@@ -1248,8 +1184,8 @@ impl FontFace {
     ///
     /// Is empty if not provided by the font.
     pub fn color_glyphs(&self) -> ColorGlyphs<'_> {
-        match self.ttf() {
-            Some(ttf) => ColorGlyphs::new(*ttf.raw_face()),
+        match self.raw() {
+            Some(ttf) => ColorGlyphs::new(ttf),
             None => ColorGlyphs::empty(),
         }
     }
@@ -1293,6 +1229,7 @@ struct LoadedFont {
     render_keys: Mutex<Vec<RenderFont>>,
     small_word_cache: RwLock<HashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
     word_cache: RwLock<HashMap<WordCacheKey<String>, ShapedSegmentData>>,
+    shaper_cache: Option<harfrust::ShaperData>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1326,14 +1263,20 @@ impl Font {
     }
 
     fn new(face: FontFace, size: Px, variations: RFontVariations) -> Self {
+        let (metrics, shaper_cache) = match face.raw() {
+            Some(f) => (FontMetrics::new(&f, size), Some(harfrust::ShaperData::new(&f))),
+            None => (FontMetrics::empty(), None),
+        };
+
         Font(Arc::new(LoadedFont {
-            metrics: face.metrics().sized(size),
+            metrics,
             face,
             size,
             variations,
             render_keys: Mutex::new(vec![]),
             small_word_cache: RwLock::default(),
             word_cache: RwLock::default(),
+            shaper_cache,
         }))
     }
 
@@ -1352,7 +1295,7 @@ impl Font {
         let mut opt = zng_view_api::font::FontOptions::default();
         opt.synthetic_oblique = synthesis.contains(FontSynthesis::OBLIQUE);
         opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
-        let variations = self.0.variations.iter().map(|v| (v.tag.to_bytes(), v.value)).collect();
+        let variations = self.0.variations.iter().map(|v| (v.tag.to_be_bytes(), v.value)).collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
@@ -1370,18 +1313,6 @@ impl Font {
     /// Reference the font face source of this font.
     pub fn face(&self) -> &FontFace {
         &self.0.face
-    }
-
-    /// Gets the sized harfbuzz font.
-    pub fn harfbuzz(&self) -> Option<rustybuzz::Face<'_>> {
-        let ppem = self.0.size.0 as u16;
-
-        let mut font = self.0.face.harfbuzz()?;
-
-        font.set_pixels_per_em(Some((ppem, ppem)));
-        font.set_variations(&self.0.variations);
-
-        Some(font)
     }
 
     /// Font size.
@@ -1410,14 +1341,13 @@ impl Font {
         &self,
         lig: zng_view_api::font::GlyphIndex,
     ) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
-        let face = &self.0.face.0;
-        face.lig_carets.carets(lig).iter().map(move |&o| match o {
+        self.0.face.0.lig_carets.carets(lig).iter().map(move |&o| match o {
             ligature_util::LigatureCaret::Coordinate(o) => {
-                let size_scale = 1.0 / face.metrics.units_per_em as f32 * self.0.size.0 as f32;
+                let size_scale = 1.0 / self.0.metrics.units_per_em as f32 * self.0.size.0 as f32;
                 o as f32 * size_scale
             }
             ligature_util::LigatureCaret::GlyphContourPoint(i) => {
-                if let Some(f) = self.harfbuzz() {
+                if let Some(f) = self.face().raw() {
                     struct Search {
                         i: u16,
                         s: u16,
@@ -1431,7 +1361,7 @@ impl Font {
                             }
                         }
                     }
-                    impl ttf_parser::OutlineBuilder for Search {
+                    impl skrifa::outline::OutlinePen for Search {
                         fn move_to(&mut self, x: f32, _y: f32) {
                             self.check(x);
                         }
@@ -1451,8 +1381,18 @@ impl Font {
                         fn close(&mut self) {}
                     }
                     let mut search = Search { i, s: 0, x: 0.0 };
-                    if f.outline_glyph(ttf_parser::GlyphId(lig as _), &mut search).is_some() && search.s >= search.i {
-                        return search.x * self.0.metrics.size_scale;
+                    if let Some(o) = f.outline_glyphs().get(skrifa::GlyphId::new(lig))
+                        && o.draw(
+                            skrifa::outline::DrawSettings::unhinted(
+                                skrifa::instance::Size::new(self.size().0 as f32),
+                                skrifa::instance::LocationRef::default(),
+                            ),
+                            &mut search,
+                        )
+                        .is_ok()
+                        && search.s >= search.i
+                    {
+                        return search.x;
                     }
                 }
                 0.0
@@ -3148,43 +3088,14 @@ impl_from_and_into_var! {
         FontStretch(fct)
     }
 }
-impl From<ttf_parser::Width> for FontStretch {
-    fn from(value: ttf_parser::Width) -> Self {
-        use ttf_parser::Width::*;
-        match value {
-            UltraCondensed => FontStretch::ULTRA_CONDENSED,
-            ExtraCondensed => FontStretch::EXTRA_CONDENSED,
-            Condensed => FontStretch::CONDENSED,
-            SemiCondensed => FontStretch::SEMI_CONDENSED,
-            Normal => FontStretch::NORMAL,
-            SemiExpanded => FontStretch::SEMI_EXPANDED,
-            Expanded => FontStretch::EXPANDED,
-            ExtraExpanded => FontStretch::EXTRA_EXPANDED,
-            UltraExpanded => FontStretch::ULTRA_EXPANDED,
-        }
+impl From<skrifa::attribute::Stretch> for FontStretch {
+    fn from(value: skrifa::attribute::Stretch) -> Self {
+        FontStretch(value.ratio())
     }
 }
-impl From<FontStretch> for ttf_parser::Width {
+impl From<FontStretch> for skrifa::attribute::Stretch {
     fn from(value: FontStretch) -> Self {
-        if value <= FontStretch::ULTRA_CONDENSED {
-            ttf_parser::Width::UltraCondensed
-        } else if value <= FontStretch::EXTRA_CONDENSED {
-            ttf_parser::Width::ExtraCondensed
-        } else if value <= FontStretch::CONDENSED {
-            ttf_parser::Width::Condensed
-        } else if value <= FontStretch::SEMI_CONDENSED {
-            ttf_parser::Width::SemiCondensed
-        } else if value <= FontStretch::NORMAL {
-            ttf_parser::Width::Normal
-        } else if value <= FontStretch::SEMI_EXPANDED {
-            ttf_parser::Width::SemiExpanded
-        } else if value <= FontStretch::EXPANDED {
-            ttf_parser::Width::Expanded
-        } else if value <= FontStretch::EXTRA_EXPANDED {
-            ttf_parser::Width::ExtraExpanded
-        } else {
-            ttf_parser::Width::UltraExpanded
-        }
+        skrifa::attribute::Stretch::new(value.0)
     }
 }
 
@@ -3211,23 +3122,23 @@ impl fmt::Debug for FontStyle {
         }
     }
 }
-impl From<ttf_parser::Style> for FontStyle {
-    fn from(value: ttf_parser::Style) -> Self {
-        use ttf_parser::Style::*;
+impl From<skrifa::attribute::Style> for FontStyle {
+    fn from(value: skrifa::attribute::Style) -> Self {
+        use skrifa::attribute::Style::*;
         match value {
             Normal => FontStyle::Normal,
             Italic => FontStyle::Italic,
-            Oblique => FontStyle::Oblique,
+            Oblique(_) => FontStyle::Oblique,
         }
     }
 }
 
-impl From<FontStyle> for ttf_parser::Style {
+impl From<FontStyle> for skrifa::attribute::Style {
     fn from(value: FontStyle) -> Self {
         match value {
             FontStyle::Normal => Self::Normal,
             FontStyle::Italic => Self::Italic,
-            FontStyle::Oblique => Self::Oblique,
+            FontStyle::Oblique => Self::Oblique(None),
         }
     }
 }
@@ -3326,26 +3237,14 @@ impl_from_and_into_var! {
         FontWeight(weight)
     }
 }
-impl From<ttf_parser::Weight> for FontWeight {
-    fn from(value: ttf_parser::Weight) -> Self {
-        use ttf_parser::Weight::*;
-        match value {
-            Thin => FontWeight::THIN,
-            ExtraLight => FontWeight::EXTRA_LIGHT,
-            Light => FontWeight::LIGHT,
-            Normal => FontWeight::NORMAL,
-            Medium => FontWeight::MEDIUM,
-            SemiBold => FontWeight::SEMIBOLD,
-            Bold => FontWeight::BOLD,
-            ExtraBold => FontWeight::EXTRA_BOLD,
-            Black => FontWeight::BLACK,
-            Other(o) => FontWeight(o as f32),
-        }
+impl From<skrifa::attribute::Weight> for FontWeight {
+    fn from(value: skrifa::attribute::Weight) -> Self {
+        FontWeight(value.value())
     }
 }
-impl From<FontWeight> for ttf_parser::Weight {
+impl From<FontWeight> for skrifa::attribute::Weight {
     fn from(value: FontWeight) -> Self {
-        ttf_parser::Weight::from(value.0 as u16)
+        skrifa::attribute::Weight::new(value.0)
     }
 }
 
@@ -3517,87 +3416,10 @@ impl fmt::Debug for Justify {
     }
 }
 
-/// Various metrics that apply to the entire [`FontFace`].
-///
-/// For OpenType fonts, these mostly come from the `OS/2` table.
-///
-/// See the [`FreeType Glyph Metrics`] documentation for an explanation of the various metrics.
-///
-/// [`FreeType Glyph Metrics`]: https://freetype.org/freetype2/docs/glyphs/glyphs-3.html
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[non_exhaustive]
-pub struct FontFaceMetrics {
-    /// The number of font units per em.
-    ///
-    /// Font sizes are usually expressed in pixels per em; e.g. `12px` means 12 pixels per em.
-    pub units_per_em: u32,
-
-    /// The maximum amount the font rises above the baseline, in font units.
-    pub ascent: f32,
-
-    /// The maximum amount the font descends below the baseline, in font units.
-    ///
-    /// This is typically a negative value to match the definition of `sTypoDescender` in the
-    /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
-    /// beware, as the sign is reversed from what those APIs return.
-    pub descent: f32,
-
-    /// Distance between baselines, in font units.
-    pub line_gap: f32,
-
-    /// The suggested distance of the top of the underline from the baseline (negative values
-    /// indicate below baseline), in font units.
-    pub underline_position: f32,
-
-    /// A suggested value for the underline thickness, in font units.
-    pub underline_thickness: f32,
-
-    /// The approximate amount that uppercase letters rise above the baseline, in font units.
-    pub cap_height: f32,
-
-    /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
-    /// font units.
-    pub x_height: f32,
-
-    /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
-    ///
-    /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounds: euclid::Rect<f32, ()>,
-}
-impl FontFaceMetrics {
-    /// Compute [`FontMetrics`] given a font size in pixels.
-    pub fn sized(&self, font_size_px: Px) -> FontMetrics {
-        let size_scale = 1.0 / self.units_per_em as f32 * font_size_px.0 as f32;
-        let s = move |f: f32| Px((f * size_scale).round() as i32);
-        FontMetrics {
-            size_scale,
-            ascent: s(self.ascent),
-            descent: s(self.descent),
-            line_gap: s(self.line_gap),
-            underline_position: s(self.underline_position),
-            underline_thickness: s(self.underline_thickness),
-            cap_height: s(self.cap_height),
-            x_height: (s(self.x_height)),
-            bounds: {
-                let b = self.bounds;
-                PxRect::new(
-                    PxPoint::new(s(b.origin.x), s(b.origin.y)),
-                    PxSize::new(s(b.size.width), s(b.size.height)),
-                )
-            },
-        }
-    }
-}
-
 /// Various metrics about a [`Font`].
-///
-/// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub struct FontMetrics {
-    /// Multiply this to a font EM value to get the size in pixels.
-    pub size_scale: f32,
-
     /// The maximum amount the font rises above the baseline, in pixels.
     pub ascent: Px,
 
@@ -3628,12 +3450,79 @@ pub struct FontMetrics {
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
     pub bounds: PxRect,
+
+    units_per_em: u16,
 }
 impl FontMetrics {
     /// The font line height.
     pub fn line_height(&self) -> Px {
         self.ascent - self.descent + self.line_gap
     }
+
+    fn new(f: &skrifa::FontRef, size: Px) -> Self {
+        let m = f.metrics(skrifa::instance::Size::new(size.0 as f32), skrifa::instance::LocationRef::default());
+        let u = m.underline.unwrap_or_default();
+        let b = m.bounds.unwrap_or_default();
+        let scale = size.0 as f32 / m.units_per_em as f32;
+        let line_gap = self::line_gap(f) as f32 * scale;
+        fn f32_to_px(v: f32) -> Px {
+            // use num_traits to cast
+            euclid::point2::<f32, ()>(v, v).cast().x
+        }
+        Self {
+            ascent: f32_to_px(m.ascent),
+            descent: f32_to_px(m.descent),
+            line_gap: f32_to_px(line_gap),
+            underline_position: f32_to_px(u.offset),
+            underline_thickness: f32_to_px(u.thickness),
+            cap_height: f32_to_px(m.cap_height.unwrap_or(0.0)),
+            x_height: f32_to_px(m.x_height.unwrap_or(0.0)),
+            bounds: euclid::rect(b.x_min, b.y_min, b.x_max - b.x_min, b.y_max - b.y_min).cast(),
+
+            units_per_em: m.units_per_em,
+        }
+    }
+
+    fn empty() -> Self {
+        Self {
+            ascent: Px(0),
+            descent: Px(0),
+            line_gap: Px(0),
+            underline_position: Px(0),
+            underline_thickness: Px(0),
+            cap_height: Px(0),
+            x_height: Px(0),
+            bounds: euclid::Rect::zero(),
+            units_per_em: 0,
+        }
+    }
+}
+fn line_gap(f: &skrifa::FontRef) -> i16 {
+    // port of https://docs.rs/ttf-parser/latest/src/ttf_parser/lib.rs.html#1563-1585
+    use read_fonts::TableProvider as _;
+    if let Ok(os2) = f.os2() {
+        let use_typographic_metrics = os2.version() >= 4
+            && os2
+                .fs_selection()
+                .contains(read_fonts::tables::os2::SelectionFlags::USE_TYPO_METRICS);
+        if use_typographic_metrics {
+            return os2.s_typo_line_gap();
+        }
+    }
+    if let Ok(hrea) = f.hhea() {
+        if hrea.ascender().to_i16() == 0
+            && hrea.descender().to_i16() == 0
+            && let Ok(os2) = f.os2()
+        {
+            return if os2.s_typo_ascender() != 0 || os2.s_typo_descender() != 0 {
+                return os2.s_typo_line_gap();
+            } else {
+                0
+            };
+        }
+        return hrea.line_gap().to_i16();
+    }
+    0
 }
 
 /// Text transform function.
@@ -3977,7 +3866,7 @@ pub enum FontLoadingError {
     /// this error.
     NoSuchFontInCollection,
     /// Attempted to load a malformed or corrupted font.
-    Parse(ttf_parser::FaceParsingError),
+    Parse(read_fonts::ReadError),
     /// Attempted to load a font from the filesystem, but there is no filesystem (e.g. in
     /// WebAssembly).
     NoFilesystem,

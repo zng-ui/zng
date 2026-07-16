@@ -31,9 +31,9 @@ impl From<&'static [u8; 4]> for FontFeatureName {
         FontFeatureName(*name)
     }
 }
-impl From<FontFeatureName> for ttf_parser::Tag {
+impl From<FontFeatureName> for skrifa::Tag {
     fn from(value: FontFeatureName) -> Self {
-        ttf_parser::Tag::from_bytes(&value.0)
+        skrifa::Tag::new(&value.0)
     }
 }
 impl ops::Deref for FontFeatureName {
@@ -153,7 +153,7 @@ impl FontFeatures {
     pub fn finalize(&self) -> RFontFeatures {
         self.0
             .iter()
-            .map(|(&n, &s)| rustybuzz::Feature::new(ttf_parser::Tag::from(n), s, 0..usize::MAX))
+            .map(|(&n, &s)| harfrust::Feature::new(skrifa::Tag::from(n), s, 0..usize::MAX))
             .collect()
     }
 }
@@ -169,8 +169,8 @@ impl fmt::Debug for FontFeatures {
 
 /// Finalized [`FontFeatures`].
 ///
-/// This is a vec of [harfbuzz features](https://docs.rs/rustybuzz/0.17.0/rustybuzz/struct.Feature.html).
-pub type RFontFeatures = Vec<rustybuzz::Feature>;
+/// This is a vec of [harfbuzz features](https://docs.rs/harfrust/latest/harfrust/struct.Feature.html).
+pub type RFontFeatures = Vec<harfrust::Feature>;
 
 /// A builder for [`FontFeatures`].
 ///
@@ -1711,9 +1711,9 @@ impl From<&'static [u8; 4]> for FontVariationName {
         FontVariationName(*name)
     }
 }
-impl From<FontVariationName> for ttf_parser::Tag {
+impl From<FontVariationName> for skrifa::Tag {
     fn from(value: FontVariationName) -> Self {
-        ttf_parser::Tag::from_bytes(&value.0)
+        skrifa::Tag::new(&value.0)
     }
 }
 impl ops::Deref for FontVariationName {
@@ -1813,7 +1813,7 @@ impl FontVariations {
     pub fn finalize(&self) -> RFontVariations {
         self.0
             .iter()
-            .map(|(name, value)| rustybuzz::Variation {
+            .map(|(name, value)| harfrust::Variation {
                 tag: (*name).into(),
                 value: *value,
             })
@@ -1872,4 +1872,4 @@ use zng_var::impl_from_and_into_var;
 /// Finalized [`FontVariations`].
 ///
 /// This is a vec of [harfbuzz variations](https://docs.rs/rustybuzz/0.17.0/rustybuzz/struct.Variation.html).
-pub type RFontVariations = Vec<rustybuzz::Variation>;
+pub type RFontVariations = Vec<harfrust::Variation>;

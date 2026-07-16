@@ -41,8 +41,9 @@ zng-ext-image = { path = "../zng-ext-image", version = "0.13.5", default-feature
 
 serde = { version = "1.0", default-features = false }
 unicase = { version = "2.7", default-features = false }
-rustybuzz = { version = "0.20", default-features = false, features = ["std"] }
-ttf-parser = { version = "0.25", default-features = false, features = ["std", "apple-layout", "opentype-layout", "variable-fonts"] }
+harfrust = { version = "0.12", default-features = false, features = ["std"] }
+read-fonts = { version = "0.41", default-features = false, features = ["std"] }
+skrifa = { version = "0.44", default-features = false, features = ["std"] }
 byteorder = { version = "1.5", default-features = false, features = ["std"] }
 icu_properties = { version = "2.0", default-features = false, features = ["compiled_data"] }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }

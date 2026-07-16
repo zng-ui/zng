@@ -157,11 +157,11 @@
 
 pub use zng_ext_font::{
     BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette, ColorPaletteType, ColorPalettes, CustomFont, FONT_CHANGED_EVENT, FONTS,
-    Font, FontBytes, FontChange, FontChangedArgs, FontColorPalette, FontFace, FontFaceList, FontFaceMetrics, FontList, FontMetrics,
-    FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, HYPHENATION, HyphenationDataDir, HyphenationDataSource, Hyphens,
-    Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing, OutlineSink, ParagraphSpacing, SegmentedText,
-    SegmentedTextIter, ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo,
-    TextSegment, TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, font_features,
+    Font, FontBytes, FontChange, FontChangedArgs, FontColorPalette, FontFace, FontFaceList, FontList, FontMetrics, FontName, FontNames,
+    FontSize, FontStretch, FontStyle, FontWeight, HYPHENATION, HyphenationDataDir, HyphenationDataSource, Hyphens, Justify,
+    LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing, OutlineSink, ParagraphSpacing, SegmentedText, SegmentedTextIter,
+    ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo, TextSegment,
+    TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, font_features,
     unicode_bidi_levels, unicode_bidi_sort,
 };
 pub use zng_view_api::config::FontAntiAliasing;
