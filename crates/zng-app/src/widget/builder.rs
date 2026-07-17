@@ -1032,7 +1032,7 @@ pub fn iter_input_attributes<'a>(
     })
 }
 
-// TODO(breaking) type erase this
+// TODO(breaking) type erase this (PropertyAttribute<I>?)
 fn apply_attributes<'a, I: Any + Send>(
     mut item: I,
     mut attributes: impl Iterator<Item = (&'a dyn AnyPropertyAttribute, &'a [Option<PropertyAttributeWhenData>])>,

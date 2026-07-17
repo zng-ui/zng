@@ -36,7 +36,7 @@ serde = { version = "1.0", default-features = false, features = ["std"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 glob = { version = "0.3", default-features = false  }
 notify = { version = "8.0", default-features = false, features = ["macos_fsevent"] }
-path-absolutize = { version = "3.1", default-features = false }
+path-absolutize = { version = "4.0", default-features = false }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 
 serde_json = { version = "1.0", optional = true, default-features = false, features = ["std"] }
