@@ -150,8 +150,6 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
     let mut yielded = vec![];
-    // TODO(breaking) remove this
-    let mut yield_until_app = vec![];
     let mut next_handlers_count = handlers.len();
     for h in handlers {
         next_handlers_count -= 1;
@@ -161,15 +159,9 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
             yield_requested: AtomicU8::new(0),
         };
         h(&args);
-        match args.yield_requested.load(Ordering::Relaxed) {
-            ProcessStartArgs::YIELD_ONCE => {
-                yielded.push(h);
-                next_handlers_count += 1;
-            }
-            ProcessStartArgs::YIELD_UNTIL_APP => {
-                yield_until_app.push(h);
-            }
-            _ => {}
+        if args.yield_requested.load(Ordering::Relaxed) == ProcessStartArgs::YIELD_ONCE {
+            yielded.push(h);
+            next_handlers_count += 1;
         }
     }
 
@@ -190,30 +182,13 @@ fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
                 yield_requested: AtomicU8::new(0),
             };
             h(&args);
-            match args.yield_requested.load(Ordering::Relaxed) {
-                ProcessStartArgs::YIELD_ONCE => {
-                    yielded.push(h);
-                    next_handlers_count += 1;
-                }
-                ProcessStartArgs::YIELD_UNTIL_APP => {
-                    yield_until_app.push(h);
-                }
-                _ => {}
+            if let ProcessStartArgs::YIELD_ONCE = args.yield_requested.load(Ordering::Relaxed) {
+                yielded.push(h);
+                next_handlers_count += 1;
             }
         }
     }
 
-    for h in yield_until_app {
-        let args = ProcessStartArgs {
-            next_handlers_count: 0,
-            yield_count: ProcessStartArgs::MAX_YIELD_COUNT,
-            yield_requested: AtomicU8::new(0),
-        };
-        h(&args);
-        if args.yield_requested.load(Ordering::Relaxed) != 0 {
-            eprintln!("handler requested `yield_until_app` and then yielded again")
-        }
-    }
     MainExitHandler
 }
 
@@ -265,7 +240,6 @@ impl ProcessStartArgs {
     pub const MAX_YIELD_COUNT: u16 = 32;
 
     const YIELD_ONCE: u8 = 1;
-    const YIELD_UNTIL_APP: u8 = 2;
 
     /// Let other process start handlers run first.
     ///
@@ -289,24 +263,6 @@ impl ProcessStartArgs {
     /// ```
     pub fn yield_once(&self) {
         self.yield_requested.store(Self::YIELD_ONCE, Ordering::Relaxed);
-    }
-
-    /// Deprecated.
-    ///
-    /// There is actually no way to know if the process is an app-process until `APP.on_init` runs
-    /// because any process can start an app.
-    #[deprecated = "use `APP.on_init` to register a closure that runs if the process becomes an app process"]
-    pub fn yield_until_app(&self) -> bool {
-        if self.next_handlers_count > 0 && self.yield_count < Self::MAX_YIELD_COUNT {
-            // yield until we are the last handler, this ensures we are running in the app-process
-            self.yield_requested.store(Self::YIELD_UNTIL_APP, Ordering::Relaxed);
-            return true;
-        }
-
-        // init name early, since there is interest
-        crate::init_process_name("app-process");
-
-        false
     }
 }
 
