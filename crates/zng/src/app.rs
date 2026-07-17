@@ -482,7 +482,7 @@ pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 /// See [`zng_app::crash_handler`] and [`zng_wgt_inspector::crash_handler`] for the full API.
 #[cfg(crash_handler)]
 pub mod crash_handler {
-    pub use zng_app::crash_handler::{BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic, crash_handler_config};
+    pub use zng_app::crash_handler::{CrashArgs, CrashConfig, CrashError, crash_handler_config};
 
     #[cfg(feature = "crash_handler_debug")]
     pub use zng_wgt_inspector::crash_handler::debug_dialog;

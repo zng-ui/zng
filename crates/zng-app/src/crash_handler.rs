@@ -15,11 +15,10 @@ use std::{
 };
 use zng_clone_move::clmv;
 use zng_layout::unit::TimeUnits as _;
-use zng_task::{parking_lot::Mutex, process::tap};
-
-// TODO(breaking) remove this
-use tap::contains_ansi_csi;
-pub use tap::{BacktraceFrame, PanicInfo as CrashPanic, remove_ansi_csi};
+use zng_task::{
+    parking_lot::Mutex,
+    process::tap::{self, PanicInfo},
+};
 
 use zng_txt::Txt;
 
@@ -338,12 +337,12 @@ impl CrashError {
 
     /// Gets if `stdout` does not contain any ANSI scape sequences.
     pub fn is_stdout_plain(&self) -> bool {
-        !contains_ansi_csi(&self.stdout)
+        !tap::contains_ansi_csi(&self.stdout)
     }
 
     /// Gets if `stderr` does not contain any ANSI scape sequences.
     pub fn is_stderr_plain(&self) -> bool {
-        !contains_ansi_csi(&self.stderr)
+        !tap::contains_ansi_csi(&self.stderr)
     }
 
     /// Get `stdout` without any ANSI escape sequences (CSI).
@@ -351,7 +350,7 @@ impl CrashError {
         if self.is_stdout_plain() {
             self.stdout.clone()
         } else {
-            remove_ansi_csi(&self.stdout)
+            tap::remove_ansi_csi(&self.stdout)
         }
     }
 
@@ -360,14 +359,14 @@ impl CrashError {
         if self.is_stderr_plain() {
             self.stderr.clone()
         } else {
-            remove_ansi_csi(&self.stderr)
+            tap::remove_ansi_csi(&self.stderr)
         }
     }
 
     /// Gets if `stderr` contains a crash panic.
     pub fn has_panic(&self) -> bool {
         if self.code == Some(101) {
-            CrashPanic::contains(&self.stderr)
+            PanicInfo::contains(&self.stderr)
         } else {
             false
         }
@@ -376,7 +375,7 @@ impl CrashError {
     /// Gets if `stderr` contains a crash panic that traced widget/window path.
     pub fn has_panic_widget(&self) -> bool {
         if self.code == Some(101) {
-            CrashPanic::contains_widget(&self.stderr)
+            PanicInfo::contains_widget(&self.stderr)
         } else {
             false
         }
@@ -385,10 +384,10 @@ impl CrashError {
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
-    /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
-    pub fn find_panic(&self) -> Option<CrashPanic> {
+    /// hook installed by `crash_handler` or by the display print of [`PanicInfo`].
+    pub fn find_panic(&self) -> Option<PanicInfo> {
         if self.code == Some(101) {
-            CrashPanic::find(&self.stderr)
+            PanicInfo::find(&self.stderr)
         } else {
             None
         }
@@ -846,7 +845,7 @@ impl minidumper::ServerHandler for MinidumpServerHandler {
 }
 
 fn crash_handler_app_process(dump_enabled: bool) {
-    CrashPanic::set_hook(|| crate::widget::WIDGET.trace_path());
+    PanicInfo::set_hook(|| crate::widget::WIDGET.trace_path());
     if dump_enabled {
         minidump_attach();
     }
@@ -857,7 +856,7 @@ fn crash_handler_app_process(dump_enabled: bool) {
 fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, args_file: String) -> ! {
     zng_env::set_process_name("crash-dialog-process");
 
-    CrashPanic::set_hook(|| crate::widget::WIDGET.trace_path());
+    PanicInfo::set_hook(|| crate::widget::WIDGET.trace_path());
     if dump_enabled {
         minidump_attach();
     }
