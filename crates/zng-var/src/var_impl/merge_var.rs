@@ -41,8 +41,7 @@ macro_rules! merge_var {
     };
 }
 
-use core::fmt;
-use std::{any::TypeId, fmt::Write as _, marker::PhantomData, ops, sync::Arc};
+use std::{any::TypeId, fmt::Write as _, marker::PhantomData, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::clmv;
@@ -487,14 +486,11 @@ impl<I: VarValue> MergeVarBuilder<I> {
     }
 
     /// Build a red-only merge var.
-    pub fn build<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
+    pub fn build<O: VarValue>(self, mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static) -> Var<O> {
         self.builder.build(move |inputs| {
-            // TODO(breaking) optimize this so that we don't need to alloc vec,
-            // maybe VarMergeInputs can offer an with(&self, index: usize, visitor...)
-            let values: Vec<_> = inputs.iter().map(AnyVar::get).collect();
-            merge(VarMergeInputs {
-                inputs: &values,
-                _type: PhantomData,
+            merge(MergeVarInputs {
+                inputs,
+                _input_type: PhantomData,
             })
         })
     }
@@ -502,16 +498,14 @@ impl<I: VarValue> MergeVarBuilder<I> {
     /// Build a read-write merge var.
     pub fn build_bidi<O: VarValue>(
         self,
-        mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static,
+        mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static,
         mut map_back: impl FnMut(&O, usize) -> I + Send + 'static,
     ) -> Var<O> {
         self.builder.build_bidi(
             move |inputs| {
-                // TODO(breaking) see build
-                let values: Vec<_> = inputs.iter().map(AnyVar::get).collect();
-                merge(VarMergeInputs {
-                    inputs: &values,
-                    _type: PhantomData,
+                merge(MergeVarInputs {
+                    inputs,
+                    _input_type: PhantomData,
                 })
             },
             move |output, input_idx| BoxAnyVarValue::new(map_back(output, input_idx)),
@@ -521,16 +515,14 @@ impl<I: VarValue> MergeVarBuilder<I> {
     /// Build a read-write merge var that modifies each input back.
     pub fn build_bidi_modify<O: VarValue>(
         self,
-        mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static,
+        mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static,
         mut modify_back: impl FnMut(&O, usize, VarModify<I>) + Send + 'static,
     ) -> Var<O> {
         self.builder.build_bidi_modify(
             move |inputs| {
-                // TODO(breaking) see build
-                let values: Vec<_> = inputs.iter().map(AnyVar::get).collect();
-                merge(VarMergeInputs {
-                    inputs: &values,
-                    _type: PhantomData,
+                merge(MergeVarInputs {
+                    inputs,
+                    _input_type: PhantomData,
                 })
             },
             move |output, input_idx, m| modify_back(output, input_idx, m.downcast().unwrap()),
@@ -551,42 +543,71 @@ impl<T: VarValue + AsRef<str>> MergeVarBuilder<T> {
         self.build(move |t| {
             let mut s = String::new();
             let mut sep = "";
-            for t in t.iter() {
+            t.with_each(|_, t| {
                 write!(&mut s, "{sep}{}", t.as_ref()).unwrap();
                 sep = &separator;
-            }
+            });
             s.into()
         })
     }
 }
 
-/// Input arguments for the merge closure of [`MergeVarBuilder`] merge vars.
-pub struct VarMergeInputs<'a, I: VarValue> {
-    // TODO(breaking) rename to MergeVarInputs
-    inputs: &'a [BoxAnyVarValue],
-    _type: PhantomData<&'a I>,
+/// Strongly typed input vars for [`MergeVarBuilder`]
+pub struct MergeVarInputs<'a, I: VarValue> {
+    inputs: &'a [AnyVar],
+    _input_type: PhantomData<fn() -> &'a I>,
 }
-impl<I: VarValue> VarMergeInputs<'_, I> {
+impl<'a, I: VarValue> MergeVarInputs<'a, I> {
     /// Number of inputs.
-    #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inputs.len()
     }
 
-    /// Iterate over the values.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &I> + '_ {
-        (0..self.len()).map(move |i| &self[i])
+    /// If has no inputs.
+    pub fn is_empty(&self) -> bool {
+        self.inputs.is_empty()
     }
-}
-impl<I: VarValue> ops::Index<usize> for VarMergeInputs<'_, I> {
-    type Output = I;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        self.inputs[index].downcast_ref().unwrap()
+    /// Visit the current value of the `index` input.
+    pub fn with<R>(&self, index: usize, visit: impl FnOnce(&I) -> R) -> R {
+        self.inputs[index].with(|v| visit(v.downcast_ref().unwrap()))
+    }
+
+    /// Clone the current value of the `index` input.
+    pub fn get(&self, index: usize) -> I {
+        self.with(index, |v| v.clone())
+    }
+
+    /// Clone the `index` input var.
+    pub fn input(&self, index: usize) -> Var<I> {
+        self.inputs[index].read_only().downcast().unwrap()
+    }
+
+    /// Iterate over clones of the current value of each input.
+    pub fn iter(&self) -> std::iter::Map<std::slice::Iter<'a, AnyVar>, fn(&AnyVar) -> I> {
+        Self {
+            inputs: self.inputs,
+            _input_type: self._input_type,
+        }
+        .into_iter()
+    }
+
+    /// Visit the current value of each input.
+    pub fn with_each(&self, mut visit: impl FnMut(usize, &I)) {
+        for (i, var) in self.inputs.iter().enumerate() {
+            var.with(|v| visit(i, v.downcast_ref().unwrap()))
+        }
     }
 }
-impl<I: VarValue> fmt::Debug for VarMergeInputs<'_, I> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fmt::Debug::fmt(self.inputs, f)
+impl<'a, I: VarValue> std::iter::IntoIterator for MergeVarInputs<'a, I> {
+    type Item = I;
+
+    type IntoIter = std::iter::Map<std::slice::Iter<'a, AnyVar>, fn(&AnyVar) -> I>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inputs.iter().map(downcast)
     }
+}
+fn downcast<I: VarValue>(v: &AnyVar) -> I {
+    v.with(|v| v.downcast_ref::<I>().unwrap().clone())
 }

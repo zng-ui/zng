@@ -392,13 +392,13 @@ impl ImageEntry {
                     b.push(entry.0.clone());
                 }
                 b.build(move |entries| {
-                    let mut best = &entries[0];
+                    let mut best = entries.get(0);
                     for entry in entries.iter().skip(1) {
                         if Self::best_reduce_cmp(size, entry.size(), best.size()).is_lt() {
                             best = entry;
                         }
                     }
-                    best.clone()
+                    best
                 })
             }
         }
