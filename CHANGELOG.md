@@ -1,6 +1,7 @@
 # Unreleased
 
 * **Breaking** Change `zng::task::Progress::msg` into a `Var<Txt>` to support localized messages.
+* **Breaking** Refactor `MergeVarBuilder` to avoid cloning all input values.
 * **Breaking** Remove `zng::app::crash_handler::{BacktraceFrame, CrashPanic}`.
     - Unified with `zng::task::process::tap::PanicInfo` and related types.
 * **Breaking** Remove deprecated `ProcessStartArgs::yield_until_app`.
