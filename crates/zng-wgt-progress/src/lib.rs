@@ -192,10 +192,13 @@ impl DefaultStyle {
             };
 
             container::child_spacing = 6;
-            container::child_out_bottom = zng_wgt_text::Text! {
-                txt = PROGRESS_VAR.map(|p| p.msg());
-                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
-                zng_wgt::align = Align::CENTER;
+            container::child_out_bottom = {
+                let txt = PROGRESS_VAR.flat_map(|p| p.msg());
+                zng_wgt_text::Text! {
+                    zng_wgt::visibility = txt.map(|p| Visibility::from(!p.is_empty()));
+                    txt;
+                    zng_wgt::align = Align::CENTER;
+                }
             };
         }
     }
@@ -266,9 +269,12 @@ impl CircularStyle {
                 }
             };
             container::child_spacing = 6;
-            container::child = zng_wgt_text::Text! {
-                txt = PROGRESS_VAR.map(|p| p.msg());
-                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
+            container::child = {
+                let txt = PROGRESS_VAR.flat_map(|p| p.msg());
+                zng_wgt_text::Text! {
+                    zng_wgt::visibility = txt.map(|p| Visibility::from(!p.is_empty()));
+                    txt;
+                }
             };
         }
     }

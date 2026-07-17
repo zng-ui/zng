@@ -5,13 +5,13 @@ use parking_lot::RwLock;
 use zng_state_map::{OwnedStateMap, StateMapMut, StateMapRef};
 use zng_txt::Txt;
 use zng_unit::{Factor, FactorPercent, FactorUnits as _};
-use zng_var::impl_from_and_into_var;
+use zng_var::{IntoVar, Var, const_var, impl_from_and_into_var};
 
 /// Status update about a task progress.
 #[derive(Clone)]
 pub struct Progress {
     factor: Factor,
-    msg: Txt, // TODO(breaking) change  this to Var<Txt>, so contextual `l10n!` text can be set from tasks.
+    msg: Var<Txt>,
     meta: Arc<RwLock<OwnedStateMap<Progress>>>,
 }
 impl Progress {
@@ -39,8 +39,8 @@ impl Progress {
     }
 
     /// Set the display message about the task status update.
-    pub fn with_msg(mut self, msg: impl Into<Txt>) -> Self {
-        self.msg = msg.into();
+    pub fn with_msg(mut self, msg: impl IntoVar<Txt>) -> Self {
+        self.msg = msg.into_var();
         self
     }
 
@@ -110,7 +110,7 @@ impl Progress {
     }
 
     /// Display text about the task status update.
-    pub fn msg(&self) -> Txt {
+    pub fn msg(&self) -> Var<Txt> {
         self.msg.clone()
     }
 
@@ -152,7 +152,7 @@ impl Progress {
     fn new(value: Factor) -> Self {
         Self {
             factor: Self::normalize_factor(value),
-            msg: Txt::from_static(""),
+            msg: const_var(Txt::from_static("")),
             meta: Arc::new(RwLock::new(OwnedStateMap::new())),
         }
     }
@@ -161,14 +161,15 @@ impl fmt::Debug for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskStatus")
             .field("factor", &self.factor)
-            .field("message", &self.msg)
+            .field("msg", &self.msg.get())
             .finish_non_exhaustive()
     }
 }
 impl fmt::Display for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if !self.msg.is_empty() {
-            write!(f, "{}", self.msg)?;
+        let msg = self.msg.get();
+        if !msg.is_empty() {
+            write!(f, "{msg}")?;
             if !self.is_indeterminate() {
                 write!(f, " ({})", self.factor.pct())
             } else {
@@ -183,13 +184,19 @@ impl fmt::Display for Progress {
 }
 impl PartialEq for Progress {
     fn eq(&self, other: &Self) -> bool {
-        self.factor == other.factor && self.msg == other.msg && {
-            let a = self.meta.read();
-            let b = other.meta.read();
-            let a = a.borrow();
-            let b = b.borrow();
-            a.is_empty() == b.is_empty() && (a.is_empty() || Arc::ptr_eq(&self.meta, &other.meta))
-        }
+        self.factor == other.factor
+            && if self.msg.capabilities().is_const() && other.msg.capabilities().is_const() {
+                self.msg.with(|a| other.msg.with(|b| a == b))
+            } else {
+                self.msg.var_eq(&other.msg)
+            }
+            && {
+                let a = self.meta.read();
+                let b = other.meta.read();
+                let a = a.borrow();
+                let b = b.borrow();
+                a.is_empty() == b.is_empty() && (a.is_empty() || Arc::ptr_eq(&self.meta, &other.meta))
+            }
     }
 }
 impl Eq for Progress {}
