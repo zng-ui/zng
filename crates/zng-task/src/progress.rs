@@ -5,13 +5,13 @@ use parking_lot::RwLock;
 use zng_state_map::{OwnedStateMap, StateMapMut, StateMapRef};
 use zng_txt::Txt;
 use zng_unit::{Factor, FactorPercent, FactorUnits as _};
-use zng_var::impl_from_and_into_var;
+use zng_var::{IntoVar, Var, VarEq, const_var, impl_from_and_into_var};
 
 /// Status update about a task progress.
 #[derive(Clone)]
 pub struct Progress {
     factor: Factor,
-    msg: Txt, // TODO(breaking) change  this to Var<Txt>, so contextual `l10n!` text can be set from tasks.
+    msg: VarEq<Txt>,
     meta: Arc<RwLock<OwnedStateMap<Progress>>>,
 }
 impl Progress {
@@ -39,8 +39,8 @@ impl Progress {
     }
 
     /// Set the display message about the task status update.
-    pub fn with_msg(mut self, msg: impl Into<Txt>) -> Self {
-        self.msg = msg.into();
+    pub fn with_msg(mut self, msg: impl IntoVar<Txt>) -> Self {
+        self.msg = VarEq(msg.into_var());
         self
     }
 
@@ -110,8 +110,8 @@ impl Progress {
     }
 
     /// Display text about the task status update.
-    pub fn msg(&self) -> Txt {
-        self.msg.clone()
+    pub fn msg(&self) -> Var<Txt> {
+        self.msg.0.clone()
     }
 
     /// Borrow the custom status metadata for reading.
@@ -152,7 +152,7 @@ impl Progress {
     fn new(value: Factor) -> Self {
         Self {
             factor: Self::normalize_factor(value),
-            msg: Txt::from_static(""),
+            msg: VarEq(const_var(Txt::from_static(""))),
             meta: Arc::new(RwLock::new(OwnedStateMap::new())),
         }
     }
@@ -161,14 +161,15 @@ impl fmt::Debug for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskStatus")
             .field("factor", &self.factor)
-            .field("message", &self.msg)
+            .field("message", &self.msg.get())
             .finish_non_exhaustive()
     }
 }
 impl fmt::Display for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if !self.msg.is_empty() {
-            write!(f, "{}", self.msg)?;
+        let msg = self.msg.get();
+        if !msg.is_empty() {
+            write!(f, "{msg}")?;
             if !self.is_indeterminate() {
                 write!(f, " ({})", self.factor.pct())
             } else {

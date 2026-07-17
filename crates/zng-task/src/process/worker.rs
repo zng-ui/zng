@@ -341,7 +341,6 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     ///
     /// The worker cannot be used if this is set, run requests will immediately disconnect.
     pub fn crash_error(&mut self) -> Option<&WorkerCrashError> {
-        // TODO(breaking) make this async
         if let Some((t, _, _)) = &self.running
             && t.is_finished()
         {
