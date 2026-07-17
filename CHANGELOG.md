@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Remove deprecated `ProcessStartArgs::yield_until_app`.
 * Replace unmaintained font parsing and shaping dependencies.
     - **Breaking** Removed `harfbuzz` and `ttf` methods from `FontFace`.
     - **Breaking** Removed `Font::harfbuzz`.
