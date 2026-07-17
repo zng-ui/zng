@@ -30,7 +30,7 @@ pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge_var;
 pub use merge_var::{
-    __merge_var, AnyMergeVarBuilder, MergeInput, MergeVarBuilder, VarMergeInputs, merge_var, merge_var_input, merge_var_output,
+    __merge_var, AnyMergeVarBuilder, MergeInput, MergeVarBuilder, MergeVarInputs, merge_var, merge_var_input, merge_var_output,
     merge_var_with,
 };
 

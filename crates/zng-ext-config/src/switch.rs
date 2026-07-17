@@ -80,7 +80,7 @@ impl AnyConfig for SwitchConfig {
         for c in &self.cfgs {
             s.push(c.cfg.status());
         }
-        s.build(|status| ConfigStatus::merge_status(status.iter().cloned()))
+        s.build(|status| ConfigStatus::merge_status(status.iter()))
     }
 
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
