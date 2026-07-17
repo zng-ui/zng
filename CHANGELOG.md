@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Remove `zng::app::crash_handler::{BacktraceFrame, CrashPanic}`.
+    - Unified with `zng::task::process::tap::PanicInfo` and related types.
 * **Breaking** Remove deprecated `ProcessStartArgs::yield_until_app`.
 * Replace unmaintained font parsing and shaping dependencies.
     - **Breaking** Removed `harfbuzz` and `ttf` methods from `FontFace`.
