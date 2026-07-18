@@ -532,7 +532,7 @@ impl BacktraceFrame {
                     return None;
                 };
 
-                backtrace = &backtrace[n_name.len() + 1..];
+                backtrace = backtrace.get(n_name.len() + 1..).unwrap_or("");
                 let r = if backtrace.trim_start().starts_with("at ") {
                     let file_line = backtrace.lines().next().unwrap();
                     let (file, line) = if let Some((file, line)) = file_line.rsplit_once(':') {
