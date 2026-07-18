@@ -27,15 +27,6 @@ ignore = [
     # remove this ignore when all dependencies are fixed
     "RUSTSEC-2025-0141",
 
-    # `ttf-parser` and `rustybuzz` are unmaintained
-    # 
-    # ttf-parser v0.25.1
-    # ├── rustybuzz v0.20.1
-    # │   └── zng-ext-font v0.15.2
-    # └── zng-ext-font v0.15.2
-    "RUSTSEC-2026-0192",
-    "RUSTSEC-2026-0206",
-
     # Quadratic run time when checking a start tag for duplicate attribute names
     #
     # quick-xml v0.39.4
