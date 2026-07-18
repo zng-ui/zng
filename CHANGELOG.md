@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.0
+
 * Fix `BacktraceFrame::parse` panicking in crash dialogs.
 * **Breaking** Change `zng::task::Progress::msg` into a `Var<Txt>` to support localized messages.
 * **Breaking** Refactor `MergeVarBuilder` to avoid cloning all input values.
