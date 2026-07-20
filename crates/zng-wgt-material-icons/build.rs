@@ -184,12 +184,12 @@ fn target_dir() -> PathBuf {
     dir.to_path_buf()
 }
 
-#[cfg(not(feature = "embedded_subset"))]
+#[cfg(not(all(feature = "embedded_subset", not(feature = "_all_features"))))]
 fn read_subset_allow() -> HashMap<String, HashSet<String>> {
     Default::default()
 }
 
-#[cfg(feature = "embedded_subset")]
+#[cfg(all(feature = "embedded_subset", not(feature = "_all_features")))]
 fn read_subset_allow() -> HashMap<String, HashSet<String>> {
     // find profile file
     let path = match std::env::var("ZNG_MATERIAL_ICONS_PROFILE_FILE") {
