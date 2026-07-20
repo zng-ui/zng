@@ -84,7 +84,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if let Some(async_) = &item.sig.asyncness {
         errors.push("property functions cannot be `async`", async_.span());
     }
-    if let Some(unsafe_) = &item.sig.unsafety {
+    if let syn::Safety::Unsafe(unsafe_) = &item.sig.safety {
         errors.push("property functions cannot be `unsafe`", unsafe_.span());
     }
     if let Some(abi) = &item.sig.abi {
@@ -855,7 +855,7 @@ impl Input {
                 }
                 match ty {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
-                        let bounds = it.bounds.pop().unwrap().into_value();
+                        let bounds = it.bounds.pop().unwrap();
                         match bounds {
                             TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
                                 let path = tra.path;
@@ -958,7 +958,7 @@ impl FirstArg {
 
                 match *t.ty.clone() {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
-                        let bounds = it.bounds.pop().unwrap().into_value();
+                        let bounds = it.bounds.pop().unwrap();
                         match bounds {
                             TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
                                 let path = tra.path;

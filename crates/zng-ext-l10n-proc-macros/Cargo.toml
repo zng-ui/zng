@@ -16,7 +16,7 @@ proc-macro = true
 
 [dependencies]
 proc-macro2 = { version = "1.0", default-features = false }
-syn = { version = "2.0", default-features = false, features = ["full", "visit", "extra-traits", "derive"] }
+syn = { version = "3.0.2", default-features = false, features = ["full", "visit", "extra-traits", "derive"] }
 quote = { version = "1.0", default-features = false }
 
 fluent-syntax = { version = "0.12", default-features = false }

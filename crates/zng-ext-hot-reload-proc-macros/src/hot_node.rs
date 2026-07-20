@@ -37,7 +37,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     if let Some(async_) = &item.sig.asyncness {
         errors.push("hot node functions cannot be `async`", async_.span());
     }
-    if let Some(unsafe_) = &item.sig.unsafety {
+    if let syn::Safety::Unsafe(unsafe_) = &item.sig.safety {
         errors.push("hot node functions cannot be `unsafe`", unsafe_.span());
     }
     if let Some(abi) = &item.sig.abi {
@@ -261,7 +261,7 @@ impl Input {
 
                 match *t.ty.clone() {
                     Type::ImplTrait(mut it) if it.bounds.len() == 1 => {
-                        let bounds = it.bounds.pop().unwrap().into_value();
+                        let bounds = it.bounds.pop().unwrap();
                         match bounds {
                             TypeParamBound::Trait(tra) if tra.lifetimes.is_none() && tra.paren_token.is_none() => {
                                 let path = tra.path;
@@ -309,7 +309,7 @@ impl Input {
                         input.kind = InputKind::TryClone;
                         input.gen_ty = a.to_token_stream();
                     }
-                    Type::BareFn(f) => {
+                    Type::FnPtr(f) => {
                         input.kind = InputKind::TryClone;
                         input.gen_ty = f.to_token_stream();
                     }
