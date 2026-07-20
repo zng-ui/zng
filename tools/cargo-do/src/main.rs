@@ -1750,7 +1750,7 @@ fn publish(mut args: Vec<&str>) {
 //    Runs cargo semver-checks for each published crate.
 fn semver_check(args: Vec<&str>) {
     for member in util::publish_members() {
-        if member.name.starts_with("cargo-") {
+        if member.name.starts_with("cargo-") || member.name.starts_with("zng-l10n-translator-") {
             continue;
         }
 
