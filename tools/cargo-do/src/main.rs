@@ -1750,15 +1750,24 @@ fn publish(mut args: Vec<&str>) {
 //    Runs cargo semver-checks for each published crate.
 fn semver_check(args: Vec<&str>) {
     for member in util::publish_members() {
-        if member.name.starts_with("cargo-") || member.name.starts_with("zng-l10n-translator-") {
+        if member.name.starts_with("cargo-")
+            || member.name.starts_with("zng-l10n-translator-")
+            || member.name.ends_with("-proc-macros")
+            || member.name.ends_with("-scraper")
+        {
             continue;
         }
 
         let published_ver = util::crates_io_latest(member.name.as_str());
-
-        if !published_ver.is_empty() && !member.name.ends_with("-proc-macros") && !member.name.ends_with("-scraper") {
+        if !published_ver.is_empty() {
             println(member.name.as_str());
-            cmd("cargo", &["semver-checks", "--package", member.name.as_str()], &args);
+            // we already handle `--all-features` breaking crates with a "_all_features" feature, without this
+            // cargo-semver-checks will manually enable every feature except does with '_' prefix, breaking the fixes
+            cmd(
+                "cargo",
+                &["semver-checks", "--all-features", "--package", member.name.as_str()],
+                &args,
+            );
             for t in util::glob("target/semver-checks/*/target") {
                 let _ = remove_dir_all::remove_dir_all(t);
             }
