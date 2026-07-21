@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix renderer requesting texture ID from error images.
 
 # 0.24.1
 
