@@ -710,8 +710,3 @@ pub async fn send(request: Request) -> Result<Response, Error> {
         }
     }
 }
-
-#[cfg(windows)]
-pub use remove_dir_all::remove_dir_all;
-#[cfg(not(windows))]
-pub use std::fs::remove_dir_all;

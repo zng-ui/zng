@@ -142,7 +142,7 @@ pub struct TestTempDir {
 impl Drop for TestTempDir {
     fn drop(&mut self) {
         if let Some(path) = self.path.take() {
-            let _ = crate::http::remove_dir_all(path);
+            let _ = std::fs::remove_dir_all(path);
         }
     }
 }
