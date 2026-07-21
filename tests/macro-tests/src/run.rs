@@ -29,7 +29,7 @@ fn cleanup(test: &str) {
     let cases = glob::glob(&format!("cases/{test}.stderr")).expect("cleanup glob error");
     for case in cases {
         let cleanup_case = move || {
-            let case = case.map_err(glob::GlobError::into_error)?;
+            let case = case.map_err(std::io::Error::from)?;
             let raw = fs::read_to_string(&case)?;
 
             let mut clean = String::with_capacity(raw.len());
