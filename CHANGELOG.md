@@ -1,5 +1,6 @@
 # Unreleased
 
+* Improve "unknown format" image error by including the first 24 bytes.
 * Fix renderer requesting texture ID from error images.
 
 # 0.24.1

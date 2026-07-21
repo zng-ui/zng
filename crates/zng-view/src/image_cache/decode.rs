@@ -99,7 +99,7 @@ impl ImageCache {
                         let guess = image::ImageReader::new(&mut *data).with_guessed_format().map_err(|e| e.to_txt())?;
                         match guess.format() {
                             Some(f) => ContainerFormat::Image(f),
-                            None => return Err(Txt::from_static("unknown format")),
+                            None => return Err(zng_txt::formatx!("unknown format, no match for first 24 bytes: {magic:?}")),
                         }
                     }
                 }
