@@ -99,7 +99,7 @@ pub use zng_env::init_built_res;
 ///
 /// ```toml
 /// [dependencies]
-/// zng = "0.24.0"
+/// zng = "0.24.1"
 ///
 /// [target.'cfg(windows)'.build-dependencies]
 /// zng-env = { version = "0.12.0", features = ["build_cli_com_proxy"] }
