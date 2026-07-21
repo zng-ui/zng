@@ -791,3 +791,8 @@ pub fn get_git_diff(from: &str, to: &str) -> String {
 
     String::from_utf8(output.stdout).unwrap()
 }
+
+#[cfg(windows)]
+pub use remove_dir_all::remove_dir_all;
+#[cfg(not(windows))]
+pub use std::fs::remove_dir_all;

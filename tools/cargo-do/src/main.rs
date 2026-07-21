@@ -458,12 +458,12 @@ fn check_all_features(mut args: Vec<&str>) {
                 if prev_dir != std::path::PathBuf::new() {
                     self::clean(vec![]);
                 }
-                let _ = remove_dir_all::remove_dir_all(&dir);
+                let _ = util::remove_dir_all(&dir);
                 std::fs::create_dir_all(&dir).unwrap();
                 current_full_build_dir = dir;
                 std::env::set_current_dir(&current_full_build_dir).unwrap();
                 if prev_dir != std::path::PathBuf::new()
-                    && let Err(e) = remove_dir_all::remove_dir_all(&prev_dir)
+                    && let Err(e) = util::remove_dir_all(&prev_dir)
                 {
                     error(f!("failed to cleanup `{}`, {e}", prev_dir.display()));
                 }
@@ -526,7 +526,7 @@ fn check_all_features(mut args: Vec<&str>) {
     }
     if full_build && current_full_build_dir != std::path::PathBuf::new() {
         self::clean(vec![]);
-        if let Err(e) = remove_dir_all::remove_dir_all(&current_full_build_dir) {
+        if let Err(e) = util::remove_dir_all(&current_full_build_dir) {
             error(f!("failed to cleanup `{}`, {e}", current_full_build_dir.display()));
         }
     }
@@ -570,7 +570,7 @@ fn l10n(mut args: Vec<&str>) {
         let template = output.join("template");
 
         if !check
-            && let Err(e) = remove_dir_all::remove_dir_all(&template)
+            && let Err(e) = util::remove_dir_all(&template)
             && !matches!(e.kind(), std::io::ErrorKind::NotFound)
         {
             error(f!("cannot clear `{}`, {e}", output.display()));
@@ -884,7 +884,7 @@ fn run_wasm(mut args: Vec<&str>) {
     }
 
     let out_dir = format!("{}/target/run-wasm/{example}", std::env::current_dir().unwrap().display());
-    let _ = remove_dir_all::remove_dir_all(&out_dir);
+    let _ = util::remove_dir_all(&out_dir);
     let _ = std::fs::create_dir_all(&out_dir);
 
     cmd_req(
@@ -1158,7 +1158,7 @@ fn build_apk(mut args: Vec<&str>) {
     // cargo zng res (.zr-apk)
     let apk_dir = std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"));
     let _ = std::fs::remove_file(&apk_dir);
-    let _ = remove_dir_all::remove_dir_all(&apk_dir);
+    let _ = util::remove_dir_all(&apk_dir);
     let _ = std::fs::create_dir_all(&apk_dir);
     let apk_dir = dunce::canonicalize(apk_dir).unwrap();
     let mut build_args = vec!["build", "-p", &example];
@@ -1213,7 +1213,7 @@ fn build_apk(mut args: Vec<&str>) {
 
     let target_dir = format!("target/build-apk/{example}.apk");
     let _ = std::fs::remove_file(&target_dir);
-    let _ = remove_dir_all::remove_dir_all(&target_dir);
+    let _ = util::remove_dir_all(&target_dir);
 
     cmd_req(
         &cargo_zng,
@@ -1230,7 +1230,7 @@ fn build_apk(mut args: Vec<&str>) {
     );
 
     // cleanup
-    let _ = remove_dir_all::remove_dir_all(apk_dir.parent().unwrap());
+    let _ = util::remove_dir_all(apk_dir.parent().unwrap());
 }
 
 // do build-ios <EXAMPLE>
@@ -1332,7 +1332,7 @@ fn clean(mut args: Vec<&str>) {
 
         cmd("cargo", &["clean"], &args);
     } else if temp {
-        match remove_dir_all::remove_dir_all("target/tmp") {
+        match util::remove_dir_all("target/tmp") {
             Ok(_) => match std::fs::create_dir("target/tmp") {
                 Ok(_) => println("removed `target/tmp` contents"),
                 Err(_) => println("removed `target/tmp`"),
@@ -1769,7 +1769,7 @@ fn semver_check(args: Vec<&str>) {
                 &args,
             );
             for t in util::glob("target/semver-checks/*/target") {
-                let _ = remove_dir_all::remove_dir_all(t);
+                let _ = util::remove_dir_all(t);
             }
         }
     }
