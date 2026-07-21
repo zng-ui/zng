@@ -734,7 +734,7 @@ impl ImageEntry {
 }
 impl zng_app::render::Img for ImageEntry {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
-        if self.is_loaded() {
+        if self.is_loaded() && !self.is_error() {
             let mut img = self.img_mut.lock();
             let rms = &mut img.render_ids;
             if let Some(rm) = rms.iter().find(|k| &k.renderer == renderer) {
