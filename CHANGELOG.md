@@ -1,6 +1,10 @@
 # Unreleased
 
 
+# 0.24.1
+
+* Fix Unix compilation error caused by a dependency, see [#1178](https://github.com/zng-ui/zng/pull/1178).
+
 # 0.24.0
 
 * Fix `BacktraceFrame::parse` panicking in crash dialogs.
