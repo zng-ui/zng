@@ -932,7 +932,7 @@ impl ImgWindow {
 
             // content shown by all images that failed to load.
             img_error_fn = wgt_fn!(|args: ImgErrorArgs| {
-                center_viewport(Text! {
+                center_viewport(SelectableText! {
                     txt = args.error;
                     margin = 8;
                     align = Align::CENTER;

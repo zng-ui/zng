@@ -99,7 +99,15 @@ impl ImageCache {
                         let guess = image::ImageReader::new(&mut *data).with_guessed_format().map_err(|e| e.to_txt())?;
                         match guess.format() {
                             Some(f) => ContainerFormat::Image(f),
-                            None => return Err(zng_txt::formatx!("unknown format, no match for first 24 bytes: {magic:?}")),
+                            None => {
+                                let hex = std::fmt::from_fn(|f| {
+                                    for b in &magic {
+                                        write!(f, "{:02x}", b)?;
+                                    }
+                                    Ok(())
+                                });
+                                return Err(zng_txt::formatx!("unknown format, no match for first 24 bytes: {hex}"));
+                            }
                         }
                     }
                 }
