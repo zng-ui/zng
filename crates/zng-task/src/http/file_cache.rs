@@ -399,7 +399,7 @@ impl CacheEntry {
     }
 
     fn try_delete_dir(dir: &Path) {
-        let _ = crate::http::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     fn writing_tag(&self) -> Option<PathBuf> {
