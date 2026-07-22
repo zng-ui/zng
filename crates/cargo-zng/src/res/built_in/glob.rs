@@ -26,12 +26,12 @@ the dir and descendants.
 
 The glob pattern syntax is:
 
-    ? — matches any single character.
-    * — matches any (possibly empty) sequence of characters.
-   ** — matches the current directory and arbitrary subdirectories.
-  [c] — matches any character inside the brackets.
-[a-z] — matches any characters in the Unicode sequence.
- [!b] — negates the brackets match.
+    ? — Matches any single character.
+    * — Matches any (possibly empty) sequence of characters.
+   ** — Matches the current directory and arbitrary subdirectories.
+  [c] — Matches any character inside the brackets.
+[a-z] — Matches any characters in the Unicode sequence.
+ [!b] — Negates the brackets match.
 
 And in filter patterns only:
 

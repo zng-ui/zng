@@ -17,7 +17,7 @@
 ///
 /// Note that the Windows console returns immediately when it spawns `"windows"` executables, so any output
 /// will not appear to be from your app and nothing stops the user from spawning another app causing text
-/// from your app to mix with other streams. This is bas but it is what VSCode does, see [`build_cli_com_proxy`] for
+/// from your app to mix with other streams. This is bad but it is what VSCode does, see [`build_cli_com_proxy`] for
 /// how to implement a more polished solution.
 ///
 /// [`build_cli_com_proxy`]: https://zng-ui.github.io/doc/zng_env/windows_subsystem/fn.build_cli_com_proxy.html
