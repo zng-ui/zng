@@ -25,6 +25,7 @@ zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 serde_json = { version = "1.0", default-features = false, features = ["std"], optional = true }
+# TODO(breaking) replace with zstd
 flate2 = { version = "1.0", default-features = false, optional = true, features = ["rust_backend"] }
 postcard = { version = "1", default-features = false, features = ["use-std"], optional = true }
 

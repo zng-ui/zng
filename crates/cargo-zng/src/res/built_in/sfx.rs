@@ -1,21 +1,21 @@
-use std::collections::HashMap;
+use std::{fmt::Write as _, io::Read};
 
+use indexmap::IndexMap;
+use lzma_rust2::filter::bcj::BcjWriter;
 use serde::Deserialize;
 
 use super::*;
 
 const SFX_HELP: &str = r#"
-Compile a self-extracting Windows executable
+Compile a self-extracting executable
 
 The request file:
   source/sfx.exe.zr-sfx
    | [sfx]
    | # executable to run, required
    | run = "target/run.exe"
-   | # data file, required
-   | data = "target/data.zip"
    |
-   | # custom icon, default is the 'run' icon
+   | # Embedded icon for the sfx executable (Windows only)
    | icon = "res/sfx.ico"
    |
    | # optional args for 'run'
@@ -25,6 +25,21 @@ The request file:
    |     FOO = "bar",
    | }
    |
+   | # rustc target triple, default is the host triple
+   | # rustc-target = "x86_64-pc-windows-msvc"
+   |
+   | # compression to use for 'run', default is "zstd-bcj"
+   | # compress = "none"
+   |
+   | # data the sfx can serve the 'run'
+   | [[data]]
+   | # name must be unique and not include ':', default is "", for single data
+   | name = "payload"
+   | # compress data on build, default is "zstd"
+   | compress = "zstd"
+   | # file to include
+   | file = "./data.tar"
+   | 
    | [sign]
    | # optional, code sign the sfx exe
    | tool = "signtool sign /v /f $PFX /tr http://timestamp.sectigo.com /td SHA256 /fd SHA256 $SIGN_TARGET"
@@ -41,12 +56,34 @@ The optional 'env' variables override the system env. The SFX_ARGS and SFX_DATA 
 
 The SFX_ARGS is set to the sfx command line args, '\n' separated. The first arg is the path to the sfx exe.
 
-The SFX_DATA is set to "offset:len" of the data in the sfx exe file.
-
 Data:
 
-The data can be any format, use a container like TAR to package multiple files. Unlike the 'run' exe it is not
-compressed by sfx.
+To read data the 'run' exe must spawn another instance of the sfx with the "SFX_GET_DATA" set
+to the entry name. It will serve the data to stdout. The data may be decompressed on demand.
+
+Compress:
+
+The sfx exe includes a zstd decompressor that is used to extract the 'run' exe.
+
+The decompressor code can be used to read data too. The 'compress' field values are:
+
+- "none" — No compression on build. Data is served as is.
+- "zstd" — Compress on build unless file extension is ".zst". Decompress on demand while reading.
+- "zstd-[filter]" — Transform data to improve compression, unless file extension is ".zst". Reverses
+  transform on demand while reading.
+
+Sfx is optimized for small number of large data entries. Use a container format to
+package many small entries.
+
+Filter:
+
+Currently only BCJ (Branch/Call/Jump) filters are supported, identified by CPU instruction set:
+
+- "zstd-bcj-[set]" where [set] is: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv".
+- "zstd-bcj" — Select filter from 'rustc-target' arch, or zstd unfiltered for no matches.
+
+The target file must be a binary (exe or lib) or a container (like tar) with only binary entries. The filters
+are non-destructive but if the wrong filter is selected it will have negative impact on the compression level.
 
 Signing:
 
@@ -58,6 +95,11 @@ In the example above The $PFX var is an example of how to set the the private ke
 Keep the private key file outside the repository and set an env var to it. In CI use
 secure variables.
 
+Icon:
+
+On Windows the sfx executable icon can be set with 'icon' field. Note that this requires the build
+to run on a Windows machine with MSVC Toolkit installed. Cross-compilation from other systems will not work.
+
 "#;
 pub(super) fn sfx() {
     help(SFX_HELP);
@@ -65,28 +107,137 @@ pub(super) fn sfx() {
     let request = std::fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     let request: Request = toml::from_str(&request).unwrap_or_else(|e| fatal!("{e}"));
 
-    if let Some(sign) = &request.sign.tool {
-        todo!()
+    // make target-temp/src
+    let target = path(ZR_TARGET);
+    let tmp = target.with_file_name(format!("{}-temp", target.file_name().unwrap().display()));
+    fs::create_dir(&tmp).unwrap_or_else(|e| fatal!("cannot create {}, {e}", tmp.display()));
+    let src = tmp.join("src");
+    fs::create_dir(&src).unwrap_or_else(|e| fatal!("cannot create src, {e}"));
+
+    let mut icon = request.sfx.icon;
+    if icon.is_some() && (!cfg!(windows) || !request.sfx.rustc_target.contains("windows")) {
+        warn!("ignoring icon, can only build for Windows on Windows");
+        icon = None;
     }
 
-    let sfx_main = sfx_main();
+    // write target-temp/Cargo.toml
+    let cargo = sfx_cargo(icon.is_some());
+    let manifest = tmp.join("Cargo.toml");
+    fs::write(&manifest, cargo.as_bytes()).unwrap_or_else(|e| fatal!("cannot create Cargo.toml, {e}"));
 
-    todo!()
+    // write target-temp/build.rs if needed
+    if let Some(build_rs) = sfx_build(icon) {
+        let build = tmp.join("build.rs");
+        fs::write(&build, build_rs.as_bytes()).unwrap_or_else(|e| fatal!("cannot create build.rs, {e}"));
+    }
+
+    let mut run = request.sfx.run;
+    if let Some(tool) = &request.sign.tool
+        && !request.sign.only_sfx
+    {
+        let sr = tmp.join("signed-run");
+        fs::copy(&run, &sr).unwrap_or_else(|e| fatal!("cannot copy {}, {e}", run.display()));
+        run = sr.clone();
+        // SAFETY: tools run single threaded
+        unsafe { std::env::set_var("SIGN_TARGET", sr) };
+        super::sh_run(tool.clone(), false, None).unwrap_or_else(|e| fatal!("cannot sign run, {e}"));
+    }
+
+    let mut data = vec![];
+    let run_compression = parse_compress(&request.sfx.rustc_target, &request.sfx.compress);
+    let run_parts = prepare_data(&tmp, 0, run_compression, &run).unwrap_or_else(|e| fatal!("cannot compress run, {e}"));
+    data.push((":run", run_compression, run_parts));
+    for (id, d) in request.data.iter().enumerate() {
+        if d.name.contains(':') {
+            fatal!("data name cannot contain ':'");
+        }
+        let compression = parse_compress(&request.sfx.rustc_target, &d.compress);
+        let parts = prepare_data(&tmp, id + 1, compression, &d.file).unwrap_or_else(|e| fatal!("cannot process {}, {e}", d.file.display()));
+        data.push((d.name.as_str(), compression, parts));
+    }
+    let sfx_main = sfx_main(&request.sfx.args, &request.sfx.env, &data);
+    fs::write(src.join("main.rs"), sfx_main.as_bytes()).unwrap_or_else(|e| fatal!("cannot create main.rs, {e}"));
+
+    let r = std::process::Command::new("cargo")
+        .arg("build")
+        .arg("--release")
+        .arg("--target")
+        .arg(&request.sfx.rustc_target)
+        .arg("--manifest-path")
+        .arg(manifest)
+        .status()
+        .unwrap_or_else(|e| fatal!("{e}"));
+    assert!(r.success());
+
+    let output = tmp.join(format!(
+        "target/{}/release/zng-res-sfx{}",
+        request.sfx.rustc_target,
+        std::env::consts::EXE_SUFFIX
+    ));
+    if let Some(tool) = request.sign.tool {
+        // SAFETY: tools run single threaded
+        unsafe { std::env::set_var("SIGN_TARGET", output.clone()) };
+        super::sh_run(tool, false, None).unwrap_or_else(|e| fatal!("cannot sign sfx, {e}"));
+    }
+    fs::rename(output, target).unwrap_or_else(|e| fatal!("cannot finalize build, {e}"));
+
+    fs::remove_dir_all(tmp).unwrap_or_else(|e| fatal!("cannot cleanup, {e}"));
+}
+
+fn parse_compress(rustc_target: &str, compress: &str) -> Compression {
+    if let Some(filter) = compress.strip_prefix("zstd-") {
+        match filter {
+            "bcj-x86" => Compression::ZstdBcj(BcjFilter::X86),
+            "bcj-arm" => Compression::ZstdBcj(BcjFilter::Arm),
+            "bcj-arm64" => Compression::ZstdBcj(BcjFilter::Arm64),
+            "bcj-arm-thumb" => Compression::ZstdBcj(BcjFilter::ArmThumb),
+            "bcj-arm-ppc" => Compression::ZstdBcj(BcjFilter::Ppc),
+            "bcj-arm-sparc" => Compression::ZstdBcj(BcjFilter::Sparc),
+            "bcj-arm-ia64" => Compression::ZstdBcj(BcjFilter::Ia64),
+            "bcj-arm-riscv" => Compression::ZstdBcj(BcjFilter::Riscv),
+            "bcj" => bcj_from_triple(rustc_target).map(Compression::ZstdBcj).unwrap_or(Compression::Zstd),
+            unk => fatal!("unknown filter {unk:?}"),
+        }
+    } else {
+        match compress {
+            "none" => Compression::None,
+            "zstd" => Compression::Zstd,
+            unk => fatal!("unknown compression {unk:?}"),
+        }
+    }
 }
 
 #[derive(Deserialize)]
 struct Request {
-    package: Package,
+    sfx: Sfx,
+    data: Vec<Data>,
     sign: Sign,
 }
 
 #[derive(Deserialize)]
-struct Package {
+struct Sfx {
     run: PathBuf,
-    data: PathBuf,
     icon: Option<PathBuf>,
     args: Vec<String>,
-    env: HashMap<String, String>,
+    env: indexmap::IndexMap<String, String>,
+    #[serde(default = "rustc_host_triple")]
+    rustc_target: String,
+    #[serde(default = "default_run_compress")]
+    compress: String,
+}
+fn default_run_compress() -> String {
+    "zstd-bcj".to_owned()
+}
+
+#[derive(Deserialize)]
+struct Data {
+    name: String,
+    #[serde(default = "default_compress")]
+    compress: String,
+    file: PathBuf,
+}
+fn default_compress() -> String {
+    "zstd".to_owned()
 }
 
 #[derive(Deserialize)]
@@ -95,17 +246,273 @@ struct Sign {
     only_sfx: bool,
 }
 
-// enable rust-analyzer
-#[cfg(debug_assertions)]
-#[path = "sfx_main.rs"]
-mod sfx_main;
+fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: &Path) -> io::Result<Vec<PathBuf>> {
+    let file_path = file;
+    let file = fs::File::open(file)?;
 
-fn sfx_main() -> &'static str {
+    // 200MB
+    //
+    // Difficult to find exact limits for `include_bytes!`, Windows maybe has a 2GB limit per object.
+    //
+    // Static data is memory mapped to RAM on demand, so we depend on the system pagination to keep RAM
+    // usage down. The split into 200MB parts here is to hopefully provide extra clear hinting that an
+    // object is no longer needed as the sfx iterates over parts.
+    const PART_MAX: u64 = 200u64 * 2u64.pow(20);
+
+    if let Some(ext) = file_path.extension()
+        && ext.eq_ignore_ascii_case("zst")
+    {
+        compression = Compression::None;
+    }
+
+    match compression {
+        Compression::None => {
+            let mut len = file.metadata()?.len();
+            if len <= PART_MAX {
+                return Ok(vec![file_path.to_owned()]);
+            }
+
+            let mut file = io::BufReader::new(file);
+            let mut parts = vec![];
+            loop {
+                let part_path = tmp.join(format!("d{data_id}-p{}", parts.len()));
+                let mut part = fs::File::create_new(&part_path)?;
+                parts.push(part_path);
+                if PART_MAX > len {
+                    part.set_len(PART_MAX)?;
+                    io::copy(&mut (&mut file).take(PART_MAX), &mut part)?;
+                    len -= PART_MAX;
+                } else {
+                    part.set_len(len)?;
+                    io::copy(&mut file, &mut part)?;
+                    // len = 0;
+                    break;
+                }
+            }
+            Ok(parts)
+        }
+        Compression::Zstd => {
+            // zstd creates an optimal BufReader
+            let mut file = zstd::stream::read::Encoder::new(file, 6)?;
+
+            let mut parts = vec![];
+            loop {
+                let part_path = tmp.join(format!("d{data_id}-p{}", parts.len()));
+                let mut part = fs::File::create_new(&part_path)?;
+                parts.push(part_path);
+
+                let part_len = io::copy(&mut (&mut file).take(PART_MAX), &mut part)?;
+                if part_len < PART_MAX {
+                    break;
+                }
+            }
+
+            Ok(parts)
+        }
+        Compression::ZstdBcj(bcj) => {
+            // There is no pull-based bcj encoder so the parts swap needs to happen inside
+            struct PartsWriter<'a> {
+                tmp: &'a Path,
+                data_id: usize,
+                parts: &'a mut Vec<PathBuf>,
+                part: Option<fs::File>,
+                left: usize,
+            }
+            impl<'a> PartsWriter<'a> {
+                fn next_part(&mut self) -> io::Result<()> {
+                    let part_path = self.tmp.join(format!("d{}-p{}", self.data_id, self.parts.len()));
+                    self.part = Some(fs::File::create_new(&part_path)?);
+                    self.parts.push(part_path);
+                    self.left = PART_MAX as usize;
+                    Ok(())
+                }
+            }
+            impl<'a> io::Write for PartsWriter<'a> {
+                fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                    if buf.is_empty() {
+                        return Ok(0);
+                    }
+                    if self.left == 0 {
+                        self.next_part()?;
+                    }
+                    if let Some(f) = &mut self.part {
+                        let max_len = self.left.min(buf.len());
+                        let buf = &buf[..max_len];
+                        let written = f.write(buf)?;
+                        self.left -= written;
+                        Ok(written)
+                    } else {
+                        Ok(0)
+                    }
+                }
+
+                fn flush(&mut self) -> io::Result<()> {
+                    if let Some(f) = &mut self.part { f.flush() } else { Ok(()) }
+                }
+            }
+
+            let mut parts = vec![];
+            let out = PartsWriter {
+                tmp,
+                data_id,
+                parts: &mut parts,
+                part: None,
+                left: 0,
+            };
+            let out = zstd::stream::write::Encoder::new(out, 6)?;
+            let mut out = match bcj {
+                BcjFilter::X86 => BcjWriter::new_x86(out, 0),
+                BcjFilter::Arm => BcjWriter::new_arm(out, 0),
+                BcjFilter::Arm64 => BcjWriter::new_arm64(out, 0),
+                BcjFilter::ArmThumb => BcjWriter::new_arm_thumb(out, 0),
+                BcjFilter::Ppc => BcjWriter::new_ppc(out, 0),
+                BcjFilter::Sparc => BcjWriter::new_sparc(out, 0),
+                BcjFilter::Ia64 => BcjWriter::new_ia64(out, 0),
+                BcjFilter::Riscv => BcjWriter::new_riscv(out, 0),
+            };
+
+            let mut file = file;
+            io::copy(&mut file, &mut out)?;
+
+            Ok(parts)
+        }
+    }
+}
+
+fn bcj_from_triple(target: &str) -> Option<BcjFilter> {
+    let arch = target.split('-').next()?;
+
+    match arch {
+        "i386" | "i486" | "i586" | "i686" | "x86_64" => Some(BcjFilter::X86),
+        "arm" | "armv4t" | "armv5te" | "armv7" | "armv7a" | "armv7r" | "armv7s" | "armebv7r" => Some(BcjFilter::Arm),
+        "thumbv6m" | "thumbv7m" | "thumbv7em" | "thumbv7neon" | "thumbv8m.base" | "thumbv8m.main" => Some(BcjFilter::ArmThumb),
+        "aarch64" | "aarch64_be" => Some(BcjFilter::Arm64),
+        "powerpc" | "powerpc64" | "powerpc64le" => Some(BcjFilter::Ppc),
+        "sparc" | "sparcv9" | "sparc64" => Some(BcjFilter::Sparc),
+        "ia64" => Some(BcjFilter::Ia64),
+        "riscv32" | "riscv64" => Some(BcjFilter::Riscv),
+
+        _ => None,
+    }
+}
+
+// enable rust-analyzer
+#[path = "sfx_res/sfx_main.rs"]
+mod sfx_main;
+use sfx_main::{BcjFilter, Compression};
+
+fn sfx_main(args: &[String], env: &IndexMap<String, String>, data: &[(&str, Compression, Vec<PathBuf>)]) -> String {
     #[cfg(debug_assertions)]
     #[allow(unused)]
     fn allow_unused() {
         sfx_main::main();
     }
 
-    include_str!("sfx_main.rs")
+    let main = include_str!("sfx_res/sfx_main.rs");
+
+    const DATA: &str = "static DATA: &[(&str, Compression, &[&[u8]])] = &[";
+    let mut out_data = DATA.to_owned();
+    out_data.push('\n');
+    for (name, compression, parts) in data {
+        let (compression, filter) = match compression {
+            Compression::None => ("None", ""),
+            Compression::Zstd => ("Zstd", ""),
+            Compression::ZstdBcj(f) => {
+                let f = match f {
+                    BcjFilter::X86 => "(BcjFilter::X86)",
+                    BcjFilter::Arm => "(BcjFilter::Arm)",
+                    BcjFilter::Arm64 => "(BcjFilter::Arm64)",
+                    BcjFilter::ArmThumb => "(BcjFilter::ArmThumb)",
+                    BcjFilter::Ppc => "(BcjFilter::Ppc)",
+                    BcjFilter::Sparc => "(BcjFilter::Sparc)",
+                    BcjFilter::Ia64 => "(BcjFilter::Ia64)",
+                    BcjFilter::Riscv => "(BcjFilter::Riscv)",
+                };
+                ("ZstdBcj", f)
+            }
+        };
+        write!(&mut out_data, "  ({name:?}, Compression::{compression}{filter}, &[").unwrap();
+        for part in parts {
+            write!(&mut out_data, "include_bytes!(\"{}\"), ", part.display()).unwrap();
+        }
+        writeln!(&mut out_data, "]),").unwrap();
+    }
+    out_data.push_str("\n];");
+
+    const ARGS: &str = "static ARGS: &[&str] = &[";
+    let mut out_args = ARGS.to_owned();
+    for arg in args {
+        write!(&mut out_args, "{arg:?}, ").unwrap();
+    }
+    out_args.push_str("];");
+
+    const ENV: &str = "static ENV: &[(&str, &str)] = &[";
+    let mut out_env = ENV.to_owned();
+    out_env.push('\n');
+    for (key, value) in env {
+        writeln!(&mut out_env, "  ({key:?}, {value:?}),").unwrap();
+    }
+    out_env.push_str("\n];");
+
+    let mut replaces = vec![(DATA, out_data), (ARGS, out_args), (ENV, out_env)];
+
+    let mut out_main = String::new();
+    for line in main.lines() {
+        if let Some(i) = replaces.iter().position(|(k, _)| line.starts_with(k)) {
+            let (_, value) = replaces.swap_remove(i);
+            out_main.push_str(&value);
+        } else {
+            out_main.push_str(line);
+        }
+
+        if replaces.is_empty() {
+            let i = line.as_ptr() as usize - main.as_ptr() as usize + line.len();
+            out_main.push_str(&main[i..]);
+            break;
+        } else {
+            out_main.push('\n');
+        }
+    }
+
+    out_main
+}
+
+fn sfx_build(icon: Option<PathBuf>) -> Option<String> {
+    let ico = icon?;
+    let build = include_str!("sfx_res/build_icon.rs");
+    let build = build.replace("{icon-path}", &ico.display().to_string());
+    Some(build)
+}
+
+fn sfx_cargo(has_icon: bool) -> String {
+    let cargo = include_str!("sfx_res/sfx_cargo.toml");
+    if has_icon {
+        cargo.to_owned()
+    } else {
+        let (before, after) = cargo.split_once("# <has-icon>\n").unwrap();
+        let (_, after) = after.split_once("# </has-icon>").unwrap();
+        format!("{before}{after}")
+    }
+}
+
+fn rustc_host_triple() -> String {
+    let o = std::process::Command::new("rustc")
+        .arg("--version")
+        .arg("--verbose")
+        .output()
+        .unwrap_or_else(|e| fatal!("cannot find host triple, {e}"));
+
+    if !o.status.success() {
+        fatal!("cannot find host triple, exit code: {:?}", o.status.code().unwrap_or(0))
+    }
+
+    let stdout = str::from_utf8(&o.stdout).unwrap_or_else(|e| fatal!("cannot find host triple, {e}"));
+
+    for line in stdout.lines() {
+        if let Some(triple) = line.strip_prefix("host: ") {
+            return triple.to_owned();
+        }
+    }
+
+    fatal!("cannot find host triple")
 }
