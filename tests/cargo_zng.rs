@@ -52,7 +52,9 @@ fn res_error_bash() {
 
 #[test]
 fn res_sfx() {
-    res("sfx", Pack::No, Expect::Ok);
+    let ([test_dir, source, target], stdio, error) = res_no_verify("sfx", Pack::No);
+    eprintln!("{}", stdio.stdout);
+    panic!("");
 }
 
 #[test]
@@ -120,6 +122,11 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
 }
 
 fn res(test: &str, pack: Pack, expect: Expect) {
+    let ([test_dir, source, target], stdio, error) = res_no_verify(test, pack);
+    verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
+}
+
+fn res_no_verify(test: &str, pack: Pack) -> ([PathBuf; 3], StdioStr, Option<io::Error>) {
     let tests_dir = PathBuf::from("cargo-zng-res-tests");
     let test_dir = tests_dir.join(test);
     let source = test_dir.join("source");
@@ -144,7 +151,7 @@ fn res(test: &str, pack: Pack, expect: Expect) {
             stdio = s;
         }
     }
-    verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
+    ([test_dir, source, target], stdio, error)
 }
 
 fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, expect: Expect, expected_target: &Path, target: &Path) {
