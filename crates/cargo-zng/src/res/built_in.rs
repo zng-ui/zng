@@ -171,7 +171,7 @@ macro_rules! built_in {
     };
 }
 // TODO(breaking) support chaining tools without needing to repeat ".zr-"
-built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n, sfx, f }
+built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n, sfx, sfxf }
 
 pub(crate) use l10n::release_langs;
 pub(crate) use sh::sh_run;

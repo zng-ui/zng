@@ -1,16 +1,13 @@
 use super::*;
 
-// TODO(breaking) remove this
-
 const SHF_HELP: &str = r#"
-DEPRECATED
+Run a bash script on the final pass
 
-Use `.zr-sh.zr-f`
+Apart from running on final this tool behaves exactly like .zr-sh
 "#;
 pub(super) fn shf() {
     help(SHF_HELP);
     if std::env::var(ZR_FINAL).is_ok() {
-        warn!(".zr-shf is deprecated, use .zr-sh.zr-f");
         sh();
     } else {
         println!("zng-res::on-final=");
