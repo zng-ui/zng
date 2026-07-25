@@ -32,6 +32,7 @@
         "*.zr-glob": "ini",
         "*.zr-l10n": "ini",
         "*.md.zr-rp": "markdown",
+        "*.zr-sfx": "toml",
     },
     "cSpell.words": [
         "aapt",

@@ -1,0 +1,8 @@
+  [31m[1merror[39m:[22m TOML parse error at line 14, column 1
+     |
+  14 | [sign]
+     | ^^^^^^
+  missing field `only_sfx`
+  
+   command failed, exit code 102
+[31m[1merror[39m:[22m res build failed

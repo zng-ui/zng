@@ -51,6 +51,11 @@ fn res_error_bash() {
 }
 
 #[test]
+fn res_sfx() {
+    res("sfx", Pack::No, Expect::Ok);
+}
+
+#[test]
 fn new_basic() {
     new("basic", &["The App!", r#"-s"org=The Org!""#, r#"-s"qualifier=.qual""#], Expect::Ok);
 }

@@ -27,6 +27,8 @@ The request file:
    |
    | # rustc target triple, default is the host triple
    | # rustc-target = "x86_64-pc-windows-msvc"
+   | # build a console exe on Windows, default is true (build a GUI exe)
+   | windows-subsystem = false
    |
    | # compression to use for 'run', default is "zstd-bcj"
    | # compress = "none"
@@ -155,7 +157,7 @@ pub(super) fn sfx() {
         let parts = prepare_data(&tmp, id + 1, compression, &d.file).unwrap_or_else(|e| fatal!("cannot process {}, {e}", d.file.display()));
         data.push((d.name.as_str(), compression, parts));
     }
-    let sfx_main = sfx_main(&request.sfx.args, &request.sfx.env, &data);
+    let sfx_main = sfx_main(request.sfx.windows_subsystem, &request.sfx.args, &request.sfx.env, &data);
     fs::write(src.join("main.rs"), sfx_main.as_bytes()).unwrap_or_else(|e| fatal!("cannot create main.rs, {e}"));
 
     let r = std::process::Command::new("cargo")
@@ -210,8 +212,16 @@ fn parse_compress(rustc_target: &str, compress: &str) -> Compression {
 #[derive(Deserialize)]
 struct Request {
     sfx: Sfx,
+    #[serde(default)]
     data: Vec<Data>,
+    #[serde(default = "default_sign")]
     sign: Sign,
+}
+fn default_sign() -> Sign {
+    Sign {
+        tool: None,
+        only_sfx: false,
+    }
 }
 
 #[derive(Deserialize)]
@@ -222,8 +232,13 @@ struct Sfx {
     env: indexmap::IndexMap<String, String>,
     #[serde(default = "rustc_host_triple")]
     rustc_target: String,
+    #[serde(default = "default_windows_subsystem")]
+    windows_subsystem: bool,
     #[serde(default = "default_run_compress")]
     compress: String,
+}
+fn default_windows_subsystem() -> bool {
+    true
 }
 fn default_run_compress() -> String {
     "zstd-bcj".to_owned()
@@ -243,6 +258,7 @@ fn default_compress() -> String {
 #[derive(Deserialize)]
 struct Sign {
     tool: Option<String>,
+    #[serde(default)]
     only_sfx: bool,
 }
 
@@ -401,7 +417,12 @@ fn bcj_from_triple(target: &str) -> Option<BcjFilter> {
 mod sfx_main;
 use sfx_main::{BcjFilter, Compression};
 
-fn sfx_main(args: &[String], env: &IndexMap<String, String>, data: &[(&str, Compression, Vec<PathBuf>)]) -> String {
+fn sfx_main(
+    windows_subsystem: bool,
+    args: &[String],
+    env: &IndexMap<String, String>,
+    data: &[(&str, Compression, Vec<PathBuf>)],
+) -> String {
     #[cfg(debug_assertions)]
     #[allow(unused)]
     fn allow_unused() {
@@ -411,7 +432,11 @@ fn sfx_main(args: &[String], env: &IndexMap<String, String>, data: &[(&str, Comp
     let main = include_str!("sfx_res/sfx_main.rs");
 
     const DATA: &str = "static DATA: &[(&str, Compression, &[&[u8]])] = &[";
-    let mut out_data = DATA.to_owned();
+    let mut out_data = String::new();
+    if windows_subsystem {
+        out_data.push_str("#![windows_subsystem = \"windows\"]\n");
+    }
+    out_data.push_str(DATA);
     out_data.push('\n');
     for (name, compression, parts) in data {
         let (compression, filter) = match compression {

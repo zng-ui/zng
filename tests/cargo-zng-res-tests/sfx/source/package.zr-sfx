@@ -1,0 +1,16 @@
+[sfx]
+run = "run-exe"
+args = ["--test-arg0", "--test-arg1"]
+env = { TEST_ENV0 = "env0", TEST_ENV1 = "env1" }
+windows-subsystem = false
+
+[[data]]
+name = "first"
+file = "tests/cargo-zng-res-tests/res/first.txt"
+
+[[data]]
+name = "second"
+file = "tests/cargo-zng-res-tests/res/second.txt"
+
+[sign]
+tool = "echo \"sign requested for $SIGN_TARGET\""
