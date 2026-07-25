@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `cargo zng res` tool `.zr-f` for delaying other requests until final pass.
 * Improve "unknown format" image error by including the first 24 bytes.
 * Fix renderer requesting texture ID from error images.
 
