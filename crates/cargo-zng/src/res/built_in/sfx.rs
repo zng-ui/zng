@@ -515,7 +515,7 @@ fn sfx_cargo(has_icon: bool) -> String {
         cargo.to_owned()
     } else {
         let (before, after) = cargo.split_once("# <has-icon>\n").unwrap();
-        let (_, after) = after.split_once("# </has-icon>").unwrap();
+        let (_, after) = after.split_once("\n# </has-icon>\n").unwrap();
         format!("{before}{after}")
     }
 }

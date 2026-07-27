@@ -1,8 +1,5 @@
 use std::{
-    ffi::OsStr,
-    fs, io,
-    path::{Path, PathBuf},
-    process::Command,
+    ffi::OsStr, fmt, fs, io, path::{Path, PathBuf}, process::Command,
 };
 
 #[test]
@@ -52,9 +49,15 @@ fn res_error_bash() {
 
 #[test]
 fn res_sfx() {
-    let ([test_dir, source, target], stdio, error) = res_no_verify("sfx", Pack::No);
-    eprintln!("{}", stdio.stdout);
-    panic!("");
+    let ([_test_dir, _source, target], stdio, error) = res_no_verify("sfx", Pack::No);
+    if let Some(e) = error {
+        panic!("{e}\n\n{stdio}");
+    }
+    assert!(!target.join("package-temp").exists());
+    let run_exe = target.join(format!("run-exe{}", std::env::consts::EXE_SUFFIX));
+    assert!(run_exe.exists());
+
+    todo!("call run_exe");
 }
 
 #[test]
@@ -332,7 +335,11 @@ struct StdioStr {
     stdout: String,
     stderr: String,
 }
-
+impl fmt::Display for StdioStr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "--stdout--\n\n{}\n\n--stderr--\n\n{}\n\n", self.stdout, self.stderr)
+    }
+}
 impl From<&std::process::Output> for StdioStr {
     fn from(output: &std::process::Output) -> Self {
         Self {
