@@ -12,7 +12,7 @@ use clap::*;
 use color_print::cstr;
 use zng_env::About;
 
-use crate::util;
+use crate::util::{self, unix_path};
 
 use self::tool::Tools;
 
@@ -135,7 +135,7 @@ pub(crate) fn run(mut args: ResArgs) {
         // SAFETY: cargo-zng res is single-threaded
         //
         // to use `display_path` in the tool runner (current process)
-        std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
+        std::env::set_var(ZR_WORKSPACE_DIR, &*unix_path(&std::env::current_dir().unwrap()));
     }
 
     let start = Instant::now();

@@ -4,6 +4,8 @@ use indexmap::IndexMap;
 use lzma_rust2::filter::bcj::BcjWriter;
 use serde::Deserialize;
 
+use crate::util::unix_path;
+
 use super::*;
 
 const SFX_HELP: &str = r#"
@@ -141,7 +143,7 @@ pub(super) fn sfx() {
         fs::copy(&run, &sr).unwrap_or_else(|e| fatal!("cannot copy {}, {e}", run.display()));
         run = sr.clone();
         // SAFETY: tools run single threaded
-        unsafe { std::env::set_var("SIGN_TARGET", sr) };
+        unsafe { std::env::set_var("SIGN_TARGET", &*unix_path(&sr)) };
         super::sh_run(tool.clone(), false, None).unwrap_or_else(|e| fatal!("cannot sign run, {e}"));
     }
 
@@ -178,7 +180,7 @@ pub(super) fn sfx() {
     ));
     if let Some(tool) = request.sign.tool {
         // SAFETY: tools run single threaded
-        unsafe { std::env::set_var("SIGN_TARGET", output.clone()) };
+        unsafe { std::env::set_var("SIGN_TARGET", &*unix_path(&output)) };
         super::sh_run(tool, false, None).unwrap_or_else(|e| fatal!("cannot sign sfx, {e}"));
     }
     fs::rename(output, target).unwrap_or_else(|e| fatal!("cannot finalize build, {e}"));

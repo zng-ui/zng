@@ -1,5 +1,6 @@
 # Unreleased
 
+* On Windows, always use '/' separators in `cargo zng res` paths env vars.
 * Improve "unknown format" image error by including the first 24 bytes.
 * Fix renderer requesting texture ID from error images.
 

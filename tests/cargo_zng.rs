@@ -1,5 +1,8 @@
 use std::{
-    ffi::OsStr, fmt, fs, io, path::{Path, PathBuf}, process::Command,
+    ffi::OsStr,
+    fmt, fs, io,
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 #[test]

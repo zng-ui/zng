@@ -9,7 +9,7 @@ use clap::*;
 use color_print::cstr;
 use convert_case::{Case, Casing};
 
-use crate::util;
+use crate::util::{self, unix_path};
 
 #[derive(Args, Debug)]
 pub struct NewArgs {
@@ -289,7 +289,7 @@ fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
 
         unsafe {
             // SAFETY: cargo-zng new is single-threaded
-            std::env::set_var("ZNG_TEMPLATE_POST_DIR", &post);
+            std::env::set_var("ZNG_TEMPLATE_POST_DIR", &*unix_path(&post));
         }
     }
 

@@ -10,7 +10,7 @@ use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 use zng_env::About;
 
-use crate::{res::built_in::ZR_APP_ID, res_tool_util::*};
+use crate::{res::built_in::ZR_APP_ID, res_tool_util::*, util::unix_path};
 
 /// Visit in the `ToolKind` order.
 pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<ControlFlow<()>>) -> anyhow::Result<()> {
@@ -172,14 +172,14 @@ impl Tool {
             target = target_dir.join(p);
         }
 
-        cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
-            .env(ZR_SOURCE_DIR, source_dir)
-            .env(ZR_TARGET_DIR, target_dir)
-            .env(ZR_REQUEST_DD, request.parent().unwrap())
-            .env(ZR_REQUEST, request)
-            .env(ZR_TARGET_DD, target.parent().unwrap())
-            .env(ZR_TARGET, target)
-            .env(ZR_CACHE_DIR, cache.join(cache_dir));
+        cmd.env(ZR_WORKSPACE_DIR, &*unix_path(&std::env::current_dir().unwrap()))
+            .env(ZR_SOURCE_DIR, &*unix_path(source_dir))
+            .env(ZR_TARGET_DIR, &*unix_path(target_dir))
+            .env(ZR_REQUEST_DD, &*unix_path(request.parent().unwrap()))
+            .env(ZR_REQUEST, &*unix_path(request))
+            .env(ZR_TARGET_DD, &*unix_path(target.parent().unwrap()))
+            .env(ZR_TARGET, &*unix_path(&target))
+            .env(ZR_CACHE_DIR, &*unix_path(&cache.join(cache_dir)));
         visit_about_vars(about, |key, value| {
             cmd.env(key, value);
         });
