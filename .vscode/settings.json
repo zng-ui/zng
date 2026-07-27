@@ -34,6 +34,8 @@
         "*.md.zr-rp": "markdown",
         "*.zr-sfx": "toml",
         "*.zr-sfxf": "toml",
+        "*.zr-sfx.zr-rp": "toml",
+        "*.zr-sfxf.zr-rp": "toml",
     },
     "cSpell.words": [
         "aapt",

@@ -1,3 +1,7 @@
+// <windows-subsystem>
+#![windows_subsystem = "windows"]
+// </windows-subsystem>
+
 // source code for the generated self-extracting executable compiled by ./sfx.rs
 
 // [(name, compression, parts)]
@@ -37,10 +41,35 @@ use std::{
 use lzma_rust2::filter::bcj::BcjReader;
 
 pub fn main() {
+    // <windows-subsystem>
+    #[cfg(windows)]
+    attach_console();
+    // </windows-subsystem>
+
     if let Ok(name) = std::env::var("SFX_GET_DATA") {
         return serve_data(&name);
     }
     run();
+}
+
+macro_rules! err_exit {
+    ($($msg:tt)*) => {
+        {
+            eprintln!($($msg)*);
+            std::process::exit(-1);
+        }
+    };
+}
+trait UnwrapOrExit<T> {
+    fn unwrap_or_exit(self, ctx: &str) -> T;
+}
+impl<T, E: std::error::Error> UnwrapOrExit<T> for Result<T, E> {
+    fn unwrap_or_exit(self, ctx: &str) -> T {
+        match self {
+            Ok(r) => r,
+            Err(e) => err_exit!("{ctx} error, {e}"),
+        }
+    }
 }
 
 fn read_data(name: &str) -> Box<dyn io::Read> {
@@ -56,11 +85,11 @@ fn read_data(name: &str) -> Box<dyn io::Read> {
             match *compression {
                 Compression::None => {}
                 Compression::Zstd => {
-                    let d = zstd::stream::read::Decoder::new(data).unwrap();
+                    let d = zstd::stream::read::Decoder::new(data).unwrap_or_exit("Decoder::new");
                     data = Box::new(d);
                 }
                 Compression::ZstdBcj(bcj) => {
-                    let d = zstd::stream::read::Decoder::new(data).unwrap();
+                    let d = zstd::stream::read::Decoder::new(data).unwrap_or_exit("Decoder::new");
                     let d = match bcj {
                         BcjFilter::X86 => BcjReader::new_x86(d, 0),
                         BcjFilter::Arm => BcjReader::new_arm(d, 0),
@@ -77,26 +106,26 @@ fn read_data(name: &str) -> Box<dyn io::Read> {
             return data;
         }
     }
-    panic!("{name:?} not found")
+    err_exit!("{name:?} not found")
 }
 
 fn serve_data(name: &str) {
     let mut data = read_data(name);
-    io::copy(&mut data, &mut std::io::stdout()).unwrap();
+    io::copy(&mut data, &mut std::io::stdout()).unwrap_or_exit("serve_data/copy");
 }
 
 fn run() {
-    let run_file = tmp_run_file().unwrap();
+    let run_file = tmp_run_file().unwrap_or_exit("tmp_run_file");
     {
         let mut data = read_data(":run");
-        let mut run_file = fs::File::create_new(&run_file).unwrap();
-        io::copy(&mut data, &mut run_file).unwrap();
+        let mut run_file = fs::File::create_new(&run_file).unwrap_or_exit("File::create_new");
+        io::copy(&mut data, &mut run_file).unwrap_or_exit("run/copy");
     }
 
     let mut sfx_args = String::new();
     let mut sep = "";
     for arg in env::args() {
-        write!(&mut sfx_args, "{sep}{arg}").unwrap();
+        write!(&mut sfx_args, "{sep}{arg}").unwrap_or_exit("");
         sep = "\n";
     }
 
@@ -107,12 +136,12 @@ fn run() {
     for (key, value) in ENV {
         run.env(key, value);
     }
-    let s = run.env("SFX_ARGS", sfx_args).status().unwrap();
+    let s = run.env("SFX_ARGS", sfx_args).status().unwrap_or_exit("run");
 
     if let Err(e) = fs::remove_file(run_file)
         && !matches!(e.kind(), io::ErrorKind::NotFound)
     {
-        panic!("{e}");
+        err_exit!("run/remove error, {e:?}");
     }
     if !s.success() {
         std::process::exit(s.code().unwrap_or(-1))
@@ -120,7 +149,11 @@ fn run() {
 }
 fn tmp_run_file() -> io::Result<PathBuf> {
     let tmp = env::temp_dir().join("zng-sfx");
-    fs::create_dir(&tmp)?;
+    if let Err(e) = fs::create_dir(&tmp)
+        && !matches!(e.kind(), io::ErrorKind::AlreadyExists)
+    {
+        return Err(e);
+    }
     for i in 0..1000 {
         let tmp = tmp.join(format!("run-{i}.exe"));
         if let Err(e) = fs::remove_file(&tmp)
@@ -131,3 +164,20 @@ fn tmp_run_file() -> io::Result<PathBuf> {
     }
     Err(io::Error::new(io::ErrorKind::QuotaExceeded, "too many tmp exe"))
 }
+
+// <windows-subsystem>
+#[cfg(windows)]
+pub fn attach_console() {
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetConsoleWindow() -> isize;
+        fn AttachConsole(process_id: u32) -> i32;
+    }
+    unsafe {
+        // If no console is attached, attempt to attach to parent
+        if GetConsoleWindow() == 0 {
+            let _ = AttachConsole(0xFFFFFFFF);
+        }
+    }
+}
+// </windows-subsystem>

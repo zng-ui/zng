@@ -1,9 +1,10 @@
 # build
-cargo build --manifest-path tests/cargo-zng-res-tests/sfx/res/run-exe/Cargo.toml --target-dir "$ZR_TARGET/run-exe-tmp"
+tmp="$ZR_TARGET_DD/run-exe-tmp"
+cargo build --manifest-path "$ZR_REQUEST_DD/../res/run-exe/Cargo.toml" --target-dir $tmp
 
 # move executable
-src="$ZR_TARGET/run-exe-tmp/debug/run-exe"
-dst="$ZR_TARGET/run-exe"
+src="$ZR_TARGET_DD/run-exe-tmp/debug/run-exe"
+dst="$ZR_TARGET_DD/run-exe"
 if [ -f "$src.exe" ]; then
     mv "$src.exe" "$dst.exe"
 else
@@ -11,5 +12,4 @@ else
 fi
 
 # clean
-rm -rf "$ZR_TARGET/run-exe-tmp"
-rm -rf "$ZR_TARGET/package-temp"
+rm -rf $tmp

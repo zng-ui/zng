@@ -12,10 +12,10 @@ const SFX_HELP: &str = r#"
 Compile a self-extracting executable
 
 The request file:
-  source/sfx.exe.zr-sfx
+  source/sfx-package.zr-sfx
    | [sfx]
    | # executable to run, required
-   | run = "target/run.exe"
+   | run = "target/release/run"
    |
    | # Embedded icon for the sfx executable (Windows only)
    | icon = "res/sfx.ico"
@@ -50,7 +50,7 @@ The request file:
    | # only sign the sfx exe, default 'false' signs the 'run' exe too
    | # sfx-only = true
 
-Compiles and signs a 'sfx.exe' with custom icon.
+Compiles and signs a 'sfx-package.exe' with custom icon on Windows, or a 'sfx-package' on Unix.
 
 Run:
 
@@ -60,10 +60,24 @@ The optional 'env' variables override the system env. The SFX_ARGS and SFX_DATA 
 
 The SFX_ARGS is set to the sfx command line args, '\n' separated. The first arg is the path to the sfx exe.
 
+On build, also searches for "$run.exe" if "$run" is not found and has no extension.
+
 Data:
 
 To read data the 'run' exe must spawn another instance of the sfx with the "SFX_GET_DATA" set
 to the entry name. It will serve the data to stdout. The data may be decompressed on demand.
+
+File Paths:
+
+Paths are relative to the Cargo workspace root, you can also use .zr-rp to select files in the
+resource target dir.
+
+This request file:
+  source/sfx-package.zr-sfxf.zr-rp
+   | [[data]]
+   | file = "${ZR_TARGET_DD}/res.txt"
+
+Compiles a 'sfx-package' that includes the 'res.txt' copied to the target dir by `cargo zng res`.
 
 Compress:
 
@@ -136,6 +150,21 @@ pub(super) fn sfx() {
     }
 
     let mut run = request.sfx.run;
+    if !run.exists() {
+        if run.extension().is_none() && run.set_extension("exe") {
+            if !run.exists() {
+                run.set_extension("");
+                fatal!(
+                    "cannot find 'run' executable\n    {}\n    also tried {}.exe",
+                    unix_path(&run),
+                    run.file_name().unwrap().display()
+                );
+            }
+        } else {
+            fatal!("cannot find 'run' executable\n    {}", unix_path(&run));
+        }
+    }
+
     if let Some(tool) = &request.sign.tool
         && !request.sign.only_sfx
     {
@@ -156,7 +185,10 @@ pub(super) fn sfx() {
             fatal!("data name cannot contain ':'");
         }
         let compression = parse_compress(&request.sfx.rustc_target, &d.compress);
-        let parts = prepare_data(&tmp, id + 1, compression, &d.file).unwrap_or_else(|e| fatal!("cannot process {}, {e}", d.file.display()));
+        let file = d.file.as_path();
+
+        let parts = prepare_data(&tmp, id + 1, compression, file)
+            .unwrap_or_else(|e| fatal!("cannot process file, {e}\n    file: {}", unix_path(file)));
         data.push((d.name.as_str(), compression, parts));
     }
     let sfx_main = sfx_main(request.sfx.windows_subsystem, &request.sfx.args, &request.sfx.env, &data);
@@ -183,6 +215,9 @@ pub(super) fn sfx() {
         unsafe { std::env::set_var("SIGN_TARGET", &*unix_path(&output)) };
         super::sh_run(tool, false, None).unwrap_or_else(|e| fatal!("cannot sign sfx, {e}"));
     }
+
+    let mut target = target;
+    target.set_extension(output.extension().unwrap_or_default());
     fs::rename(output, target).unwrap_or_else(|e| fatal!("cannot finalize build, {e}"));
 
     fs::remove_dir_all(tmp).unwrap_or_else(|e| fatal!("cannot cleanup, {e}"));
@@ -232,8 +267,10 @@ struct Sfx {
     icon: Option<PathBuf>,
     args: Vec<String>,
     env: indexmap::IndexMap<String, String>,
+    #[serde(rename = "rustc-target")]
     #[serde(default = "rustc_host_triple")]
     rustc_target: String,
+    #[serde(rename = "windows-subsystem")]
     #[serde(default = "default_windows_subsystem")]
     windows_subsystem: bool,
     #[serde(default = "default_run_compress")]
@@ -285,6 +322,8 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
 
     match compression {
         Compression::None => {
+            println!("preparing {}", unix_path(file_path));
+
             let mut len = file.metadata()?.len();
             if len <= PART_MAX {
                 return Ok(vec![file_path.to_owned()]);
@@ -310,8 +349,11 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
             Ok(parts)
         }
         Compression::Zstd => {
+            println!("compressing {}", unix_path(file_path));
+
+            // 19 is the maximum non-ultra compression
             // zstd creates an optimal BufReader
-            let mut file = zstd::stream::read::Encoder::new(file, 6)?;
+            let mut file = zstd::stream::read::Encoder::new(file, 19)?;
 
             let mut parts = vec![];
             loop {
@@ -328,6 +370,8 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
             Ok(parts)
         }
         Compression::ZstdBcj(bcj) => {
+            println!("compressing {}", unix_path(file_path));
+
             // There is no pull-based bcj encoder so the parts swap needs to happen inside
             struct PartsWriter<'a> {
                 tmp: &'a Path,
@@ -377,8 +421,10 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
                 part: None,
                 left: 0,
             };
-            let out = zstd::stream::write::Encoder::new(out, 6)?;
-            let mut out = match bcj {
+            // 22 is the maximum ultra compression (high CPU and RAM usage)
+            let mut encoder = zstd::stream::write::Encoder::new(out, 22)?;
+            let out = &mut encoder;
+            let mut bcj_filter = match bcj {
                 BcjFilter::X86 => BcjWriter::new_x86(out, 0),
                 BcjFilter::Arm => BcjWriter::new_arm(out, 0),
                 BcjFilter::Arm64 => BcjWriter::new_arm64(out, 0),
@@ -390,7 +436,9 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
             };
 
             let mut file = file;
-            io::copy(&mut file, &mut out)?;
+            io::copy(&mut file, &mut bcj_filter)?;
+            bcj_filter.finish()?;
+            encoder.finish()?;
 
             Ok(parts)
         }
@@ -416,6 +464,7 @@ fn bcj_from_triple(target: &str) -> Option<BcjFilter> {
 
 // enable rust-analyzer
 #[path = "sfx_res/sfx_main.rs"]
+#[allow(unused_attributes)]
 mod sfx_main;
 use sfx_main::{BcjFilter, Compression};
 
@@ -460,7 +509,7 @@ fn sfx_main(
         };
         write!(&mut out_data, "  ({name:?}, Compression::{compression}{filter}, &[").unwrap();
         for part in parts {
-            write!(&mut out_data, "include_bytes!(\"{}\"), ", part.display()).unwrap();
+            write!(&mut out_data, "include_bytes!(\"{}\"), ", unix_path(part)).unwrap();
         }
         writeln!(&mut out_data, "]),").unwrap();
     }
@@ -484,7 +533,31 @@ fn sfx_main(
     let mut replaces = vec![(DATA, out_data), (ARGS, out_args), (ENV, out_env)];
 
     let mut out_main = String::new();
+    let mut region = "";
     for line in main.lines() {
+        // conditional regions
+        if let Some(r) = line.trim_start().strip_prefix("// </")
+            && let Some(r) = r.strip_suffix('>')
+        {
+            assert_eq!(region, r);
+            region = "";
+            continue;
+        }
+        if let Some(r) = line.trim_start().strip_prefix("// <")
+            && let Some(r) = r.strip_suffix('>')
+        {
+            region = r;
+            continue;
+        }
+        let keep_line = match region {
+            "windows-subsystem" => windows_subsystem,
+            "" => true,
+            unk => panic!("unknown region {unk:?}"),
+        };
+        if !keep_line {
+            continue;
+        }
+
         if let Some(i) = replaces.iter().position(|(k, _)| line.starts_with(k)) {
             let (_, value) = replaces.swap_remove(i);
             out_main.push_str(&value);

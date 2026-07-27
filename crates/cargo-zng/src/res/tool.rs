@@ -324,19 +324,36 @@ impl Tools {
         })
     }
 
-    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<()> {
+    /// Returns `true` if the request is done.
+    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<bool> {
         println!("{}", display_path(request));
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
+                let mut fin = self.on_final.lock();
+                if fin.iter().any(|(ti, r, _)| *ti == i && r == request) {
+                    // already ran and requested final
+                    return Ok(false);
+                }
+
                 let output = tool.run(&self.cache, source, target, request, &self.about, None)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
-                for args in output.on_final {
-                    self.on_final.lock().push((i, request.to_owned(), args));
+                let done = output.on_final.is_empty();
+                if done {
+                    if request.starts_with(target) {
+                        // cleanup generated request
+                        if let Err(e) = fs::remove_file(request) {
+                            bail!("cannot cleanup request {}, {e}", display_path(target))
+                        }
+                    }
+                } else {
+                    for args in output.on_final {
+                        fin.push((i, request.to_owned(), args));
+                    }
                 }
                 if !output.delegate {
-                    return Ok(());
+                    return Ok(done);
                 }
             }
         }
@@ -352,6 +369,12 @@ impl Tools {
                 let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
                 for warn in output.warnings {
                     warn!("{warn}")
+                }
+                if request.starts_with(target) {
+                    // cleanup generated request
+                    if let Err(e) = fs::remove_file(request) {
+                        bail!("cannot cleanup request {}, {e}", display_path(target))
+                    }
                 }
             }
         }

@@ -52,7 +52,7 @@ fn res_error_bash() {
 
 #[test]
 fn res_sfx() {
-    let ([_test_dir, _source, target], stdio, error) = res_no_verify("sfx", Pack::No);
+    let ([_test_dir, _source, target], stdio, error) = res_no_verify("sfx", Pack::Yes);
     if let Some(e) = error {
         panic!("{e}\n\n{stdio}");
     }
@@ -60,7 +60,44 @@ fn res_sfx() {
     let run_exe = target.join(format!("run-exe{}", std::env::consts::EXE_SUFFIX));
     assert!(run_exe.exists());
 
-    todo!("call run_exe");
+    let sign_count = stdio.stdout.lines().filter(|l| l.contains(" sign requested for ")).count();
+    assert_eq!(sign_count, 2);
+
+    // let compressing_count = stdio.stdout.lines().filter(|l| l.contains(" compressing ")).count();
+    // assert_eq!(compressing_count, 3);
+
+    let output = std::process::Command::new(target.join(format!("package{}", std::env::consts::EXE_SUFFIX)))
+        .arg("--sfx-arg1")
+        .arg("--sfx-arg2")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "package run failed\ncode: {}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        output.status.code().unwrap_or(0)
+    );
+
+    /* expected:
+    SFX_ARGS:
+    ../target/tmp/tests/zng_res/sfx/package.exe
+    --sfx-arg1
+    --sfx-arg2
+    get-data:
+    first = "First data entry."
+    second = "Second data entry."
+     */
+    let lines: Vec<_> = stdout.lines().collect();
+    let mut ok = lines[0] == "SFX_ARGS:";
+    let tmp = PathBuf::from(lines[1]);
+    ok &= lines[2] == "--sfx-arg1";
+    ok &= lines[3] == "--sfx-arg2";
+    ok &= lines[4] == "get-data:";
+    ok &= lines[5] == r#"first = "First data entry.""#;
+    ok &= lines[6] == r#"second = "Second data entry.""#;
+    assert!(ok, "incorrect stdout\nstdout:\n{stdout}\nstderr:\n{stderr}");
+    assert!(!tmp.exists());
 }
 
 #[test]
