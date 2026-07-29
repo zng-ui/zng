@@ -121,6 +121,14 @@ fn run() {
         let mut run_file = fs::File::create_new(&run_file).unwrap_or_exit("File::create_new");
         io::copy(&mut data, &mut run_file).unwrap_or_exit("run/copy");
     }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let perms = fs::metadata(std::env::current_exe().unwrap())
+            .unwrap_or_exit("get-metadata")
+            .permissions();
+        fs::set_permissions(&run_file, perms).unwrap_or_exit("set-metadata");
+    }
 
     let mut sfx_args = String::new();
     let mut sep = "";
