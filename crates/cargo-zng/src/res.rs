@@ -12,7 +12,7 @@ use clap::*;
 use color_print::cstr;
 use zng_env::About;
 
-use crate::util;
+use crate::util::{self, unix_path};
 
 use self::tool::Tools;
 
@@ -135,7 +135,7 @@ pub(crate) fn run(mut args: ResArgs) {
         // SAFETY: cargo-zng res is single-threaded
         //
         // to use `display_path` in the tool runner (current process)
-        std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
+        std::env::set_var(ZR_WORKSPACE_DIR, &*unix_path(&std::env::current_dir().unwrap()));
     }
 
     let start = Instant::now();
@@ -185,7 +185,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
             if let Some(ext) = source.extension() {
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
-                    // run prints request
+                    // run prints request path
                     tools.run(tool, &args.source, &args.target, source)?;
                     continue;
                 }
@@ -206,7 +206,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
 }
 
 fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::Result<bool> {
-    let mut any = false;
+    let mut advanced = false;
     for entry in walkdir::WalkDir::new(dir).min_depth(1).sort_by_file_name() {
         let entry = entry.with_context(|| format!("cannot read dir entry {}", dir.display()))?;
         if entry.file_type().is_file() {
@@ -215,16 +215,16 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
             if let Some(ext) = path.extension() {
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
-                    any = true;
-                    // run prints request
-                    let tool_r = tools.run(tool, &args.source, &args.target, path);
-                    fs::remove_file(path)?;
-                    tool_r?;
+                    // run prints request path and removes file if not needed
+                    let done = tools.run(tool, &args.source, &args.target, path)?;
+                    if done {
+                        advanced = true;
+                    }
                 }
             }
         }
     }
-    Ok(any)
+    Ok(advanced)
 }
 
 fn tools_help(tools: &Path) {

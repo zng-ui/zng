@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs,
     io::{self, BufReader, Read},
@@ -409,5 +410,14 @@ pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>, 
             println!("copying\n  from: `{}`\n    to: `{}`", from.display(), to.display());
         }
         fs::copy(from, to)
+    }
+}
+
+/// Convert '\' paths to '/' on Windows.
+pub fn unix_path(path: &Path) -> Cow<'_, str> {
+    if cfg!(windows) {
+        Cow::Owned(path.to_string_lossy().replace('\\', "/"))
+    } else {
+        path.to_string_lossy()
     }
 }

@@ -1,0 +1,15 @@
+# build
+tmp="$ZR_TARGET_DD/run-exe-tmp"
+cargo build --manifest-path "$ZR_REQUEST_DD/../res/run-exe/Cargo.toml" --target-dir $tmp
+
+# move executable
+src="$ZR_TARGET_DD/run-exe-tmp/debug/run-exe"
+dst="$ZR_TARGET_DD/run-exe"
+if [ -f "$src.exe" ]; then
+    mv "$src.exe" "$dst.exe"
+else
+    mv "$src" "$dst"
+fi
+
+# clean
+rm -rf $tmp

@@ -1,6 +1,6 @@
 use std::{
     ffi::OsStr,
-    fs, io,
+    fmt, fs, io,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -48,6 +48,72 @@ fn res_replace() {
 #[test]
 fn res_error_bash() {
     res("bash-error", Pack::No, Expect::Err);
+}
+
+#[test]
+fn res_sfx() {
+    let ([_test_dir, _source, target], stdio, error) = res_no_verify("sfx", Pack::Yes);
+    if let Some(e) = error {
+        panic!("{e}\n\n{stdio}");
+    }
+    assert!(!target.join("package-temp").exists());
+    let run_exe = target.join(format!("run-exe{}", std::env::consts::EXE_SUFFIX));
+    assert!(run_exe.exists());
+
+    let sign_count = stdio.stdout.lines().filter(|l| l.contains(" sign requested for ")).count();
+    assert_eq!(sign_count, 2);
+
+    // let compressing_count = stdio.stdout.lines().filter(|l| l.contains(" compressing ")).count();
+    // assert_eq!(compressing_count, 3);
+
+    let output = std::process::Command::new(target.join(format!("package{}", std::env::consts::EXE_SUFFIX)))
+        .arg("--sfx-arg1")
+        .arg("--sfx-arg2")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "package run failed\ncode: {}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        output.status.code().unwrap_or(0)
+    );
+
+    /* expected:
+    ARGS:
+    target\tmp\cargo-do\zng-sfx\run-0.exe
+    ENV:
+    TEST_ENV0=env0
+    TEST_ENV1=env1
+    SFX_ARGS:
+    ../target/tmp/tests/zng_res/sfx/package.exe
+    --sfx-arg1
+    --sfx-arg2
+    get-data:
+    first = "First data entry."
+    second = "Second data entry."
+     */
+    let lines: Vec<_> = stdout.lines().collect();
+    let mut ok = lines[0] == "ARGS:";
+    let tmp = PathBuf::from(lines[1]);
+    ok &= lines[2] == "--test-arg0";
+    ok &= lines[3] == "--test-arg1";
+    ok &= lines[4] == "ENV:";
+    ok &= lines[5] == "TEST_ENV0=env0";
+    ok &= lines[6] == "TEST_ENV1=env1";
+    ok &= lines[7] == "SFX_ARGS:";
+    ok &= PathBuf::from(lines[8]).exists();
+    ok &= lines[9] == "--sfx-arg1";
+    ok &= lines[10] == "--sfx-arg2";
+    ok &= lines[11] == "get-data:";
+    ok &= lines[12] == r#"first = "First data entry.""#;
+    ok &= lines[13] == r#"second = "Second data entry.""#;
+    assert!(ok, "incorrect stdout\nstdout:\n{stdout}\nstderr:\n{stderr}");
+    assert!(
+        !tmp.exists(),
+        "tmp run ({}) still exists\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        tmp.display()
+    );
 }
 
 #[test]
@@ -115,6 +181,11 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
 }
 
 fn res(test: &str, pack: Pack, expect: Expect) {
+    let ([test_dir, source, target], stdio, error) = res_no_verify(test, pack);
+    verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
+}
+
+fn res_no_verify(test: &str, pack: Pack) -> ([PathBuf; 3], StdioStr, Option<io::Error>) {
     let tests_dir = PathBuf::from("cargo-zng-res-tests");
     let test_dir = tests_dir.join(test);
     let source = test_dir.join("source");
@@ -139,7 +210,7 @@ fn res(test: &str, pack: Pack, expect: Expect) {
             stdio = s;
         }
     }
-    verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
+    ([test_dir, source, target], stdio, error)
 }
 
 fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, expect: Expect, expected_target: &Path, target: &Path) {
@@ -320,7 +391,11 @@ struct StdioStr {
     stdout: String,
     stderr: String,
 }
-
+impl fmt::Display for StdioStr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "--stdout--\n\n{}\n\n--stderr--\n\n{}\n\n", self.stdout, self.stderr)
+    }
+}
 impl From<&std::process::Output> for StdioStr {
     fn from(output: &std::process::Output) -> Self {
         Self {

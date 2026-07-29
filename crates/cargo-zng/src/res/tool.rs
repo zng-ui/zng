@@ -10,7 +10,7 @@ use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 use zng_env::About;
 
-use crate::{res::built_in::ZR_APP_ID, res_tool_util::*};
+use crate::{res::built_in::ZR_APP_ID, res_tool_util::*, util::unix_path};
 
 /// Visit in the `ToolKind` order.
 pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<ControlFlow<()>>) -> anyhow::Result<()> {
@@ -172,14 +172,14 @@ impl Tool {
             target = target_dir.join(p);
         }
 
-        cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
-            .env(ZR_SOURCE_DIR, source_dir)
-            .env(ZR_TARGET_DIR, target_dir)
-            .env(ZR_REQUEST_DD, request.parent().unwrap())
-            .env(ZR_REQUEST, request)
-            .env(ZR_TARGET_DD, target.parent().unwrap())
-            .env(ZR_TARGET, target)
-            .env(ZR_CACHE_DIR, cache.join(cache_dir));
+        cmd.env(ZR_WORKSPACE_DIR, &*unix_path(&std::env::current_dir().unwrap()))
+            .env(ZR_SOURCE_DIR, &*unix_path(source_dir))
+            .env(ZR_TARGET_DIR, &*unix_path(target_dir))
+            .env(ZR_REQUEST_DD, &*unix_path(request.parent().unwrap()))
+            .env(ZR_REQUEST, &*unix_path(request))
+            .env(ZR_TARGET_DD, &*unix_path(target.parent().unwrap()))
+            .env(ZR_TARGET, &*unix_path(&target))
+            .env(ZR_CACHE_DIR, &*unix_path(&cache.join(cache_dir)));
         visit_about_vars(about, |key, value| {
             cmd.env(key, value);
         });
@@ -324,19 +324,36 @@ impl Tools {
         })
     }
 
-    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<()> {
+    /// Returns `true` if the request is done.
+    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<bool> {
         println!("{}", display_path(request));
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
+                let mut fin = self.on_final.lock();
+                if fin.iter().any(|(ti, r, _)| *ti == i && r == request) {
+                    // already ran and requested final
+                    return Ok(false);
+                }
+
                 let output = tool.run(&self.cache, source, target, request, &self.about, None)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
-                for args in output.on_final {
-                    self.on_final.lock().push((i, request.to_owned(), args));
+                let done = output.on_final.is_empty();
+                if done {
+                    if request.starts_with(target) {
+                        // cleanup generated request
+                        if let Err(e) = fs::remove_file(request) {
+                            bail!("cannot cleanup request {}, {e}", display_path(target))
+                        }
+                    }
+                } else {
+                    for args in output.on_final {
+                        fin.push((i, request.to_owned(), args));
+                    }
                 }
                 if !output.delegate {
-                    return Ok(());
+                    return Ok(done);
                 }
             }
         }
@@ -352,6 +369,12 @@ impl Tools {
                 let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
                 for warn in output.warnings {
                     warn!("{warn}")
+                }
+                if request.starts_with(target) {
+                    // cleanup generated request
+                    if let Err(e) = fs::remove_file(request) {
+                        bail!("cannot cleanup request {}, {e}", display_path(target))
+                    }
                 }
             }
         }

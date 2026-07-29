@@ -1,0 +1,19 @@
+[sfx]
+run = "${ZR_TARGET_DD}/run-exe"
+args = ["--test-arg0", "--test-arg1"]
+env = { TEST_ENV0 = "env0", TEST_ENV1 = "env1" }
+# windows-subsystem = false
+# compress = "none"
+
+[[data]]
+name = "first"
+file = "${ZR_REQUEST_DD}/../res/first.txt"
+# compress = "none"
+
+[[data]]
+name = "second"
+file = "${ZR_REQUEST_DD}/../res/second.txt"
+# compress = "none"
+
+[sign]
+tool = "echo \"sign requested for $SIGN_TARGET\""
