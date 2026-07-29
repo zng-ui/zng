@@ -464,7 +464,7 @@ fn bcj_from_triple(target: &str) -> Option<BcjFilter> {
 
 // enable rust-analyzer
 #[path = "sfx_res/sfx_main.rs"]
-#[allow(unused_attributes)]
+#[allow(unused)]
 mod sfx_main;
 use sfx_main::{BcjFilter, Compression};
 
@@ -474,12 +474,6 @@ fn sfx_main(
     env: &IndexMap<String, String>,
     data: &[(&str, Compression, Vec<PathBuf>)],
 ) -> String {
-    #[cfg(debug_assertions)]
-    #[allow(unused)]
-    fn allow_unused() {
-        sfx_main::main();
-    }
-
     let main = include_str!("sfx_res/sfx_main.rs");
 
     const DATA: &str = "static DATA: &[(&str, Compression, &[&[u8]])] = &[";
