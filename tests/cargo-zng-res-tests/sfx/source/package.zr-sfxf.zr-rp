@@ -2,7 +2,7 @@
 run = "${ZR_TARGET_DD}/run-exe"
 args = ["--test-arg0", "--test-arg1"]
 env = { TEST_ENV0 = "env0", TEST_ENV1 = "env1" }
-windows-subsystem = false
+# windows-subsystem = false
 # compress = "none"
 
 [[data]]

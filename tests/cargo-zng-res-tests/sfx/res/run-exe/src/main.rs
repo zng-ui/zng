@@ -1,4 +1,15 @@
 fn main() {
+    println!("ARGS:");
+    for arg in std::env::args() {
+        println!("{arg}");
+    }
+    println!("ENV:");
+    if let Ok(v) = std::env::var("TEST_ENV0") {
+        println!("TEST_ENV0={v}");
+    }
+    if let Ok(v) = std::env::var("TEST_ENV1") {
+        println!("TEST_ENV1={v}");
+    }
     if let Ok(v) = std::env::var("SFX_ARGS") {
         println!("SFX_ARGS:\n{v}");
         let sfx = v.lines().next().unwrap();

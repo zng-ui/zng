@@ -80,6 +80,11 @@ fn res_sfx() {
     );
 
     /* expected:
+    ARGS:
+    target\tmp\cargo-do\zng-sfx\run-0.exe
+    ENV:
+    TEST_ENV0=env0
+    TEST_ENV1=env1
     SFX_ARGS:
     ../target/tmp/tests/zng_res/sfx/package.exe
     --sfx-arg1
@@ -89,15 +94,26 @@ fn res_sfx() {
     second = "Second data entry."
      */
     let lines: Vec<_> = stdout.lines().collect();
-    let mut ok = lines[0] == "SFX_ARGS:";
+    let mut ok = lines[0] == "ARGS:";
     let tmp = PathBuf::from(lines[1]);
-    ok &= lines[2] == "--sfx-arg1";
-    ok &= lines[3] == "--sfx-arg2";
-    ok &= lines[4] == "get-data:";
-    ok &= lines[5] == r#"first = "First data entry.""#;
-    ok &= lines[6] == r#"second = "Second data entry.""#;
+    ok &= lines[2] == "--test-arg0";
+    ok &= lines[3] == "--test-arg1";
+    ok &= lines[4] == "ENV:";
+    ok &= lines[5] == "TEST_ENV0=env0";
+    ok &= lines[6] == "TEST_ENV1=env1";
+    ok &= lines[7] == "SFX_ARGS:";
+    ok &= PathBuf::from(lines[8]).exists();
+    ok &= lines[9] == "--sfx-arg1";
+    ok &= lines[10] == "--sfx-arg2";
+    ok &= lines[11] == "get-data:";
+    ok &= lines[12] == r#"first = "First data entry.""#;
+    ok &= lines[13] == r#"second = "Second data entry.""#;
     assert!(ok, "incorrect stdout\nstdout:\n{stdout}\nstderr:\n{stderr}");
-    assert!(!tmp.exists());
+    assert!(
+        !tmp.exists(),
+        "tmp run ({}) still exists\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        tmp.display()
+    );
 }
 
 #[test]
