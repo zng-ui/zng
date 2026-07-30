@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.2
+
 * Add self-extracting executable builder tool for `cargo zng res`.
     - Files with `.zr-sfx` or `.zr-sfxf` build a SFX.
     - See `cargo zng res --tool sfx` for features.
