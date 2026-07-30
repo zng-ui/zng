@@ -127,6 +127,7 @@ or for custom properties that deeply integrate with a widget.
 Miscellaneous crates that provide APIs as both `[build-dependencies]` and `[dependencies]`.
 
 - `zng-tp-licenses`
+- `zng-setup`
 
 ### Tools
 
