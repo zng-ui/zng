@@ -1,6 +1,15 @@
-use std::{collections::HashSet, fs, io, path::PathBuf};
+use std::{
+    collections::HashSet,
+    fs, io,
+    path::{Path, PathBuf},
+};
 
-use zng::task::Progress;
+use zng::{
+    layout::ByteUnits,
+    task::Progress,
+    text::{ToTxt as _, Txt, formatx},
+    var::{expr_var, var},
+};
 
 use crate::tasks::SetupTaskError;
 
@@ -14,7 +23,7 @@ impl super::SetupTask for ExtractTarTask {
     type Install = InstallData;
 
     fn task_type_id() -> super::TaskTypeId {
-        "zng-setup/ExtractTar".into()
+        "zng-setup/ExtractTarTask".into()
     }
 
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
@@ -31,9 +40,9 @@ impl super::SetupTask for ExtractTarTask {
             return Err(SetupTaskError::Io(vec![(parent_dir.to_owned(), e)]));
         }
 
-        // find a temp path beside the target_dir
+        // make a temp path beside the target_dir
         let mut retries = 0;
-        let (tmp, state) = loop {
+        let (tmp, tmp_state) = loop {
             let tmp = parent_dir.join(format!("{dir_name}-temp{retries}"));
             let state = tmp.join(TEMP_STATE);
 
@@ -63,14 +72,14 @@ impl super::SetupTask for ExtractTarTask {
         if let Err(e) = fs::create_dir(&tmp) {
             return Err(SetupTaskError::Io(vec![(tmp, e)]));
         }
-        if let Err(e) = fs::write(&state, "preparing") {
+        if let Err(e) = fs::write(&tmp_state, "preparing") {
             let _ = fs::remove_dir(&tmp);
-            return Err(SetupTaskError::Io(vec![(state, e)]));
+            return Err(SetupTaskError::Io(vec![(tmp_state, e)]));
         }
 
         macro_rules! error {
             ($e:expr) => {{
-                let _ = fs::write(&state, "error");
+                let _ = fs::write(&tmp_state, "error");
                 let _ = fs::remove_dir(&tmp);
                 return Err($e);
             }};
@@ -78,14 +87,28 @@ impl super::SetupTask for ExtractTarTask {
 
         let mut entries = HashSet::new();
 
-        let progress = args.progress;
+        // prepare progress reporting
+        let tar = zng::task::io::Measure::new(args.config.tar, args.config.tar_len.bytes(), 0.bytes());
+        let progress_name = var(Txt::default());
+        let progress = expr_var! {
+            let metrics = #{tar.metrics()};
+            let (n, total) = metrics.read_progress;
+            if n <= total {
+                Progress::from_n_of(n.0, total.0)
+            } else {
+                Progress::indeterminate()
+            }
+            .with_msg(formatx!("{}\n{}", #{progress_name.clone()}, metrics))
+        };
+        progress.set_bind(&args.progress).perm();
 
         // extract
-        let mut tar = tar::Archive::new(args.config.tar);
+        let mut tar = tar::Archive::new(tar);
         let tar_entries = match tar.entries() {
             Ok(e) => e,
             Err(e) => error!(SetupTaskError::Io(vec![(":tar/entries".into(), e)])),
         };
+        entries.insert(PathBuf::new()); // target_dir
         for entry in tar_entries {
             let mut entry = match entry {
                 Ok(e) => e,
@@ -95,12 +118,40 @@ impl super::SetupTask for ExtractTarTask {
                 Ok(p) => p.into_owned(),
                 Err(e) => error!(SetupTaskError::Io(vec![(":tar/entry/path".into(), e)])),
             };
-            if !entries.insert(path) {
-                error!(SetupTaskError::Io(vec![(
-                    ":tar/entry/path".into(),
-                    io::Error::new(io::ErrorKind::InvalidData, "repeated file in tar")
-                )]))
+
+            let display_name = path.as_os_str().to_string_lossy().replace('\\', "/").to_txt();
+
+            let entry_type = entry.header().entry_type();
+            if entry_type.is_dir() {
+                entries.insert(path);
+            } else if entry_type.is_file() {
+                for p in path.ancestors() {
+                    if !entries.contains(p) {
+                        entries.insert(p.to_owned());
+                    }
+                }
+                if !entries.insert(path) {
+                    error!(SetupTaskError::Io(vec![(
+                        ":tar/entry/path".into(),
+                        io::Error::new(io::ErrorKind::InvalidData, "repeated file in tar")
+                    )]))
+                }
+            } else {
+                if args.config.strict {
+                    error!(SetupTaskError::Io(vec![(
+                        ":tar/entry/entry_type".into(),
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("found entry {entry_type:?}, only directory and files are allowed")
+                        )
+                    )]))
+                } else {
+                    continue;
+                }
             }
+
+            progress_name.set(display_name);
+
             if let Err(e) = entry.unpack_in(&tmp) {
                 error!(SetupTaskError::Io(vec![(":tar/entry/unpack_in".into(), e)]))
             }
@@ -109,10 +160,15 @@ impl super::SetupTask for ExtractTarTask {
                 break;
             }
         }
+        let _ = tar.into_inner().finish();
 
         // if is updating find orphan entries
         let mut remove = vec![];
-        if let Some(prev) = args.update && !args.cancel.get() {
+        if let Some(prev) = args.update
+            && !args.cancel.get()
+        {
+            args.progress.set(Progress::indeterminate());
+
             if prev.target_dir != args.config.target_dir {
                 remove = prev
                     .entries
@@ -138,18 +194,92 @@ impl super::SetupTask for ExtractTarTask {
             }
         }
 
-        let _ = fs::write(&state, "prepared");
+        let _ = fs::write(&tmp_state, "prepared");
+
+        let mut entries: Vec<_> = entries.into_iter().collect();
+        entries.sort(); // root first, this allows renaming entire dirs when possible during `install`
 
         Ok(PrepareInstallData {
             temp_dir: tmp,
             target_dir: args.config.target_dir,
-            add: entries.into_iter().collect(),
+            add: entries,
             remove,
         })
     }
 
     async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
-        todo!()
+        let mut errors = vec![];
+
+        let mut entries = args.data.add;
+        let mut moved_dirs = HashSet::<&Path>::new();
+        for add in &entries {
+            if add.ancestors().any(|p| moved_dirs.contains(p)) {
+                // already renamed parent dir
+                continue;
+            }
+            let from = args.data.temp_dir.join(add);
+            let to = args.data.target_dir.join(add);
+
+            if from.is_dir() {
+                // if `to` is existing dir
+                if to.is_dir() {
+                    // can still move entire dir if is empty
+                    let empty = match fs::read_dir(&to) {
+                        Ok(mut d) => d.next().is_none(),
+                        Err(_) => false,
+                    };
+                    if !empty {
+                        // otherwise needs to merge per entry
+                        continue;
+                    }
+                }
+
+                // if `to` is existing file, remove it
+                if let Err(e) = fs::remove_file(&to)
+                    && !matches!(e.kind(), io::ErrorKind::NotFound)
+                {
+                    errors.push((to, e));
+                    continue;
+                }
+
+                // move dir
+                if let Err(e) = fs::rename(from, &to) {
+                    errors.push((to, e));
+                    continue;
+                }
+
+                // moved entire dir
+                if add.as_os_str().is_empty() {
+                    // already moved root dir
+                    break;
+                }
+                moved_dirs.insert(add);
+            } else if from.is_file() {
+                // if is existing dir, remove it all
+                if let Err(e) = fs::remove_dir_all(&to)
+                    && !matches!(e.kind(), io::ErrorKind::NotADirectory)
+                {
+                    errors.push((to, e));
+                    continue;
+                }
+
+                // move file
+                if let Err(e) = fs::rename(from, &to) {
+                    errors.push((to, e));
+                }
+            } else {
+                errors.push((from, io::Error::new(io::ErrorKind::NotFound, "expected dir or file")));
+            }
+        }
+        if errors.is_empty() {
+            entries.reverse(); // uninstall removes depth first to cleanup empty dirs as it goes
+            Ok(InstallData {
+                target_dir: args.data.target_dir,
+                entries,
+            })
+        } else {
+            Err(SetupTaskError::Io(errors))
+        }
     }
 
     async fn cancel_install(args: super::CancelInstallArgs<Self>) -> super::Result<()> {
@@ -199,7 +329,7 @@ impl super::SetupTask for ExtractTarTask {
             args.progress.set(Progress::indeterminate());
         }
 
-        // sort so deeper files are removed first, because dirs are only removed if empty
+        // verify order, uninstall must consume depth first
         data.entries.sort_by(|a, b| b.cmp(a));
 
         Ok(data)
@@ -208,7 +338,22 @@ impl super::SetupTask for ExtractTarTask {
     async fn uninstall(args: super::UninstallArgs<Self>) -> super::Result<()> {
         let mut errors = vec![];
         for entry in args.data.entries {
-            // !!: TODO
+            let entry = args.data.target_dir.join(entry);
+            if entry.is_dir() {
+                if let Err(e) = fs::remove_dir(&entry)
+                    && !matches!(
+                        e.kind(),
+                        io::ErrorKind::NotFound | io::ErrorKind::NotADirectory | io::ErrorKind::DirectoryNotEmpty
+                    )
+                {
+                    errors.push((entry, e));
+                }
+            } else if entry.is_file()
+                && let Err(e) = fs::remove_file(&entry)
+                && !matches!(e.kind(), io::ErrorKind::NotFound)
+            {
+                errors.push((entry, e));
+            }
         }
         if errors.is_empty() {
             Ok(())
@@ -222,21 +367,39 @@ const TEMP_STATE: &str = ".zng-setup-ExtractTarTask";
 
 /// Config for [`ExtractTarTask`]
 pub struct ExtractTarConfig {
+    tar_len: u64,
     tar: Box<dyn io::Read + Send>,
     target_dir: PathBuf,
+    strict: bool,
 }
 
 impl ExtractTarConfig {
     /// New config.
     ///
-    /// * `tar` must read only a TAR stream from start to end.
+    /// * `tar_len` estimated length of `tar`, used for progress reporting only. Pass `0` for indeterminate.
+    /// * `tar` must read only a TAR stream from start to end. Must contain only directory and file entries.
     /// * `target_dir` Directory that will be created or merged with the `tar` root directory.
     ///
     /// If all entries share a common first path component (for example, `my-app/bin/app.exe` and `my-app/README.md`),
     /// that directory is created inside `target_dir`. To extract files directly into `target_dir`, the entries must
     /// not have a common leading directory component.
-    pub fn new(tar: Box<dyn io::Read + Send>, target_dir: PathBuf) -> Self {
-        Self { tar, target_dir }
+    pub fn new(tar_len: u64, tar: Box<dyn io::Read + Send>, target_dir: PathBuf) -> Self {
+        Self {
+            tar_len,
+            tar,
+            target_dir,
+            strict: false,
+        }
+    }
+
+    /// Enable strict errors.
+    ///
+    /// When enabled:
+    ///
+    /// * Error on TAR entry that is not directory nor file.
+    pub fn strict(mut self) -> Self {
+        self.strict = true;
+        self
     }
 }
 
