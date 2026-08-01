@@ -1,5 +1,8 @@
 # Unreleased
 
+* Improve `zng::task::io::Metrics`.
+    - `Display` now hides the total estimated length when read/write overshoots it.
+    - `Measure::metrics` is now `&self`.
 
 # 0.24.2
 
