@@ -1,5 +1,5 @@
 [package]
-name = "zng-setup"
+name = "zng-ext-setup"
 version = "0.1.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"

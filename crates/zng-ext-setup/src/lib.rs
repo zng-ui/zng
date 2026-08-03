@@ -1,7 +1,7 @@
 #![doc(html_favicon_url = "https://zng-ui.github.io/res/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://zng-ui.github.io/res/zng-logo.png")]
 //!
-//! Types and service for implementing custom setup apps.
+//! Types and service for implementing recoverable install and uninstall tasks.
 //!
 //! The primary use for this crate is creating a Windows setup executable that is compressed
 //! and packaged using `cargo zng res --tool sfx`.
@@ -20,5 +20,6 @@
 #![warn(missing_docs)]
 
 mod service;
-pub mod tasks;
-pub mod view;
+pub mod task;
+
+pub use service::SETUP;

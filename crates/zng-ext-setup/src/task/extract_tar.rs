@@ -11,11 +11,12 @@ use zng::{
     var::{expr_var, var},
 };
 
-use crate::tasks::SetupTaskError;
+use crate::task::SetupTaskError;
 
-/// Setup task that extracts a directory from a TAR container to a directory on install and removes these files on uninstall.
-pub enum ExtractTarTask {}
-impl super::SetupTask for ExtractTarTask {
+/// Setup task that extracts TAR container to a new or existing directory 
+/// on install and removes these files on uninstall.
+pub enum ExtractTar {}
+impl super::SetupTaskImpl for ExtractTar {
     type InstallConfig = ExtractTarConfig;
 
     type PrepareInstall = PrepareInstallData;
@@ -23,7 +24,7 @@ impl super::SetupTask for ExtractTarTask {
     type Install = InstallData;
 
     fn task_type_id() -> super::TaskTypeId {
-        "zng-setup/ExtractTarTask".into()
+        "zng-setup/ExtractTar".into()
     }
 
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
@@ -363,9 +364,9 @@ impl super::SetupTask for ExtractTarTask {
     }
 }
 
-const TEMP_STATE: &str = ".zng-setup-ExtractTarTask";
+const TEMP_STATE: &str = ".zng-setup-ExtractTar";
 
-/// Config for [`ExtractTarTask`]
+/// Config for [`ExtractTar`]
 pub struct ExtractTarConfig {
     tar_len: u64,
     tar: Box<dyn io::Read + Send>,

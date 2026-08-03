@@ -1,6 +1,6 @@
 use zng::{l10n::l10n, prelude_wgt::*};
 
-use crate::tasks::SetupTaskError;
+use crate::task::SetupTaskError;
 
 /// Setup service.
 pub struct SETUP;
