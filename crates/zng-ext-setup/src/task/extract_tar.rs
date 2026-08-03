@@ -1,7 +1,8 @@
 use std::{
     collections::HashSet,
-    fs, io,
+    fmt, fs, io,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use zng_task::Progress;
@@ -14,7 +15,7 @@ use crate::task::SetupTaskError;
 /// Setup task that extracts TAR container to a new or existing directory
 /// on install and removes these files on uninstall.
 pub enum ExtractTar {}
-impl super::SetupTaskImpl for ExtractTar {
+impl super::SetupTask for ExtractTar {
     type InstallConfig = ExtractTarConfig;
 
     type PrepareInstall = PrepareInstallData;
@@ -29,14 +30,14 @@ impl super::SetupTaskImpl for ExtractTar {
         let (parent_dir, dir_name) = match (args.config.target_dir.parent(), args.config.target_dir.file_name()) {
             (Some(p), Some(n)) if let Some(n) = n.to_str() => (p, n),
             _ => {
-                return Err(SetupTaskError::Io(vec![(
+                return Err(SetupTaskError::io(
                     args.config.target_dir,
                     io::Error::new(io::ErrorKind::InvalidInput, "invalid target"),
-                )]));
+                ));
             }
         };
         if let Err(e) = fs::create_dir_all(parent_dir) {
-            return Err(SetupTaskError::Io(vec![(parent_dir.to_owned(), e)]));
+            return Err(SetupTaskError::io(parent_dir.to_owned(), e));
         }
 
         // make a temp path beside the target_dir
@@ -62,18 +63,18 @@ impl super::SetupTaskImpl for ExtractTar {
 
             retries += 1;
             if retries == 1000 {
-                return Err(SetupTaskError::Io(vec![(
+                return Err(SetupTaskError::io(
                     args.config.target_dir,
                     io::Error::new(io::ErrorKind::QuotaExceeded, "cannot create temp target"),
-                )]));
+                ));
             }
         };
         if let Err(e) = fs::create_dir(&tmp) {
-            return Err(SetupTaskError::Io(vec![(tmp, e)]));
+            return Err(SetupTaskError::io(tmp, e));
         }
         if let Err(e) = fs::write(&tmp_state, "preparing") {
             let _ = fs::remove_dir(&tmp);
-            return Err(SetupTaskError::Io(vec![(tmp_state, e)]));
+            return Err(SetupTaskError::io(tmp_state, e));
         }
 
         macro_rules! error {
@@ -98,6 +99,9 @@ impl super::SetupTaskImpl for ExtractTar {
                 Progress::indeterminate()
             }
             .with_msg(formatx!("{}\n{}", #{progress_name.clone()}, metrics))
+            .with_meta_mut(|mut m| {
+                m.set(*zng_task::io::METRICS_ID, metrics.clone());
+            })
         };
         progress.set_bind(&args.progress).perm();
 
@@ -105,17 +109,17 @@ impl super::SetupTaskImpl for ExtractTar {
         let mut tar = tar::Archive::new(tar);
         let tar_entries = match tar.entries() {
             Ok(e) => e,
-            Err(e) => error!(SetupTaskError::Io(vec![(":tar/entries".into(), e)])),
+            Err(e) => error!(SetupTaskError::io(":tar/entries".into(), e)),
         };
         entries.insert(PathBuf::new()); // target_dir
         for entry in tar_entries {
             let mut entry = match entry {
                 Ok(e) => e,
-                Err(e) => error!(SetupTaskError::Io(vec![(":tar/entry".into(), e)])),
+                Err(e) => error!(SetupTaskError::io(":tar/entry".into(), e)),
             };
             let path = match entry.path() {
                 Ok(p) => p.into_owned(),
-                Err(e) => error!(SetupTaskError::Io(vec![(":tar/entry/path".into(), e)])),
+                Err(e) => error!(SetupTaskError::io(":tar/entry/path".into(), e)),
             };
 
             let display_name = path.as_os_str().to_string_lossy().replace('\\', "/").to_txt();
@@ -130,20 +134,20 @@ impl super::SetupTaskImpl for ExtractTar {
                     }
                 }
                 if !entries.insert(path) {
-                    error!(SetupTaskError::Io(vec![(
+                    error!(SetupTaskError::io(
                         ":tar/entry/path".into(),
                         io::Error::new(io::ErrorKind::InvalidData, "repeated file in tar")
-                    )]))
+                    ))
                 }
             } else {
                 if args.config.strict {
-                    error!(SetupTaskError::Io(vec![(
+                    error!(SetupTaskError::io(
                         ":tar/entry/entry_type".into(),
                         io::Error::new(
                             io::ErrorKind::InvalidData,
                             format!("found entry {entry_type:?}, only directory and files are allowed")
                         )
-                    )]))
+                    ))
                 } else {
                     continue;
                 }
@@ -152,7 +156,7 @@ impl super::SetupTaskImpl for ExtractTar {
             progress_name.set(display_name);
 
             if let Err(e) = entry.unpack_in(&tmp) {
-                error!(SetupTaskError::Io(vec![(":tar/entry/unpack_in".into(), e)]))
+                error!(SetupTaskError::io(":tar/entry/unpack_in".into(), e))
             }
 
             if args.cancel.get() {
@@ -237,13 +241,13 @@ impl super::SetupTaskImpl for ExtractTar {
                 if let Err(e) = fs::remove_file(&to)
                     && !matches!(e.kind(), io::ErrorKind::NotFound)
                 {
-                    errors.push((to, e));
+                    errors.push((to, Arc::new(e)));
                     continue;
                 }
 
                 // move dir
                 if let Err(e) = fs::rename(from, &to) {
-                    errors.push((to, e));
+                    errors.push((to, Arc::new(e)));
                     continue;
                 }
 
@@ -258,16 +262,17 @@ impl super::SetupTaskImpl for ExtractTar {
                 if let Err(e) = fs::remove_dir_all(&to)
                     && !matches!(e.kind(), io::ErrorKind::NotADirectory)
                 {
-                    errors.push((to, e));
+                    errors.push((to, Arc::new(e)));
                     continue;
                 }
 
                 // move file
                 if let Err(e) = fs::rename(from, &to) {
-                    errors.push((to, e));
+                    errors.push((to, Arc::new(e)));
                 }
             } else {
-                errors.push((from, io::Error::new(io::ErrorKind::NotFound, "expected dir or file")));
+                let e = io::Error::new(io::ErrorKind::NotFound, "expected dir or file");
+                errors.push((from, Arc::new(e)));
             }
         }
         if errors.is_empty() {
@@ -285,7 +290,7 @@ impl super::SetupTaskImpl for ExtractTar {
         if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {
-            return Err(SetupTaskError::Io(vec![(args.data.temp_dir, e)]));
+            return Err(SetupTaskError::io(args.data.temp_dir, e));
         }
         Ok(())
     }
@@ -320,7 +325,15 @@ impl super::SetupTaskImpl for ExtractTar {
             retain
         });
         if invalid_entry {
-            return Err(super::SetupTaskError::CorruptedTaskData("entry path not in target dir".into()));
+            #[derive(Debug)]
+            struct EntryPathNotInTargetDir;
+            impl fmt::Display for EntryPathNotInTargetDir {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "entry path not in target dir")
+                }
+            }
+            impl std::error::Error for EntryPathNotInTargetDir {}
+            return Err(super::SetupTaskError::CorruptedTaskData(Arc::new(EntryPathNotInTargetDir)));
         }
 
         if i > 50 {
@@ -345,13 +358,13 @@ impl super::SetupTaskImpl for ExtractTar {
                         io::ErrorKind::NotFound | io::ErrorKind::NotADirectory | io::ErrorKind::DirectoryNotEmpty
                     )
                 {
-                    errors.push((entry, e));
+                    errors.push((entry, Arc::new(e)));
                 }
             } else if entry.is_file()
                 && let Err(e) = fs::remove_file(&entry)
                 && !matches!(e.kind(), io::ErrorKind::NotFound)
             {
-                errors.push((entry, e));
+                errors.push((entry, Arc::new(e)));
             }
         }
         if errors.is_empty() {
