@@ -4,16 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use zng::{
-    layout::ByteUnits,
-    task::Progress,
-    text::{ToTxt as _, Txt, formatx},
-    var::{expr_var, var},
-};
+use zng_task::Progress;
+use zng_txt::{ToTxt as _, Txt, formatx};
+use zng_unit::ByteUnits as _;
+use zng_var::{expr_var, var};
 
 use crate::task::SetupTaskError;
 
-/// Setup task that extracts TAR container to a new or existing directory 
+/// Setup task that extracts TAR container to a new or existing directory
 /// on install and removes these files on uninstall.
 pub enum ExtractTar {}
 impl super::SetupTaskImpl for ExtractTar {
@@ -89,7 +87,7 @@ impl super::SetupTaskImpl for ExtractTar {
         let mut entries = HashSet::new();
 
         // prepare progress reporting
-        let tar = zng::task::io::Measure::new(args.config.tar, args.config.tar_len.bytes(), 0.bytes());
+        let tar = zng_task::io::Measure::new(args.config.tar, args.config.tar_len.bytes(), 0.bytes());
         let progress_name = var(Txt::default());
         let progress = expr_var! {
             let metrics = #{tar.metrics()};

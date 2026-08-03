@@ -3,12 +3,14 @@
 //! See [`SetupTaskImpl`] docs for a description of the steps an install or uninstall task runs.
 
 mod extract_tar;
-pub use extract_tar::{ExtractTarConfig, ExtractTar};
+pub use extract_tar::{ExtractTar, ExtractTarConfig};
+use zng_task::Progress;
+use zng_txt::Txt;
+use zng_var::Var;
 
 use std::{any::Any, error::Error, fmt, path::PathBuf};
 
-use zng::{config::ConfigValue, task::Progress, text::Txt, var::{BoxAnyVarValue, AnyVarValue, Var, VarValue}};
-use zng_ext_config::RawConfigValue;
+use zng_ext_config::{ConfigValue, RawConfigValue};
 
 /// Task result.
 pub type Result<T> = std::result::Result<T, SetupTaskError>;
@@ -192,7 +194,34 @@ impl fmt::Debug for SetupTaskError {
 }
 impl fmt::Display for SetupTaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        crate::service::SETUP.l10n_setup_task_error(self).with(|msg| write!(f, "{msg}"))
+        match self {
+            SetupTaskError::CorruptedTaskData(e) => write!(f, "corrupted task data, {e}"),
+            SetupTaskError::Io(e) => {
+                let tab = if e.len() > 1 { "   " } else { "" };
+                let mut sep = "";
+                if e.len() > 1 {
+                    write!(f, "{} io errors:", e.len())?;
+                    sep = "\n";
+                }
+                for (p, e) in e.iter() {
+                    write!(f, "{sep}{tab}{e}\n{tab}   related path: {}", p.display())?;
+                    sep = "\n";
+                }
+                if e.is_empty() { write!(f, "unknown io error") } else { Ok(()) }
+            }
+            SetupTaskError::Other(e) => {
+                let tab = if e.len() > 1 { "   " } else { "" };
+                let mut sep = "";
+                if e.len() > 1 {
+                    write!(f, "{} errors:", e.len())?;
+                    sep = "\n";
+                }
+                for e in e.iter() {
+                    write!(f, "{sep}{tab}{e}")?;
+                }
+                if e.is_empty() { write!(f, "unknown error") } else { Ok(()) }
+            }
+        }
     }
 }
 impl Error for SetupTaskError {
@@ -226,7 +255,7 @@ pub struct SetupTask {
 }
 impl SetupTask {
     /// New task instance.
-    /// 
+    ///
     /// The same task type may be used multiple times during install, the `instance_id` must
     /// differentiate so that uninstall applies on the correct order. It can be an empty string.
     pub fn new<T: SetupTaskImpl>(instance_id: impl Into<Txt>) -> Self {
@@ -305,7 +334,7 @@ impl SetupTask {
     }
 
     /// Setup task instance ID.
-    /// 
+    ///
     /// Identifies the same task across install/uninstall processes.
     pub fn instance_id(&self) -> Txt {
         self.instance_id.clone()
@@ -320,3 +349,6 @@ impl SetupTask {
         todo!()
     }
 }
+
+///
+pub struct TaskList {}

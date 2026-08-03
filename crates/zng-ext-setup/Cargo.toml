@@ -12,8 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng = { path = "../zng", version = "0.24.2", default-features = false }
+zng-var = { path = "../zng-var", version = "0.15.2", default-features = false }
+zng-task = { path = "../zng-task", version = "0.15.2", default-features = false }
+zng-txt = { path = "../zng-txt", version = "0.6.0", default-features = false }
 zng-ext-config = { path = "../zng-ext-config", version = "0.15.2", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.7.1", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 tar = { version = "0.4.45", default-features = false, features = ["xattr"] }
