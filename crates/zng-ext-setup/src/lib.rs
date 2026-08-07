@@ -22,4 +22,4 @@
 mod service;
 pub mod task;
 
-pub use service::SETUP;
+pub use service::*;
