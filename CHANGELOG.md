@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add `zng-ext-setup` crate for creating (un)installers.
+
+* Improve `zng::task::io::Metrics`.
+    - `Display` now hides the total estimated length when read/write overshoots it.
+    - `Measure::metrics` is now `&self`.
 
 # 0.24.2
 

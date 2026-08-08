@@ -95,7 +95,7 @@ impl MeasureInner {
     }
 }
 
-/// Measure read/write of an async task.
+/// Measure read/write task.
 ///
 /// Metrics are updated after each read/write, if you read/write all bytes in one call
 /// the metrics will only update once.
@@ -120,7 +120,7 @@ impl<T> Measure<T> {
     /// Current metrics.
     ///
     /// This value is updated after every read/write.
-    pub fn metrics(&mut self) -> Var<Metrics> {
+    pub fn metrics(&self) -> Var<Metrics> {
         self.inner.metrics.read_only()
     }
 
@@ -280,8 +280,11 @@ impl fmt::Display for Metrics {
         if self.read_progress.1 > 0.bytes() {
             nl = true;
             if self.read_progress.0 != self.read_progress.1 {
-                write!(f, "↓ {}-{}, {}/s", self.read_progress.0, self.read_progress.1, self.read_speed)?;
-                nl = true;
+                if self.read_progress.0 <= self.read_progress.1 {
+                    write!(f, "↓ {}-{}, {}/s", self.read_progress.0, self.read_progress.1, self.read_speed)?;
+                } else {
+                    write!(f, "↓ {}, {}/s", self.read_progress.0, self.read_speed)?;
+                }
             } else {
                 write!(f, "↓ {} . {:?}", self.read_progress.0, self.total_time)?;
             }
@@ -291,7 +294,11 @@ impl fmt::Display for Metrics {
                 writeln!(f)?;
             }
             if self.write_progress.0 != self.write_progress.1 {
-                write!(f, "↑ {} - {}, {}/s", self.write_progress.0, self.write_progress.1, self.write_speed)?;
+                if self.write_progress.0 <= self.write_progress.1 {
+                    write!(f, "↑ {}-{}, {}/s", self.write_progress.0, self.write_progress.1, self.write_speed)?;
+                } else {
+                    write!(f, "↑ {}, {}/s", self.write_progress.0, self.write_speed)?;
+                }
             } else {
                 write!(f, "↑ {} . {:?}", self.write_progress.0, self.total_time)?;
             }

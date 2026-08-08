@@ -74,6 +74,7 @@ with prefix `zng-ext-`.
 - `zng-ext-window`
 - `zng-ext-undo`
 - `zng-ext-single-instance`
+- `zng-ext-setup`
 
 ### Widget
 
