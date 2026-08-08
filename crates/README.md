@@ -122,6 +122,7 @@ or for custom properties that deeply integrate with a widget.
 - `zng-wgt-slider`
 - `zng-wgt-material-icons`
 - `zng-wgt-webrender-debug`
+- `zng-wgt-wizard`
 
 ### App Build
 

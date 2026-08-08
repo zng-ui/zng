@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng-wgt-wizard` and `zng::wizard` with the `Wizard!` widget.
 * Add `zng-ext-setup` crate for creating (un)installers.
 
 * Improve `zng::task::io::Metrics`.

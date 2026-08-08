@@ -87,6 +87,7 @@ dev = [
     "var_type_names",
     "deadlock_detection",
     "lang_autonym",
+    "wizard",
 ]
 
 # Include the default view-process implementation.
@@ -419,6 +420,9 @@ undo = ["dep:zng-ext-undo", "dep:zng-wgt-undo-history", "dep:zng-wgt-undo"]
 # Enable wrap widget.
 wrap = ["dep:zng-wgt-wrap"]
 
+# Enable wizard widget.
+wizard = ["dep:zng-wgt-wizard"]
+
 # Enable the shortcut text widget.
 shortcut_text = ["dep:zng-wgt-shortcut"]
 
@@ -556,6 +560,7 @@ zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.13.2", optional 
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.13.2", optional = true, default-features = false }
 zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.13.2", optional = true, default-features = false }
 zng-wgt-slider = { path = "../zng-wgt-slider", version = "0.13.2", optional = true, default-features = false }
+zng-wgt-wizard = { path = "../zng-wgt-wizard", version = "0.1.0", optional = true, default-features = false }
 
 zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.15.2", default-features = false, optional = true }
 zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.15.2", optional = true, default-features = false }
