@@ -34,6 +34,15 @@ impl<D> PartialEq for WidgetFn<D> {
         }
     }
 }
+impl<D> Eq for WidgetFn<D> {}
+impl<D> std::hash::Hash for WidgetFn<D> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match &self.0 {
+            Some(a) => Arc::as_ptr(a).hash(state),
+            None => state.write_usize(0),
+        }
+    }
+}
 impl<D> Default for WidgetFn<D> {
     /// `nil`.
     fn default() -> Self {

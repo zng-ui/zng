@@ -549,6 +549,7 @@ pub mod var;
 pub mod view_process;
 pub mod widget;
 pub mod window;
+pub mod wizard;
 pub mod wrap;
 
 /// Types for general app development.
