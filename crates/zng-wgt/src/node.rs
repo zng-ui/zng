@@ -793,7 +793,7 @@ macro_rules! event_property_impl {
 #[macro_export]
 macro_rules! command_property {
     ($(
-        $(#[$meta:meta])+
+        $(#[$($attr:tt)+])+
         $vis:vis fn $on_ident:ident $(< $on_pre_ident:ident $(, $can_ident:ident)? $(,)?>)? (
             $child:ident: impl $IntoUiNode:path,
             $handler:ident: $Handler:ty $(,)?
@@ -802,9 +802,14 @@ macro_rules! command_property {
         }
     )+) => {$(
        $crate::command_property_impl! {
-            $(#[$meta])+
-            $vis fn $on_ident$(<$on_pre_ident $(, $can_ident)?>)?($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
-                $COMMAND
+            not_property {}
+            attributes {
+                $(#[$($attr)+])+
+            }
+            fn {
+                $vis fn $on_ident$(<$on_pre_ident $(, $can_ident)?>)?($child: impl $IntoUiNode, $handler: $Handler) -> $UiNode {
+                    $COMMAND
+                }
             }
        }
     )+};
@@ -814,13 +819,64 @@ pub use command_property;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! command_property_impl {
+    // found #[property $tt]
     (
-        $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident < $on_pre_ident:ident, $can_ident:ident> (
-            $child:ident: impl $IntoUiNode:path,
-            $handler:ident: $Handler:ty
-        ) -> $UiNode:path {
-            $COMMAND:path
+        not_property { $($not_property:tt)* }
+        attributes {
+            #[property $property:tt]
+            $($attributes:tt)*
+        }
+        fn { $($fn:tt)+ }
+    ) => {
+        $crate::command_property_impl! {
+            property { $property }
+            attributes {
+                $($not_property)*
+                $($attributes)*
+            }
+            fn { $($fn)+ }
+        }
+    };
+    // found some other attribute
+    (
+        not_property { $($not_property:tt)* }
+        attributes {
+            #[$($some_attr:tt)*]
+            $($attributes:tt)+
+        }
+        fn { $($fn:tt)+ }
+    ) => {
+        $crate::command_property_impl! {
+            not_property {
+                $($not_property)*
+                #[$($some_attr)*]
+            }
+            attributes {
+                $($attributes)+
+            }
+            fn { $($fn)+ }
+        }
+    };
+    // did not find #[property]
+    (
+        not_property { $($not_property:tt)* }
+        attributes { }
+        fn { $($fn:tt)+ }
+    ) => {
+        compile_error!{"expected #[property(...)] attribute"}
+    };
+
+    // implement on_cmd, on_pre_cmd, can_cmd
+    (
+        property { ( $p_group:expr $(, default $p_default:tt)? $(, widget_impl $p_widget_impl:tt)? $(,)? ) }
+        attributes { $(#[$meta:meta])+ }
+        fn {
+            $vis:vis fn $on_ident:ident < $on_pre_ident:ident, $can_ident:ident> (
+                $child:ident: impl $IntoUiNode:path,
+                $handler:ident: $Handler:ty
+            ) -> $UiNode:path {
+                $COMMAND:path
+            }
         }
     ) => {
         $crate::node::paste! {
@@ -844,7 +900,7 @@ macro_rules! command_property_impl {
             /// command handlers are enabled in the widget and descendants.
             ///
             #[doc = "Sets the [`"$can_ident:upper "_VAR`]."]
-            #[$crate::node::__macro_util::property(CONTEXT, default([<$can_ident:upper _VAR>]))]
+            #[$crate::node::__macro_util::property(CONTEXT, default([<$can_ident:upper _VAR>]) $(, widget_impl $p_widget_impl)? )]
             $vis fn $can_ident(
                 child: impl $crate::node::__macro_util::IntoUiNode,
                 enabled: impl $crate::node::__macro_util::IntoVar<bool>,
@@ -854,6 +910,7 @@ macro_rules! command_property_impl {
 
             $crate::event_property! {
                 $(#[$meta])+
+                #[$crate::node::__macro_util::property ( $p_group $(, default $p_default)? $(, widget_impl $p_widget_impl)? )]
                 ///
                 /// # Command
                 ///
@@ -878,16 +935,21 @@ macro_rules! command_property_impl {
             }
         }
     };
+    // implement on_cmd, on_pre_cmd
     (
-        $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident< $on_pre_ident:ident> (
-            $child:ident: impl $IntoUiNode:path,
-            $handler:ident: $Handler:ty
-        ) -> $UiNode:path {
-            $COMMAND:path
+        property { $property:tt }
+        attributes { $(#[$meta:meta])+ }
+        fn {
+            $vis:vis fn $on_ident:ident< $on_pre_ident:ident> (
+                $child:ident: impl $IntoUiNode:path,
+                $handler:ident: $Handler:ty
+            ) -> $UiNode:path {
+                $COMMAND:path
+            }
         }
     ) => {
         $crate::event_property! {
+            #[$crate::node::__macro_util::property $property]
             $(#[$meta])+
             ///
             /// # Command
@@ -906,15 +968,19 @@ macro_rules! command_property_impl {
         }
     };
     (
-        $(#[$meta:meta])+
-        $vis:vis fn $on_ident:ident (
-            $child:ident: impl $IntoUiNode:path,
-            $handler:ident: $Handler:ty
-        ) -> $UiNode:path {
-            $COMMAND:path
+        property { $property:tt }
+        attributes { $(#[$meta:meta])+ }
+        fn {
+            $vis:vis fn $on_ident:ident (
+                $child:ident: impl $IntoUiNode:path,
+                $handler:ident: $Handler:ty
+            ) -> $UiNode:path {
+                $COMMAND:path
+            }
         }
     ) => {
         $crate::event_property! {
+            #[$crate::node::__macro_util::property $property]
             $(#[$meta])+
             ///
             /// # Command

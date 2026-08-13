@@ -6,10 +6,10 @@ use zng_wgt_button::Button;
 use zng_wgt_container::{Container, padding};
 use zng_wgt_input::focus::tab_index;
 use zng_wgt_markdown::Markdown;
-use zng_wgt_stack::{Stack, StackDirection};
-use zng_wgt_text::Text;
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_size_offset::width;
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_text::Text;
 
 context_var! {
     /// Widget function that builds a wizard header container.

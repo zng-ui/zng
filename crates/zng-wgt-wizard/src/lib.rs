@@ -99,7 +99,7 @@ pub struct Page {
     /// when the page is selected.
     ///
     /// The header of each page is wrapped by [`Wizard::header_fn`] to form the full header.
-    /// 
+    ///
     /// If this builds [`UiNode::nil`] the header panel **is collapsed** for this page.
     ///
     /// Is [`default_page_header`] by default.
@@ -337,17 +337,17 @@ fn subscribe(index: usize, pages: &[Page]) -> [CommandHandle; 2] {
     for p in pages {
         skips.push(p.skip.0.clone());
     }
-    let skips = skips.build(move |s| {
+    let can_dos = skips.build(move |skips| {
         let mut can_back = false;
         for i in 0..index {
-            can_back = s.get(i);
+            can_back = !skips.get(i);
             if can_back {
                 break;
             }
         }
         let mut can_next = false;
-        for i in index + 1..s.len() {
-            can_next = s.get(i);
+        for i in index + 1..skips.len() {
+            can_next = !skips.get(i);
             if can_next {
                 break;
             }
@@ -355,9 +355,9 @@ fn subscribe(index: usize, pages: &[Page]) -> [CommandHandle; 2] {
         [can_back, can_next]
     });
 
-    skips.set_bind_map(cmds[0].enabled(), |[b, _]| *b).perm();
-    skips.set_bind_map(cmds[1].enabled(), |[_, n]| *n).perm();
-    cmds[0].enabled().hold(skips).perm();
+    can_dos.set_bind_map(cmds[0].enabled(), |[b, _]| *b).perm();
+    can_dos.set_bind_map(cmds[1].enabled(), |[_, n]| *n).perm();
+    cmds[0].enabled().hold(can_dos).perm();
 
     cmds
 }

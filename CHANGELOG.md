@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `command_property!` generated *can_cmd* not implementing for widget when requested.
 * Add `zng-wgt-wizard` and `zng::wizard` with the `Wizard!` widget.
 * Add `zng-ext-setup` crate for creating (un)installers.
 
