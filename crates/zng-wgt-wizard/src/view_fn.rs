@@ -1,9 +1,10 @@
 use crate::{BACK_CMD, CANCEL_CMD, FINISH_CMD, NEXT_CMD, PageArgs, Wizard};
 use zng_ext_font::FontWeight;
 use zng_ext_input::focus::TabIndex;
-use zng_wgt::{align, border, is_rtl, margin, prelude::*};
+use zng_wgt::{align, border, is_rtl, prelude::*};
 use zng_wgt_button::Button;
 use zng_wgt_container::{Container, padding};
+use zng_wgt_fill::{background, background_color};
 use zng_wgt_input::focus::tab_index;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_scroll::{Scroll, ScrollMode};
@@ -15,8 +16,14 @@ context_var! {
     /// Widget function that builds a wizard header container.
     pub static HEADER_FN_VAR: WidgetFn<HeaderFnArgs> = WidgetFn::new(default_header_fn);
 
-    /// Widget function that builds a wizard size container.
+    /// Widget function that builds a background visual for the header container.
+    pub static HEADER_BACKGROUND_FN_VAR: WidgetFn<()> = WidgetFn::nil();
+
+    /// Widget function that builds a wizard side container.
     pub static SIDE_FN_VAR: WidgetFn<SideFnArgs> = WidgetFn::new(default_side_fn);
+
+    /// Widget function that builds a background visual for the side container.
+    pub static SIDE_BACKGROUND_FN_VAR: WidgetFn<()> = WidgetFn::nil();
 
     /// Widget function that builds a wizard main content container.
     pub static CONTENT_FN_VAR: WidgetFn<ContentFnArgs> = WidgetFn::new(default_content_fn);
@@ -39,6 +46,11 @@ pub struct HeaderFnArgs {
     ///
     /// [`Page::header`]: crate::Page::header
     pub header: UiNode,
+
+    /// Background visual.
+    ///
+    /// This is the [`HEADER_BACKGROUND_FN_VAR`] instance.
+    pub background: UiNode,
 }
 
 /// Arguments for a wizard side container builder.
@@ -58,6 +70,11 @@ pub struct SideFnArgs {
     /// [`Page::side`]: crate::Page::side
     /// [`Wizard!`]: struct@Wizard
     pub side: UiNode,
+
+    /// Background visual.
+    ///
+    /// This is the [`SIDE_BACKGROUND_FN_VAR`] instance.
+    pub background: UiNode,
 }
 
 /// Arguments for a wizard main content container builder.
@@ -130,6 +147,7 @@ pub fn default_header_fn(args: HeaderFnArgs) -> UiNode {
             widths: (0, 0, 1, 0),
             sides: colors::GRAY.with_alpha(40.pct()),
         };
+        background = args.background;
     }
 }
 
@@ -161,10 +179,6 @@ pub fn default_page_header_title(title: Var<Txt>) -> UiNode {
 pub fn default_page_header_info(info: Var<Txt>) -> UiNode {
     Markdown! {
         txt = info;
-        margin = (0, 0, 0, 10);
-        when #is_rtl {
-            margin = (0, 10, 0, 0);
-        }
     }
 }
 
@@ -176,6 +190,7 @@ pub fn default_side_fn(args: SideFnArgs) -> UiNode {
         child = args.side;
         child_align = Align::FILL_BOTTOM;
         width = 200;
+        background = args.background;
         border = {
             widths: (0, 1, 0, 0),
             sides: colors::GRAY.with_alpha(40.pct()),
@@ -207,6 +222,7 @@ pub fn default_content_fn(args: ContentFnArgs) -> UiNode {
         child = args.content;
         child_align = Align::FILL;
         padding = 20;
+        background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
     }
 }
 
@@ -296,12 +312,28 @@ pub fn header_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<HeaderFnA
     with_context_var(child, HEADER_FN_VAR, wgt_fn)
 }
 
+/// Widget function that makes a background visual for the page header container widget.
+///
+/// This property sets the [`HEADER_BACKGROUND_FN_VAR`].
+#[property(CONTEXT, default(HEADER_BACKGROUND_FN_VAR), widget_impl(Wizard))]
+pub fn header_background_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
+    with_context_var(child, HEADER_BACKGROUND_FN_VAR, wgt_fn)
+}
+
 /// Widget function that converts a [`SideFnArgs`] into a page side container widget.
 ///
 /// This property sets the [`SIDE_FN_VAR`].
 #[property(CONTEXT, default(SIDE_FN_VAR), widget_impl(Wizard))]
 pub fn side_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<SideFnArgs>>) -> UiNode {
     with_context_var(child, SIDE_FN_VAR, wgt_fn)
+}
+
+/// Widget function that makes a background visual for the page side container widget.
+///
+/// This property sets the [`SIDE_BACKGROUND_FN_VAR`].
+#[property(CONTEXT, default(SIDE_BACKGROUND_FN_VAR), widget_impl(Wizard))]
+pub fn side_background_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> UiNode {
+    with_context_var(child, SIDE_BACKGROUND_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts a [`ContentFnArgs`] into a page main content container container widget.

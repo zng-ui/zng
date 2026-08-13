@@ -28,3 +28,4 @@ zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.15.2", default-f
 zng-ext-font = { path = "../zng-ext-font", version = "0.16.2", default-features = false }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.16.2", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.14.2", default-features = false }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.14.2", default-features = false }

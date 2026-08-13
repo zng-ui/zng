@@ -255,7 +255,9 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 .sub_var(&pages)
                 .sub_var(&PANEL_FN_VAR)
                 .sub_var(&HEADER_FN_VAR)
+                .sub_var(&HEADER_BACKGROUND_FN_VAR)
                 .sub_var(&SIDE_FN_VAR)
+                .sub_var(&SIDE_BACKGROUND_FN_VAR)
                 .sub_var(&CONTENT_FN_VAR)
                 .sub_var(&FOOTER_FN_VAR);
             pages.with(|p| {
@@ -303,7 +305,9 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 rebuild = true;
             } else if PANEL_FN_VAR.is_new()
                 || HEADER_FN_VAR.is_new()
+                || HEADER_BACKGROUND_FN_VAR.is_new()
                 || SIDE_FN_VAR.is_new()
+                || SIDE_BACKGROUND_FN_VAR.is_new()
                 || CONTENT_FN_VAR.is_new()
                 || FOOTER_FN_VAR.is_new()
             {
@@ -377,12 +381,14 @@ fn build(index: usize, pages: &[Page]) -> UiNode {
     let header = if header.is_nil() {
         header
     } else {
-        HEADER_FN_VAR.get()(HeaderFnArgs { header })
+        let background = HEADER_BACKGROUND_FN_VAR.get()(());
+        HEADER_FN_VAR.get()(HeaderFnArgs { header, background })
     };
     let side = if side.is_nil() {
         side
     } else {
-        SIDE_FN_VAR.get()(SideFnArgs { side })
+        let background = SIDE_BACKGROUND_FN_VAR.get()(());
+        SIDE_FN_VAR.get()(SideFnArgs { side, background })
     };
     let content = CONTENT_FN_VAR.get()(ContentFnArgs { content });
     let footer = FOOTER_FN_VAR.get()(FooterFnArgs { footer });
