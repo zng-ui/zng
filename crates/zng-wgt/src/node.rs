@@ -842,7 +842,7 @@ macro_rules! command_property_impl {
         not_property { $($not_property:tt)* }
         attributes {
             #[$($some_attr:tt)*]
-            $($attributes:tt)+
+            $($attributes:tt)*
         }
         fn { $($fn:tt)+ }
     ) => {
@@ -869,7 +869,7 @@ macro_rules! command_property_impl {
     // implement on_cmd, on_pre_cmd, can_cmd
     (
         property { ( $p_group:expr $(, default $p_default:tt)? $(, widget_impl $p_widget_impl:tt)? $(,)? ) }
-        attributes { $(#[$meta:meta])+ }
+        attributes { $(#[$meta:meta])* }
         fn {
             $vis:vis fn $on_ident:ident < $on_pre_ident:ident, $can_ident:ident> (
                 $child:ident: impl $IntoUiNode:path,
@@ -909,7 +909,7 @@ macro_rules! command_property_impl {
             }
 
             $crate::event_property! {
-                $(#[$meta])+
+                $(#[$meta])*
                 #[$crate::node::__macro_util::property ( $p_group $(, default $p_default)? $(, widget_impl $p_widget_impl)? )]
                 ///
                 /// # Command
@@ -938,7 +938,7 @@ macro_rules! command_property_impl {
     // implement on_cmd, on_pre_cmd
     (
         property { $property:tt }
-        attributes { $(#[$meta:meta])+ }
+        attributes { $(#[$meta:meta])* }
         fn {
             $vis:vis fn $on_ident:ident< $on_pre_ident:ident> (
                 $child:ident: impl $IntoUiNode:path,
@@ -950,7 +950,7 @@ macro_rules! command_property_impl {
     ) => {
         $crate::event_property! {
             #[$crate::node::__macro_util::property $property]
-            $(#[$meta])+
+            $(#[$meta])*
             ///
             /// # Command
             ///
@@ -969,7 +969,7 @@ macro_rules! command_property_impl {
     };
     (
         property { $property:tt }
-        attributes { $(#[$meta:meta])+ }
+        attributes { $(#[$meta:meta])* }
         fn {
             $vis:vis fn $on_ident:ident (
                 $child:ident: impl $IntoUiNode:path,
@@ -981,7 +981,7 @@ macro_rules! command_property_impl {
     ) => {
         $crate::event_property! {
             #[$crate::node::__macro_util::property $property]
-            $(#[$meta])+
+            $(#[$meta])*
             ///
             /// # Command
             ///
