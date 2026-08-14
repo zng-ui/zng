@@ -8,10 +8,13 @@
 //!
 //! The [`Page`] type defines widget builders for the content of each panel when the page is open. It also
 //! defines variables that control how navigation works to and from the page.
+//!
+//! [`Wizard!`]: struct@Wizard
 //!  
 //! ```
+//! use zng::focus::{TabIndex, tab_index};
 //! use zng::prelude::*;
-//! use zng::wizard;
+//! use zng::wizard::{self, Wizard};
 //! # let _scope = zng::APP.defaults();
 //!
 //! let wizard_id = WidgetId::new_unique();
@@ -21,7 +24,7 @@
 //!     "Header",
 //!     "Description of what this pages is asking or doing",
 //!     wgt_fn!(|_| {
-//!         Markdown! {
+//!         Text! {
 //!             txt = "Custom page content.";
 //!         }
 //!     }),
@@ -85,6 +88,7 @@
 //!     .into_node()
 //! });
 //!
+//! # let _ =
 //! Wizard! {
 //!     id = wizard_id;
 //!     // side_background_fn = wgt_fn!(|_| flood(colors::RED));
@@ -102,6 +106,7 @@
 //!         WINDOW.close();
 //!     });
 //! }
+//! # ;
 //! ```
 
 pub use zng_wgt_wizard::{
