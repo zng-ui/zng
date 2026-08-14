@@ -33,7 +33,7 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
 }
 
 /// Returns `true` if the proc-macro is running in one of the rust-analyzer proc-macro servers.
-#[expect(unexpected_cfgs)] // rust_analyzer exists: https://github.com/rust-lang/rust-analyzer/pull/15528
+#[allow(unexpected_cfgs)] // TODO(breaking) rustc added `rust_analyzer` to the list https://github.com/rust-lang/rust/pull/160878
 pub fn is_rust_analyzer() -> bool {
     cfg!(rust_analyzer)
 }
