@@ -166,10 +166,14 @@ pub struct PageArgs {
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
-    /// Page title.
+    /// The [`Page::title`] var.
     pub title: Var<Txt>,
-    /// Page info.
+    /// The [`Page::info`] var.
     pub info: Var<Txt>,
+    /// The [`Page::can_back`] var.
+    pub can_back: Var<bool>,
+    /// The [`Page::can_next`] var.
+    pub can_next: Var<bool>,
 }
 impl PageArgs {
     /// Is first page on the list.
@@ -228,7 +232,7 @@ command_property! {
 
     /// Wizard finish requested.
     #[property(EVENT, widget_impl(Wizard))]
-    pub fn on_finish<on_pre_finish>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+    pub fn on_finish<on_pre_finish, can_finish>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
         FINISH_CMD
     }
 }
@@ -372,6 +376,8 @@ fn build(index: usize, pages: &[Page]) -> UiNode {
         pages_len: pages.len(),
         title: page.title.0.clone(),
         info: page.info.0.clone(),
+        can_back: page.can_back.0.clone(),
+        can_next: page.can_next.0.clone(),
     };
     let header = (page.header)(args.clone());
     let side = (page.side)(args.clone());

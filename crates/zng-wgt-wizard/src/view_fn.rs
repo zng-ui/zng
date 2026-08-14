@@ -10,6 +10,7 @@ use zng_wgt_markdown::Markdown;
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_size_offset::width;
 use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_style::style_fn;
 use zng_wgt_text::Text;
 
 context_var! {
@@ -186,9 +187,12 @@ pub fn default_page_header_info(info: Var<Txt>) -> UiNode {
 ///
 /// See [`SIDE_FN_VAR`] for more details.
 pub fn default_side_fn(args: SideFnArgs) -> UiNode {
-    Container! {
-        child = args.side;
-        child_align = Align::FILL_BOTTOM;
+    Stack! {
+        direction = StackDirection::top_to_bottom();
+        children = args.side;
+        children_align = Align::BOTTOM_START;
+        spacing = 5;
+        padding = 5;
         width = 200;
         background = args.background;
         border = {
@@ -201,6 +205,8 @@ pub fn default_side_fn(args: SideFnArgs) -> UiNode {
                 sides: colors::GRAY.with_alpha(40.pct()),
             };
         }
+
+        zng_wgt_button::style_fn = style_fn!(|_| zng_wgt_button::LinkStyle!());
     }
 }
 
@@ -282,6 +288,7 @@ pub fn default_page_footer_finish(wizard_id: WidgetId) -> UiNode {
     Button! {
         cmd = FINISH_CMD.scoped(wizard_id);
         tab_index = TabIndex::FIRST;
+        style_fn = style_fn!(|_| zng_wgt_button::PrimaryStyle!());
     }
 }
 /// Default [`CANCEL_CMD`] button.
