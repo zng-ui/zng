@@ -32,6 +32,9 @@ impl Wizard {
         self.widget_builder().push_build_action(|wgt| {
             let pages = wgt.capture_var_or_default(property_id!(pages));
             wgt.set_child(node(pages));
+            wgt.push_intrinsic(NestGroup::CONTEXT, "state", |c| {
+                with_context_var(c, GET_TITLE_VAR, var(Txt::from_static("")))
+            });
         });
 
         widget_set! {
@@ -59,6 +62,10 @@ impl Wizard {
     }
 }
 
+context_var! {
+    static GET_TITLE_VAR: Txt = Txt::from_static("");
+}
+
 /// Defines the wizard pages.
 ///
 /// Pages are built on demand, the [`Page`] value defines [`wgt_fn!`] builders
@@ -67,6 +74,12 @@ impl Wizard {
 pub fn pages(wgt: &mut WidgetBuilding, pages: impl IntoVar<Vec<Page>>) {
     let _ = pages;
     wgt.expect_property_capture();
+}
+
+/// Get the current page title.
+#[property(CONTEXT, widget_impl(Wizard))]
+pub fn get_title(child: impl IntoUiNode, title: impl IntoVar<Txt>) -> UiNode {
+    bind_state(child, GET_TITLE_VAR, title)
 }
 
 /// Represents a page builder for [`Wizard!`].
@@ -253,6 +266,7 @@ pub fn finish_cmd_name(child: impl IntoUiNode, name: impl IntoVar<Txt>) -> UiNod
 fn node(pages: Var<Vec<Page>>) -> UiNode {
     let mut cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
     let mut selected_page = 0usize;
+    let mut get_title = VarHandle::dummy();
     match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -270,6 +284,7 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 if !p.is_empty() {
                     cmds = subscribe(0, p);
                     *c.node() = build(0, p);
+                    get_title = p[0].title.set_bind(&GET_TITLE_VAR);
                 }
             });
         }
@@ -278,6 +293,7 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
             *c.node() = UiNode::nil();
             cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
             selected_page = 0;
+            get_title = VarHandle::dummy();
         }
         UiNodeOp::Update { updates } => {
             c.update(updates);
@@ -328,10 +344,12 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                     if !p.is_empty() {
                         cmds = subscribe(selected_page, p);
                         *c.node() = build(selected_page, p);
+                        get_title = p[selected_page].title.set_bind(&GET_TITLE_VAR);
                         c.init();
                     } else {
                         cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
                         *c.node() = UiNode::nil();
+                        get_title = VarHandle::dummy();
                     }
                 });
                 WIDGET.update_info().layout().render();
