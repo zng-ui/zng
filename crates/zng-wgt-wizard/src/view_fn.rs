@@ -195,7 +195,7 @@ pub struct FooterFnArgs {
     /// like `footer` a list or a single node, usually presented as an horizontal stack
     /// aligned to the [`Align::START`] side.
     ///
-    /// [`side_extra_fn`]: fn@side_extra_fn
+    /// [`footer_extra_fn`]: fn@footer_extra_fn
     pub footer_extra: UiNode,
 
     /// Page index on the pages list.
@@ -468,7 +468,7 @@ pub fn side_background_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<
 ///
 /// [`Page::side`]: crate::Page::side
 #[property(CONTEXT, default(SIDE_EXTRA_FN_VAR), widget_impl(Wizard))]
-fn side_extra_fn(child: impl IntoUiNode, side_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
+pub fn side_extra_fn(child: impl IntoUiNode, side_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
     with_context_var(child, SIDE_EXTRA_FN_VAR, side_extra_fn)
 }
 
@@ -492,7 +492,7 @@ pub fn footer_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<FooterFnA
 ///
 /// This property sets the [`FOOTER_EXTRA_FN_VAR`].
 #[property(CONTEXT, default(FOOTER_EXTRA_FN_VAR), widget_impl(Wizard))]
-fn footer_extra_fn(child: impl IntoUiNode, footer_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
+pub fn footer_extra_fn(child: impl IntoUiNode, footer_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
     with_context_var(child, FOOTER_EXTRA_FN_VAR, footer_extra_fn)
 }
 
