@@ -26,11 +26,18 @@ context_var! {
     /// Widget function that builds a background visual for the side container.
     pub static SIDE_BACKGROUND_FN_VAR: WidgetFn<()> = WidgetFn::nil();
 
+    /// Widget function that builds extra content for the side panel for pages
+    /// that define side content.
+    pub static SIDE_EXTRA_FN_VAR: WidgetFn<PageArgs> = WidgetFn::nil();
+
     /// Widget function that builds a wizard main content container.
     pub static CONTENT_FN_VAR: WidgetFn<ContentFnArgs> = WidgetFn::new(default_content_fn);
 
     /// Widget function that builds a wizard footer container.
     pub static FOOTER_FN_VAR: WidgetFn<FooterFnArgs> = WidgetFn::new(default_footer_fn);
+
+    /// Widget function that builds extra content for the footer panel.
+    pub static FOOTER_EXTRA_FN_VAR: WidgetFn<PageArgs> = WidgetFn::nil();
 
     /// Widget function that brings together all the wizard parts.
     pub static PANEL_FN_VAR: WidgetFn<PanelFnArgs> = WidgetFn::new(default_panel_fn);
@@ -41,7 +48,7 @@ context_var! {
 /// See [`HEADER_FN_VAR`] for more details.
 #[non_exhaustive]
 pub struct HeaderFnArgs {
-    /// Page header instance.
+    /// Page header content.
     ///
     /// This is the [`Page::header`] instance.
     ///
@@ -52,6 +59,31 @@ pub struct HeaderFnArgs {
     ///
     /// This is the [`HEADER_BACKGROUND_FN_VAR`] instance.
     pub background: UiNode,
+
+    /// Page index on the pages list.
+    pub index: usize,
+    /// Count of pages on the list.
+    pub pages_len: usize,
+    /// Read-only title of each page.
+    pub titles: Vec<Var<Txt>>,
+    /// Read-only skip status of each page.
+    pub skips: Vec<Var<bool>>,
+}
+impl HeaderFnArgs {
+    /// Is first page on the list.
+    pub fn is_first(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Is last page on the list.
+    pub fn is_last(&self) -> bool {
+        self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Get `WIDGET.id()`.
+    pub fn wizard_id(&self) -> WidgetId {
+        WIDGET.id()
+    }
 }
 
 /// Arguments for a wizard side container builder.
@@ -59,7 +91,7 @@ pub struct HeaderFnArgs {
 /// See [`SIDE_FN_VAR`] for more details.
 #[non_exhaustive]
 pub struct SideFnArgs {
-    /// Page side instance.
+    /// Page side content.
     ///
     /// This is the [`Page::side`] instance.
     ///
@@ -72,10 +104,42 @@ pub struct SideFnArgs {
     /// [`Wizard!`]: struct@Wizard
     pub side: UiNode,
 
+    /// Extra side content that is the same for all pages.
+    ///
+    /// This is the [`side_extra_fn`] instance.
+    ///
+    /// This can be [`UiNode::nil`] if no extra content is defined, otherwise it is
+    /// like `side` a list or a single node, usually presented under the `side` list,
+    /// with a separator.
+    ///
+    /// [`side_extra_fn`]: fn@side_extra_fn
+    pub side_extra: UiNode,
+
     /// Background visual.
     ///
     /// This is the [`SIDE_BACKGROUND_FN_VAR`] instance.
     pub background: UiNode,
+
+    /// Page index on the pages list.
+    pub index: usize,
+    /// Count of pages on the list.
+    pub pages_len: usize,
+}
+impl SideFnArgs {
+    /// Is first page on the list.
+    pub fn is_first(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Is last page on the list.
+    pub fn is_last(&self) -> bool {
+        self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Get `WIDGET.id()`.
+    pub fn wizard_id(&self) -> WidgetId {
+        WIDGET.id()
+    }
 }
 
 /// Arguments for a wizard main content container builder.
@@ -89,6 +153,27 @@ pub struct ContentFnArgs {
     ///
     /// [`Page::content`]: crate::Page::content
     pub content: UiNode,
+
+    /// Page index on the pages list.
+    pub index: usize,
+    /// Count of pages on the list.
+    pub pages_len: usize,
+}
+impl ContentFnArgs {
+    /// Is first page on the list.
+    pub fn is_first(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Is last page on the list.
+    pub fn is_last(&self) -> bool {
+        self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Get `WIDGET.id()`.
+    pub fn wizard_id(&self) -> WidgetId {
+        WIDGET.id()
+    }
 }
 
 /// Arguments for a wizard footer container builder.
@@ -101,6 +186,38 @@ pub struct FooterFnArgs {
     /// This can be [`UiNode::is_list`], in this case a layout panel must be generated for
     /// the items, usually an horizontal stack aligned to the [`Align::END`] side.
     pub footer: UiNode,
+
+    /// Extra footer content that is the same for all pages.
+    ///
+    /// This is the [`footer_extra_fn`] instance.
+    ///
+    /// This can be [`UiNode::nil`] if no extra content is defined, otherwise it is
+    /// like `footer` a list or a single node, usually presented as an horizontal stack
+    /// aligned to the [`Align::START`] side.
+    ///
+    /// [`footer_extra_fn`]: fn@footer_extra_fn
+    pub footer_extra: UiNode,
+
+    /// Page index on the pages list.
+    pub index: usize,
+    /// Count of pages on the list.
+    pub pages_len: usize,
+}
+impl FooterFnArgs {
+    /// Is first page on the list.
+    pub fn is_first(&self) -> bool {
+        self.index == 0
+    }
+
+    /// Is last page on the list.
+    pub fn is_last(&self) -> bool {
+        self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Get `WIDGET.id()`.
+    pub fn wizard_id(&self) -> WidgetId {
+        WIDGET.id()
+    }
 }
 
 /// Arguments for the wizard root panel builder.
@@ -343,6 +460,18 @@ pub fn side_background_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<
     with_context_var(child, SIDE_BACKGROUND_FN_VAR, wgt_fn)
 }
 
+/// Widget function that converts [`PageArgs`] to extra side panel content.
+///
+/// Note that this extra content will only instantiate if the [`Page::side`] does not instantiate nil.
+///
+/// This property sets the [`SIDE_EXTRA_FN_VAR`].
+///
+/// [`Page::side`]: crate::Page::side
+#[property(CONTEXT, default(SIDE_EXTRA_FN_VAR), widget_impl(Wizard))]
+pub fn side_extra_fn(child: impl IntoUiNode, side_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
+    with_context_var(child, SIDE_EXTRA_FN_VAR, side_extra_fn)
+}
+
 /// Widget function that converts a [`ContentFnArgs`] into a page main content container container widget.
 ///
 /// This property sets the [`CONTENT_FN_VAR`].
@@ -357,6 +486,14 @@ pub fn content_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<ContentF
 #[property(CONTEXT, default(FOOTER_FN_VAR), widget_impl(Wizard))]
 pub fn footer_fn(child: impl IntoUiNode, wgt_fn: impl IntoVar<WidgetFn<FooterFnArgs>>) -> UiNode {
     with_context_var(child, FOOTER_FN_VAR, wgt_fn)
+}
+
+/// Widget function that converts [`PageArgs`] to extra footer content.
+///
+/// This property sets the [`FOOTER_EXTRA_FN_VAR`].
+#[property(CONTEXT, default(FOOTER_EXTRA_FN_VAR), widget_impl(Wizard))]
+pub fn footer_extra_fn(child: impl IntoUiNode, footer_extra_fn: impl IntoVar<WidgetFn<PageArgs>>) -> UiNode {
+    with_context_var(child, FOOTER_EXTRA_FN_VAR, footer_extra_fn)
 }
 
 /// Widget function that converts a [`PanelFnArgs`] into a wizard.
