@@ -262,8 +262,10 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 .sub_var(&HEADER_BACKGROUND_FN_VAR)
                 .sub_var(&SIDE_FN_VAR)
                 .sub_var(&SIDE_BACKGROUND_FN_VAR)
+                .sub_var(&SIDE_EXTRA_FN_VAR)
                 .sub_var(&CONTENT_FN_VAR)
-                .sub_var(&FOOTER_FN_VAR);
+                .sub_var(&FOOTER_FN_VAR)
+                .sub_var(&FOOTER_EXTRA_FN_VAR);
             pages.with(|p| {
                 if !p.is_empty() {
                     cmds = subscribe(0, p);
@@ -312,8 +314,10 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 || HEADER_BACKGROUND_FN_VAR.is_new()
                 || SIDE_FN_VAR.is_new()
                 || SIDE_BACKGROUND_FN_VAR.is_new()
+                || SIDE_EXTRA_FN_VAR.is_new()
                 || CONTENT_FN_VAR.is_new()
                 || FOOTER_FN_VAR.is_new()
+                || FOOTER_EXTRA_FN_VAR.is_new()
             {
                 rebuild = true;
             }
@@ -382,22 +386,46 @@ fn build(index: usize, pages: &[Page]) -> UiNode {
     let header = (page.header)(args.clone());
     let side = (page.side)(args.clone());
     let content = (page.content)(args.clone());
-    let footer = (page.footer)(args);
+    let footer = (page.footer)(args.clone());
 
     let header = if header.is_nil() {
         header
     } else {
         let background = HEADER_BACKGROUND_FN_VAR.get()(());
-        HEADER_FN_VAR.get()(HeaderFnArgs { header, background })
+        HEADER_FN_VAR.get()(HeaderFnArgs {
+            header,
+            background,
+            index,
+            pages_len: pages.len(),
+            titles: pages.iter().map(|p| p.title.0.clone()).collect(),
+            skips: pages.iter().map(|p| p.skip.0.clone()).collect(),
+        })
     };
     let side = if side.is_nil() {
         side
     } else {
         let background = SIDE_BACKGROUND_FN_VAR.get()(());
-        SIDE_FN_VAR.get()(SideFnArgs { side, background })
+        let side_extra = SIDE_EXTRA_FN_VAR.get()(args.clone());
+        SIDE_FN_VAR.get()(SideFnArgs {
+            side,
+            background,
+            side_extra,
+            index,
+            pages_len: pages.len(),
+        })
     };
-    let content = CONTENT_FN_VAR.get()(ContentFnArgs { content });
-    let footer = FOOTER_FN_VAR.get()(FooterFnArgs { footer });
+    let content = CONTENT_FN_VAR.get()(ContentFnArgs {
+        content,
+        index,
+        pages_len: pages.len(),
+    });
+    let footer_extra = FOOTER_EXTRA_FN_VAR.get()(args);
+    let footer = FOOTER_FN_VAR.get()(FooterFnArgs {
+        footer,
+        footer_extra,
+        index,
+        pages_len: pages.len(),
+    });
 
     PANEL_FN_VAR.get()(PanelFnArgs {
         header,
