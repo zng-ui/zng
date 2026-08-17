@@ -4,6 +4,11 @@
 
 mod extract_tar;
 pub use extract_tar::{ExtractTar, ExtractTarConfig};
+
+mod create_shortcut;
+#[cfg(any(windows, target_os = "linux"))]
+pub use create_shortcut::{CreateShortcut, CreateShortcutConfig};
+
 use zng_task::Progress;
 use zng_txt::Txt;
 use zng_var::{Var, impl_from_and_into_var};
