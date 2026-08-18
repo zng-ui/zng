@@ -1,5 +1,6 @@
 #![cfg(any(windows, target_os = "linux"))]
 
+use std::fmt::Write as _;
 use std::{fs, io, path::PathBuf};
 
 use super::SetupTaskError;
@@ -17,23 +18,131 @@ impl super::SetupTask for CreateShortcut {
     type Install = InstallData;
 
     fn task_type_id() -> super::TaskTypeId {
-        "zng-setup/SetupTask".into()
+        "zng-setup/CreateShortcut".into()
     }
 
+    #[cfg(windows)]
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
         let c = args.config;
+
+        let working_dir = path_utf8(c.working_dir)?;
+        let icon = path_utf8(c.icon)?;
+
+        let mut args = String::new();
+        let mut sep = "";
+        for arg in &c.args {
+            write!(&mut args, "{sep}{arg:?}").unwrap();
+            sep = " ";
+        }
+
         Ok(PrepareInstallData {
-            link_file: c.link_file,
+            link_file: c.link_file.with_added_extension("lnk"),
             target_file: c.target_file,
-            working_dir: c.working_dir,
-            args: c.args,
+            working_dir,
+            arguments: args,
             name: c.name,
-            icon: c.icon,
+            icon,
         })
     }
 
+    #[cfg(target_os = "linux")]
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+        let c = args.config;
+
+        let mut desktop = "[Desktop Entry]\nVersion=1.0\nType=Application\n".to_owned();
+
+        write!(&mut desktop, "Exec={}", path_utf8(c.target_file)?).unwrap();
+        for arg in c.args {
+            write!(&mut desktop, " {arg:?}").unwrap();
+        }
+        writeln!(&mut desktop).unwrap();
+
+        if !c.working_dir.as_os_str().is_empty() {
+            writeln!(&mut desktop, "Path={}", path_utf8(c.working_dir)?).unwrap();
+        }
+
+        if !c.icon.as_os_str().is_empty() {
+            writeln!(&mut desktop, "Path={}", path_utf8(c.icon)?).unwrap();
+        }
+
+        if c.name.is_empty() {
+            match c.link_file.file_name() {
+                Some(n) => writeln!(&mut desktop, "Name={}", n.to_string_lossy()).unwrap(),
+                None => {
+                    return Err(SetupTaskError::io(
+                        c.link_file,
+                        io::Error::new(io::ErrorKind::InvalidData, "missing name"),
+                    ));
+                }
+            }
+        } else {
+            let name = c
+                .name
+                .replace("\\", r"\\")
+                .replace("\n", r"\n")
+                .replace("\t", r"\t")
+                .replace("\r", r"\r");
+            writeln!(&mut desktop, "Name={name}").unwrap();
+        }
+
+        Ok(PrepareInstallData {
+            link_file: c.link_file,
+            desktop,
+        })
+    }
+
+    #[cfg(windows)]
     async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
-        create(&args.data)?;
+        fn install(d: PrepareInstallData) -> Result<(), mslnk::MSLinkError> {
+            let mut l = mslnk::ShellLink::new(&d.target_file)?;
+
+            if !d.working_dir.is_empty() {
+                l.set_working_dir(Some(d.working_dir));
+            }
+
+            if !d.arguments.is_empty() {
+                l.set_arguments(Some(d.arguments));
+            }
+
+            if !d.name.is_empty() {
+                l.set_name(Some(d.name.clone()));
+            }
+
+            if !d.icon.is_empty() {
+                l.set_icon_location(Some(d.icon));
+            }
+
+            l.create_lnk(d.link_file)
+        }
+
+        let link_file = args.data.link_file.clone();
+
+        if let Err(e) = install(args.data) {
+            return Err(SetupTaskError::other(e));
+        }
+
+        Ok(InstallData { link_file })
+    }
+
+    #[cfg(target_os = "linux")]
+    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+        fn write(link_file: &PathBuf, desktop: String) -> io::Result<()> {
+            use std::io::Write as _;
+            use std::os::unix::fs::PermissionsExt as _;
+
+            let mut f = fs::File::create(link_file)?;
+            f.write_all(desktop.as_bytes())?;
+
+            let mut perms = f.metadata()?.permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(link_file, perms)?;
+
+            Ok(())
+        }
+
+        if let Err(e) = write(&args.data.link_file, args.data.desktop) {
+            return Err(SetupTaskError::io(args.data.link_file, e));
+        }
         Ok(InstallData {
             link_file: args.data.link_file,
         })
@@ -78,15 +187,24 @@ pub struct CreateShortcutConfig {
     pub icon: PathBuf,
 }
 
+#[cfg(target_os = "linux")]
+#[doc(hidden)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PrepareInstallData {
+    link_file: PathBuf,
+    desktop: String,
+}
+
+#[cfg(windows)]
 #[doc(hidden)]
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PrepareInstallData {
     link_file: PathBuf,
     target_file: PathBuf,
-    working_dir: PathBuf,
-    args: Vec<String>,
+    working_dir: String,
+    arguments: String,
     name: String,
-    icon: PathBuf,
+    icon: String,
 }
 
 #[doc(hidden)]
@@ -95,84 +213,12 @@ pub struct InstallData {
     link_file: PathBuf,
 }
 
-pub fn create(d: &PrepareInstallData) -> super::Result<()> {
-    #[cfg(windows)]
-    if let Err(e) = windows_create(d) {
-        return Err(SetupTaskError::other(e));
+fn path_utf8(p: PathBuf) -> super::Result<String> {
+    match p.to_str() {
+        Some(s) => Ok(s.to_owned()),
+        None => Err(SetupTaskError::io(
+            p,
+            io::Error::new(io::ErrorKind::InvalidData, "path must be utf-8"),
+        )),
     }
-    #[cfg(target_os = "linux")]
-    if let Err(e) = linux_create(d) {
-        return Err(SetupTaskError::io(d.link_file.clone(), e));
-    }
-    Ok(())
-}
-
-#[cfg(windows)]
-fn windows_create(d: &PrepareInstallData) -> Result<(), mslnk::MSLinkError> {
-    use std::fmt::Write as _;
-
-    let mut l = mslnk::ShellLink::new(&d.target_file)?;
-
-    l.set_working_dir(Some(d.working_dir.display().to_string()));
-
-    if !d.args.is_empty() {
-        let mut args = String::new();
-        let mut sep = "";
-        for arg in &d.args {
-            write!(&mut args, "{sep}{arg:?}").unwrap();
-            sep = " ";
-        }
-        l.set_arguments(Some(args));
-    }
-
-    l.set_name(Some(d.name.clone()));
-
-    if !d.icon.as_os_str().is_empty()
-        && let Some(ico) = d.icon.to_str()
-    {
-        l.set_icon_location(Some(ico.to_owned()));
-    }
-
-    l.create_lnk(d.link_file.with_extension("lnk"))
-}
-
-#[cfg(target_os = "linux")]
-pub fn linux_create(d: &PrepareInstallData) -> io::Result<()> {
-    use std::io::Write as _;
-    use std::os::unix::fs::PermissionsExt as _;
-
-    let link_file = d.link_file.with_extension("desktop");
-    let mut file = fs::File::create(&link_file)?;
-
-    file.write_all("[Desktop Entry]\nVersion=1.0\nType=Application".as_bytes())?;
-    file.write_fmt(format_args!("\nExec=\"{}\"", d.target_file.display()))?;
-    for arg in &d.args {
-        file.write_fmt(format_args!(" {arg:?}"))?;
-    }
-    file.write_fmt(format_args!("\nPath={}", d.working_dir.display()))?;
-
-    if d.name.is_empty() {
-        match d.link_file.file_name() {
-            Some(n) => file.write_fmt(format_args!("\nName={}", n.to_string_lossy()))?,
-            None => return Err(io::Error::new(io::ErrorKind::InvalidInput, "missing name")),
-        }
-    } else {
-        let name = d
-            .name
-            .replace("\\", r"\\")
-            .replace("\n", r"\n")
-            .replace("\t", r"\t")
-            .replace("\r", r"\r");
-        file.write_fmt(format_args!("\nName={}", name))?;
-    }
-
-    if !d.icon.as_os_str().is_empty() {
-        file.write_fmt(format_args!("\nIcon={}", d.icon.display()))?;
-    }
-
-    let mut perms = file.metadata()?.permissions();
-    perms.set_mode(0o755);
-    std::fs::set_permissions(&link_file, perms)?;
-
-    Ok(())
 }
