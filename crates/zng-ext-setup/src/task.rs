@@ -9,11 +9,15 @@ mod create_shortcut;
 #[cfg(any(windows, target_os = "linux"))]
 pub use create_shortcut::{CreateShortcut, CreateShortcutConfig};
 
+mod register_uninstaller;
+#[cfg(windows)]
+pub use register_uninstaller::{RegisterUninstaller, RegisterUninstallerConfig};
+
 use zng_task::Progress;
 use zng_txt::Txt;
 use zng_var::{Var, impl_from_and_into_var};
 
-use std::{any::Any, error::Error, fmt, ops, path::PathBuf, pin::Pin, sync::Arc};
+use std::{any::Any, borrow::Cow, error::Error, fmt, io, ops, path::PathBuf, pin::Pin, sync::Arc};
 
 use zng_ext_config::{ConfigValue, RawConfigValue};
 
@@ -381,5 +385,31 @@ impl SetupTaskType {
             };
             T::uninstall(args).await
         })
+    }
+}
+
+#[allow(unused)]
+pub(crate) fn path_utf8(p: PathBuf) -> Result<String> {
+    match p.to_str() {
+        Some(s) => Ok(if cfg!(windows) {
+            s.replace('/', "\\")
+        } else {
+            s.replace('\\', "/")
+        }),
+        None => Err(SetupTaskError::io(
+            p,
+            io::Error::new(io::ErrorKind::InvalidData, "path must be utf-8"),
+        )),
+    }
+}
+#[allow(unused)]
+pub(crate) fn escape_arg(arg: &str) -> Cow<'_, str> {
+    #[cfg(windows)]
+    {
+        shell_escape::windows::escape(Cow::Borrowed(arg))
+    }
+    #[cfg(not(windows))]
+    {
+        shell_escape::unix::escape(Cow::Borrowed(arg))
     }
 }

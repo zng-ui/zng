@@ -1,5 +1,6 @@
 #![cfg(any(windows, target_os = "linux"))]
 
+use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
 use std::{fs, io, path::PathBuf};
 
@@ -31,7 +32,7 @@ impl super::SetupTask for CreateShortcut {
         let mut args = String::new();
         let mut sep = "";
         for arg in &c.args {
-            write!(&mut args, "{sep}{arg:?}").unwrap();
+            write!(&mut args, "{sep}{}", escape_arg(arg)).unwrap();
             sep = " ";
         }
 
@@ -51,9 +52,9 @@ impl super::SetupTask for CreateShortcut {
 
         let mut desktop = "[Desktop Entry]\nVersion=1.0\nType=Application\n".to_owned();
 
-        write!(&mut desktop, "Exec={}", path_utf8(c.target_file)?).unwrap();
+        write!(&mut desktop, "Exec={}", escape_arg(&path_utf8(c.target_file)?)).unwrap();
         for arg in c.args {
-            write!(&mut desktop, " {arg:?}").unwrap();
+            write!(&mut desktop, " {}", escape_arg(&arg)).unwrap();
         }
         writeln!(&mut desktop).unwrap();
 
@@ -62,7 +63,7 @@ impl super::SetupTask for CreateShortcut {
         }
 
         if !c.icon.as_os_str().is_empty() {
-            writeln!(&mut desktop, "Path={}", path_utf8(c.icon)?).unwrap();
+            writeln!(&mut desktop, "Icon={}", path_utf8(c.icon)?).unwrap();
         }
 
         if c.name.is_empty() {
@@ -211,14 +212,4 @@ pub struct PrepareInstallData {
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InstallData {
     link_file: PathBuf,
-}
-
-fn path_utf8(p: PathBuf) -> super::Result<String> {
-    match p.to_str() {
-        Some(s) => Ok(s.to_owned()),
-        None => Err(SetupTaskError::io(
-            p,
-            io::Error::new(io::ErrorKind::InvalidData, "path must be utf-8"),
-        )),
-    }
 }
