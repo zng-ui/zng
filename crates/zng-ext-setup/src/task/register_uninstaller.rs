@@ -76,7 +76,7 @@ impl super::SetupTask for RegisterUninstaller {
         "zng-setup/RegisterUninstaller".into()
     }
 
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let d = args.config;
 
         // validate app_id, required, no leading/trailing spaces, no '\'
@@ -128,7 +128,7 @@ impl super::SetupTask for RegisterUninstaller {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         fn register(d: &PrepareInstallData) -> windows_registry::Result<()> {
             let key =
                 windows_registry::LOCAL_MACHINE.create(format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{}", d.app_id))?;
@@ -155,15 +155,15 @@ impl super::SetupTask for RegisterUninstaller {
         Ok(InstallData { app_id: args.data.app_id })
     }
 
-    async fn cancel_install(_: super::CancelInstallArgs<Self>) -> super::Result<()> {
+    async fn cancel_install(_: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
         Ok(())
     }
 
-    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         Ok(args.data)
     }
 
-    async fn uninstall(args: super::UninstallArgs<Self>) -> super::Result<()> {
+    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
         const ERROR_FILE_NOT_FOUND: i32 = 2;
         let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{}", args.data.app_id);
         if let Err(e) = windows_registry::LOCAL_MACHINE.remove_tree(&key)

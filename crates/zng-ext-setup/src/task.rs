@@ -21,9 +21,6 @@ use std::{any::Any, borrow::Cow, error::Error, fmt, io, ops, path::PathBuf, pin:
 
 use zng_ext_config::{ConfigValue, RawConfigValue};
 
-/// Result type for [`SetupTask`] steps.
-pub type Result<T> = std::result::Result<T, SetupTaskError>;
-
 /// Unique name for an install or uninstall task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
@@ -99,7 +96,9 @@ pub trait SetupTask: Sized {
     ///
     /// [`cancel_install`]: Self::cancel_install
     /// [`cancel`]: PrepareInstallArgs::cancel
-    fn prepare_install(args: PrepareInstallArgs<Self>) -> impl Future<Output = Result<Self::PrepareInstall>> + Send + 'static;
+    fn prepare_install(
+        args: PrepareInstallArgs<Self>,
+    ) -> impl Future<Output = Result<Self::PrepareInstall, SetupTaskError>> + Send + 'static;
 
     /// Commit prepared install changes.
     ///
@@ -107,7 +106,7 @@ pub trait SetupTask: Sized {
     /// with the expectation this step will finish quickly.
     ///
     /// [`prepare_install`]: Self::prepare_install
-    fn install(args: InstallArgs<Self>) -> impl Future<Output = Result<Self::Install>> + Send + 'static;
+    fn install(args: InstallArgs<Self>) -> impl Future<Output = Result<Self::Install, SetupTaskError>> + Send + 'static;
 
     /// Cancel prepared install changes.
     ///
@@ -118,7 +117,7 @@ pub trait SetupTask: Sized {
     ///
     /// [`prepare_install`]: Self::prepare_install
     /// [`install`]: Self::install
-    fn cancel_install(args: CancelInstallArgs<Self>) -> impl Future<Output = Result<()>> + Send + 'static;
+    fn cancel_install(args: CancelInstallArgs<Self>) -> impl Future<Output = Result<(), SetupTaskError>> + Send + 'static;
 
     /// Validate the install state for uninstall.
     ///
@@ -132,12 +131,14 @@ pub trait SetupTask: Sized {
     ///
     /// [`uninstall`]: Self::uninstall
     /// [`cancel`]: ValidateUninstallArgs::cancel
-    fn validate_uninstall(args: ValidateUninstallArgs<Self>) -> impl Future<Output = Result<Self::Install>> + Send + 'static;
+    fn validate_uninstall(
+        args: ValidateUninstallArgs<Self>,
+    ) -> impl Future<Output = Result<Self::Install, SetupTaskError>> + Send + 'static;
 
     /// Uninstall.
     ///
     /// The user cannot cancel uninstallation when this step is running.
-    fn uninstall(args: UninstallArgs<Self>) -> impl Future<Output = Result<()>> + Send + 'static;
+    fn uninstall(args: UninstallArgs<Self>) -> impl Future<Output = Result<(), SetupTaskError>> + Send + 'static;
 }
 
 /// Arguments for [`SetupTask::prepare_install`]
@@ -292,9 +293,9 @@ impl Error for SetupTaskError {
     }
 }
 
-type BoxFutResult<T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'static>>;
+type BoxFutResult<T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'static>>;
 
-fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T> {
+fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T, SetupTaskError> {
     match raw.deserialize() {
         Ok(r) => Ok(r),
         Err(e) => Err(SetupTaskError::CorruptedTaskData(Arc::new(e))),
@@ -305,11 +306,12 @@ fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T> {
 pub(crate) struct SetupTaskType {
     pub task_type_id: fn() -> TaskTypeId,
     #[allow(clippy::type_complexity)]
-    pub prepare_install: fn(Box<dyn Any + Send>, Option<RawConfigValue>, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue>,
-    pub install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<RawConfigValue>,
-    pub cancel_install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<()>,
-    pub validate_uninstall: fn(RawConfigValue, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue>,
-    pub uninstall: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<()>,
+    pub prepare_install:
+        fn(Box<dyn Any + Send>, Option<RawConfigValue>, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue, SetupTaskError>,
+    pub install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<RawConfigValue, SetupTaskError>,
+    pub cancel_install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<(), SetupTaskError>,
+    pub validate_uninstall: fn(RawConfigValue, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue, SetupTaskError>,
+    pub uninstall: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<(), SetupTaskError>,
 }
 impl SetupTaskType {
     /// New task instance.
@@ -328,7 +330,7 @@ impl SetupTaskType {
         update: Option<RawConfigValue>,
         progress: Var<Progress>,
         cancel: Var<bool>,
-    ) -> BoxFutResult<RawConfigValue> {
+    ) -> BoxFutResult<RawConfigValue, SetupTaskError> {
         Box::pin(async move {
             let args = PrepareInstallArgs {
                 config: *config.downcast().unwrap(),
@@ -343,7 +345,7 @@ impl SetupTaskType {
             Ok(RawConfigValue::serialize(r).unwrap())
         })
     }
-    fn raw_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<RawConfigValue> {
+    fn raw_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<RawConfigValue, SetupTaskError> {
         Box::pin(async move {
             let args = InstallArgs {
                 data: value_de(data)?,
@@ -353,7 +355,7 @@ impl SetupTaskType {
             Ok(RawConfigValue::serialize(r).unwrap())
         })
     }
-    fn raw_cancel_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<()> {
+    fn raw_cancel_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<(), SetupTaskError> {
         Box::pin(async move {
             let args = CancelInstallArgs {
                 data: value_de(data)?,
@@ -366,7 +368,7 @@ impl SetupTaskType {
         data: RawConfigValue,
         progress: Var<Progress>,
         cancel: Var<bool>,
-    ) -> BoxFutResult<RawConfigValue> {
+    ) -> BoxFutResult<RawConfigValue, SetupTaskError> {
         Box::pin(async move {
             let args = ValidateUninstallArgs {
                 data: value_de(data)?,
@@ -377,7 +379,7 @@ impl SetupTaskType {
             Ok(RawConfigValue::serialize(r).unwrap())
         })
     }
-    fn raw_uninstall<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<()> {
+    fn raw_uninstall<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<(), SetupTaskError> {
         Box::pin(async move {
             let args = UninstallArgs {
                 data: value_de(data)?,
@@ -389,7 +391,7 @@ impl SetupTaskType {
 }
 
 #[allow(unused)]
-pub(crate) fn path_utf8(p: PathBuf) -> Result<String> {
+pub(crate) fn path_utf8(p: PathBuf) -> Result<String, SetupTaskError> {
     match p.to_str() {
         Some(s) => Ok(if cfg!(windows) {
             s.replace('/', "\\")

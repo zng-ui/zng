@@ -23,7 +23,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     #[cfg(windows)]
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let c = args.config;
 
         let working_dir = path_utf8(c.working_dir)?;
@@ -47,7 +47,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     #[cfg(target_os = "linux")]
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let c = args.config;
 
         let mut desktop = "[Desktop Entry]\nVersion=1.0\nType=Application\n".to_owned();
@@ -93,7 +93,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     #[cfg(windows)]
-    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         fn install(d: PrepareInstallData) -> Result<(), mslnk::MSLinkError> {
             let mut l = mslnk::ShellLink::new(&d.target_file)?;
 
@@ -126,7 +126,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     #[cfg(target_os = "linux")]
-    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         fn write(link_file: &PathBuf, desktop: String) -> io::Result<()> {
             use std::io::Write as _;
             use std::os::unix::fs::PermissionsExt as _;
@@ -149,15 +149,15 @@ impl super::SetupTask for CreateShortcut {
         })
     }
 
-    async fn cancel_install(_: super::CancelInstallArgs<Self>) -> super::Result<()> {
+    async fn cancel_install(_: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
         Ok(())
     }
 
-    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         Ok(args.data)
     }
 
-    async fn uninstall(args: super::UninstallArgs<Self>) -> super::Result<()> {
+    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
         if let Err(e) = fs::remove_file(&args.data.link_file)
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {

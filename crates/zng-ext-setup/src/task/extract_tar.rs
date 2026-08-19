@@ -26,7 +26,7 @@ impl super::SetupTask for ExtractTar {
         "zng-setup/ExtractTar".into()
     }
 
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let (parent_dir, dir_name) = match (args.config.target_dir.parent(), args.config.target_dir.file_name()) {
             (Some(p), Some(n)) if let Some(n) = n.to_str() => (p, n),
             _ => {
@@ -210,7 +210,7 @@ impl super::SetupTask for ExtractTar {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         let mut errors = vec![];
 
         let mut entries = args.data.add;
@@ -286,7 +286,7 @@ impl super::SetupTask for ExtractTar {
         }
     }
 
-    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> super::Result<()> {
+    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
         if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {
@@ -295,7 +295,7 @@ impl super::SetupTask for ExtractTar {
         Ok(())
     }
 
-    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         let mut data = args.data;
         if !data.target_dir.exists() {
             data.entries.clear();
@@ -347,7 +347,7 @@ impl super::SetupTask for ExtractTar {
         Ok(data)
     }
 
-    async fn uninstall(args: super::UninstallArgs<Self>) -> super::Result<()> {
+    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
         let mut errors = vec![];
         for entry in args.data.entries {
             let entry = args.data.target_dir.join(entry);

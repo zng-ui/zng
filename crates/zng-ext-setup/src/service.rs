@@ -10,9 +10,6 @@ use zng_var::{ResponderVar, ResponseVar, Var, VarEq, VarValue, const_var, respon
 
 use crate::task::{SetupTask, SetupTaskError, SetupTaskType, TaskTypeId};
 
-/// Result type for [`SETUP`] operations.
-pub type Result<T> = std::result::Result<T, SetupError>;
-
 /// Setup service.
 ///
 /// This service runs [install] and [uninstall] operations sequentially. Operations
@@ -50,7 +47,7 @@ impl SETUP {
     /// [prepare]: Self::prepare_install
     /// [commit]: Self::commit_install
     /// [`uninstall`]: Self::uninstall
-    pub fn install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("install", move || {
             SETUP_SV.write().run(async move { install(config, update).await }, r);
@@ -71,7 +68,11 @@ impl SETUP {
     ///
     /// [`commit_install`]: Self::commit_install
     /// [`cancel_prepared`]: Self::cancel_prepared
-    pub fn prepare_install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<PreparedInstallConfig>> {
+    pub fn prepare_install(
+        &self,
+        config: InstallConfig,
+        update: Option<UninstallConfig>,
+    ) -> ResponseVar<Result<PreparedInstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("prepare_install", move || {
             SETUP_SV.write().run(async move { prepare_install(config, update).await }, r);
@@ -85,7 +86,7 @@ impl SETUP {
     /// a prepared install that already completed.
     ///
     /// [`prepare_install`]: Self::prepare_install
-    pub fn cancel_prepared(&self, config: PreparedInstallConfig) -> ResponseVar<Result<()>> {
+    pub fn cancel_prepared(&self, config: PreparedInstallConfig) -> ResponseVar<Result<(), SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("cancel_prepared", move || {
             SETUP_SV.write().run(async move { cancel_prepared(config).await }, r);
@@ -104,7 +105,7 @@ impl SETUP {
     ///
     /// [`cancel_prepared`]: Self::cancel_prepared
     /// [`uninstall`]: Self::uninstall
-    pub fn commit_install(&self, config: PreparedInstallConfig) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn commit_install(&self, config: PreparedInstallConfig) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("commit_install", move || {
             SETUP_SV.write().run(async move { commit_install(config).await }, r);
@@ -120,7 +121,7 @@ impl SETUP {
     /// Returns a response var that updates once with the result of the operation.
     ///
     /// [validate]: Self::validate_uninstall
-    pub fn uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<()>> {
+    pub fn uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<(), SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("uninstall", move || {
             SETUP_SV.write().run(async move { uninstall(config).await }, r);
@@ -136,7 +137,7 @@ impl SETUP {
     /// successful the config data is returned, potentially corrected if recoverable issues where found.
     ///
     /// [`uninstall`]: Self::uninstall
-    pub fn validate_uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn validate_uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("validate_uninstall", move || {
             SETUP_SV.write().run(async move { validate_uninstall(config).await }, r);
@@ -384,7 +385,11 @@ impl SetupOpStatus {
 }
 
 impl Setup {
-    fn run<R: VarValue>(&mut self, op: impl Future<Output = Result<R>> + Send + 'static, r: ResponderVar<Result<R>>) {
+    fn run<R: VarValue>(
+        &mut self,
+        op: impl Future<Output = Result<R, SetupError>> + Send + 'static,
+        r: ResponderVar<Result<R, SetupError>>,
+    ) {
         self.run_impl(Box::pin(async move {
             let res = op.await;
             r.respond(res);
@@ -411,7 +416,7 @@ impl Setup {
         }
     }
 
-    fn task_type(&self, id: &TaskTypeId) -> crate::task::Result<SetupTaskType> {
+    fn task_type(&self, id: &TaskTypeId) -> Result<SetupTaskType, SetupTaskError> {
         for t in &self.task_types {
             if &(t.task_type_id)() == id {
                 return Ok(t.clone());
@@ -421,7 +426,7 @@ impl Setup {
     }
 }
 
-async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<UninstallConfig> {
+async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<UninstallConfig, SetupError> {
     let config = prepare_install(config, update).await?;
     if SETUP_SV.read().cancel.get() {
         cancel_prepared(config).await?;
@@ -431,7 +436,7 @@ async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Resu
     }
 }
 
-async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<PreparedInstallConfig> {
+async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<PreparedInstallConfig, SetupError> {
     let (status, cancel) = {
         let sv = SETUP_SV.read();
         (sv.status.clone(), sv.cancel.clone())
@@ -554,7 +559,7 @@ async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>)
     }
 }
 
-async fn cancel_prepared(config: PreparedInstallConfig) -> Result<()> {
+async fn cancel_prepared(config: PreparedInstallConfig) -> Result<(), SetupError> {
     let status = SETUP_SV.read().status.clone();
 
     let tasks_len = config.cfg.len();
@@ -623,7 +628,7 @@ async fn cancel_prepared(config: PreparedInstallConfig) -> Result<()> {
     }
 }
 
-async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig> {
+async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig, SetupError> {
     let status = SETUP_SV.read().status.clone();
 
     let tasks_len = config.tasks.len();
@@ -706,7 +711,7 @@ async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig
     }
 }
 
-async fn uninstall(config: UninstallConfig) -> Result<()> {
+async fn uninstall(config: UninstallConfig) -> Result<(), SetupError> {
     let config = validate_uninstall(config).await?;
 
     let status = SETUP_SV.read().status.clone();
@@ -779,7 +784,7 @@ async fn uninstall(config: UninstallConfig) -> Result<()> {
     }
 }
 
-async fn validate_uninstall(config: UninstallConfig) -> Result<UninstallConfig> {
+async fn validate_uninstall(config: UninstallConfig) -> Result<UninstallConfig, SetupError> {
     let (status, cancel) = {
         let sv = SETUP_SV.read();
         (sv.status.clone(), sv.cancel.clone())
