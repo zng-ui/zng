@@ -1,6 +1,7 @@
 #![cfg(windows)]
 
 use std::fmt::Write as _;
+use std::sync::Arc;
 use std::{fmt, path::PathBuf};
 
 use zng_unit::ByteLength;
@@ -46,6 +47,8 @@ pub struct RegisterUninstallerConfig {
 #[doc(hidden)]
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PrepareInstallData {
+    update: Option<InstallData>,
+
     app_id: String,
     uninstall: String,
     quiet_uninstall: String,
@@ -78,11 +81,6 @@ impl super::SetupTask for RegisterUninstaller {
 
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let d = args.config;
-
-        if let Some(u) = args.update {
-            // !!: TODO remove previous if ID changed?
-            let _ = u;
-        }
 
         // validate app_id, required, no leading/trailing spaces, no '\'
         let app_id = d.app_id.trim();
@@ -119,6 +117,7 @@ impl super::SetupTask for RegisterUninstaller {
             exe
         }
         Ok(PrepareInstallData {
+            update: args.update,
             app_id: d.app_id,
             uninstall: cmd(uninstaller.clone(), d.args),
             quiet_uninstall: cmd(uninstaller, d.silent_args),
@@ -154,12 +153,26 @@ impl super::SetupTask for RegisterUninstaller {
             Ok(())
         }
 
+        let mut errors = vec![];
+
+        // if changed ID and is updating remove previous key
+        if let Some(u) = &args.data.update
+            && u.app_id != args.data.app_id
+            && let Err(e) = uninstall(&u.app_id)
+        {
+            match e {
+                SetupTaskError::Other(e) => errors = e,
+                _ => unreachable!(),
+            }
+        }
+
         let data = InstallData {
             app_id: args.data.app_id.clone(),
         };
         if let Err(e) = register(&args.data) {
+            errors.push(Arc::new(e));
             return Err(InstallTaskError {
-                error: SetupTaskError::other(e),
+                error: SetupTaskError::Other(errors),
                 // key might not actually exist, but this indicates that
                 // the failed install can be uninstalled and `uninstall` does not error
                 // if the key is not found.
@@ -178,13 +191,17 @@ impl super::SetupTask for RegisterUninstaller {
     }
 
     async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
-        const ERROR_FILE_NOT_FOUND: i32 = 2;
-        let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{}", args.data.app_id);
-        if let Err(e) = windows_registry::LOCAL_MACHINE.remove_tree(&key)
-            && e.code().0 != ERROR_FILE_NOT_FOUND
-        {
-            return Err(SetupTaskError::other(e));
-        }
-        Ok(())
+        uninstall(&args.data.app_id)
     }
+}
+
+fn uninstall(app_id: &str) -> Result<(), SetupTaskError> {
+    const ERROR_FILE_NOT_FOUND: i32 = 2;
+    let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{app_id}");
+    if let Err(e) = windows_registry::LOCAL_MACHINE.remove_tree(&key)
+        && e.code().0 != ERROR_FILE_NOT_FOUND
+    {
+        return Err(SetupTaskError::other(e));
+    }
+    Ok(())
 }
