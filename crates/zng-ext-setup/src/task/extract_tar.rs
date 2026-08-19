@@ -10,7 +10,7 @@ use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unit::ByteUnits as _;
 use zng_var::{expr_var, var};
 
-use crate::task::SetupTaskError;
+use crate::task::{InstallTaskError, SetupTaskError};
 
 /// Setup task that extracts TAR container to a new or existing directory
 /// on install and removes these files on uninstall.
@@ -210,7 +210,7 @@ impl super::SetupTask for ExtractTar {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
         let mut errors = vec![];
 
         let mut entries = args.data.add;
@@ -275,14 +275,21 @@ impl super::SetupTask for ExtractTar {
                 errors.push((from, Arc::new(e)));
             }
         }
+
+        entries.reverse(); // uninstall removes depth first to cleanup empty dirs as it goes
+        let data = InstallData {
+            target_dir: args.data.target_dir,
+            entries,
+        };
+
         if errors.is_empty() {
-            entries.reverse(); // uninstall removes depth first to cleanup empty dirs as it goes
-            Ok(InstallData {
-                target_dir: args.data.target_dir,
-                entries,
-            })
+            Ok(data)
         } else {
-            Err(SetupTaskError::Io(errors))
+            // !!: TODO review if all prepared temps are clean here (see `clean_data` docs)
+            Err(InstallTaskError {
+                error: SetupTaskError::Io(errors),
+                clean_data: Some(data),
+            })
         }
     }
 

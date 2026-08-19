@@ -1,5 +1,7 @@
 #![cfg(any(windows, target_os = "linux"))]
 
+#[cfg(windows)]
+use crate::task::InstallTaskError;
 use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
 use std::{fs, io, path::PathBuf};
@@ -93,7 +95,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     #[cfg(windows)]
-    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
         fn install(d: PrepareInstallData) -> Result<(), mslnk::MSLinkError> {
             let mut l = mslnk::ShellLink::new(&d.target_file)?;
 
@@ -116,17 +118,23 @@ impl super::SetupTask for CreateShortcut {
             l.create_lnk(d.link_file)
         }
 
-        let link_file = args.data.link_file.clone();
+        let data = InstallData {
+            link_file: args.data.link_file.clone(),
+        };
 
         if let Err(e) = install(args.data) {
-            return Err(SetupTaskError::other(e));
+            return Err(InstallTaskError {
+                error: SetupTaskError::other(e),
+                // link_file probably does not exist, but `Some` here indicates that the failed uninstall can
+                // be cleanup and `uninstall` will not error if the link file does not exist.
+                clean_data: Some(data),
+            });
         }
-
-        Ok(InstallData { link_file })
+        Ok(data)
     }
 
     #[cfg(target_os = "linux")]
-    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
         fn write(link_file: &PathBuf, desktop: String) -> io::Result<()> {
             use std::io::Write as _;
             use std::os::unix::fs::PermissionsExt as _;
@@ -141,12 +149,18 @@ impl super::SetupTask for CreateShortcut {
             Ok(())
         }
 
-        if let Err(e) = write(&args.data.link_file, args.data.desktop) {
-            return Err(SetupTaskError::io(args.data.link_file, e));
-        }
-        Ok(InstallData {
+        let data = InstallData {
             link_file: args.data.link_file,
-        })
+        };
+        if let Err(e) = write(&args.data.link_file, args.data.desktop) {
+            return Err(InstallTaskError {
+                error: SetupTaskError::io(args.data.link_file, e),
+                // link_file probably does not exist, but `Some` here indicates that the failed uninstall can
+                // be cleanup and `uninstall` will not error if the link file does not exist.
+                clean_data: Some(data),
+            });
+        }
+        Ok(data)
     }
 
     async fn cancel_install(_: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {

@@ -5,7 +5,7 @@ use std::{fmt, path::PathBuf};
 
 use zng_unit::ByteLength;
 
-use crate::task::{SetupTaskError, escape_arg, path_utf8};
+use crate::task::{InstallTaskError, SetupTaskError, escape_arg, path_utf8};
 
 /// Setup task that register an uninstaller for the app on Windows.
 pub enum RegisterUninstaller {}
@@ -79,6 +79,11 @@ impl super::SetupTask for RegisterUninstaller {
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let d = args.config;
 
+        if let Some(u) = args.update {
+            // !!: TODO remove previous if ID changed?
+            let _ = u;
+        }
+
         // validate app_id, required, no leading/trailing spaces, no '\'
         let app_id = d.app_id.trim();
         if app_id.is_empty() || app_id.len() != d.app_id.len() || app_id.contains('\\') {
@@ -128,7 +133,7 @@ impl super::SetupTask for RegisterUninstaller {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
         fn register(d: &PrepareInstallData) -> windows_registry::Result<()> {
             let key =
                 windows_registry::LOCAL_MACHINE.create(format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{}", d.app_id))?;
@@ -149,10 +154,19 @@ impl super::SetupTask for RegisterUninstaller {
             Ok(())
         }
 
+        let data = InstallData {
+            app_id: args.data.app_id.clone(),
+        };
         if let Err(e) = register(&args.data) {
-            return Err(SetupTaskError::other(e));
+            return Err(InstallTaskError {
+                error: SetupTaskError::other(e),
+                // key might not actually exist, but this indicates that
+                // the failed install can be uninstalled and `uninstall` does not error
+                // if the key is not found.
+                clean_data: Some(data),
+            });
         }
-        Ok(InstallData { app_id: args.data.app_id })
+        Ok(data)
     }
 
     async fn cancel_install(_: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
