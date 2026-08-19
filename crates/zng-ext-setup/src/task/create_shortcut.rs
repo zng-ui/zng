@@ -42,6 +42,7 @@ impl super::SetupTask for CreateShortcut {
             target_file: c.target_file,
             working_dir,
             arguments: args,
+            app_id: c.app_id,
             name: c.name,
             icon,
         })
@@ -104,6 +105,10 @@ impl super::SetupTask for CreateShortcut {
 
             if !d.arguments.is_empty() {
                 l.set_arguments(Some(d.arguments));
+            }
+
+            if !d.app_id.is_empty() {
+                // !!: TODO set System.AppUserModel.ID
             }
 
             if !d.name.is_empty() {
@@ -191,6 +196,14 @@ pub struct CreateShortcutConfig {
     /// Arguments to pass the executable.
     pub args: Vec<String>,
 
+    /// Globally unique app ID.
+    ///
+    /// This is only used on Windows to set the AUMID on the shortcut, this **must** be
+    /// the same value as `zng::env::About::windows_aumid` on the app executable. Note that
+    /// if the app does not have a shortcut on the Start Menu that defines the ID notifications
+    /// and other shell integrations will not work properly.
+    pub app_id: String,
+
     /// Optional display name of the shortcut.
     ///
     /// Empty is the `link_file` file name.
@@ -217,6 +230,7 @@ pub struct PrepareInstallData {
     target_file: PathBuf,
     working_dir: String,
     arguments: String,
+    app_id: String,
     name: String,
     icon: String,
 }

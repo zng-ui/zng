@@ -275,6 +275,25 @@ impl About {
             }
         }
     }
+
+    /// Get the Windows AppUserModelID.
+    ///
+    /// This ID identifies the app for shell integration, like notifications. A shortcut
+    /// on the Start Menu must define a `System.AppUserModel.ID` that matches this ID.
+    ///
+    /// By default this is the [`app_id`], its strongly recommended that the app only use one ID, but if required
+    /// the AUMID can be explicitly set on the metadata using the `"windows_aumid"`.
+    ///
+    /// On startup the default view-process calls `SetCurrentProcessExplicitAppUserModelID` to ensure the GUI
+    /// is associated with the Start Menu entry even when not running from the start menu.
+    /// 
+    /// [`app_id`]: About::app_id
+    pub fn windows_aumid(&self) -> Txt {
+        match self.get("windows_aumid") {
+            Some(id) => id,
+            None => self.app_id.clone(),
+        }
+    }
 }
 impl About {
     fn fallback_name() -> Self {
