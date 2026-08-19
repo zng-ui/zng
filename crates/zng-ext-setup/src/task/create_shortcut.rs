@@ -1,6 +1,5 @@
 #![cfg(any(windows, target_os = "linux"))]
 
-#[cfg(windows)]
 use crate::task::InstallTaskError;
 use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
@@ -150,7 +149,7 @@ impl super::SetupTask for CreateShortcut {
         }
 
         let data = InstallData {
-            link_file: args.data.link_file,
+            link_file: args.data.link_file.clone(),
         };
         if let Err(e) = write(&args.data.link_file, args.data.desktop) {
             return Err(InstallTaskError {

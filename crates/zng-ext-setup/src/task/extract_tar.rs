@@ -285,7 +285,13 @@ impl super::SetupTask for ExtractTar {
         if errors.is_empty() {
             Ok(data)
         } else {
-            // !!: TODO review if all prepared temps are clean here (see `clean_data` docs)
+            // tasks must cleanup prepared data in case of error
+            if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
+                && !matches!(e.kind(), io::ErrorKind::NotFound)
+            {
+                errors.push((args.data.temp_dir, Arc::new(e)));
+            }
+
             Err(InstallTaskError {
                 error: SetupTaskError::Io(errors),
                 clean_data: Some(data),

@@ -144,7 +144,7 @@ pub trait SetupTask: Sized {
     ///
     /// The user cannot cancel uninstallation when this step is running.
     ///
-    /// Uninstall must not fail in case a step is already completed, for example, if the task must remove a file
+    /// Uninstall is idempotent, it must not fail in case a step is already completed, for example, if the task must remove a file
     /// and it is not found, that is not an error. Task runners can retry partially run uninstall with an install data clone.
     ///
     /// Uninstall must not fail at the first error encountered, a best attempt to apply all uninstall steps must be made,
