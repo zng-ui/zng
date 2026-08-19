@@ -10,7 +10,7 @@ use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unit::ByteUnits as _;
 use zng_var::{expr_var, var};
 
-use crate::task::SetupTaskError;
+use crate::task::{InstallTaskError, SetupTaskError};
 
 /// Setup task that extracts TAR container to a new or existing directory
 /// on install and removes these files on uninstall.
@@ -26,7 +26,7 @@ impl super::SetupTask for ExtractTar {
         "zng-setup/ExtractTar".into()
     }
 
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> super::Result<Self::PrepareInstall> {
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
         let (parent_dir, dir_name) = match (args.config.target_dir.parent(), args.config.target_dir.file_name()) {
             (Some(p), Some(n)) if let Some(n) = n.to_str() => (p, n),
             _ => {
@@ -210,7 +210,7 @@ impl super::SetupTask for ExtractTar {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
         let mut errors = vec![];
 
         let mut entries = args.data.add;
@@ -275,18 +275,31 @@ impl super::SetupTask for ExtractTar {
                 errors.push((from, Arc::new(e)));
             }
         }
+
+        entries.reverse(); // uninstall removes depth first to cleanup empty dirs as it goes
+        let data = InstallData {
+            target_dir: args.data.target_dir,
+            entries,
+        };
+
         if errors.is_empty() {
-            entries.reverse(); // uninstall removes depth first to cleanup empty dirs as it goes
-            Ok(InstallData {
-                target_dir: args.data.target_dir,
-                entries,
-            })
+            Ok(data)
         } else {
-            Err(SetupTaskError::Io(errors))
+            // tasks must cleanup prepared data in case of error
+            if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
+                && !matches!(e.kind(), io::ErrorKind::NotFound)
+            {
+                errors.push((args.data.temp_dir, Arc::new(e)));
+            }
+
+            Err(InstallTaskError {
+                error: SetupTaskError::Io(errors),
+                clean_data: Some(data),
+            })
         }
     }
 
-    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> super::Result<()> {
+    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
         if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {
@@ -295,7 +308,7 @@ impl super::SetupTask for ExtractTar {
         Ok(())
     }
 
-    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> super::Result<Self::Install> {
+    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
         let mut data = args.data;
         if !data.target_dir.exists() {
             data.entries.clear();
@@ -347,7 +360,7 @@ impl super::SetupTask for ExtractTar {
         Ok(data)
     }
 
-    async fn uninstall(args: super::UninstallArgs<Self>) -> super::Result<()> {
+    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
         let mut errors = vec![];
         for entry in args.data.entries {
             let entry = args.data.target_dir.join(entry);

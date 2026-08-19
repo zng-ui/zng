@@ -21,9 +21,6 @@ use std::{any::Any, borrow::Cow, error::Error, fmt, io, ops, path::PathBuf, pin:
 
 use zng_ext_config::{ConfigValue, RawConfigValue};
 
-/// Result type for [`SetupTask`] steps.
-pub type Result<T> = std::result::Result<T, SetupTaskError>;
-
 /// Unique name for an install or uninstall task.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
@@ -99,15 +96,22 @@ pub trait SetupTask: Sized {
     ///
     /// [`cancel_install`]: Self::cancel_install
     /// [`cancel`]: PrepareInstallArgs::cancel
-    fn prepare_install(args: PrepareInstallArgs<Self>) -> impl Future<Output = Result<Self::PrepareInstall>> + Send + 'static;
+    fn prepare_install(
+        args: PrepareInstallArgs<Self>,
+    ) -> impl Future<Output = Result<Self::PrepareInstall, SetupTaskError>> + Send + 'static;
 
     /// Commit prepared install changes.
     ///
     /// The user cannot cancel installation when this step is running. Progress indicators will only show *indeterminate*
     /// with the expectation this step will finish quickly.
     ///
+    /// Install must not fail at the first error encountered, a best attempt to apply all install steps must be made,
+    /// errors can be aggregated on the [`InstallTaskError::error`]. The [`InstallTaskError::clean_data`] must include uninstall instructions
+    /// for all successful steps, best attempt of partial steps and any data from the previous version that was not replaced in case
+    /// it is installing an update.
+    ///
     /// [`prepare_install`]: Self::prepare_install
-    fn install(args: InstallArgs<Self>) -> impl Future<Output = Result<Self::Install>> + Send + 'static;
+    fn install(args: InstallArgs<Self>) -> impl Future<Output = Result<Self::Install, InstallTaskError<Self::Install>>> + Send + 'static;
 
     /// Cancel prepared install changes.
     ///
@@ -118,7 +122,7 @@ pub trait SetupTask: Sized {
     ///
     /// [`prepare_install`]: Self::prepare_install
     /// [`install`]: Self::install
-    fn cancel_install(args: CancelInstallArgs<Self>) -> impl Future<Output = Result<()>> + Send + 'static;
+    fn cancel_install(args: CancelInstallArgs<Self>) -> impl Future<Output = Result<(), SetupTaskError>> + Send + 'static;
 
     /// Validate the install state for uninstall.
     ///
@@ -128,16 +132,24 @@ pub trait SetupTask: Sized {
     /// This step is not expected to take long, but if it does check the [`cancel`] flag to avoid unnecessary work.
     /// If the uninstall is canceled when another task is preparing after this one the returned data is just dropped.
     ///
-    /// This step returns a validation error or the correct install data.
+    /// This step returns a validation error or the corrected install data.
     ///
     /// [`uninstall`]: Self::uninstall
     /// [`cancel`]: ValidateUninstallArgs::cancel
-    fn validate_uninstall(args: ValidateUninstallArgs<Self>) -> impl Future<Output = Result<Self::Install>> + Send + 'static;
+    fn validate_uninstall(
+        args: ValidateUninstallArgs<Self>,
+    ) -> impl Future<Output = Result<Self::Install, SetupTaskError>> + Send + 'static;
 
     /// Uninstall.
     ///
     /// The user cannot cancel uninstallation when this step is running.
-    fn uninstall(args: UninstallArgs<Self>) -> impl Future<Output = Result<()>> + Send + 'static;
+    ///
+    /// Uninstall is idempotent, it must not fail in case a step is already completed, for example, if the task must remove a file
+    /// and it is not found, that is not an error. Task runners can retry partially run uninstall with an install data clone.
+    ///
+    /// Uninstall must not fail at the first error encountered, a best attempt to apply all uninstall steps must be made,
+    /// errors can be aggregated on the [`SetupTaskError`].
+    fn uninstall(args: UninstallArgs<Self>) -> impl Future<Output = Result<(), SetupTaskError>> + Send + 'static;
 }
 
 /// Arguments for [`SetupTask::prepare_install`]
@@ -292,9 +304,53 @@ impl Error for SetupTaskError {
     }
 }
 
-type BoxFutResult<T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'static>>;
+/// Error in a [`SetupTask::install`] task run.
+pub struct InstallTaskError<I> {
+    /// The error.
+    pub error: SetupTaskError,
+    /// Cleanup [`SetupTask::Install`] data.
+    ///
+    /// This must contain data to uninstall the partial committed changes, if there where any. Task runners may
+    /// use this to attempt a [`SetupTask::uninstall`] to cleanup the corrupted install.
+    ///
+    /// In case the install is an [update], this must also contain all data from the previous install that has not
+    /// been invalidated by the failed install.
+    ///
+    /// If this is `None` the task runner will show that the task corrupted the install and the changes made
+    /// cannot even be uninstalled. It will also assume that the [`SetupTask::PrepareInstall`] data was not
+    /// fully cleaned before the error.
+    ///
+    /// If this is `Some` the task runner will assume the [`SetupTask::PrepareInstall`] is fully cleaned. The
+    /// task must attempt to run a *cancel* on the partial prepared data that has not committed yet, if the
+    /// error was encountered before any changes where actually committed and all prepared changes where successfully
+    /// canceled this must be set to `Some` value that represents an *empty install* that the uninstall task will
+    /// recognize and immediately return success for.
+    ///
+    /// [update]: PrepareInstallArgs::update
+    pub clean_data: Option<I>,
+}
+impl<I> fmt::Debug for InstallTaskError<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InstallTaskError")
+            .field("error", &self.error)
+            .field("clean_data.is_some()", &self.clean_data.is_some())
+            .finish()
+    }
+}
+impl<I> fmt::Display for InstallTaskError<I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.error, f)
+    }
+}
+impl<I> std::error::Error for InstallTaskError<I> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.error)
+    }
+}
 
-fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T> {
+type BoxFutResult<T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'static>>;
+
+fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T, SetupTaskError> {
     match raw.deserialize() {
         Ok(r) => Ok(r),
         Err(e) => Err(SetupTaskError::CorruptedTaskData(Arc::new(e))),
@@ -305,11 +361,12 @@ fn value_de<T: ConfigValue>(raw: RawConfigValue) -> Result<T> {
 pub(crate) struct SetupTaskType {
     pub task_type_id: fn() -> TaskTypeId,
     #[allow(clippy::type_complexity)]
-    pub prepare_install: fn(Box<dyn Any + Send>, Option<RawConfigValue>, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue>,
-    pub install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<RawConfigValue>,
-    pub cancel_install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<()>,
-    pub validate_uninstall: fn(RawConfigValue, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue>,
-    pub uninstall: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<()>,
+    pub prepare_install:
+        fn(Box<dyn Any + Send>, Option<RawConfigValue>, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue, SetupTaskError>,
+    pub install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<RawConfigValue, InstallTaskError<RawConfigValue>>,
+    pub cancel_install: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<(), SetupTaskError>,
+    pub validate_uninstall: fn(RawConfigValue, Var<Progress>, Var<bool>) -> BoxFutResult<RawConfigValue, SetupTaskError>,
+    pub uninstall: fn(RawConfigValue, Var<Progress>) -> BoxFutResult<(), SetupTaskError>,
 }
 impl SetupTaskType {
     /// New task instance.
@@ -328,7 +385,7 @@ impl SetupTaskType {
         update: Option<RawConfigValue>,
         progress: Var<Progress>,
         cancel: Var<bool>,
-    ) -> BoxFutResult<RawConfigValue> {
+    ) -> BoxFutResult<RawConfigValue, SetupTaskError> {
         Box::pin(async move {
             let args = PrepareInstallArgs {
                 config: *config.downcast().unwrap(),
@@ -343,17 +400,34 @@ impl SetupTaskType {
             Ok(RawConfigValue::serialize(r).unwrap())
         })
     }
-    fn raw_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<RawConfigValue> {
+    fn raw_install<T: SetupTask>(
+        data: RawConfigValue,
+        progress: Var<Progress>,
+    ) -> BoxFutResult<RawConfigValue, InstallTaskError<RawConfigValue>> {
         Box::pin(async move {
             let args = InstallArgs {
-                data: value_de(data)?,
+                data: match value_de(data) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        return Err(InstallTaskError {
+                            error: e,
+                            // can't cancel either without the data
+                            clean_data: None,
+                        });
+                    }
+                },
                 progress,
             };
-            let r = T::install(args).await?;
-            Ok(RawConfigValue::serialize(r).unwrap())
+            match T::install(args).await {
+                Ok(r) => Ok(RawConfigValue::serialize(r).unwrap()),
+                Err(e) => Err(InstallTaskError {
+                    error: e.error,
+                    clean_data: e.clean_data.map(|d| RawConfigValue::serialize(d).unwrap()),
+                }),
+            }
         })
     }
-    fn raw_cancel_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<()> {
+    fn raw_cancel_install<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<(), SetupTaskError> {
         Box::pin(async move {
             let args = CancelInstallArgs {
                 data: value_de(data)?,
@@ -366,7 +440,7 @@ impl SetupTaskType {
         data: RawConfigValue,
         progress: Var<Progress>,
         cancel: Var<bool>,
-    ) -> BoxFutResult<RawConfigValue> {
+    ) -> BoxFutResult<RawConfigValue, SetupTaskError> {
         Box::pin(async move {
             let args = ValidateUninstallArgs {
                 data: value_de(data)?,
@@ -377,7 +451,7 @@ impl SetupTaskType {
             Ok(RawConfigValue::serialize(r).unwrap())
         })
     }
-    fn raw_uninstall<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<()> {
+    fn raw_uninstall<T: SetupTask>(data: RawConfigValue, progress: Var<Progress>) -> BoxFutResult<(), SetupTaskError> {
         Box::pin(async move {
             let args = UninstallArgs {
                 data: value_de(data)?,
@@ -389,7 +463,7 @@ impl SetupTaskType {
 }
 
 #[allow(unused)]
-pub(crate) fn path_utf8(p: PathBuf) -> Result<String> {
+pub(crate) fn path_utf8(p: PathBuf) -> Result<String, SetupTaskError> {
     match p.to_str() {
         Some(s) => Ok(if cfg!(windows) {
             s.replace('/', "\\")

@@ -10,9 +10,6 @@ use zng_var::{ResponderVar, ResponseVar, Var, VarEq, VarValue, const_var, respon
 
 use crate::task::{SetupTask, SetupTaskError, SetupTaskType, TaskTypeId};
 
-/// Result type for [`SETUP`] operations.
-pub type Result<T> = std::result::Result<T, SetupError>;
-
 /// Setup service.
 ///
 /// This service runs [install] and [uninstall] operations sequentially. Operations
@@ -50,7 +47,7 @@ impl SETUP {
     /// [prepare]: Self::prepare_install
     /// [commit]: Self::commit_install
     /// [`uninstall`]: Self::uninstall
-    pub fn install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("install", move || {
             SETUP_SV.write().run(async move { install(config, update).await }, r);
@@ -71,7 +68,11 @@ impl SETUP {
     ///
     /// [`commit_install`]: Self::commit_install
     /// [`cancel_prepared`]: Self::cancel_prepared
-    pub fn prepare_install(&self, config: InstallConfig, update: Option<UninstallConfig>) -> ResponseVar<Result<PreparedInstallConfig>> {
+    pub fn prepare_install(
+        &self,
+        config: InstallConfig,
+        update: Option<UninstallConfig>,
+    ) -> ResponseVar<Result<PreparedInstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("prepare_install", move || {
             SETUP_SV.write().run(async move { prepare_install(config, update).await }, r);
@@ -85,7 +86,7 @@ impl SETUP {
     /// a prepared install that already completed.
     ///
     /// [`prepare_install`]: Self::prepare_install
-    pub fn cancel_prepared(&self, config: PreparedInstallConfig) -> ResponseVar<Result<()>> {
+    pub fn cancel_prepared(&self, config: PreparedInstallConfig) -> ResponseVar<Result<(), SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("cancel_prepared", move || {
             SETUP_SV.write().run(async move { cancel_prepared(config).await }, r);
@@ -104,7 +105,7 @@ impl SETUP {
     ///
     /// [`cancel_prepared`]: Self::cancel_prepared
     /// [`uninstall`]: Self::uninstall
-    pub fn commit_install(&self, config: PreparedInstallConfig) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn commit_install(&self, config: PreparedInstallConfig) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("commit_install", move || {
             SETUP_SV.write().run(async move { commit_install(config).await }, r);
@@ -120,7 +121,7 @@ impl SETUP {
     /// Returns a response var that updates once with the result of the operation.
     ///
     /// [validate]: Self::validate_uninstall
-    pub fn uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<()>> {
+    pub fn uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<(), SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("uninstall", move || {
             SETUP_SV.write().run(async move { uninstall(config).await }, r);
@@ -136,7 +137,7 @@ impl SETUP {
     /// successful the config data is returned, potentially corrected if recoverable issues where found.
     ///
     /// [`uninstall`]: Self::uninstall
-    pub fn validate_uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<UninstallConfig>> {
+    pub fn validate_uninstall(&self, config: UninstallConfig) -> ResponseVar<Result<UninstallConfig, SetupError>> {
         let (r, rsp) = response_var();
         UPDATES.once_update("validate_uninstall", move || {
             SETUP_SV.write().run(async move { validate_uninstall(config).await }, r);
@@ -246,14 +247,9 @@ pub struct SetupError {
     ///
     /// Each task is identified by index on the operation, type and name.
     pub task_errors: Vec<((usize, TaskTypeId, Txt), SetupTaskError)>,
-    /// If canceled successfully.
-    ///
-    /// If this is `true` and has no errors the operation was canceled by request.
-    ///
-    /// If this is `true` and has errors the tasks managed to cleanup or had not started yet.
-    ///
-    /// If this is `false` and has errors some tasks already made irreversible changes, the installation is probably corrupted.
-    pub canceled: bool,
+
+    /// Operation state after not completing successfully.
+    pub state: SetupErrorState,
 }
 impl SetupError {
     /// No actual error, canceled by request.
@@ -261,7 +257,7 @@ impl SetupError {
         Self {
             op_error: None,
             task_errors: vec![],
-            canceled: true,
+            state: SetupErrorState::Canceled,
         }
     }
 
@@ -269,23 +265,23 @@ impl SetupError {
     ///
     /// Each task is identified by index on the operation, type and name.
     ///
-    /// If the tasks managed to reverse all system changes `canceled` must be `true`.
-    pub fn task_errors(errors: Vec<((usize, TaskTypeId, Txt), SetupTaskError)>, canceled: bool) -> Self {
+    /// If the tasks managed to reverse all changes before committing the `state` must be `Canceled`.
+    pub fn task_errors(errors: Vec<((usize, TaskTypeId, Txt), SetupTaskError)>, state: SetupErrorState) -> Self {
         Self {
             op_error: None,
             task_errors: errors,
-            canceled,
+            state,
         }
     }
 
     /// Operation failed with error associated with operation itself that affects all tasks.
     ///
-    /// If the error is detected before any task runs `canceled` should be `true`.
-    pub fn op_error(error: SetupTaskError, canceled: bool) -> Self {
+    /// If the error is detected before any task runs and any non-destructive change was made the `state` must be `Canceled`.
+    pub fn op_error(error: SetupTaskError, state: SetupErrorState) -> Self {
         Self {
             op_error: Some(error),
             task_errors: vec![],
-            canceled,
+            state,
         }
     }
 
@@ -299,8 +295,55 @@ impl SetupError {
             }
         }
         impl std::error::Error for CorruptedOpConfig {}
-        Self::op_error(SetupTaskError::CorruptedTaskData(Arc::new(CorruptedOpConfig(config_name))), true)
+        Self::op_error(
+            SetupTaskError::CorruptedTaskData(Arc::new(CorruptedOpConfig(config_name))),
+            SetupErrorState::Canceled,
+        )
     }
+}
+
+/// Represents state of a setup operation that ended in a [`SetupError`].
+#[derive(Clone, PartialEq, Debug)]
+pub enum SetupErrorState {
+    /// Canceled successfully, all changes where reverted.
+    ///
+    /// The operation is canceled by request or by error before it starts committing irreversible changes,
+    /// either way the system and any previous installation is not affected when ended in this state.
+    Canceled,
+
+    /// Install operation failed before it started making irreversible changes and failed to cleanup
+    /// temporary changes.
+    ///
+    /// When an install fails during the preparing phase it automatically attempts to *cancel*, this is
+    /// the error when that cancel fails. If the install was an update the previous version will still be valid.
+    PartialPrepareInstall,
+
+    /// Install operation failed while making irreversible changes to the system.
+    ///
+    /// Operation attempts to complete as much of the install as possible, the associated `data`
+    /// can be used to uninstall the committed changes. Well designed tasks will cleanup all temporary
+    /// *prepared* data on error and generate uninstall data that cleanups even partial written files, but
+    /// there is no guarantee that this data will fully uninstall every change.
+    ///
+    /// If the operation was replacing a previous install (update or repair) the `data` will also
+    /// uninstall the previous installation.
+    PartialInstall {
+        /// Data that can uninstall all the successfully committed changes made during the failed install.
+        data: UninstallConfig,
+        /// Tasks that failed without generating uninstall data.
+        ///
+        /// If this is not empty uninstalling `data` will definitely not fully cleanup the broken install.
+        ///
+        /// Tasks are identified by index on the operation, type and name.
+        no_data: Vec<(usize, TaskTypeId, Txt)>,
+    },
+    /// Uninstall operation failed while making irreversible changes to the system.
+    ///
+    /// Operation attempts to complete as much of the uninstall as possible, so all tasks without error
+    /// have completed successfully.
+    ///
+    ///
+    PartialUninstall,
 }
 
 /// Represents status of [`SETUP`].
@@ -384,7 +427,11 @@ impl SetupOpStatus {
 }
 
 impl Setup {
-    fn run<R: VarValue>(&mut self, op: impl Future<Output = Result<R>> + Send + 'static, r: ResponderVar<Result<R>>) {
+    fn run<R: VarValue>(
+        &mut self,
+        op: impl Future<Output = Result<R, SetupError>> + Send + 'static,
+        r: ResponderVar<Result<R, SetupError>>,
+    ) {
         self.run_impl(Box::pin(async move {
             let res = op.await;
             r.respond(res);
@@ -411,7 +458,7 @@ impl Setup {
         }
     }
 
-    fn task_type(&self, id: &TaskTypeId) -> crate::task::Result<SetupTaskType> {
+    fn task_type(&self, id: &TaskTypeId) -> Result<SetupTaskType, SetupTaskError> {
         for t in &self.task_types {
             if &(t.task_type_id)() == id {
                 return Ok(t.clone());
@@ -421,7 +468,7 @@ impl Setup {
     }
 }
 
-async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<UninstallConfig> {
+async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<UninstallConfig, SetupError> {
     let config = prepare_install(config, update).await?;
     if SETUP_SV.read().cancel.get() {
         cancel_prepared(config).await?;
@@ -431,7 +478,7 @@ async fn install(config: InstallConfig, update: Option<UninstallConfig>) -> Resu
     }
 }
 
-async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<PreparedInstallConfig> {
+async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>) -> Result<PreparedInstallConfig, SetupError> {
     let (status, cancel) = {
         let sv = SETUP_SV.read();
         (sv.status.clone(), sv.cancel.clone())
@@ -533,11 +580,12 @@ async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>)
 
         // cancel due to error
         if let Err(mut ce) = cancel_prepared(prepared_cfg).await {
-            ce.canceled = false;
+            // did not cleanup prepared either.
+            ce.state = SetupErrorState::PartialPrepareInstall;
             ce.task_errors.insert(0, e);
             Err(ce)
         } else {
-            Err(SetupError::task_errors(vec![e], true))
+            Err(SetupError::task_errors(vec![e], SetupErrorState::Canceled))
         }
     } else if cancel.get() {
         // cancel due to request
@@ -554,7 +602,7 @@ async fn prepare_install(config: InstallConfig, update: Option<UninstallConfig>)
     }
 }
 
-async fn cancel_prepared(config: PreparedInstallConfig) -> Result<()> {
+async fn cancel_prepared(config: PreparedInstallConfig) -> Result<(), SetupError> {
     let status = SETUP_SV.read().status.clone();
 
     let tasks_len = config.cfg.len();
@@ -619,11 +667,11 @@ async fn cancel_prepared(config: PreparedInstallConfig) -> Result<()> {
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(SetupError::task_errors(errors, false))
+        Err(SetupError::task_errors(errors, SetupErrorState::PartialPrepareInstall))
     }
 }
 
-async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig> {
+async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig, SetupError> {
     let status = SETUP_SV.read().status.clone();
 
     let tasks_len = config.tasks.len();
@@ -633,6 +681,7 @@ async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig
 
     let mut errors = vec![];
     let mut uninstall_cfg = vec![];
+    let mut err_no_clean = vec![];
 
     for (i, (id, cfg)) in config.tasks.iter().zip(config.cfg).enumerate() {
         let task_progress = var(Progress::indeterminate());
@@ -659,15 +708,22 @@ async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig
 
         // run task
         let task_ty = SETUP_SV.read().task_type(&id.0);
-        let error = match task_ty {
+        let mut error = None;
+        match task_ty {
             Ok(task_ty) => match (task_ty.install)(cfg, task_progress.clone()).await {
                 Ok(c) => {
                     uninstall_cfg.push(c);
-                    None
                 }
-                Err(e) => Some(e),
+                Err(e) => {
+                    error = Some(e.error);
+                    if let Some(d) = e.clean_data {
+                        uninstall_cfg.push(d);
+                    } else {
+                        err_no_clean.push((i, id.0.clone(), id.1.clone()));
+                    }
+                }
             },
-            Err(e) => Some(e),
+            Err(e) => error = Some(e),
         };
 
         if let Some(e) = error {
@@ -689,6 +745,11 @@ async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig
         }
     }
 
+    let mut tasks = config.tasks;
+    tasks.reverse();
+    uninstall_cfg.reverse();
+    let data = UninstallConfig { tasks, cfg: uninstall_cfg };
+
     if errors.is_empty() {
         // ensure general status updates to complete
         status.modify(clmv!(|a| {
@@ -697,16 +758,19 @@ async fn commit_install(config: PreparedInstallConfig) -> Result<UninstallConfig
             }
         }));
 
-        let mut tasks = config.tasks;
-        tasks.reverse();
-        uninstall_cfg.reverse();
-        Ok(UninstallConfig { tasks, cfg: uninstall_cfg })
+        Ok(data)
     } else {
-        Err(SetupError::task_errors(errors, false))
+        Err(SetupError::task_errors(
+            errors,
+            SetupErrorState::PartialInstall {
+                data,
+                no_data: err_no_clean,
+            },
+        ))
     }
 }
 
-async fn uninstall(config: UninstallConfig) -> Result<()> {
+async fn uninstall(config: UninstallConfig) -> Result<(), SetupError> {
     let config = validate_uninstall(config).await?;
 
     let status = SETUP_SV.read().status.clone();
@@ -775,11 +839,11 @@ async fn uninstall(config: UninstallConfig) -> Result<()> {
         }));
         Ok(())
     } else {
-        Err(SetupError::task_errors(errors, false))
+        Err(SetupError::task_errors(errors, SetupErrorState::PartialUninstall))
     }
 }
 
-async fn validate_uninstall(config: UninstallConfig) -> Result<UninstallConfig> {
+async fn validate_uninstall(config: UninstallConfig) -> Result<UninstallConfig, SetupError> {
     let (status, cancel) = {
         let sv = SETUP_SV.read();
         (sv.status.clone(), sv.cancel.clone())
@@ -866,6 +930,6 @@ async fn validate_uninstall(config: UninstallConfig) -> Result<UninstallConfig> 
         }));
         Ok(UninstallConfig { tasks, cfg })
     } else {
-        Err(SetupError::task_errors(errors, canceled))
+        Err(SetupError::task_errors(errors, SetupErrorState::Canceled))
     }
 }
