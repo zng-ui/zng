@@ -84,9 +84,9 @@ Text
 ANSI escape codes with lang `console` or `ansi`:
 
 ```console
-&#x1b;[31mRED&#x1b;[0m normal text
-&#x1b;[32;1mGREEN&amp;BOLD&#x1b;[0m normal text
-&#x1b;[34mBLUE&#x1b;[0m normal text
+\x1b[31mRED\x1b[0m normal text
+\x1b[32;1mGREEN&amp;BOLD\x1b[0m normal text
+\x1b[34mBLUE\x1b[0m normal text
 ```
 
 ### Rule
