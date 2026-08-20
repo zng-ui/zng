@@ -286,7 +286,7 @@ impl About {
     ///
     /// On startup the default view-process calls `SetCurrentProcessExplicitAppUserModelID` to ensure the GUI
     /// is associated with the Start Menu entry even when not running from the start menu.
-    /// 
+    ///
     /// [`app_id`]: About::app_id
     pub fn windows_aumid(&self) -> Txt {
         match self.get("windows_aumid") {
