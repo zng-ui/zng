@@ -121,7 +121,7 @@ fn main() {
                                     Image!("404.png"),
 
                                     sub_title("Web"),
-                                    Image!("https://httpbin.org/delay/5"),
+                                    Image!("https://httpbin.org/status/404"),
                                 ]
                             ),
                             section(
