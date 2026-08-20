@@ -223,13 +223,16 @@ mod ansi_parse {
         source: &'a str,
         /// Current style.
         pub style: AnsiStyle,
+
+        esc: &'a [&'a str],
     }
     impl<'a> AnsiTextParser<'a> {
         /// New parsing iterator.
-        pub fn new(source: &'a str) -> Self {
+        pub fn new(source: &'a str, esc: &'a [&'a str]) -> Self {
             Self {
                 source,
                 style: AnsiStyle::default(),
+                esc,
             }
         }
     }
@@ -237,16 +240,44 @@ mod ansi_parse {
         type Item = AnsiTxt<'a>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            const CSI: &str = "\x1b[";
-
             fn is_esc_end(byte: u8) -> bool {
                 (0x40..=0x7e).contains(&byte)
+            }
+            fn strip_esc<'a>(s: &'a str, esc: &[&str]) -> Option<&'a str> {
+                for esc in esc {
+                    if esc.is_empty() {
+                        continue;
+                    }
+                    if let Some(s) = s.strip_prefix(esc)
+                        && let Some(s) = s.strip_prefix('[')
+                    {
+                        return Some(s);
+                    }
+                }
+                None
+            }
+            fn find_esc(s: &str, esc: &[&str]) -> Option<usize> {
+                for esc in esc {
+                    if esc.is_empty() {
+                        continue;
+                    }
+                    let mut s = s;
+                    if let Some(i) = s.find(esc) {
+                        s = &s[i + esc.len()..];
+                        if s.starts_with('[') {
+                            return Some(i);
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                None
             }
 
             loop {
                 if self.source.is_empty() {
                     return None;
-                } else if let Some(source) = self.source.strip_prefix(CSI) {
+                } else if let Some(source) = strip_esc(self.source, self.esc) {
                     let mut esc_end = 0;
                     while esc_end < source.len() && !is_esc_end(source.as_bytes()[esc_end]) {
                         esc_end += 1;
@@ -260,7 +291,7 @@ mod ansi_parse {
 
                     self.source = source;
                     continue;
-                } else if let Some(i) = self.source.find(CSI) {
+                } else if let Some(i) = find_esc(self.source, self.esc) {
                     let (txt, source) = self.source.split_at(i);
                     self.source = source;
                     return Some(AnsiTxt {
@@ -470,6 +501,11 @@ mod ansi_fn {
         ///
         /// Is `200` by default.
         pub static LINES_PER_PAGE_VAR: u32 = 200;
+
+        /// Alternate prefix that is parsed as `'\x1b'` when it marks the start of an ANSI sequence.
+        ///
+        /// Is `r"\x1b"` by default.
+        pub static ALTERNATE_ESC_VAR: Txt = r"\x1b";
     }
 
     /// Default [`TEXT_FN_VAR`].
@@ -666,6 +702,20 @@ mod ansi_fn {
     pub fn lines_per_page(child: impl IntoUiNode, count: impl IntoVar<u32>) -> UiNode {
         with_context_var(child, LINES_PER_PAGE_VAR, count)
     }
+    /// Alternate prefix that is parsed as `'\x1b'` when it marks the start of an ANSI sequence.
+    ///
+    /// This is useful for input that comes from a text file for example, where there is no easy
+    /// way to type or edit the ESC character.
+    ///
+    /// An empty text here represents no alternate ESC.
+    ///
+    /// Is `r"\x1b"` by default.
+    ///
+    /// This property sets the [`ALTERNATE_ESC_VAR`].
+    #[property(CONTEXT, default(ALTERNATE_ESC_VAR))]
+    fn alternate_esc(child: impl IntoUiNode, esc: impl IntoVar<Txt>) -> UiNode {
+        with_context_var(child, ALTERNATE_ESC_VAR, esc)
+    }
 }
 
 fn generate_ansi(txt: &Var<Txt>) -> UiNode {
@@ -678,12 +728,13 @@ fn generate_ansi(txt: &Var<Txt>) -> UiNode {
         let page_fn = PAGE_FN_VAR.get();
         let panel_fn = PANEL_FN_VAR.get();
         let lines_per_page = LINES_PER_PAGE_VAR.get() as usize;
+        let alt_esc = ALTERNATE_ESC_VAR.get();
 
         let mut pages = Vec::with_capacity(4);
         let mut lines = Vec::with_capacity(50);
 
         for (i, line) in txt.lines().enumerate() {
-            let text = ansi_parse::AnsiTextParser::new(line)
+            let text = ansi_parse::AnsiTextParser::new(line, &["\x1b", alt_esc.as_str()])
                 .filter_map(|txt| {
                     text_fn.call_checked(TextFnArgs {
                         txt: txt.txt.to_txt(),
@@ -730,7 +781,8 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> UiNode {
                 .sub_var(&PAGE_FN_VAR)
                 .sub_var(&PANEL_FN_VAR)
                 .sub_var(&LINES_PER_PAGE_VAR)
-                .sub_var(&BLINK_INTERVAL_VAR);
+                .sub_var(&BLINK_INTERVAL_VAR)
+                .sub_var(&ALTERNATE_ESC_VAR);
 
             *c.node() = generate_ansi(&txt);
         }

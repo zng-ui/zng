@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix ANSI code block not formatting in `Markdown!`.
+    - Add `AnsiText::alternate_esc` property.
+    - Now parses `r"\x1b"` as `'\x1b'` by default.
+
 * Implement better HTTP error handling.
     - Add `Response::error` to convert to a Rust error.
     - Add `HttpError` type.
