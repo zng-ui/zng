@@ -2519,7 +2519,7 @@ impl Api for App {
             clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();
-                for rgba in data.chunks_exact_mut(4) {
+                for rgba in data.as_chunks_mut::<4>().0 {
                     rgba.swap(0, 2); // to bgra
                 }
                 let id = self.image_cache.add(image::ImageRequest::new(
@@ -2563,7 +2563,7 @@ impl Api for App {
                 if let Some(img) = self.image_cache.get(id) {
                     let size = img.size();
                     let mut data = img.pixels().clone().to_vec();
-                    for rgba in data.chunks_exact_mut(4) {
+                    for rgba in data.as_chunks_mut::<4>().0 {
                         rgba.swap(0, 2); // to rgba
                     }
                     let board = self.arboard()?;

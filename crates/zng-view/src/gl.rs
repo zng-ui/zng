@@ -718,7 +718,7 @@ impl GlContext {
                     assert!(stride == w * 4);
                     let frame = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
                     // bgra, max_y=0
-                    let frame = frame.chunks_exact(stride as _).rev().flat_map(|row| row.chunks_exact(4));
+                    let frame = frame.chunks_exact(stride as _).rev().flat_map(|row| row.as_chunks::<4>().0);
                     let mut buffer = blit_surface.buffer_mut().unwrap();
                     for (argb, bgra) in buffer.iter_mut().zip(frame) {
                         let blue = bgra[0] as u32;

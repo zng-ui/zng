@@ -747,7 +747,7 @@ impl ImageFormat {
             if magic.is_empty() || magic.len() > file_prefix.len() * 2 {
                 continue 'search;
             }
-            'm: for (c, b) in magic.as_bytes().chunks_exact(2).zip(file_prefix) {
+            'm: for (c, b) in magic.as_bytes().as_chunks::<2>().0.iter().zip(file_prefix) {
                 if c == b"xx" {
                     continue 'm;
                 }
