@@ -472,7 +472,7 @@ impl ImageCache {
                     raw
                 } else {
                     let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
-                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
+                    for (p, l) in bgra.as_chunks_mut::<4>().0.iter_mut().zip(raw.iter().copied()) {
                         p.copy_from_slice(&[l, l, l, 255])
                     }
                     bgra
@@ -499,7 +499,7 @@ impl ImageCache {
                     raw
                 } else {
                     let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
-                    for (p, la) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(2)) {
+                    for (p, la) in bgra.as_chunks_mut::<4>().0.iter_mut().zip(raw.as_chunks::<2>().0) {
                         let a = la[1];
                         is_opaque &= a == 255;
 
@@ -539,7 +539,7 @@ impl ImageCache {
                     raw
                 } else {
                     let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
-                    for (p, rgb) in bgra.chunks_exact_mut(4).zip(raw.chunks_exact(3)) {
+                    for (p, rgb) in bgra.as_chunks_mut::<4>().0.iter_mut().zip(raw.as_chunks::<3>().0) {
                         p.copy_from_slice(&[rgb[2], rgb[1], rgb[0], 255]);
                     }
                     bgra
@@ -599,7 +599,7 @@ impl ImageCache {
                     raw
                 } else {
                     let mut bgra = IpcBytesMut::new_blocking(pixels_len * 4)?;
-                    for (p, l) in bgra.chunks_exact_mut(4).zip(raw.iter().copied()) {
+                    for (p, l) in bgra.as_chunks_mut::<4>().0.iter_mut().zip(raw.iter().copied()) {
                         let l = (l as f32 / u16::MAX as f32 * 255.0) as u8;
                         p.copy_from_slice(&[l, l, l, 255]);
                     }
@@ -932,7 +932,7 @@ impl ImageCache {
         let mut is_opaque = true;
         match mask {
             ImageMaskMode::Luminance => {
-                for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
+                for (p, bgra) in a.iter_mut().zip(bgra8.as_chunks::<4>().0) {
                     let c = luminance(bgra[2], bgra[1], bgra[0]);
                     is_opaque &= c == 255;
                     *p = c;
@@ -946,7 +946,7 @@ impl ImageCache {
                     ImageMaskMode::R => 2,
                     _ => unreachable!(),
                 };
-                for (p, bgra) in a.iter_mut().zip(bgra8.chunks_exact(4)) {
+                for (p, bgra) in a.iter_mut().zip(bgra8.as_chunks::<4>().0) {
                     let c = bgra[channel];
                     is_opaque &= c == 255;
                     *p = c;
@@ -1024,7 +1024,7 @@ impl ImageCache {
         resizer_cache: &ResizerCache,
     ) -> std::io::Result<RawLoadedImg> {
         let mut bgra = IpcBytesMut::new_blocking(a8.len() * 4)?;
-        for (p, &l) in bgra.chunks_exact_mut(4).zip(a8) {
+        for (p, &l) in bgra.as_chunks_mut::<4>().0.iter_mut().zip(a8) {
             p.copy_from_slice(&[l, l, l, 255])
         }
 

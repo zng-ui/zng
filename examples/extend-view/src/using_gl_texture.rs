@@ -77,7 +77,7 @@ pub mod view_side {
             let mut img = vec![0u8; size.width as usize * size.height as usize * 4];
             let mut line = 0u8;
             let mut col = 0u8;
-            for rgba in img.chunks_exact_mut(4) {
+            for rgba in img.as_chunks_mut::<4>().0 {
                 rgba[0] = 255;
                 rgba[1] = 10 + line * 3;
                 rgba[2] = 10 + line * 3;

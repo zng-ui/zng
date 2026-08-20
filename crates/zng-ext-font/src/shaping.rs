@@ -2842,7 +2842,7 @@ impl ShapedTextBuilder {
         let (data, fmt) = match img.data {
             skrifa::bitmap::BitmapData::Bgra(d) => {
                 let mut bgra = d.to_vec();
-                for c in bgra.chunks_exact_mut(4) {
+                for c in bgra.as_chunks_mut::<4>().0 {
                     let (b, g, r, a) = (c[0], c[1], c[2], c[3]);
                     let unp = if a == 255 {
                         [b, g, r]

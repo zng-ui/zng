@@ -404,7 +404,7 @@ impl ImageCache {
                     match Self::downscale_decoded(mask, downscale_sizes.0, &resizer, size, &data) {
                         Ok(Some((size, data_mut))) => match data_mut.finish_blocking() {
                             Ok(data) => {
-                                let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                                let is_opaque = data.as_chunks::<4>().0.iter().all(|c| c[3] == 255);
                                 if let Some(d) = decoded!(
                                     (data, size, None, is_opaque, false),
                                     original_color_type,
@@ -416,7 +416,7 @@ impl ImageCache {
                             Err(e) => error!("{e}"),
                         },
                         Ok(None) => {
-                            let is_opaque = data.chunks_exact(4).all(|c| c[3] == 255);
+                            let is_opaque = data.as_chunks::<4>().0.iter().all(|c| c[3] == 255);
                             if let Some(d) = decoded!(
                                 (data, size, None, is_opaque, false),
                                 original_color_type,

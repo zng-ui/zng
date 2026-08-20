@@ -123,7 +123,7 @@ fn load_render(max_decoded_len: ByteLength, data: SvgData, downscale: Option<Ima
                 resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap);
 
                 let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
-                for rgba in data.chunks_exact_mut(4) {
+                for rgba in data.as_chunks_mut::<4>().0 {
                     // rgba to bgra
                     rgba.swap(0, 2);
                 }

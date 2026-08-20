@@ -1159,7 +1159,7 @@ impl ImageSource {
         let pixels = size.width.0 as usize * size.height.0 as usize;
         let bgra = color.to_bgra_bytes();
         let mut b = IpcBytesMut::new_blocking(pixels * 4).expect("cannot allocate IpcBytes");
-        for b in b.chunks_exact_mut(4) {
+        for b in b.as_chunks_mut::<4>().0 {
             b.copy_from_slice(&bgra);
         }
         Self::from_data(

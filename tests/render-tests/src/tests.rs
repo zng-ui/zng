@@ -58,7 +58,7 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
         let (copied_rect, p) = img.copy_pixels(rect).unwrap_or_else(|| panic!("expected `{rect:?}`"));
 
         assert_eq!(copied_rect, rect);
-        for cc in p.chunks_exact(4) {
+        for cc in p.as_chunks::<4>().0 {
             // BGRA
             let copied_color = rgba(cc[2], cc[1], cc[0], cc[3]);
             assert_eq!(color, copied_color, "expected all {color} in {rect:?}, found {copied_color}");

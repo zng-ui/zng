@@ -128,12 +128,12 @@ impl ImageCache {
             Ok(ImageDecoded::new(meta, pixels, is_opaque))
         } else {
             if format == gleam::gl::RGBA {
-                for rgba in buf.chunks_exact_mut(4) {
+                for rgba in buf.as_chunks_mut::<4>().0 {
                     rgba.swap(0, 3);
                 }
             }
 
-            let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
+            let is_opaque = buf.as_chunks::<4>().0.iter().all(|bgra| bgra[3] == 255);
 
             let data = buf.finish_blocking()?;
             let density = 96.0 * scale_factor.0;

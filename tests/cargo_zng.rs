@@ -158,18 +158,10 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
     }
     fs::create_dir_all(&target).unwrap();
 
-    let error;
-    let stdio;
-    match zng_new(keys, &target, &source) {
-        Ok(s) => {
-            error = None;
-            stdio = s;
-        }
-        Err((e, s)) => {
-            error = Some(e);
-            stdio = s;
-        }
-    }
+    let (error, stdio) = match zng_new(keys, &target, &source) {
+        Ok(s) => (None, s),
+        Err((e, s)) => (Some(e), s),
+    };
 
     let _ = fs::remove_dir_all(&source);
 
@@ -198,18 +190,10 @@ fn res_no_verify(test: &str, pack: Pack) -> ([PathBuf; 3], StdioStr, Option<io::
     let tool_dir = test_dir.join("tools");
     let metadata = tests_dir.join("metadata.toml");
 
-    let error;
-    let stdio;
-    match zng_res(&[&source, &target], &tool_dir, &metadata, matches!(pack, Pack::Yes)) {
-        Ok(s) => {
-            error = None;
-            stdio = s;
-        }
-        Err((e, s)) => {
-            error = Some(e);
-            stdio = s;
-        }
-    }
+    let (error, stdio) = match zng_res(&[&source, &target], &tool_dir, &metadata, matches!(pack, Pack::Yes)) {
+        Ok(s) => (None, s),
+        Err((e, s)) => (Some(e), s),
+    };
     ([test_dir, source, target], stdio, error)
 }
 

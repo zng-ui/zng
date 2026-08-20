@@ -636,11 +636,19 @@ impl Response {
 ///
 /// See [`Response::error`] for more details.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct HttpError {
     /// The error code.
     pub status: StatusCode,
     /// The error body.
     pub body: Txt,
+}
+
+impl HttpError {
+    /// New error.
+    pub fn new(status: StatusCode, body: Txt) -> Self {
+        Self { status, body }
+    }
 }
 /// Alternate writes the `body`.
 impl fmt::Display for HttpError {

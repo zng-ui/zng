@@ -273,7 +273,7 @@ impl Image {
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
-                    for (p, &a) in expanded.chunks_exact_mut(3).zip(&buf[..]) {
+                    for (p, &a) in expanded.as_chunks_mut::<3>().0.iter_mut().zip(&buf[..]) {
                         p[0] = a;
                         p[1] = a;
                         p[2] = a;
@@ -414,7 +414,7 @@ impl Image {
                         c[2] = a;
                     }
                 } else {
-                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                    for (c32, c8) in rgb.iter_mut().zip(buf.as_chunks::<4>().0) {
                         for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
                             *c32 = *c8 as f32 * F;
                         }
@@ -447,7 +447,7 @@ impl Image {
                     image::ColorType::Rgb32F.into()
                 } else if is_opaque {
                     let mut rgb = zng_task::channel::IpcBytesMutCast::<[f32; 3]>::new_blocking(width as usize * height as usize)?;
-                    for (c32, c8) in rgb.iter_mut().zip(buf.chunks_exact(4)) {
+                    for (c32, c8) in rgb.iter_mut().zip(buf.as_chunks::<4>().0) {
                         for (c, a) in c32.iter_mut().zip(c8.iter()) {
                             *c = *a as f32 * F;
                         }
@@ -456,7 +456,7 @@ impl Image {
                     image::ColorType::Rgb32F.into()
                 } else {
                     let mut rgba = zng_task::channel::IpcBytesMutCast::<[f32; 4]>::new_blocking(width as usize * height as usize)?;
-                    for (c32, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
+                    for (c32, c8) in rgba.iter_mut().zip(buf.as_chunks::<4>().0) {
                         for (c32, c8) in c32.iter_mut().zip(c8.iter()) {
                             *c32 = *c8 as f32 * F;
                         }
@@ -484,7 +484,7 @@ impl Image {
                         c[3] = u16::MAX;
                     }
                 } else {
-                    for (c16, c8) in rgba.iter_mut().zip(buf.chunks_exact(4)) {
+                    for (c16, c8) in rgba.iter_mut().zip(buf.as_chunks::<4>().0) {
                         for (c16, c8) in c16.iter_mut().zip(c8.iter()) {
                             *c16 = *c8 as u16 * F;
                         }
@@ -506,7 +506,7 @@ impl Image {
                 if is_mask {
                     // encoder only supports RGB
                     let mut expanded = IpcBytesMut::new_blocking(buf.len() * 3)?;
-                    for (p, &a) in expanded.chunks_exact_mut(3).zip(&buf[..]) {
+                    for (p, &a) in expanded.as_chunks_mut::<3>().0.iter_mut().zip(&buf[..]) {
                         p[0] = a;
                         p[1] = a;
                         p[2] = a;
@@ -668,9 +668,9 @@ impl<W: std::io::Write + std::io::Seek> EncodeBuffer for W {}
 
 fn bgra_pre_mul_to_rgba(buf: &mut [u8], is_opaque: bool) {
     if is_opaque {
-        buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+        buf.as_chunks_mut::<4>().0.iter_mut().for_each(|c| c.swap(0, 2));
     } else {
-        buf.chunks_exact_mut(4).for_each(|c| {
+        buf.as_chunks_mut::<4>().0.iter_mut().for_each(|c| {
             let alpha = c[3];
 
             // idea here is to avoid div by zero, without introducing an if branch
