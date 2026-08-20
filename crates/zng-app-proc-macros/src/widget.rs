@@ -10,7 +10,7 @@ use crate::{
 lazy_static! {
     static ref DOCS_JS: String = {
         let js = include_str!("../js/widget.js");
-        let js = minifier::js::minify(js);
+        let js = minifier::js::minify(js).unwrap();
         format!("<script>{js}</script>")
     };
 }
