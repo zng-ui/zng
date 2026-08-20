@@ -1361,6 +1361,20 @@ impl App {
     pub fn run_headed(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
 
+        #[cfg(windows)]
+        {
+            // register Windows AUMID if set to enable better notifications
+            let aumid = zng_env::about().windows_aumid();
+            if !aumid.is_empty() {
+                let r = unsafe {
+                    windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(&windows::core::HSTRING::from(aumid.as_str()))
+                };
+                if let Err(e) = r {
+                    tracing::error!("cannot set AUMID, {e}");
+                }
+            }
+        }
+
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::with_user_event().build().unwrap();
