@@ -504,6 +504,7 @@ fn audio(mut source: AudioSource, mut options: AudioOptions, limits: Option<Audi
                 }
                 let request = Request::get(uri)?.max_length(limit.1).header(header::ACCEPT, accept.as_str())?;
                 let mut response = send(request).await?;
+                response.error().await?;
                 let data_format = match response.header().get(&header::CONTENT_TYPE).and_then(|m| m.to_str().ok()) {
                     Some(m) => AudioDataFormat::MimeType(m.to_txt()),
                     None => AudioDataFormat::Unknown,

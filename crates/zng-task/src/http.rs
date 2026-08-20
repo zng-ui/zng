@@ -17,7 +17,15 @@ pub use ctx::{HttpCache, HttpClient, http_cache, http_client, set_http_cache, se
 pub use curl::CurlProcessClient;
 pub use file_cache::FileSystemCache;
 
-/// Any error during request or response.
+/// Any error sending request or receiving response.
+///
+/// # HTTP Error
+///
+/// In functions that return `Result<Response, Error>` successfully received HTTP errors are not converted to `Err`. Use
+/// [`Response::error`] to get a [`HttpError`] if the response represents an error.
+///
+/// In helper functions that convert the response body to a value the [`HttpError`] is converted into this type. You
+/// can downcast to get the HTTP error in those cases.
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 pub use http::{
@@ -35,7 +43,7 @@ use crate::{channel::IpcBytes, http::ctx::REQUEST_DEFAULT, io::Metrics};
 
 use super::io::AsyncRead;
 
-use zng_txt::{ToTxt, Txt};
+use zng_txt::{ToTxt, Txt, formatx};
 use zng_unit::*;
 
 /// HTTP request.
@@ -604,7 +612,52 @@ impl Response {
     pub fn metrics(&self) -> Var<Metrics> {
         self.metrics.read_only()
     }
+
+    /// Convert failed status to an error.
+    ///
+    /// If the [`status`] is not success this will attempt to download the body as text, otherwise
+    /// the body is not accessed.
+    ///
+    /// [`status`]: Response::status
+    pub async fn error(&mut self) -> Result<(), HttpError> {
+        if self.status.is_success() {
+            Ok(())
+        } else {
+            let body = match self.body_text().await {
+                Ok(b) => b,
+                Err(e) => formatx!("could not receive error body, {e}"),
+            };
+            Err(HttpError { status: self.status, body })
+        }
+    }
 }
+
+/// Represents an HTTP response error.
+///
+/// See [`Response::error`] for more details.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpError {
+    /// The error code.
+    pub status: StatusCode,
+    /// The error body.
+    pub body: Txt,
+}
+/// Alternate writes the `body`.
+impl fmt::Display for HttpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "HTTP error {}", self.status.as_str())?;
+        if let Some(r) = self.status.canonical_reason() {
+            write!(f, " {r}")?;
+        }
+        if f.alternate() && self.body.is_empty() {
+            for line in self.body.lines() {
+                write!(f, "\n   {line}")?;
+            }
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for HttpError {}
 
 /// Send a GET request to the `uri`.
 ///
@@ -625,7 +678,9 @@ where
     U: TryInto<Uri>,
     Error: From<<U as TryInto<Uri>>::Error>,
 {
-    send(Request::get(uri)?).await?.body_text().await
+    let mut r = send(Request::get(uri)?).await?;
+    r.error().await?;
+    r.body_text().await
 }
 
 /// Send a GET request to the `uri` and read the response as raw bytes.
@@ -636,7 +691,9 @@ where
     U: TryInto<Uri>,
     Error: From<<U as TryInto<Uri>>::Error>,
 {
-    send(Request::get(uri)?).await?.body().await
+    let mut r = send(Request::get(uri)?).await?;
+    r.error().await?;
+    r.body().await
 }
 
 /// Send a GET request to the `uri` and de-serializes the response.
@@ -648,7 +705,9 @@ where
     Error: From<<U as TryInto<Uri>>::Error>,
     O: serde::de::DeserializeOwned + std::marker::Unpin,
 {
-    send(Request::get(uri)?).await?.body_json().await
+    let mut r = send(Request::get(uri)?).await?;
+    r.error().await?;
+    r.body_json().await
 }
 
 /// Send a HEAD request to the `uri`.

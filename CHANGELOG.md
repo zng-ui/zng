@@ -1,5 +1,11 @@
 # Unreleased
 
+* Implement better HTTP error handling.
+    - Add `Response::error` to convert to a Rust error.
+    - Add `HttpError` type.
+    - Fix `IMAGES` and `AUDIOS` not handling HTTP errors.
+    - Fix helper functions like `get_txt` not handling HTTP errors.
+
 * Implement better support for Windows shell integrations.
     - Add `zng::env::About::windows_aumid`.
     - View-process now explicitly associates the AUMID with the GUI process.
