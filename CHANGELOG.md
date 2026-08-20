@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.3
+
 * Fix ANSI code block not formatting in `Markdown!`.
     - Add `AnsiText::alternate_esc` property.
     - Now parses `r"\x1b"` as `'\x1b'` by default.
