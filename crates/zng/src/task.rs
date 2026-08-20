@@ -177,8 +177,8 @@ pub use zng_task::{doc_test, spin_on};
 #[cfg(feature = "http")]
 pub mod http {
     pub use zng_task::http::{
-        CacheMode, Error, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header, method,
-        post, put, send, set_request_default, uri,
+        CacheMode, Error, HttpError, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header,
+        method, post, put, send, set_request_default, uri,
     };
 
     /// Remove all cached entries, or just older ones if `prune` is enabled.

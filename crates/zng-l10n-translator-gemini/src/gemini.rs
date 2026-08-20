@@ -92,6 +92,7 @@ pub async fn translate(
             })?;
 
         let mut response = send(request).await?;
+        response.error().await?;
         match response.body_json::<GeminiResponse>().await {
             Ok(r) => break r,
             Err(_) => {
