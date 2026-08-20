@@ -48,7 +48,7 @@ quick-xml = { version = "0.41", features = ["serialize"], default-features = fal
 toml = { version = "1.0", default-features = false, features = ["std", "serde"] }
 indexmap = { version = "2", features = ["serde"] }
 zstd = { version = "0.13", default-features = false } # also update res/built_in/sfx_cargo.toml
-lzma-rust2 = { version = "0.17", default-features = false, features = ["std", "encoder"] }
+lzma-rust2 = { version = "0.19", default-features = false, features = ["std", "encoder"] }
 
 # fmt
 regex = { version = "1.10", features = ["std", "perf", "unicode"], default-features = false }
