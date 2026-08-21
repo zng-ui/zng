@@ -20,7 +20,10 @@
 
 zng_wgt::enable_widget_macros!();
 
-#[cfg(feature = "usage_recorder")]
+#[cfg(all(
+    feature = "usage_recorder",
+    any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
+))]
 mod usage_recorder;
 
 #[cfg(all(

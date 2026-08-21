@@ -403,7 +403,24 @@ fn check_all_features(mut args: Vec<&str>) {
         fatal("expected at least one chunk, 1/1");
     }
 
-    let members = util::publish_members();
+    let mut members = util::publish_members();
+    members.retain_mut(|m| {
+        if !package.is_empty() && package != m.name {
+            return false; // not selected package
+        }
+        if ["cargo-zng"].iter().any(|n| *n == m.name) {
+            return false; // skip crate
+        }
+
+        // skip features that require special build data
+        if m.name == "zng" {
+            m.features.retain(|f| f != "material_icons_subset");
+        } else if m.name == "zng-wgt-material-icons" {
+            m.features.retain(|f| f != "embedded_subset");
+        }
+
+        true
+    });
 
     let mut tasks = vec![];
     for member in &members {
