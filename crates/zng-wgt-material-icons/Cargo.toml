@@ -33,7 +33,7 @@ sharp = []
 # 
 # Saves to `ZNG_MATERIAL_ICONS_PROFILE_FILE` if set to a .rec.subset path
 # Or `"res/optimization-profiles/zng-wgt-material-icons.rec.subset"` by default
-usage_recorder = []
+usage_recorder = ["embedded"]
 # Use recorded usage profile to subset icon fonts on build for embedding.
 # 
 # See `"usage_recorder"` for how to set the file.
