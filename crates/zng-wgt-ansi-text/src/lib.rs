@@ -228,7 +228,12 @@ mod ansi_parse {
     }
     impl<'a> AnsiTextParser<'a> {
         /// New parsing iterator.
-        pub fn new(source: &'a str, esc: &'a [&'a str]) -> Self {
+        pub fn new(source: &'a str) -> Self {
+            Self::with_esc(source, &["\x1b"])
+        }
+
+        /// New parsing iterator with custom ESC markers.
+        pub fn with_esc(source: &'a str, esc: &'a [&'a str]) -> Self {
             Self {
                 source,
                 style: AnsiStyle::default(),
@@ -734,7 +739,7 @@ fn generate_ansi(txt: &Var<Txt>) -> UiNode {
         let mut lines = Vec::with_capacity(50);
 
         for (i, line) in txt.lines().enumerate() {
-            let text = ansi_parse::AnsiTextParser::new(line, &["\x1b", alt_esc.as_str()])
+            let text = ansi_parse::AnsiTextParser::with_esc(line, &["\x1b", alt_esc.as_str()])
                 .filter_map(|txt| {
                     text_fn.call_checked(TextFnArgs {
                         txt: txt.txt.to_txt(),
