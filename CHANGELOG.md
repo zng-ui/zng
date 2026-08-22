@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add glob tar builder tool for `cargo zng res`.
+    - Adds `.zr-tar`.
+    - See `cargo zng res --tool tar` for features.
 
 # 0.24.3
 
