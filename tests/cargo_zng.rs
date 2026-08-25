@@ -117,6 +117,35 @@ fn res_sfx() {
 }
 
 #[test]
+fn res_tar() {
+    let ([_test_dir, _source, target], stdio, error) = res_no_verify("tar", Pack::Yes);
+    if let Some(e) = error {
+        panic!("{e}\n\n{stdio}");
+    }
+
+    for test in &["data.tar", "data.tar.gz"] {
+        let target_tar = target.join(test.replace('.', "_"));
+        fs::create_dir(&target_tar).unwrap();
+        let status = Command::new("tar")
+            .arg("-x")
+            .arg("-f")
+            .current_dir(&target_tar)
+            .arg(format!("../{test}"))
+            .status()
+            .unwrap();
+        assert!(status.success(), "{status}");
+
+        let first = fs::read_to_string(target_tar.join("deploy/at/first.txt")).unwrap();
+        let second = fs::read_to_string(target_tar.join("deploy/at/second.txt")).unwrap();
+        let third = fs::read_to_string(target_tar.join("deploy/at/inner/third.txt")).unwrap();
+
+        assert_eq!(first, "First data entry.");
+        assert_eq!(second, "Second data entry.");
+        assert_eq!(third, "Third data entry.");
+    }
+}
+
+#[test]
 fn new_basic() {
     new("basic", &["The App!", r#"-s"org=The Org!""#, r#"-s"qualifier=.qual""#], Expect::Ok);
 }

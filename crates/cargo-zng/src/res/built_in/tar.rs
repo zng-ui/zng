@@ -70,12 +70,16 @@ pub(super) fn tar() {
     let target = fs::File::create(&target).unwrap_or_else(|e| fatal!("{e}"));
     let mut target: Box<dyn WriteFinish> = Box::new(target);
 
-    if let Some(zstd) = request.zstd && zstd.level != 0 {
+    if let Some(zstd) = request.zstd
+        && zstd.level != 0
+    {
         let range = zstd::compression_level_range();
         let level = zstd.level.clamp(*range.start(), *range.end());
         let zstd = zstd::Encoder::new(target, level).unwrap_or_else(|e| fatal!("{e}"));
         target = Box::new(zstd);
-    } else if let Some(gzip) = request.gzip && gzip.level != 0 {
+    } else if let Some(gzip) = request.gzip
+        && gzip.level != 0
+    {
         let level = flate2::Compression::new(gzip.level.clamp(0, 9));
         let gzip = flate2::write::GzEncoder::new(target, level);
         target = Box::new(gzip);
@@ -127,16 +131,16 @@ pub(super) fn tar() {
         }
 
         let mut any = false;
-        for entry in ::glob::glob(&entry.path).unwrap_or_else(|e| fatal!("{e}")) {
-            let entry = entry.unwrap_or_else(|e| fatal!("{e}"));
-            let entry_name = if let Some(n) = entry.file_name()
+        for glob_entry in ::glob::glob(&entry.path).unwrap_or_else(|e| fatal!("{e}")) {
+            let glob_entry = glob_entry.unwrap_or_else(|e| fatal!("{e}"));
+            let entry_name = if let Some(n) = glob_entry.file_name()
                 && let Some(n) = n.to_str()
             {
                 n
             } else {
                 continue;
             };
-            if entry.is_file() {
+            if glob_entry.is_file() {
                 let name = if name_is_prefix {
                     format!("{name}/{entry_name}")
                 } else {
@@ -153,14 +157,17 @@ pub(super) fn tar() {
                     warn!("name already defined, entry overwritten");
                 }
 
-                target.append_path_with_name(entry, name.as_str()).unwrap_or_else(|e| fatal!("{e}"));
-            } else if entry.is_dir() {
-                for inner in walkdir::WalkDir::new(&entry).follow_links(false) {
-                    let inner = inner.unwrap_or_else(|e| fatal!("{e}"));
-                    let inner = inner.path();
-                    if inner.is_file() || inner.is_dir() {
+                target
+                    .append_path_with_name(glob_entry, name.as_str())
+                    .unwrap_or_else(|e| fatal!("{e}"));
+            } else if glob_entry.is_dir() {
+                let dir_parent = glob_entry.parent().unwrap_or_else(|| Path::new(""));
+                for dir_entry in walkdir::WalkDir::new(&glob_entry).follow_links(false) {
+                    let dir_entry = dir_entry.unwrap_or_else(|e| fatal!("{e}"));
+                    let dir_entry = dir_entry.path();
+                    if dir_entry.is_file() || dir_entry.is_dir() {
                         let name = Path::new(&name)
-                            .join(inner.strip_prefix(&entry).unwrap())
+                            .join(dir_entry.strip_prefix(dir_parent).unwrap())
                             .display()
                             .to_string()
                             .replace('\\', "/")
@@ -169,7 +176,7 @@ pub(super) fn tar() {
                         println!("   {name}");
                         // dirs only create a dir entry, see docs
                         target
-                            .append_path_with_name(&entry, name.as_str())
+                            .append_path_with_name(dir_entry, name.as_str())
                             .unwrap_or_else(|e| fatal!("{e}"));
 
                         if !names.insert(name.clone()) {
@@ -197,7 +204,7 @@ pub(super) fn tar() {
 
 #[derive(Deserialize)]
 struct Request {
-    #[serde(default)]
+    #[serde(default, rename = "entry")]
     entries: Vec<Entry>,
     #[serde(default)]
     filter: Filter,
@@ -222,13 +229,17 @@ struct ZStd {
     #[serde(default = "default_zstd_level")]
     level: i32,
 }
-fn default_zstd_level() -> i32 { 19 }
+fn default_zstd_level() -> i32 {
+    19
+}
 #[derive(Deserialize, Default)]
 struct GZip {
     #[serde(default = "default_gzip_level")]
     level: u32,
 }
-fn default_gzip_level() -> u32 { 7 }
+fn default_gzip_level() -> u32 {
+    7
+}
 
 /// BcjWriter and zstd::Encoder need to write a "footer" after data write
 trait WriteFinish: io::Write {
@@ -253,9 +264,4 @@ impl WriteFinish for flate2::write::GzEncoder<Box<dyn WriteFinish>> {
     fn finish(self: Box<Self>) -> io::Result<()> {
         (*self).finish()?.finish()
     }
-}
-
-#[test]
-fn what() {
-    panic!("{:?}", zstd::compression_level_range());
 }

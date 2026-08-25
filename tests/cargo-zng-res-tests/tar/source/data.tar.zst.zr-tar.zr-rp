@@ -1,0 +1,5 @@
+[[entry]]
+path = "${ZR_REQUEST_DD}/../res/*"
+name = "deploy/at/*"
+
+[zstd]
