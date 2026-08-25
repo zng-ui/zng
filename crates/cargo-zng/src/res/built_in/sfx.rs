@@ -85,9 +85,9 @@ The sfx exe includes a zstd decompressor that is used to extract the 'run' exe.
 
 The decompressor code can be used to read data too. The 'compress' field values are:
 
-- "none" — No compression on build. Data is served as is.
-- "zstd" — Compress on build unless file extension is ".zst". Decompress on demand while reading.
-- "zstd-[filter]" — Transform data to improve compression, unless file extension is ".zst". Reverses
+"none" — No compression on build. Data is served as is.
+"zstd" — Compress on build unless file extension is ".zst". Decompress on demand while reading.
+"zstd-[filter]" — Transform data to improve compression, unless file extension is ".zst". Reverses
   transform on demand while reading.
 
 Sfx is optimized for small number of large data entries. Use a container format to
@@ -97,8 +97,8 @@ Filter:
 
 Currently only BCJ (Branch/Call/Jump) filters are supported, identified by CPU instruction set:
 
-- "zstd-bcj-[set]" where [set] is: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv".
-- "zstd-bcj" — Select filter from 'rustc-target' arch, or zstd unfiltered for no matches.
+"zstd-bcj-[set]" where [set] is: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv".
+"zstd-bcj" — Select filter from 'rustc-target' arch, or zstd unfiltered for no matches.
 
 The target file must be a binary (exe or lib) or a container (like tar) with only binary entries. The filters
 are non-destructive but if the wrong filter is selected it will have negative impact on the compression level.

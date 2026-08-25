@@ -36,6 +36,8 @@
         "*.zr-sfxf": "toml",
         "*.zr-sfx.zr-rp": "toml",
         "*.zr-sfxf.zr-rp": "toml",
+        "*.zr-tar": "toml",
+        "*.zr-tar.zr-rp": "toml",
     },
     "cSpell.words": [
         "aapt",
