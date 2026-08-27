@@ -6,7 +6,7 @@ use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::{ToTxt, Txt};
-use zng_var::{ArcEq, IntoVar, Var, VarValue, const_var, context_var, impl_from_and_into_var};
+use zng_var::{ArcEq, ContextVar, IntoVar, Var, VarValue, const_var, context_var, impl_from_and_into_var};
 
 use crate::{L10N, lang, service::L10N_SV};
 
@@ -279,12 +279,18 @@ impl<T: Into<L10nArgument>> IntoL10nVar for &mut L10nSpecialize<T> {
         const_var(self.0.take().unwrap().into())
     }
 }
-impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut &mut L10nSpecialize<Var<T>> {
+
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut &mut L10nSpecialize<ContextVar<T>> {
+    fn to_l10n_var(&mut self) -> Var<L10nArgument> {
+        self.0.take().unwrap().into_var().map_into()
+    }
+}
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut &mut &mut L10nSpecialize<Var<T>> {
     fn to_l10n_var(&mut self) -> Var<L10nArgument> {
         self.0.take().unwrap().map_into()
     }
 }
-impl IntoL10nVar for &mut &mut &mut L10nSpecialize<Var<L10nArgument>> {
+impl IntoL10nVar for &mut &mut &mut &mut L10nSpecialize<Var<L10nArgument>> {
     fn to_l10n_var(&mut self) -> Var<L10nArgument> {
         self.0.take().unwrap()
     }

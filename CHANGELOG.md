@@ -1,5 +1,7 @@
 # Unreleased
 
+* Implement direct support fot context vars as `l10n!` args. 
+
 * Add glob tar builder tool for `cargo zng res`.
     - Adds `.zr-tar`.
     - See `cargo zng res --tool tar` for features.
