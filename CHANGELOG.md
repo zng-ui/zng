@@ -1,5 +1,9 @@
 # Unreleased
 
+* Improve `.zr-sfx` tool.
+    - Generated executable now can now serve manifest of data entries.
+    - Now identifies files already compressed by magic number, not extension.
+
 * Implement direct support fot context vars as `l10n!` args. 
 
 * Add glob tar builder tool for `cargo zng res`.
