@@ -53,7 +53,8 @@ The decompressor must undo these changes before reading the TAR. The .zr-sfx sup
 [zstd] — Optional ZStandard compression
 level — Compression level, -131072..=22, 0 means no compression, default is 19.
 
-Compress the TAR, after [filter] is applied, using ZStandard.
+Compress the TAR, after [filter] is applied, using ZStandard. The "contentsize" field of zstd header
+is correctly set, so this is fully compatible with .zr-sfx that uses this field to report response stream length.
 
 [gzip] — Optional GZip compression
 level — Compression level, 0..=9, 0 means no compression, default is 8.
@@ -70,19 +71,25 @@ pub(super) fn tar() {
     let target = fs::File::create(&target).unwrap_or_else(|e| fatal!("{e}"));
     let mut target: Box<dyn WriteFinish> = Box::new(target);
 
+    let tar_entries = collect_tar_entries(request.entries);
+
     if let Some(zstd) = request.zstd
         && zstd.level != 0
     {
         let range = zstd::compression_level_range();
         let level = zstd.level.clamp(*range.start(), *range.end());
-        let zstd = zstd::Encoder::new(target, level).unwrap_or_else(|e| fatal!("{e}"));
-        target = Box::new(zstd);
+        let mut encoder = zstd::Encoder::new(target, level).unwrap_or_else(|e| fatal!("{e}"));
+
+        let len = sum_tar_len(&tar_entries);
+        encoder.set_pledged_src_size(Some(len)).unwrap_or_else(|e| fatal!("{e}"));
+        encoder.include_contentsize(true).unwrap_or_else(|e| fatal!("{e}"));
+        target = Box::new(encoder);
     } else if let Some(gzip) = request.gzip
         && gzip.level != 0
     {
         let level = flate2::Compression::new(gzip.level.clamp(0, 9));
-        let gzip = flate2::write::GzEncoder::new(target, level);
-        target = Box::new(gzip);
+        let encoder = flate2::write::GzEncoder::new(target, level);
+        target = Box::new(encoder);
     }
 
     if !request.filter.bcj.is_empty() {
@@ -105,10 +112,30 @@ pub(super) fn tar() {
     // avoids some IO in the builder
     target.follow_symlinks(false);
 
-    let mut names = HashSet::new();
-    for entry in request.entries {
-        println!("{}", entry.path);
+    for entry in tar_entries {
+        println!("{}", entry.name);
+        if matches!(entry.header.entry_type(), ::tar::EntryType::Directory) {
+            const NONE: &[u8] = &[];
+            target.append(&entry.header, NONE).unwrap_or_else(|e| fatal!("{e}"));
+        } else {
+            let file = std::fs::File::open(&entry.source).unwrap_or_else(|e| fatal!("{e}"));
+            target.append(&entry.header, file).unwrap_or_else(|e| fatal!("{e}"));
+        }
+    }
 
+    target.finish().unwrap_or_else(|e| fatal!("{e}"));
+    target.into_inner().unwrap().finish().unwrap_or_else(|e| fatal!("{e}"));
+}
+
+struct TarEntry {
+    source: PathBuf,
+    name: Rc<String>,
+    header: ::tar::Header,
+}
+fn collect_tar_entries(entries: Vec<Entry>) -> Vec<TarEntry> {
+    let mut tar = Vec::with_capacity(entries.len());
+    let mut names = HashSet::new();
+    for entry in entries {
         let mut name = entry.name.as_str();
         if name.contains("/..") {
             error!("name cannot contain /..");
@@ -151,15 +178,27 @@ pub(super) fn tar() {
                     name.to_owned()
                 };
                 let name = Rc::new(name);
-                println!("   {name}");
+
+                let meta = std::fs::metadata(&glob_entry).unwrap_or_else(|e| fatal!("{e}"));
+                let mut header = ::tar::Header::new_gnu();
+                header.set_metadata(&meta);
+                if let Err(e) = header.set_path(name.as_str()) {
+                    error!("name {name:?} is not a valid TAR path, {e}");
+                    continue;
+                }
+                header.set_cksum();
 
                 if !names.insert(name.clone()) {
-                    warn!("name already defined, entry overwritten");
+                    warn!("name {name:?} already defined, entry overwritten");
+                    let i = tar.iter().position(|t: &TarEntry| t.name == name).unwrap();
+                    tar.swap_remove(i);
                 }
 
-                target
-                    .append_path_with_name(glob_entry, name.as_str())
-                    .unwrap_or_else(|e| fatal!("{e}"));
+                tar.push(TarEntry {
+                    source: glob_entry,
+                    name,
+                    header,
+                });
             } else if glob_entry.is_dir() {
                 let dir_parent = glob_entry.parent().unwrap_or_else(|| Path::new(""));
                 for dir_entry in walkdir::WalkDir::new(&glob_entry).follow_links(false) {
@@ -173,15 +212,27 @@ pub(super) fn tar() {
                             .replace('\\', "/")
                             .to_owned();
                         let name = Rc::new(name);
-                        println!("   {name}");
-                        // dirs only create a dir entry, see docs
-                        target
-                            .append_path_with_name(dir_entry, name.as_str())
-                            .unwrap_or_else(|e| fatal!("{e}"));
+
+                        let meta = std::fs::metadata(dir_entry).unwrap_or_else(|e| fatal!("{e}"));
+                        let mut header = ::tar::Header::new_gnu();
+                        header.set_metadata(&meta);
+                        if let Err(e) = header.set_path(name.as_str()) {
+                            error!("name {name:?} is not a valid TAR path, {e}");
+                            continue;
+                        }
+                        header.set_cksum();
 
                         if !names.insert(name.clone()) {
                             warn!("name already defined, entry overwritten");
+                            let i = tar.iter().position(|t: &TarEntry| t.name == name).unwrap();
+                            tar.swap_remove(i);
                         }
+
+                        tar.push(TarEntry {
+                            source: dir_entry.to_path_buf(),
+                            name,
+                            header,
+                        });
                     }
                 }
             } else {
@@ -197,9 +248,42 @@ pub(super) fn tar() {
             }
         }
     }
+    tar.sort_by(|a, b| a.name.cmp(&b.name));
+    tar
+}
 
-    target.finish().unwrap_or_else(|e| fatal!("{e}"));
-    target.into_inner().unwrap().finish().unwrap_or_else(|e| fatal!("{e}"));
+fn sum_tar_len(entries: &[TarEntry]) -> u64 {
+    struct SumWriter(u64);
+    impl io::Write for SumWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0 += buf.len() as u64;
+            Ok(buf.len())
+        }
+    
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut sum = SumWriter(0);
+    {
+        let mut tar = ::tar::Builder::new(&mut sum);
+        tar.follow_symlinks(false);
+
+        for entry in entries {
+            struct LenRead(u64);
+            impl io::Read for LenRead {
+                fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+                    let n = self.0.min(buf.len() as u64) as usize;
+                    buf[..n].fill(0);
+                    self.0 -= n as u64;
+                    Ok(n)
+                }
+            }
+            let len = entry.header.size().unwrap();
+            tar.append(&entry.header, LenRead(len)).unwrap();
+        }
+    }
+    sum.0
 }
 
 #[derive(Deserialize)]
