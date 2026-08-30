@@ -1,4 +1,7 @@
-use std::{fmt::Write as _, io::Read};
+use std::{
+    fmt::Write as _,
+    io::{Read, Seek},
+};
 
 use indexmap::IndexMap;
 use lzma_rust2::filter::bcj::BcjWriter;
@@ -37,7 +40,7 @@ The request file:
    |
    | # data the sfx can serve the 'run'
    | [[data]]
-   | # name must be unique and not include ':', default is "", for single data
+   | # name must be unique and not include ':' or '\n', default is "", for single data
    | name = "payload"
    | # compress data on build, default is "zstd"
    | compress = "zstd"
@@ -56,7 +59,7 @@ Run:
 
 When sfx runs it extracts the 'run' executable to a temp dir and runs it.
 
-The optional 'env' variables override the system env. The SFX_ARGS and SFX_DATA var is always set. 
+The optional 'env' variables override the system env. The SFX_ARGS var is always set. 
 
 The SFX_ARGS is set to the sfx command line args, '\n' separated. The first arg is the path to the sfx exe.
 
@@ -66,6 +69,9 @@ Data:
 
 To read data the 'run' exe must spawn another instance of the sfx with the "SFX_GET_DATA" set
 to the entry name. It will serve the data to stdout. The data may be decompressed on demand.
+
+To get a list of data names and decompressed lengths run with "SFX_GET_MANIFEST", each stdout
+line is <name>:<len>, <len> is an u64 or "unknown".
 
 File Paths:
 
@@ -86,8 +92,8 @@ The sfx exe includes a zstd decompressor that is used to extract the 'run' exe.
 The decompressor code can be used to read data too. The 'compress' field values are:
 
 "none" — No compression on build. Data is served as is.
-"zstd" — Compress on build unless file extension is ".zst". Decompress on demand while reading.
-"zstd-[filter]" — Transform data to improve compression, unless file extension is ".zst". Reverses
+"zstd" — Compress on build unless file is already zstd (magic number check). Decompress on demand while reading.
+"zstd-[filter]" — Transform data to improve compression, unless file is already zstd. Reverses
   transform on demand while reading.
 
 Sfx is optimized for small number of large data entries. Use a container format to
@@ -177,17 +183,17 @@ pub(super) fn sfx() {
     }
 
     let mut data = vec![];
-    let run_compression = parse_compress(&request.sfx.rustc_target, &request.sfx.compress);
-    let run_parts = prepare_data(&tmp, 0, run_compression, &run).unwrap_or_else(|e| fatal!("cannot compress run, {e}"));
+    let mut run_compression = parse_compress(&request.sfx.rustc_target, &request.sfx.compress);
+    let run_parts = prepare_data(&tmp, 0, &mut run_compression, &run).unwrap_or_else(|e| fatal!("cannot compress run, {e}"));
     data.push((":run", run_compression, run_parts));
     for (id, d) in request.data.iter().enumerate() {
-        if d.name.contains(':') {
-            fatal!("data name cannot contain ':'");
+        if d.name.contains(':') || d.name.contains('\n') {
+            fatal!("data name cannot contain ':' or '\n'");
         }
-        let compression = parse_compress(&request.sfx.rustc_target, &d.compress);
+        let mut compression = parse_compress(&request.sfx.rustc_target, &d.compress);
         let file = d.file.as_path();
 
-        let parts = prepare_data(&tmp, id + 1, compression, file)
+        let parts = prepare_data(&tmp, id + 1, &mut compression, file)
             .unwrap_or_else(|e| fatal!("cannot process file, {e}\n    file: {}", unix_path(file)));
         data.push((d.name.as_str(), compression, parts));
     }
@@ -301,9 +307,9 @@ struct Sign {
     only_sfx: bool,
 }
 
-fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: &Path) -> io::Result<Vec<PathBuf>> {
+fn prepare_data(tmp: &Path, data_id: usize, decompress: &mut Compression, file: &Path) -> io::Result<Vec<PathBuf>> {
     let file_path = file;
-    let file = fs::File::open(file)?;
+    let mut file = fs::File::open(file)?;
 
     // 200MB
     //
@@ -314,20 +320,33 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
     // object is no longer needed as the sfx iterates over parts.
     const PART_MAX: u64 = 200u64 * 2u64.pow(20);
 
-    if let Some(ext) = file_path.extension()
-        && ext.eq_ignore_ascii_case("zst")
-    {
-        compression = Compression::None;
+    let len = file.metadata()?.len();
+    if len < 32 {
+        // not worth compressing, zstd header alone is ~18 bytes
+        *decompress = Compression::None;
     }
 
-    match compression {
+    let mut compress = *decompress;
+
+    if matches!(compress, Compression::Zstd) {
+        let mut magic = [0u8; 4];
+        file.read_exact(&mut magic)?;
+        file.seek(io::SeekFrom::Start(0))?;
+        if magic == [0x28, 0xB5, 0x2F, 0xFD] {
+            // already zstd
+            compress = Compression::None;
+        }
+    }
+
+    match compress {
         Compression::None => {
             println!("preparing {}", unix_path(file_path));
 
-            let mut len = file.metadata()?.len();
             if len <= PART_MAX {
                 return Ok(vec![file_path.to_owned()]);
             }
+
+            let mut len = len;
 
             let mut file = io::BufReader::new(file);
             let mut parts = vec![];
@@ -354,6 +373,9 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
             // 19 is the maximum non-ultra compression
             // zstd creates an optimal BufReader
             let mut file = zstd::stream::read::Encoder::new(file, 19)?;
+
+            file.set_pledged_src_size(Some(len))?;
+            file.include_contentsize(true)?;
 
             let mut parts = vec![];
             loop {
@@ -423,6 +445,9 @@ fn prepare_data(tmp: &Path, data_id: usize, mut compression: Compression, file: 
             };
             // 22 is the maximum ultra compression (high CPU and RAM usage)
             let mut encoder = zstd::stream::write::Encoder::new(out, 22)?;
+            encoder.set_pledged_src_size(Some(len))?;
+            encoder.include_contentsize(true)?;
+
             let out = &mut encoder;
             let mut bcj_filter = match bcj {
                 BcjFilter::X86 => BcjWriter::new_x86(out, 0),

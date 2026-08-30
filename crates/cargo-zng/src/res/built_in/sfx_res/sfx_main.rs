@@ -48,6 +48,8 @@ pub fn main() {
 
     if let Ok(name) = std::env::var("SFX_GET_DATA") {
         return serve_data(&name);
+    } else if std::env::var("SFX_GET_MANIFEST").is_ok() {
+        return serve_manifest();
     }
     run();
 }
@@ -112,6 +114,20 @@ fn read_data(name: &str) -> Box<dyn io::Read> {
 fn serve_data(name: &str) {
     let mut data = read_data(name);
     io::copy(&mut data, &mut std::io::stdout()).unwrap_or_exit("serve_data/copy");
+}
+
+fn serve_manifest() {
+    for (name, compression, data) in DATA {
+        let len = match compression {
+            Compression::None => Some(data.iter().map(|d| d.len() as u64).sum::<u64>()),
+            Compression::Zstd | Compression::ZstdBcj(_) => zstd::zstd_safe::get_frame_content_size(data[0]).unwrap_or_default(),
+        };
+        print!("{name}:");
+        match len {
+            Some(l) => println!("{l}"),
+            None => println!("unknown"),
+        }
+    }
 }
 
 fn run() {
