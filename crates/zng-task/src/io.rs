@@ -20,6 +20,10 @@ pub use futures_lite::io::{
     AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BoxedReader, BoxedWriter,
     BufReader, BufWriter, Cursor, ReadHalf, WriteHalf, copy, empty, repeat, sink, split,
 };
+
+#[doc(no_inline)]
+pub use blocking::Unblock;
+
 use parking_lot::Mutex;
 use std::io::{Error, Result};
 use zng_time::{DInstant, INSTANT};
