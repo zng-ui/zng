@@ -165,7 +165,9 @@ app_local! {
     static SETUP_SV: Setup = Setup {
         task_types: vec![
             SetupTaskType::new::<crate::task::ExtractTar>(),
+            #[cfg(any(windows, target_os = "linux"))]
             SetupTaskType::new::<crate::task::CreateShortcut>(),
+            #[cfg(windows)]
             SetupTaskType::new::<crate::task::RegisterUninstaller>(),
         ],
         queue: Mutex::default(),
