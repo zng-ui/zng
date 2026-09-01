@@ -1,9 +1,11 @@
 # Unreleased
 
-* Add `zng_ext_setup::SfxClient` and related types.
-
 * Add `zng::task::io::Unblock`.
 
+* Add `zng::setup` and `"setup"` Cargo feature.
+    - Add `SfxClient` and related types.
+    - Add `SetupWidget!` and related types.
+    - Add `zng-wgt-setup` crate.
 * Improve `.zr-sfx` tool.
     - Generated executable now can now serve manifest of data entries.
     - Now identifies files already compressed by magic number, not extension.

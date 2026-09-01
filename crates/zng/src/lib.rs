@@ -530,6 +530,7 @@ pub mod render;
 pub mod rule_line;
 pub mod scroll;
 pub mod selectable;
+pub mod setup;
 pub mod shortcut_text;
 pub mod slider;
 pub mod stack;

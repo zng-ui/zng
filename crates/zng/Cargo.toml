@@ -88,6 +88,7 @@ dev = [
     "deadlock_detection",
     "lang_autonym",
     "wizard",
+    "setup",
 ]
 
 # Include the default view-process implementation.
@@ -423,6 +424,9 @@ wrap = ["dep:zng-wgt-wrap"]
 # Enable wizard widget.
 wizard = ["dep:zng-wgt-wizard"]
 
+# Enable setup wizard widget and self-setup toolkit.
+setup = ["dep:zng-ext-setup", "dep:zng-wgt-setup"]
+
 # Enable the shortcut text widget.
 shortcut_text = ["dep:zng-wgt-shortcut"]
 
@@ -564,6 +568,9 @@ zng-wgt-wizard = { path = "../zng-wgt-wizard", version = "0.1.1", optional = tru
 
 zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.15.3", default-features = false, optional = true }
 zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.15.3", optional = true, default-features = false }
+
+zng-ext-setup = { path = "../zng-ext-setup", version = "0.1.1", default-features = false, optional = true }
+zng-wgt-setup = { path = "../zng-wgt-setup", version = "0.1.0", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
