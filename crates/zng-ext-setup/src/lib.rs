@@ -19,7 +19,10 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-mod service;
 pub mod task;
 
+mod service;
 pub use service::*;
+
+mod sfx_client;
+pub use sfx_client::*;

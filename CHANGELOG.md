@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng_ext_setup::SfxClient` and related types.
+
 * Add `zng::task::io::Unblock`.
 
 * Improve `.zr-sfx` tool.

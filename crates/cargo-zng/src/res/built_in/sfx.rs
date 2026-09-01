@@ -73,6 +73,8 @@ to the entry name. It will serve the data to stdout. The data may be decompresse
 To get a list of data names and decompressed lengths run with "SFX_GET_MANIFEST", each stdout
 line is <name>:<len>, <len> is an u64 or "unknown".
 
+The `zng::setup::SfxClient` can also be used to connect and get data.
+
 File Paths:
 
 Paths are relative to the Cargo workspace root, you can also use .zr-rp to select files in the
