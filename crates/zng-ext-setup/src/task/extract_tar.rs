@@ -417,6 +417,13 @@ impl ExtractTarConfig {
         }
     }
 
+    /// New config from a [`SfxClient`] read stream.
+    ///
+    /// [`SfxClient`]: crate::SfxClient
+    pub fn from_sfx(tar: crate::SfxReadBlocking, target_dir: PathBuf) -> Self {
+        Self::new(tar.exact_len().unwrap_or(0), Box::new(tar), target_dir)
+    }
+
     /// Enable strict errors.
     ///
     /// When enabled:
