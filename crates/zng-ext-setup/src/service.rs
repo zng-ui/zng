@@ -163,7 +163,11 @@ struct Setup {
 }
 app_local! {
     static SETUP_SV: Setup = Setup {
-        task_types: vec![SetupTaskType::new::<crate::task::ExtractTar>()],
+        task_types: vec![
+            SetupTaskType::new::<crate::task::ExtractTar>(),
+            SetupTaskType::new::<crate::task::CreateShortcut>(),
+            SetupTaskType::new::<crate::task::RegisterUninstaller>(),
+        ],
         queue: Mutex::default(),
         status: var(SetupStatus::Idle),
         cancel: var(false),
