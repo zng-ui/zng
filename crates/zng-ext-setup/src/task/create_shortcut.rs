@@ -3,7 +3,7 @@
 use crate::task::InstallTaskError;
 use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
-use std::{fs, io, path::PathBuf};
+use std::{io, path::PathBuf};
 
 use super::SetupTaskError;
 
@@ -99,8 +99,16 @@ impl super::SetupTask for CreateShortcut {
         let data = InstallData {
             link_file: args.data.link_file.clone(),
         };
-        let r = std::thread::spawn(move || window_install(args.data)).join();
-        let r = match r {
+
+        // must run in clean thread to avoid COM issues
+        let (sx, rx) = zng_task::channel::rendezvous();
+        let r = std::thread::spawn(move || {
+            let r = windows_install(args.data);
+            sx.send_blocking(()).unwrap();
+            r
+        });
+        let _ = rx.recv().await;
+        let r = match r.join() {
             Ok(r) => r,
             Err(p) => std::panic::resume_unwind(p),
         };
@@ -117,7 +125,7 @@ impl super::SetupTask for CreateShortcut {
 
     #[cfg(target_os = "linux")]
     async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
-        fn write(link_file: &PathBuf, desktop: String) -> io::Result<()> {
+        fn write(link_file: PathBuf, desktop: String) -> io::Result<()> {
             use std::io::Write as _;
             use std::os::unix::fs::PermissionsExt as _;
 
@@ -134,7 +142,10 @@ impl super::SetupTask for CreateShortcut {
         let data = InstallData {
             link_file: args.data.link_file.clone(),
         };
-        if let Err(e) = write(&args.data.link_file, args.data.desktop) {
+
+        let link_file = args.data.link_file.clone();
+
+        if let Err(e) = zng_task::wait(move || write(args.data.link_file, args.data.desktop)).await {
             return Err(InstallTaskError {
                 error: SetupTaskError::io(args.data.link_file, e),
                 // link_file probably does not exist, but `Some` here indicates that the failed uninstall can
@@ -154,7 +165,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
-        if let Err(e) = fs::remove_file(&args.data.link_file)
+        if let Err(e) = zng_task::fs::remove_file(&args.data.link_file).await
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {
             return Err(SetupTaskError::io(args.data.link_file, e));
@@ -221,7 +232,7 @@ pub struct InstallData {
 
 /// Must run in own thread to avoid COM issues
 #[cfg(windows)]
-fn window_install(d: PrepareInstallData) -> windows::core::Result<()> {
+fn windows_install(d: PrepareInstallData) -> windows::core::Result<()> {
     use std::path::Path;
 
     use windows::{

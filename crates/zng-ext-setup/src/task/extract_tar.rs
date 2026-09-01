@@ -15,18 +15,8 @@ use crate::task::{InstallTaskError, SetupTaskError};
 /// Setup task that extracts TAR container to a new or existing directory
 /// on install and removes these files on uninstall.
 pub enum ExtractTar {}
-impl super::SetupTask for ExtractTar {
-    type InstallConfig = ExtractTarConfig;
-
-    type PrepareInstall = PrepareInstallData;
-
-    type Install = InstallData;
-
-    fn task_type_id() -> super::TaskTypeId {
-        "zng-setup/ExtractTar".into()
-    }
-
-    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
+impl ExtractTar {
+    fn prepare_install_blocking(args: super::PrepareInstallArgs<Self>) -> Result<PrepareInstallData, SetupTaskError> {
         let (parent_dir, dir_name) = match (args.config.target_dir.parent(), args.config.target_dir.file_name()) {
             (Some(p), Some(n)) if let Some(n) = n.to_str() => (p, n),
             _ => {
@@ -210,7 +200,7 @@ impl super::SetupTask for ExtractTar {
         })
     }
 
-    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
+    fn install_blocking(args: super::InstallArgs<Self>) -> Result<InstallData, InstallTaskError<InstallData>> {
         let mut errors = vec![];
 
         let mut entries = args.data.add;
@@ -299,16 +289,7 @@ impl super::SetupTask for ExtractTar {
         }
     }
 
-    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
-        if let Err(e) = fs::remove_dir_all(&args.data.temp_dir)
-            && !matches!(e.kind(), io::ErrorKind::NotFound)
-        {
-            return Err(SetupTaskError::io(args.data.temp_dir, e));
-        }
-        Ok(())
-    }
-
-    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+    fn validate_uninstall_blocking(args: super::ValidateUninstallArgs<Self>) -> Result<InstallData, SetupTaskError> {
         let mut data = args.data;
         if !data.target_dir.exists() {
             data.entries.clear();
@@ -360,7 +341,7 @@ impl super::SetupTask for ExtractTar {
         Ok(data)
     }
 
-    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
+    fn uninstall_blocking(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
         let mut errors = vec![];
         for entry in args.data.entries {
             let entry = args.data.target_dir.join(entry);
@@ -385,6 +366,42 @@ impl super::SetupTask for ExtractTar {
         } else {
             Err(super::SetupTaskError::Io(errors))
         }
+    }
+}
+impl super::SetupTask for ExtractTar {
+    type InstallConfig = ExtractTarConfig;
+
+    type PrepareInstall = PrepareInstallData;
+
+    type Install = InstallData;
+
+    fn task_type_id() -> super::TaskTypeId {
+        "zng-setup/ExtractTar".into()
+    }
+
+    async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
+        zng_task::wait(move || Self::prepare_install_blocking(args)).await
+    }
+
+    async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
+        zng_task::wait(move || Self::install_blocking(args)).await
+    }
+
+    async fn cancel_install(args: super::CancelInstallArgs<Self>) -> Result<(), SetupTaskError> {
+        if let Err(e) = zng_task::fs::remove_dir_all(&args.data.temp_dir).await
+            && !matches!(e.kind(), io::ErrorKind::NotFound)
+        {
+            return Err(SetupTaskError::io(args.data.temp_dir, e));
+        }
+        Ok(())
+    }
+
+    async fn validate_uninstall(args: super::ValidateUninstallArgs<Self>) -> Result<Self::Install, SetupTaskError> {
+        zng_task::wait(move || Self::validate_uninstall_blocking(args)).await
+    }
+
+    async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
+        zng_task::wait(move || Self::uninstall_blocking(args)).await
     }
 }
 

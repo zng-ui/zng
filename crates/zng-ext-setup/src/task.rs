@@ -74,6 +74,11 @@ impl fmt::Display for TaskTypeId {
 /// Custom setup task types must be registered with [`SETUP.register_task_type`] otherwise install and uninstall
 /// will fail with [`SetupTaskError::UnknownType`].
 ///
+/// # Async
+///
+/// The `async` functions must not block on IO, offload all blocking IO to [`zng_task::wait`].
+/// CPU heavy operations are ok, the tasks run in worker threads.
+///
 /// [`SETUP.register_task_type`]: crate::SETUP::register_task_type
 pub trait SetupTask: Sized {
     /// Install config type.

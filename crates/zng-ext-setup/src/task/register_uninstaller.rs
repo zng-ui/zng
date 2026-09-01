@@ -158,7 +158,10 @@ impl super::SetupTask for RegisterUninstaller {
         // if changed ID and is updating remove previous key
         if let Some(u) = &args.data.update
             && u.app_id != args.data.app_id
-            && let Err(e) = uninstall(&u.app_id)
+            && let Err(e) = {
+                let app_id = u.app_id.clone();
+                zng_task::wait(move || unregister(&app_id)).await
+            }
         {
             match e {
                 SetupTaskError::Other(e) => errors = e,
@@ -169,7 +172,7 @@ impl super::SetupTask for RegisterUninstaller {
         let data = InstallData {
             app_id: args.data.app_id.clone(),
         };
-        if let Err(e) = register(&args.data) {
+        if let Err(e) = zng_task::wait(move || register(&args.data)).await {
             errors.push(Arc::new(e));
             return Err(InstallTaskError {
                 error: SetupTaskError::Other(errors),
@@ -191,11 +194,11 @@ impl super::SetupTask for RegisterUninstaller {
     }
 
     async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
-        uninstall(&args.data.app_id)
+        zng_task::wait(move || unregister(&args.data.app_id)).await
     }
 }
 
-fn uninstall(app_id: &str) -> Result<(), SetupTaskError> {
+fn unregister(app_id: &str) -> Result<(), SetupTaskError> {
     const ERROR_FILE_NOT_FOUND: i32 = 2;
     let key = format!(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{app_id}");
     if let Err(e) = windows_registry::LOCAL_MACHINE.remove_tree(&key)
