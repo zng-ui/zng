@@ -108,6 +108,10 @@
 //! }
 //! # ;
 //! ```
+//!
+//! # Full API
+//!
+//! See [`zng_wgt_wizard`] for the full API.
 
 pub use zng_wgt_wizard::{
     BACK_CMD, CANCEL_CMD, ContentFnArgs, FINISH_CMD, FooterFnArgs, HeaderFnArgs, NEXT_CMD, Page, PageArgs, PanelFnArgs, SideFnArgs, Wizard,
