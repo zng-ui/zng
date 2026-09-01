@@ -13,6 +13,8 @@ mod register_uninstaller;
 #[cfg(windows)]
 pub use register_uninstaller::{RegisterUninstaller, RegisterUninstallerConfig};
 
+// !!: TODO copy_current_exe;
+
 use zng_task::Progress;
 use zng_txt::Txt;
 use zng_var::{Var, impl_from_and_into_var};
