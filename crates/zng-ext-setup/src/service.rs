@@ -241,6 +241,7 @@ impl UninstallConfig {
         &self.tasks
     }
 }
+// !!: TODO save (json.zst)
 
 /// Represents a [`SETUP`] operation error.
 #[derive(Clone, PartialEq, Debug)]

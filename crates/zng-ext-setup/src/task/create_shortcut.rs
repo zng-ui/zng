@@ -3,7 +3,7 @@
 use crate::task::InstallTaskError;
 use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
-use std::{fs, io, path::PathBuf};
+use std::{io, path::PathBuf};
 
 use super::SetupTaskError;
 
@@ -11,6 +11,22 @@ use super::SetupTaskError;
 pub enum CreateShortcut {}
 
 // https://docs.rs/mslnk/0.1.8/mslnk/
+
+fn common_prepare_install(mut c: CreateShortcutConfig) -> CreateShortcutConfig {
+    if c.app_id.is_empty() {
+        c.app_id = zng_env::about().windows_aumid().to_string()
+    }
+    if c.working_dir.as_os_str().is_empty() {
+        c.working_dir = c.target_file.parent().unwrap_or_else(|| std::path::Path::new("")).to_path_buf()
+    }
+    if c.name.is_empty()
+        && let Some(name) = c.link_file.file_name()
+        && let Some(name) = name.to_str()
+    {
+        c.name = name.to_owned();
+    }
+    c
+}
 
 impl super::SetupTask for CreateShortcut {
     type InstallConfig = CreateShortcutConfig;
@@ -25,7 +41,7 @@ impl super::SetupTask for CreateShortcut {
 
     #[cfg(windows)]
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
-        let c = args.config;
+        let c = common_prepare_install(args.config);
 
         let working_dir = path_utf8(c.working_dir)?;
         let icon = path_utf8(c.icon)?;
@@ -50,7 +66,7 @@ impl super::SetupTask for CreateShortcut {
 
     #[cfg(target_os = "linux")]
     async fn prepare_install(args: super::PrepareInstallArgs<Self>) -> Result<Self::PrepareInstall, SetupTaskError> {
-        let c = args.config;
+        let c = common_prepare_install(args.config);
 
         let mut desktop = "[Desktop Entry]\nVersion=1.0\nType=Application\n".to_owned();
 
@@ -68,25 +84,19 @@ impl super::SetupTask for CreateShortcut {
             writeln!(&mut desktop, "Icon={}", path_utf8(c.icon)?).unwrap();
         }
 
-        if c.name.is_empty() {
-            match c.link_file.file_name() {
-                Some(n) => writeln!(&mut desktop, "Name={}", n.to_string_lossy()).unwrap(),
-                None => {
-                    return Err(SetupTaskError::io(
-                        c.link_file,
-                        io::Error::new(io::ErrorKind::InvalidData, "missing name"),
-                    ));
-                }
-            }
-        } else {
-            let name = c
-                .name
-                .replace("\\", r"\\")
-                .replace("\n", r"\n")
-                .replace("\t", r"\t")
-                .replace("\r", r"\r");
-            writeln!(&mut desktop, "Name={name}").unwrap();
+        let name = c
+            .name
+            .replace("\\", r"\\")
+            .replace("\n", r"\n")
+            .replace("\t", r"\t")
+            .replace("\r", r"\r");
+        if name.is_empty() {
+            return Err(SetupTaskError::io(
+                c.link_file,
+                io::Error::new(io::ErrorKind::InvalidData, "missing name"),
+            ));
         }
+        writeln!(&mut desktop, "Name={name}").unwrap();
 
         Ok(PrepareInstallData {
             link_file: c.link_file,
@@ -99,8 +109,16 @@ impl super::SetupTask for CreateShortcut {
         let data = InstallData {
             link_file: args.data.link_file.clone(),
         };
-        let r = std::thread::spawn(move || window_install(args.data)).join();
-        let r = match r {
+
+        // must run in clean thread to avoid COM issues
+        let (sx, rx) = zng_task::channel::rendezvous();
+        let r = std::thread::spawn(move || {
+            let r = windows_install(args.data);
+            sx.send_blocking(()).unwrap();
+            r
+        });
+        let _ = rx.recv().await;
+        let r = match r.join() {
             Ok(r) => r,
             Err(p) => std::panic::resume_unwind(p),
         };
@@ -117,11 +135,11 @@ impl super::SetupTask for CreateShortcut {
 
     #[cfg(target_os = "linux")]
     async fn install(args: super::InstallArgs<Self>) -> Result<Self::Install, InstallTaskError<Self::Install>> {
-        fn write(link_file: &PathBuf, desktop: String) -> io::Result<()> {
+        fn write(link_file: PathBuf, desktop: String) -> io::Result<()> {
             use std::io::Write as _;
             use std::os::unix::fs::PermissionsExt as _;
 
-            let mut f = fs::File::create(link_file)?;
+            let mut f = std::fs::File::create(&link_file)?;
             f.write_all(desktop.as_bytes())?;
 
             let mut perms = f.metadata()?.permissions();
@@ -134,7 +152,10 @@ impl super::SetupTask for CreateShortcut {
         let data = InstallData {
             link_file: args.data.link_file.clone(),
         };
-        if let Err(e) = write(&args.data.link_file, args.data.desktop) {
+
+        let link_file = args.data.link_file.clone();
+
+        if let Err(e) = zng_task::wait(move || write(link_file, args.data.desktop)).await {
             return Err(InstallTaskError {
                 error: SetupTaskError::io(args.data.link_file, e),
                 // link_file probably does not exist, but `Some` here indicates that the failed uninstall can
@@ -154,7 +175,7 @@ impl super::SetupTask for CreateShortcut {
     }
 
     async fn uninstall(args: super::UninstallArgs<Self>) -> Result<(), SetupTaskError> {
-        if let Err(e) = fs::remove_file(&args.data.link_file)
+        if let Err(e) = zng_task::fs::remove_file(&args.data.link_file).await
             && !matches!(e.kind(), io::ErrorKind::NotFound)
         {
             return Err(SetupTaskError::io(args.data.link_file, e));
@@ -165,11 +186,16 @@ impl super::SetupTask for CreateShortcut {
 
 /// Config for [`CreateShortcut`].
 pub struct CreateShortcutConfig {
+    // TODO(breaking) non_exhaustive
     /// Path to the shortcut, without extension.
     pub link_file: PathBuf,
     /// Path to the shortcut target executable file.
     pub target_file: PathBuf,
     /// Path to the initial `current_dir` of the executable.
+    ///
+    /// # Default
+    ///
+    /// Empty is the `target_file` parent executable.
     pub working_dir: PathBuf,
     /// Arguments to pass the executable.
     pub args: Vec<String>,
@@ -180,16 +206,41 @@ pub struct CreateShortcutConfig {
     /// the same value as `zng::env::About::windows_aumid` on the app executable. Note that
     /// if the app does not have a shortcut on the Start Menu that defines the ID notifications
     /// and other shell integrations will not work properly.
+    ///
+    /// # Default
+    ///
+    /// If this is empty the [`zng::env::About::windows_aumid`] value is used. Note that this is only valid
+    /// if the setup app is defined on the same app executable.
+    ///
+    /// [`zng::env::About::windows_aumid`]: zng_env::About::windows_aumid
     pub app_id: String,
 
     /// Optional display name of the shortcut.
+    ///
+    /// # Default
     ///
     /// Empty is the `link_file` file name.
     pub name: String,
     /// Optional icon for the shortcut.
     ///
+    /// # Default
+    ///
     /// Empty is the `target_file` icon 0 in Windows, and no icon in Linux.
     pub icon: PathBuf,
+}
+impl CreateShortcutConfig {
+    /// New with minimal required config.
+    pub fn new(link_file: PathBuf, target_file: PathBuf) -> Self {
+        Self {
+            link_file,
+            target_file,
+            working_dir: PathBuf::new(),
+            args: vec![],
+            app_id: String::new(),
+            name: String::new(),
+            icon: PathBuf::new(),
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -221,7 +272,7 @@ pub struct InstallData {
 
 /// Must run in own thread to avoid COM issues
 #[cfg(windows)]
-fn window_install(d: PrepareInstallData) -> windows::core::Result<()> {
+fn windows_install(d: PrepareInstallData) -> windows::core::Result<()> {
     use std::path::Path;
 
     use windows::{
