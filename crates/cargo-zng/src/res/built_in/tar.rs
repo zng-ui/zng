@@ -259,7 +259,7 @@ fn sum_tar_len(entries: &[TarEntry]) -> u64 {
             self.0 += buf.len() as u64;
             Ok(buf.len())
         }
-    
+
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
