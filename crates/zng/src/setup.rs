@@ -127,8 +127,36 @@
 //! from CLI. In a full setup app both CLI and UI modes should be provided, with a CLI parsed by something
 //! more robust like [`clap::Parser::parse_from`].
 //!
+//! The following example shows a [`SetupWizard!`] that does the same simple install operation, configured
+//! by the user using a GUI.
+//!
 //! ```
-//! // !!: TODO
+//! # use zng::prelude::*;
+//! # use zng::setup::{task as setup_task, *};
+//! # fn demo(sfx: SfxClient) -> UiNode {
+//! let destination_page = page::InstallDirPage::new();
+//! let destination = destination_page.install_dir.clone();
+//! SetupWizard! {
+//!     // Set window title from page
+//!     get_title = WINDOW.vars().title();
+//!
+//!     pages = vec![page::WelcomePage::new("").build(), destination_page.build()];
+//!     setup_op = SetupOp::Install;
+//!
+//!     on_finish = async_hn!(destination, sfx, |args| {
+//!         args.propagation.stop();
+//!
+//!         let mut cfg = InstallConfig::new();
+//!
+//!         let data = sfx.read("data").await.unwrap().into_blocking().await;
+//!         cfg.push::<setup_task::ExtractTar>("extract", setup_task::ExtractTarConfig::from_sfx(data, destination.get()));
+//!
+//!         let r = SETUP.install(cfg, None);
+//!
+//!         let uninstall = r.wait_rsp().await.unwrap();
+//!     });
+//! }
+//! # }
 //! ```
 //!
 //! [`SETUP.install`]: SETUP::install
