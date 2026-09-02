@@ -185,7 +185,7 @@ pub use zng_ext_setup::{
 ///
 /// See [`zng_ext_setup::task`] for the full API.
 pub mod task {
-    pub use zng_ext_setup::task::{ExtractTar, ExtractTarConfig, SetupTask, SetupTaskError};
+    pub use zng_ext_setup::task::{CopyCurrentExe, CopyCurrentExeConfig, ExtractTar, ExtractTarConfig, SetupTask, SetupTaskError};
 
     #[cfg(windows)]
     pub use zng_ext_setup::task::{RegisterUninstaller, RegisterUninstallerConfig};
