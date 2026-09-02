@@ -241,7 +241,63 @@ impl UninstallConfig {
         &self.tasks
     }
 }
-// !!: TODO save (json.zst)
+
+#[cfg(feature = "save")]
+macro_rules! impl_save {
+    ($($Config:ident),+) => {$(
+
+#[cfg(feature = "save")]
+impl $Config {
+    /// Serialize and write config to file.
+    ///
+    /// The format is a ZStandard compressed JSON.
+    pub fn save_blocking(&self, file: &std::path::Path) -> std::io::Result<()> {
+        save(self, file)
+    }
+
+    /// Serialize and write config to file.
+    ///
+    /// The format is a ZStandard compressed JSON.
+    pub async fn save(self, file: std::path::PathBuf) -> std::io::Result<()> {
+        zng_task::wait(move || save(&self, &file)).await
+    }
+
+    /// Read and deserialize config from file.
+    ///
+    /// The format must be a ZStandard compressed JSON.
+    pub fn load_blocking(file: &std::path::Path) -> std::io::Result<Self> {
+        load(file)
+    }
+
+    /// Read and deserialize config from file.
+    ///
+    /// The format must be a ZStandard compressed JSON.
+    pub async fn load(file: std::path::PathBuf) -> std::io::Result<Self> {
+        zng_task::wait(move || load(&file)).await
+    }
+}
+    )+};
+}
+#[cfg(feature = "save")]
+impl_save! { UninstallConfig, PreparedInstallConfig }
+
+#[cfg(feature = "save")]
+fn save(config: &impl serde::Serialize, file: &std::path::Path) -> std::io::Result<()> {
+    let file = std::fs::File::create(file)?;
+    let mut zstd = zstd::Encoder::new(file, 22)?;
+    serde_json::to_writer(&mut zstd, config)?;
+    zstd.finish()?;
+    Ok(())
+}
+
+#[cfg(feature = "save")]
+fn load<T: serde::de::DeserializeOwned>(file: &std::path::Path) -> std::io::Result<T> {
+    let file = std::fs::File::open(file)?;
+    // optimal BufReader created internally by decoder
+    let zstd = zstd::Decoder::new(file)?;
+    let cfg = serde_json::from_reader(zstd)?;
+    Ok(cfg)
+}
 
 /// Represents a [`SETUP`] operation error.
 #[derive(Clone, PartialEq, Debug)]

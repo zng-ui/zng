@@ -89,6 +89,7 @@ dev = [
     "lang_autonym",
     "wizard",
     "setup",
+    "setup_save",
 ]
 
 # Include the default view-process implementation.
@@ -426,6 +427,10 @@ wizard = ["dep:zng-wgt-wizard"]
 
 # Enable setup wizard widget and self-setup toolkit.
 setup = ["dep:zng-ext-setup", "dep:zng-wgt-setup"]
+# Enable save/load install config.
+# 
+# Config is saved as ZStd JSON.
+setup_save = ["zng-ext-setup?/save"]
 
 # Enable the shortcut text widget.
 shortcut_text = ["dep:zng-wgt-shortcut"]
