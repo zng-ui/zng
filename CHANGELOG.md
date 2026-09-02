@@ -2,7 +2,8 @@
 
 * Add `zng::task::io::Unblock`.
 
-* Add `zng::setup` and `"setup"` Cargo feature.
+* Add `zng::setup` module.
+    - Add `"setup"` and `"setup_save"` Cargo features.
     - Add `SfxClient` and related types.
     - Add `task::CopyCurrentExe` and config type.
     - Add `SetupWidget!` and related types.
