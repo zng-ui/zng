@@ -4,6 +4,7 @@
 
 * Add `zng::setup` and `"setup"` Cargo feature.
     - Add `SfxClient` and related types.
+    - Add `task::CopyCurrentExe` and config type.
     - Add `SetupWidget!` and related types.
     - Add `zng-wgt-setup` crate.
 * Improve `.zr-sfx` tool.
