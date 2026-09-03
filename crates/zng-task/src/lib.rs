@@ -753,12 +753,29 @@ where
 /// # run_ok();
 /// ```
 ///
+/// # No App Context
+///
+/// If this is called inside an app thread a warning is logged and the app context is removed,
+/// the `task` never runs in an app context. This is done to avoid deadlocks where tasks depend
+/// on app updates to complete.
+///
+/// You should never block an app thread anyway, use `UPDATES.run` to run arbitrary futures, or
+/// `async_hn!` to declare async event handlers.
+///
 /// [`futures-lite`]: https://docs.rs/futures-lite/
 pub fn block_on<F>(task: impl IntoFuture<IntoFuture = F>) -> F::Output
 where
     F: Future,
 {
-    futures_lite::future::block_on(task.into_future())
+    let task = task.into_future();
+
+    if zng_app_context::LocalContext::current_app().is_some() {
+        tracing::warn!("cannot `block_on` in an app context, task will not run in context");
+
+        zng_app_context::LocalContext::new().with_context(|| futures_lite::future::block_on(task))
+    } else {
+        futures_lite::future::block_on(task)
+    }
 }
 
 /// Continuous poll the `task` until if finishes.
