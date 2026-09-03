@@ -1,5 +1,7 @@
 # Unreleased
 
+* `Scroll::child_align` can now also `FILL` on scrollable dimensions.
+
 * Add `zng::task::io::Unblock`.
 
 * Add `zng::setup` module.

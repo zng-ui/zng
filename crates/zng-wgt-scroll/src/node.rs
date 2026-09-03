@@ -64,13 +64,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
             }
 
             let mode = mode.get();
-            let mut child_align = child_align.get();
-            if mode.contains(ScrollMode::VERTICAL) && child_align.is_fill_y() {
-                child_align.y = 0.fct();
-            }
-            if mode.contains(ScrollMode::HORIZONTAL) && child_align.is_fill_x() {
-                child_align.x = 0.fct();
-            }
+            let child_align = child_align.get();
 
             let vp_unit = constraints.fill_size();
             let has_fill_size = !vp_unit.is_empty() && constraints.max_size() == Some(vp_unit);
@@ -107,13 +101,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
         }
         UiNodeOp::Layout { wl, final_size } => {
             let mode = mode.get();
-            let mut child_align = child_align.get();
-            if mode.contains(ScrollMode::VERTICAL) && child_align.is_fill_y() {
-                child_align.y = 0.fct();
-            }
-            if mode.contains(ScrollMode::HORIZONTAL) && child_align.is_fill_x() {
-                child_align.x = 0.fct();
-            }
+            let child_align = child_align.get();
 
             let constraints = LAYOUT.constraints();
             let vp_unit = constraints.fill_size();

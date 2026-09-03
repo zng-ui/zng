@@ -98,8 +98,6 @@ impl Scroll {
     widget_impl! {
         /// Content alignment when it is smaller then the viewport.
         ///
-        /// Note that [`Align::FILL`] only applies in dimensions without scrolling.
-        ///
         /// Is `CENTER` by default.
         ///
         /// [`Align::FILL`]: zng_wgt::prelude::Align::FILL
