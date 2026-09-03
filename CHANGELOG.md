@@ -1,5 +1,10 @@
 # Unreleased
 
+* Change `zng::task::block_on` to never run tasks in the app context.
+    - Now logs a warning and removes the app context.
+    - Fixes deadlock when blocking on `zng::task::deadline`.
+    - Added docs explaining how to run async tasks in the app.
+
 * `Scroll::child_align` can now also `FILL` on scrollable dimensions.
 
 * Add `zng::task::io::Unblock`.
