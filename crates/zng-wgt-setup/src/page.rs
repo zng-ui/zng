@@ -3,12 +3,14 @@
 use std::path::PathBuf;
 
 use zng_ext_l10n::l10n;
-use zng_wgt::prelude::*;
+use zng_unit::ByteLength;
+use zng_wgt::{align, prelude::*, visibility};
 use zng_wgt_button::Button;
 use zng_wgt_container::Container;
 use zng_wgt_dialog::DIALOG;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_menu::context::ContextMenu;
+use zng_wgt_text::Text;
 use zng_wgt_text_input::{TextInput, label::Label};
 use zng_wgt_toggle::{self as toggle, Toggle};
 use zng_wgt_wizard::{Page, PageArgs};
@@ -84,7 +86,7 @@ impl WelcomePage {
     pub fn build(self) -> Page {
         let Self { title, msg, msg_extra } = self;
         let msg = expr_var! {
-            formatx!("# {}\n\n{}\n\n{}", #{title}, #{msg}, #{msg_extra})
+            formatx!("## {}\n\n{}\n\n{}", #{title}, #{msg}, #{msg_extra})
         };
         let mut pg = Page::new(
             "",
@@ -110,6 +112,10 @@ pub struct InstallDirPage {
     pub default_dir: Var<PathBuf>,
     /// User selected install directory.
     pub install_dir: Var<PathBuf>,
+    /// Minimal required space on the selected disk.
+    ///
+    /// If this is `0.bytes()` the required space is not shown.
+    pub min_required_space: Var<ByteLength>,
 }
 impl Default for InstallDirPage {
     fn default() -> Self {
@@ -127,13 +133,13 @@ impl Default for InstallDirPage {
                 }
                 dir
             } else {
-                // !!: TODO other OS?
                 PathBuf::new()
             }
         };
         Self {
             install_dir: default_dir.cow(),
             default_dir,
+            min_required_space: const_var(0.bytes()),
         }
     }
 }
@@ -160,18 +166,38 @@ impl InstallDirPage {
                 )
             }
         });
-        Page::new(
+        let min_space = self.min_required_space.flat_map(|&s| {
+            if s == 0.bytes() {
+                const_var(Txt::default())
+            } else {
+                // l10n-# $bytes is already formatted e.g.: 900kB or 50MB.
+                l10n!(
+                    "install-dir/min-required-space",
+                    "At least {$bytes} of free disk space is required.",
+                    bytes = s
+                )
+            }
+        });
+
+        let mut pg = Page::new(
             title.clone(),
             info,
-            wgt_fn!(|_| { install_dir_ui(self.default_dir.clone(), self.install_dir.clone(), title.clone()) }),
-        )
+            wgt_fn!(|_| { install_dir_ui(self.default_dir.clone(), self.install_dir.clone(), title.clone(), min_space.clone()) }),
+        );
+        pg.side = WidgetFn::nil();
+        pg
     }
 }
-fn install_dir_ui(default_dir: Var<PathBuf>, install_dir: Var<PathBuf>, select_dlg_title: Var<Txt>) -> UiNode {
+fn install_dir_ui(
+    default_dir: Var<PathBuf>,
+    install_dir: Var<PathBuf>,
+    select_dlg_title: Var<Txt>,
+    min_required_space: Var<Txt>,
+) -> UiNode {
     let can_modify = if install_dir.capabilities().is_always_read_only() {
         const_var(false)
     } else {
-        SETUP_OP_VAR.map(|op| !matches!(op, SetupOp::Install))
+        SETUP_OP_VAR.map(|op| !matches!(op, SetupOp::Uninstall))
     };
     let can_reset = expr_var! {
         *#{can_modify.clone()} && #{default_dir.clone()} != #{install_dir.clone()}
@@ -193,9 +219,14 @@ fn install_dir_ui(default_dir: Var<PathBuf>, install_dir: Var<PathBuf>, select_d
 
         when #{can_modify} {
             child_end = select_dir_btn(install_dir.clone(), select_dlg_title.clone());
+            child_bottom = Text! {
+                align = Align::BOTTOM_RIGHT;
+                visibility = min_required_space.map(|t| (!t.is_empty()).into());
+                txt = min_required_space;
+            };
         }
         when #{can_reset} {
-            child = Toggle! {
+            child_end = Toggle! {
                 style_fn = toggle::ComboStyle!();
                 child = select_dir_btn(install_dir.clone(), select_dlg_title);
                 checked_popup = wgt_fn!(|_| ContextMenu! {
