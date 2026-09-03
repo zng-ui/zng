@@ -34,6 +34,13 @@ impl AppInit {
 
     /// Tries to connect to the view-process and receive the actual channels.
     pub fn connect(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
+        // avoid app context because `connect_deadline_blocking` uses `block_on`
+        // and that logs a warning. This is not async because it is tricky to
+        // await when the app loop is just starting, and it will barely block
+        // when the view-process spawns correctly
+        zng_app_context::LocalContext::new().with_context(|| self.connect_blocking())
+    }
+    fn connect_blocking(self) -> AnyResult<(RequestSender, ResponseReceiver, EventReceiver)> {
         let mut init_sender = self
             .init_sender
             .connect_deadline_blocking(std::time::Duration::from_secs(crate::view_timeout()))?;
