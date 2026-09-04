@@ -26,5 +26,6 @@ zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.13.3", default-featu
 zng-unit = { path = "../zng-unit", version = "0.7.1", default-features = false }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.15.3", default-features = false }
 zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.15.3", default-features = false }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.16.3", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }

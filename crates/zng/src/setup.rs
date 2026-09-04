@@ -205,5 +205,5 @@ pub mod task {
 ///
 /// See [`zng_wgt_setup::page`] for the full API.
 pub mod page {
-    pub use zng_wgt_setup::page::{InstallDirPage, WelcomePage};
+    pub use zng_wgt_setup::page::{InstallDirPage, WelcomePage, EulaPage, EulaTxt};
 }
