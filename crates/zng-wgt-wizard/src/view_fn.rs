@@ -155,9 +155,9 @@ pub struct ContentFnArgs {
     pub content: UiNode,
 
     /// Page content instance prefers to fill the full content area.
-    /// 
+    ///
     /// This is the [`Page::content_fill`] value.
-    /// 
+    ///
     /// [`Page::content_fill`]: crate::Page::content_fill
     pub content_fill: bool,
 

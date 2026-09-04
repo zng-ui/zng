@@ -1,13 +1,13 @@
 use zng_ext_l10n::l10n;
 use zng_wgt::{enabled, margin, on_init, prelude::*};
 use zng_wgt_container::Container;
+use zng_wgt_fill::background_color;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_scroll::{SCROLL, Scroll, ScrollMode};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_toggle as toggle;
 use zng_wgt_wizard::Page;
-use zng_wgt_fill::background_color;
 
 use crate::{APP_NAME_VAR, SETUP_OP_VAR};
 
@@ -25,7 +25,7 @@ pub struct EulaPage {
 
     /// If user must horizontally scroll the `license` text to at
     /// least this amount or more to enable the option to accept.
-    /// 
+    ///
     /// This value is checked against the [`SCROLL::horizontal_offset`], it must
     /// be equal or greater than this value to enable the accept option.
     ///
@@ -120,7 +120,7 @@ impl EulaPage {
                                     true
                                 }));
                                 WIDGET.push_var_handle(sub);
-                            }                            
+                            }
                         });
                     };
                     child_bottom = Container! {

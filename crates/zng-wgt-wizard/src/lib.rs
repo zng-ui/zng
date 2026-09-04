@@ -134,10 +134,10 @@ pub struct Page {
     pub content: WidgetFn<PageArgs>,
 
     /// If the `content` prefers to fully fill the content area.
-    /// 
+    ///
     /// This is a hint for [`Wizard::content_fn`]. By default this is `false` and the content
     /// is wrapped in a `Scroll!` with padding.
-    /// 
+    ///
     /// Only set this to `true` if you want to remove all padding or if you want to scroll just
     /// a part of the content with the rest filling the area.
     pub content_fill: bool,
