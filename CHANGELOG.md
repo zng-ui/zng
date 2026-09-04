@@ -15,6 +15,7 @@
     - Add `task::CopyCurrentExe` and config type.
     - Add `SetupWidget!` and related types.
     - Add `zng-wgt-setup` crate.
+    - Add `page::EulaPage` and related types.
 * Improve `.zr-sfx` tool.
     - Generated executable now can now serve manifest of data entries.
     - Now identifies files already compressed by magic number, not extension.

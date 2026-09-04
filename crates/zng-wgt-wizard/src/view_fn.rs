@@ -154,6 +154,13 @@ pub struct ContentFnArgs {
     /// [`Page::content`]: crate::Page::content
     pub content: UiNode,
 
+    /// Page content instance prefers to fill the full content area.
+    ///
+    /// This is the [`Page::content_fill`] value.
+    ///
+    /// [`Page::content_fill`]: crate::Page::content_fill
+    pub content_fill: bool,
+
     /// Page index on the pages list.
     pub index: usize,
     /// Count of pages on the list.
@@ -340,12 +347,19 @@ pub fn default_page_side(_: PageArgs) -> UiNode {
 ///
 /// See [`SIDE_FN_VAR`] for more details.
 pub fn default_content_fn(args: ContentFnArgs) -> UiNode {
-    Scroll! {
-        mode = ScrollMode::VERTICAL;
-        child = args.content;
-        child_align = Align::FILL;
-        padding = 20;
-        background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
+    if args.content_fill {
+        Container! {
+            child = args.content;
+            background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
+        }
+    } else {
+        Scroll! {
+            mode = ScrollMode::VERTICAL;
+            child = args.content;
+            child_align = Align::FILL;
+            padding = 20;
+            background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
+        }
     }
 }
 
