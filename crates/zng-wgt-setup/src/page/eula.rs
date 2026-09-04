@@ -1,5 +1,5 @@
 use zng_ext_l10n::l10n;
-use zng_wgt::{enabled, on_init, prelude::*};
+use zng_wgt::{enabled, margin, on_init, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_scroll::{SCROLL, Scroll, ScrollMode};
@@ -7,6 +7,7 @@ use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_toggle as toggle;
 use zng_wgt_wizard::Page;
+use zng_wgt_fill::background_color;
 
 use crate::{APP_NAME_VAR, SETUP_OP_VAR};
 
@@ -70,8 +71,8 @@ impl EulaPage {
             wgt_fn!(user_accepts, |_| {
                 let accept_enabled = var(required_scroll == 0.fct());
                 Container! {
-                    child_spacing = 5;
                     child_top = Text! {
+                        margin = 10;
                         txt = if required_scroll >= 0.01.fct() {
                             l10n!(
                                 "eula/message.requires_scroll",
@@ -82,6 +83,8 @@ impl EulaPage {
                         };
                     };
                     child = Scroll! {
+                        padding = 10;
+                        background_color = light_dark(rgb(0.87, 0.87, 0.87), rgb(0.13, 0.13, 0.13));
                         mode = license.map(|l| {
                             let mut mode = ScrollMode::VERTICAL;
                             if matches!(l, EulaTxt::PlainMono(_)) {
@@ -117,26 +120,29 @@ impl EulaPage {
                                     true
                                 }));
                                 WIDGET.push_var_handle(sub);
-                            }
-                            
+                            }                            
                         });
                     };
                     child_bottom = Container! {
+                        margin = 10;
+                        child_spacing = 5;
                         toggle::selector = toggle::Selector::single(user_accepts.clone());
                         toggle::style_fn = toggle::RadioStyle!();
                         child_top = toggle::Toggle! {
                             child = Text!(l10n!("eula/accept.true", "I accept the agreement"));
                             enabled = accept_enabled;
+                            value::<bool> = true;
                         };
                         child_bottom = toggle::Toggle! {
                             child = Text!(l10n!("eula/accept.false", "I do not accept the agreement"));
+                            value::<bool> = false;
                         };
                     };
                 }
             }),
         );
         pg.can_next.0 = user_accepts.read_only();
-
+        pg.content_fill = true;
         pg
     }
 }
