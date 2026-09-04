@@ -132,6 +132,16 @@ pub struct Page {
     ///
     /// The main content of each page is wrapped by [`Wizard::content_fn`] to form the full content panel.
     pub content: WidgetFn<PageArgs>,
+
+    /// If the `content` prefers to fully fill the content area.
+    /// 
+    /// This is a hint for [`Wizard::content_fn`]. By default this is `false` and the content
+    /// is wrapped in a `Scroll!` with padding.
+    /// 
+    /// Only set this to `true` if you want to remove all padding or if you want to scroll just
+    /// a part of the content with the rest filling the area.
+    pub content_fill: bool,
+
     /// Page footer content.
     ///
     /// The footer of each page is wrapped by [`Wizard::footer_fn`] to form the full footer panel.
@@ -164,6 +174,7 @@ impl Page {
             header: WidgetFn::new(default_page_header),
             side: WidgetFn::new(default_page_side),
             content,
+            content_fill: false,
             footer: WidgetFn::new(default_page_footer),
             skip: VarEq(var(false)),
             can_back: VarEq(var(true)),
@@ -434,6 +445,7 @@ fn build(index: usize, pages: &[Page]) -> UiNode {
     };
     let content = CONTENT_FN_VAR.get()(ContentFnArgs {
         content,
+        content_fill: page.content_fill,
         index,
         pages_len: pages.len(),
     });
