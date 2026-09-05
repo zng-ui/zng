@@ -1,6 +1,8 @@
 # Unreleased
 
-* Fix `Command::is_enabled` and `has_handlers` sometimes entering wrong state.
+* Fix `zng::wizard::Page::{can_back, can_next}` not affecting commands.
+
+* Fix `Command::{is_enabled, has_handlers}` sometimes entering wrong state.
 
 * Change `zng::task::block_on` to never run tasks in the app context.
     - Now logs a warning and removes the app context.

@@ -374,23 +374,34 @@ fn subscribe(index: usize, pages: &[Page]) -> [CommandHandle; 2] {
     let id = WIDGET.id();
     let cmds = [BACK_CMD.scoped(id).subscribe(false), NEXT_CMD.scoped(id).subscribe(false)];
 
-    let mut skips = MergeVarBuilder::new();
+    let mut flags = MergeVarBuilder::new();
     for p in pages {
-        skips.push(p.skip.0.clone());
+        flags.push(p.skip.0.clone());
     }
-    let can_dos = skips.build(move |skips| {
+    flags.push(pages[index].can_back.0.clone());
+    flags.push(pages[index].can_next.0.clone());
+    let skips_len = pages.len();
+    let can_dos = flags.build(move |flags| {
         let mut can_back = false;
-        for i in 0..index {
-            can_back = !skips.get(i);
-            if can_back {
-                break;
+        if flags.get(skips_len) {
+            // if can_back.get()
+            for i in 0..index {
+                can_back = !flags.get(i);
+                if can_back {
+                    // if has prev pages that are not skip
+                    break;
+                }
             }
         }
         let mut can_next = false;
-        for i in index + 1..skips.len() {
-            can_next = !skips.get(i);
-            if can_next {
-                break;
+        if flags.get(skips_len + 1) {
+            // if can_next.get()
+            for i in index + 1..skips_len {
+                can_next = !flags.get(i);
+                if can_next {
+                    // if has next pages that are not skip
+                    break;
+                }
             }
         }
         [can_back, can_next]
