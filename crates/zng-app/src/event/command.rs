@@ -1057,7 +1057,7 @@ impl CommandHandle {
                 if enabled {
                     write.enabled_count += 1;
                     if write.enabled_count == 1 {
-                        write.is_enabled.set(true);
+                        modify_is_enabled(&write.is_enabled, command);
                     }
                     tracing::trace!(
                         "command handle {:?} enabled, count: {:?}",
@@ -1075,7 +1075,7 @@ impl CommandHandle {
                         }
                     };
                     if write.enabled_count == 0 {
-                        write.is_enabled.set(false);
+                        modify_is_enabled(&write.is_enabled, command);
                     }
                     tracing::trace!(
                         "command handle {:?} disabled, count: {:?}",
@@ -1090,7 +1090,7 @@ impl CommandHandle {
                     if enabled {
                         data.enabled_count += 1;
                         if data.enabled_count == 1 {
-                            data.is_enabled.set(true);
+                            modify_is_enabled(&data.is_enabled, command);
                         }
                         tracing::trace!(
                             "command handle {:?} enabled, count: {:?}",
@@ -1111,7 +1111,7 @@ impl CommandHandle {
                             }
                         };
                         if data.enabled_count == 0 {
-                            data.is_enabled.set(false);
+                            modify_is_enabled(&data.is_enabled, command);
                         }
                         tracing::trace!(
                             "command handle {:?} enabled, count: {:?}",
@@ -1166,7 +1166,7 @@ impl Drop for CommandHandle {
                         }
                     };
                     if write.handle_count == 0 {
-                        write.has_handlers.set(false);
+                        modify_has_handlers(&write.has_handlers, command);
                     }
 
                     if self.local_enabled.get() {
@@ -1184,7 +1184,7 @@ impl Drop for CommandHandle {
                         };
 
                         if write.enabled_count == 0 {
-                            write.is_enabled.set(false);
+                            modify_is_enabled(&write.is_enabled, command);
                         }
                     }
 
@@ -1228,7 +1228,7 @@ impl Drop for CommandHandle {
                             };
 
                             if data.enabled_count == 0 {
-                                data.is_enabled.set(false);
+                                modify_is_enabled(&data.is_enabled, command);
                             }
                         }
 
@@ -1240,7 +1240,7 @@ impl Drop for CommandHandle {
                         );
 
                         if data.handle_count == 0 {
-                            data.has_handlers.set(false);
+                            modify_has_handlers(&data.has_handlers, command);
                             if data.observer_count == 0 {
                                 entry.remove();
                                 EVENTS.unregister_command(command);
@@ -1690,7 +1690,9 @@ pub struct CommandData {
     enabled_count: usize,
     registered: bool,
 
+    // only modify with `modify_has_handlers`
     has_handlers: Var<bool>,
+    // only modify with `modify_is_enabled`
     is_enabled: Var<bool>,
 
     scopes: HashMap<CommandScope, ScopedValue>,
@@ -1726,10 +1728,10 @@ impl CommandData {
                 }
 
                 if self.handle_count == 1 {
-                    self.has_handlers.set(true);
+                    modify_has_handlers(&self.has_handlers, command);
                 }
                 if self.enabled_count == 1 {
-                    self.is_enabled.set(true);
+                    modify_is_enabled(&self.is_enabled, command);
                 }
 
                 tracing::trace!(
@@ -1752,10 +1754,10 @@ impl CommandData {
                 }
 
                 if data.handle_count == 1 {
-                    data.has_handlers.set(true);
+                    modify_has_handlers(&data.has_handlers, command);
                 }
                 if data.enabled_count == 1 {
-                    data.is_enabled.set(true);
+                    modify_is_enabled(&data.is_enabled, command);
                 }
 
                 tracing::trace!(
@@ -1779,6 +1781,41 @@ impl CommandData {
             enabled,
         )
     }
+}
+
+// Command enabled_count updates during update pass and also in `local_enabled` hook
+// this can cause the `local_enabled` hook to set a value earlier than another change
+// caused during update, because VARS always applies updates requested during hooks
+// immediately, a requirement of binding.
+//
+// To avoid this without delaying non-var command state an update cycle we schedule
+// a modify closure that checks the state again.
+fn modify_is_enabled(is_enabled: &Var<bool>, command: Command) {
+    is_enabled.modify(move |a| {
+        let cmd = command.local.read();
+        let enabled = match command.scope {
+            CommandScope::App => cmd.enabled_count > 0,
+            scope => match cmd.scopes.get(&scope) {
+                Some(s) => s.enabled_count > 0,
+                None => false,
+            },
+        };
+        a.set(enabled);
+    });
+}
+// same idea as modify_is_enabled
+fn modify_has_handlers(has_handlers: &Var<bool>, command: Command) {
+    has_handlers.modify(move |a| {
+        let cmd = command.local.read();
+        let has = match command.scope {
+            CommandScope::App => cmd.handle_count > 0,
+            scope => match cmd.scopes.get(&scope) {
+                Some(s) => s.handle_count > 0,
+                None => false,
+            },
+        };
+        a.set(has);
+    });
 }
 
 struct ScopedValue {
