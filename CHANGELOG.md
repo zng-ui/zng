@@ -1,5 +1,8 @@
 # Unreleased
 
+* Implement disabled visual state for `Toggle!` styles.
+    - `RadioStyle!`, `SwitchStyle!` and `CheckStyle!`.
+
 * Fix `zng::wizard::Page::{can_back, can_next}` not affecting commands.
 
 * Fix `Command::{is_enabled, has_handlers}` sometimes entering wrong state.
