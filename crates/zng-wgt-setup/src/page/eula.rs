@@ -69,7 +69,7 @@ impl EulaPage {
             title,
             info,
             wgt_fn!(user_accepts, |_| {
-                let accept_enabled = var(required_scroll == 0.fct());
+                let accept_enabled = var(required_scroll == 0.fct() || user_accepts.get());
                 Container! {
                     child_top = Text! {
                         margin = 10;
@@ -107,6 +107,9 @@ impl EulaPage {
                             },
                         }));
                         on_init = hn!(accept_enabled, |_| {
+                            if accept_enabled.get() {
+                                return;
+                            }
                             // enable accept choice once scroll >= 95%
                             let offset = SCROLL.vertical_offset();
                             if offset.get() >= required_scroll {

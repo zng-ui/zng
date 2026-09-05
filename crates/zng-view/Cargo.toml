@@ -208,8 +208,8 @@ rodio = { version = "0.22", default-features = false, features = ["playback", "t
 # matches `rodio` dependency version
 symphonia = { version = "0.5.5", default-features = false, optional = true }
 
-accesskit = { version = "0.24", default-features = false }
-accesskit_winit = { version = "0.33", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
+accesskit = { version = "0.25", default-features = false }
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06", "accesskit_unix", "async-io"] }
 
 # rfd
 ## cfg(not(linux, android, ios))
