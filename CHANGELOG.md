@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.4
+
 * Implement disabled visual state for `Toggle!` styles.
     - `RadioStyle!`, `SwitchStyle!` and `CheckStyle!`.
 
