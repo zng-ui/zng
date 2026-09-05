@@ -14,6 +14,7 @@ fn main() {
     zng::env::init!();
 
     APP.defaults().run_window("main", async {
+        let window_enabled = var(true);
         Window! {
             title = "Button Example";
             lang = lang!("en-US");
@@ -43,6 +44,19 @@ fn main() {
                     dyn_buttons_from_data(),
                 ];
             };
+
+            widget::enabled = window_enabled.clone();
+            context_menu = ContextMenu!(ui_vec![Button! {
+                child = Text!("Disable Window for 3s");
+                on_click = hn!(window_enabled, |_| {
+                    // can't use async_hn! here because button deinits on click
+                    task::spawn(async_clmv!(window_enabled, {
+                        window_enabled.set(false);
+                        task::deadline(3.secs()).await;
+                        window_enabled.set(true);
+                    }));
+                });
+            }]);
         }
     })
 }

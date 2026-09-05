@@ -23,10 +23,10 @@ pub struct EulaPage {
     /// Is `var(false)` by default.
     pub user_accepts: Var<bool>,
 
-    /// If user must horizontally scroll the `license` text to at
+    /// If user must vertically scroll the `license` text to at
     /// least this amount or more to enable the option to accept.
     ///
-    /// This value is checked against the [`SCROLL::horizontal_offset`], it must
+    /// This value is checked against the [`SCROLL::vertical_offset`], it must
     /// be equal or greater than this value to enable the accept option.
     ///
     /// Is `0.fct()` by default.
@@ -108,7 +108,7 @@ impl EulaPage {
                         }));
                         on_init = hn!(accept_enabled, |_| {
                             // enable accept choice once scroll >= 95%
-                            let offset = SCROLL.horizontal_offset();
+                            let offset = SCROLL.vertical_offset();
                             if offset.get() >= required_scroll {
                                 accept_enabled.set(true);
                             } else {
