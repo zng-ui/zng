@@ -47,7 +47,7 @@ directories = { version = "6.0", default-features = false }
 quick-xml = { version = "0.41", features = ["serialize"], default-features = false }
 toml = { version = "1.0", default-features = false, features = ["std", "serde"] }
 indexmap = { version = "2", features = ["serde"] }
-zstd = { version = "0.13", default-features = false } # also update res/built_in/sfx_cargo.toml
+zstd = { version = "0.14", default-features = false } # also update res/built_in/sfx_cargo.toml
 lzma-rust2 = { version = "0.20", default-features = false, features = ["std", "encoder"] }
 tar = { version = "0.4", default-features = false }
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
