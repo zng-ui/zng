@@ -1427,7 +1427,7 @@ pub(crate) fn access_tree_update_to_kit(update: zng_view_api::access::AccessTree
 
     accesskit::TreeUpdate {
         nodes,
-        tree: update.full_root.map(|id| accesskit::Tree::new(access_id_to_kit(id))),
+        tree: update.full_root.map(|id| accesskit::TreeInfo::new(access_id_to_kit(id))),
         focus: access_id_to_kit(update.focused),
         tree_id: accesskit::TreeId::ROOT,
     }
