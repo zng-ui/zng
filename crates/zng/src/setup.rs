@@ -112,7 +112,7 @@
 //!             install_cfg.push::<setup_task::ExtractTar>("extract", extract_cfg);
 //!
 //!             // install
-//!             let uninstall_cfg = SETUP.install(install_cfg).wait_rsp().await.unwrap();
+//!             let uninstall_cfg = SETUP.install(install_cfg, None).wait_rsp().await.unwrap();
 //!         });
 //!
 //!         // interrupt normal app
