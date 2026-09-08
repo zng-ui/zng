@@ -3,6 +3,9 @@
 BACK_CMD =
     .name = Back
 
+BEGIN_CMD =
+    .name = Begin
+
 CANCEL_CMD =
     .name = Cancel
 

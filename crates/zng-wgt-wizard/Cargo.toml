@@ -29,3 +29,5 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.16.4", default-features 
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.16.4", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.14.4", default-features = false }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.14.4", default-features = false }
+
+tracing = { version = "0.1", default-features = false, features = ["std"] }
