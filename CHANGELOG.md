@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add `WIZARD` contextual service.
+    - Calls commands.
+    - Tracks selected page.
+    - Set custom pages.
+
 * Refactor `wizard::FINISH_CMD`.
     - Now only represents the "exit wizard" action.
     - Added `BEGIN_CMD` and related properties that better represents 

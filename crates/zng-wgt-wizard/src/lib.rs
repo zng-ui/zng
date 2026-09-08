@@ -11,6 +11,8 @@
 
 zng_wgt::enable_widget_macros!();
 
+use std::any::Any;
+
 use zng_app::event::CommandArgs;
 use zng_ext_input::focus::FOCUS;
 use zng_var::MergeVarBuilder;
@@ -33,7 +35,9 @@ impl Wizard {
             let pages = wgt.capture_var_or_default(property_id!(pages));
             wgt.set_child(node(pages));
             wgt.push_intrinsic(NestGroup::CONTEXT, "state", |c| {
-                with_context_var(c, GET_TITLE_VAR, var(Txt::from_static("")))
+                let c = with_context_var(c, SELECTED_PAGE_VAR, var(Page::nil()));
+
+                zng_wgt::node::with_context_local_init(c, &WIZARD_CTX, || WizardCtx { id: WIDGET.id() })
             });
         });
 
@@ -63,7 +67,18 @@ impl Wizard {
 }
 
 context_var! {
-    static GET_TITLE_VAR: Txt = Txt::from_static("");
+    static SELECTED_PAGE_VAR: Page = Page::nil();
+}
+context_local! {
+    static WIZARD_CTX: WizardCtx = WizardCtx::no_context();
+}
+struct WizardCtx {
+    id: WidgetId,
+}
+impl WizardCtx {
+    fn no_context() -> Self {
+        panic!("no `Wizard!` in context")
+    }
 }
 
 /// Defines the wizard pages.
@@ -79,7 +94,7 @@ pub fn pages(wgt: &mut WidgetBuilding, pages: impl IntoVar<Vec<Page>>) {
 /// Get the current page title.
 #[property(CONTEXT, widget_impl(Wizard))]
 pub fn get_title(child: impl IntoUiNode, title: impl IntoVar<Txt>) -> UiNode {
-    bind_state(child, GET_TITLE_VAR, title)
+    bind_state(child, SELECTED_PAGE_VAR.flat_map(|p| p.title.0.clone()), title)
 }
 
 /// Represents a page builder for [`Wizard!`].
@@ -181,12 +196,51 @@ impl Page {
             can_next: VarEq(var(true)),
         }
     }
+
+    /// New fully empty skip page.
+    pub fn nil() -> Self {
+        Self {
+            title: VarEq(const_var(Txt::from_static(""))),
+            info: VarEq(const_var(Txt::from_static(""))),
+            header: WidgetFn::nil(),
+            side: WidgetFn::nil(),
+            content: WidgetFn::nil(),
+            content_fill: false,
+            footer: WidgetFn::nil(),
+            skip: VarEq(const_var(true)),
+            can_back: VarEq(const_var(false)),
+            can_next: VarEq(const_var(false)),
+        }
+    }
+
+    /// Gets if is [`nil`].
+    ///
+    /// [`nil`]: Self::nil
+    pub fn is_nil(&self) -> bool {
+        self.header.is_nil()
+            && self.side.is_nil()
+            && self.content.is_nil()
+            && self.footer.is_nil()
+            && !self.content_fill
+            && self.title.0.capabilities().is_const()
+            && self.info.0.capabilities().is_const()
+            && self.skip.0.capabilities().is_const()
+            && self.can_back.0.capabilities().is_const()
+            && self.can_next.0.capabilities().is_const()
+            && self.title.0.with(|t| t.as_static_str() == Some(""))
+            && self.info.0.with(|t| t.as_static_str() == Some(""))
+            && self.skip.0.get()
+            && !self.can_back.0.get()
+            && !self.can_next.0.get()
+    }
 }
 /// Arguments for [`Page`] builders.
 #[non_exhaustive]
 #[derive(Clone)]
 pub struct PageArgs {
     /// Page index on the pages list.
+    ///
+    /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -208,6 +262,11 @@ impl PageArgs {
     /// Is last page on the list.
     pub fn is_last(&self) -> bool {
         self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Is custom page, not on the list.
+    pub fn is_custom(&self) -> bool {
+        self.index == usize::MAX
     }
 
     /// Get `WIDGET.id()`.
@@ -315,8 +374,8 @@ pub fn finish_cmd_name(child: impl IntoUiNode, name: impl IntoVar<Txt>) -> UiNod
 
 fn node(pages: Var<Vec<Page>>) -> UiNode {
     let mut cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
-    let mut selected_page = 0usize;
-    let mut get_title = VarHandle::dummy();
+    let mut sel_pg_i = 0usize;
+    const CUSTOM_PAGE_I: usize = usize::MAX;
     match_node(UiNode::nil(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -329,12 +388,14 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 .sub_var(&SIDE_EXTRA_FN_VAR)
                 .sub_var(&CONTENT_FN_VAR)
                 .sub_var(&FOOTER_FN_VAR)
-                .sub_var(&FOOTER_EXTRA_FN_VAR);
+                .sub_var(&FOOTER_EXTRA_FN_VAR)
+                .sub_var(&SELECTED_PAGE_VAR);
             pages.with(|p| {
                 if !p.is_empty() {
+                    sel_pg_i = 0;
                     cmds = subscribe(0, p);
                     *c.node() = build(0, p);
-                    get_title = p[0].title.set_bind(&GET_TITLE_VAR);
+                    SELECTED_PAGE_VAR.set(p[0].clone());
                 }
             });
         }
@@ -342,40 +403,68 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
             c.deinit();
             *c.node() = UiNode::nil();
             cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
-            selected_page = 0;
-            get_title = VarHandle::dummy();
+            SELECTED_PAGE_VAR.set(Page::nil());
         }
         UiNodeOp::Update { updates } => {
             c.update(updates);
 
             let mut rebuild = false;
-            let id = WIDGET.id();
-            BACK_CMD.scoped(id).each_update(true, false, |args| {
-                while selected_page > 0 {
-                    selected_page -= 1;
-                    if !pages.with(|p| p[selected_page].skip.get()) {
-                        rebuild = true;
-                        break;
-                    }
-                }
-                args.propagation.stop();
-            });
-            NEXT_CMD.scoped(id).each_update(true, false, |args| {
-                let last = pages.with(|p| p.len()).saturating_sub(1);
-                while selected_page < last {
-                    selected_page += 1;
-                    if !pages.with(|p| p[selected_page].skip.get()) {
-                        rebuild = true;
-                        break;
-                    }
-                }
-                args.propagation.stop();
-            });
 
+            if sel_pg_i != CUSTOM_PAGE_I {
+                // default BACK_CMD and NEXT_CMD
+
+                let scope = WIDGET.id();
+
+                BACK_CMD.scoped(scope).each_update(true, false, |args| {
+                    args.propagation.stop();
+
+                    // seek prev that is not skip
+                    pages.with(|pages| {
+                        for (i, pg) in pages[..sel_pg_i].iter().enumerate().rev() {
+                            if !pg.skip.get() {
+                                sel_pg_i = i;
+                                rebuild = true;
+                                break;
+                            }
+                        }
+                    });
+                });
+
+                NEXT_CMD.scoped(scope).each_update(true, false, |args| {
+                    args.propagation.stop();
+
+                    // seek next that is not skip
+                    pages.with(|pages| {
+                        for (i, pg) in pages.iter().enumerate().skip(sel_pg_i + 1) {
+                            if !pg.skip.get() {
+                                sel_pg_i = i;
+                                rebuild = true;
+                                break;
+                            }
+                        }
+                    });
+                });
+            }
             if pages.is_new() {
-                selected_page = 0;
+                sel_pg_i = 0;
                 rebuild = true;
-            } else if PANEL_FN_VAR.is_new()
+            } else if let Some(new) = SELECTED_PAGE_VAR.get_new() {
+                pages.with(|pages| {
+                    if let Some(i) = pages.iter().position(|p| p == &new) {
+                        if i != sel_pg_i {
+                            // custom assign, but page is known
+                            sel_pg_i = i;
+                            rebuild = true;
+                        }
+                        // else, not custom assign, already rebuilt
+                    } else {
+                        // custom assign
+                        sel_pg_i = CUSTOM_PAGE_I;
+                        rebuild = true;
+                    }
+                })
+            }
+            if !rebuild && PANEL_FN_VAR.is_new()
                 || HEADER_FN_VAR.is_new()
                 || HEADER_BACKGROUND_FN_VAR.is_new()
                 || SIDE_FN_VAR.is_new()
@@ -389,20 +478,43 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
             }
 
             if rebuild {
+                // replace child with new page instance
                 c.deinit();
-                pages.with(|p| {
-                    if !p.is_empty() {
-                        cmds = subscribe(selected_page, p);
-                        *c.node() = build(selected_page, p);
-                        get_title = p[selected_page].title.set_bind(&GET_TITLE_VAR);
+                WIDGET.update_info().layout().render();
+
+                pages.with(|pages| {
+                    if sel_pg_i < pages.len() {
+                        // is valid selection from pages
+
+                        SELECTED_PAGE_VAR.set(pages[sel_pg_i].clone());
+
+                        // subscribe back/next
+                        cmds = subscribe(sel_pg_i, pages);
+                        // build and init
+                        *c.node() = build(sel_pg_i, pages);
                         c.init();
                     } else {
+                        // custom page or empty pages
+
+                        // no default back/next support
                         cmds = [CommandHandle::dummy(), CommandHandle::dummy()];
-                        *c.node() = UiNode::nil();
-                        get_title = VarHandle::dummy();
+
+                        if sel_pg_i == CUSTOM_PAGE_I {
+                            // valid custom selection
+                            SELECTED_PAGE_VAR.with(|pg| {
+                                *c.node() = build(CUSTOM_PAGE_I, std::slice::from_ref(pg));
+                            });
+                            c.init();
+                        } else {
+                            // empty pages
+                            if !pages.is_empty() {
+                                tracing::error!("invalid page selection, {} in {}", sel_pg_i, pages.len());
+                            }
+                            *c.node() = UiNode::nil();
+                            SELECTED_PAGE_VAR.set(Page::nil());
+                        }
                     }
                 });
-                WIDGET.update_info().layout().render();
             }
         }
         _ => {}
@@ -513,4 +625,56 @@ fn build(index: usize, pages: &[Page]) -> UiNode {
         content,
         footer,
     })
+}
+
+/// Controls the parent wizard.
+pub struct WIZARD;
+impl WIZARD {
+    /// Gets the ID of the wizard ancestor represented by the [`WIZARD`].
+    pub fn try_id(&self) -> Option<WidgetId> {
+        if WIZARD_CTX.is_default() { None } else { Some(WIZARD_CTX.get().id) }
+    }
+    /// Gets the ID of the wizard ancestor represented by the [`WIZARD`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if not inside a wizard.
+    pub fn id(&self) -> WidgetId {
+        WIZARD_CTX.get().id
+    }
+
+    /// Request `BACK_CMD`.
+    pub fn back(&self) {
+        BACK_CMD.scoped(self.id()).notify();
+    }
+
+    /// Request `NEXT_CMD`.
+    pub fn next(&self) {
+        NEXT_CMD.scoped(self.id()).notify();
+    }
+
+    /// Request `BEGIN_CMD`.
+    pub fn begin(&self) {
+        BEGIN_CMD.scoped(self.id()).notify();
+    }
+
+    /// Request `BEGIN_CMD` with a custom param.
+    pub fn begin_param(&self, param: impl Any + Send + Sync) {
+        BEGIN_CMD.scoped(self.id()).notify_param(param);
+    }
+
+    /// Request `FINISH_CMD`.
+    pub fn finish(&self) {
+        FINISH_CMD.scoped(self.id()).notify();
+    }
+
+    /// Request `FINISH_CMD` with a custom param.
+    pub fn finish_param(&self, param: impl Any + Send + Sync) {
+        FINISH_CMD.scoped(self.id()).notify_param(param);
+    }
+
+    /// Get or set the selected page.
+    pub fn selected_page(&self) -> Var<Page> {
+        SELECTED_PAGE_VAR.into_var()
+    }
 }
