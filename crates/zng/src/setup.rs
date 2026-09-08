@@ -1,4 +1,5 @@
 #![cfg(feature = "setup")]
+// !!: BEGIN_CMD
 
 //! Widgets for setup UI and a service for implementing it.
 //!

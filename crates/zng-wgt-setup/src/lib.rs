@@ -25,11 +25,11 @@ impl SetupWizard {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            finish_cmd_name = SETUP_OP_VAR.flat_map(|op| match op {
-                SetupOp::Install => l10n!("FINISH_CMD.name-install", "Install"),
-                SetupOp::Update => l10n!("FINISH_CMD.name-update", "Update"),
-                SetupOp::Repair => l10n!("FINISH_CMD.name-repair", "Repair"),
-                SetupOp::Uninstall => l10n!("FINISH_CMD.name-uninstall", "Uninstall"),
+            begin_cmd_name = SETUP_OP_VAR.flat_map(|op| match op {
+                SetupOp::Install => l10n!("BEGIN_CMD.name-install", "Install"),
+                SetupOp::Update => l10n!("BEGIN_CMD.name-update", "Update"),
+                SetupOp::Repair => l10n!("BEGIN_CMD.name-repair", "Repair"),
+                SetupOp::Uninstall => l10n!("BEGIN_CMD.name-uninstall", "Uninstall"),
             });
         }
     }

@@ -458,6 +458,9 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                         }
                         // else, not custom assign, already rebuilt
                     } else {
+                        println!("!!: {:?} {:?}", pages.len(), new.title.get());
+                        // !!: TODO
+                        std::process::exit(1);
                         // custom assign
                         sel_pg_i = CUSTOM_PAGE_I;
                         rebuild = true;
@@ -565,6 +568,7 @@ fn subscribe(index: usize, pages: &[Page]) -> [CommandHandle; 2] {
     cmds
 }
 fn build(index: usize, pages: &[Page]) -> UiNode {
+    // !!: TDOO custom page
     let page = &pages[index];
     let args = PageArgs {
         index,
