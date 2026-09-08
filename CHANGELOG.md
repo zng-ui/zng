@@ -1,5 +1,9 @@
 # Unreleased
 
+* Refactor `wizard::FINISH_CMD`.
+    - Now only represents the "exit wizard" action.
+    - Added `BEGIN_CMD` and related properties that better represents 
+      the "transition to progress page" action.
 
 # 0.24.4
 

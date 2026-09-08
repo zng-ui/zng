@@ -229,17 +229,37 @@ command! {
         name: "Next",
     };
 
-    /// Cancel wizard operation.
+    /// Cancel wizard config or operation.
     pub static CANCEL_CMD {
         l10n!: true,
         name: "Cancel",
     };
 
+    /// Begin wizard operation.
+    ///
+    /// This command represents the transition from config pages to a progress page.
+    /// The progress page is expected to automatically swap to a results page on completion.
+    ///
+    /// The [`begin_cmd_name`] can be used to change the command display name.
+    ///
+    /// [`begin_cmd_name`]: fn@begin_cmd_name
+    pub static BEGIN_CMD {
+        l10n!: true,
+        name: "Begin",
+    };
+
     /// Finish wizard operation.
     ///
-    /// This command also represents the transition from a pages set to another, for example,
-    /// a setup wizard starts with only the config pages, the [`finish_cmd_name`]
-    /// is set to "Install", on finish the pages are swapped to the progress and results page.
+    /// This command represents the transition out of the wizard from the results page or the last
+    /// config page.
+    ///
+    /// If the wizard operation uses `BEGIN_CMD` the progress page will auto swap to
+    /// a results page, the results page offers the `FINISH_CMD`, to perhaps close the wizard window.
+    ///
+    /// The wizard operation can also simply represents a configuration that is instantly applied, in this
+    /// case the last config page can directly call `FINISH_CMD` to exit the wizard.
+    ///
+    /// The [`finish_cmd_name`] can be used to change the command display name.
     ///
     /// [`finish_cmd_name`]: fn@finish_cmd_name
     pub static FINISH_CMD {
@@ -254,11 +274,30 @@ command_property! {
         CANCEL_CMD
     }
 
+    /// Wizard begin requested.
+    #[property(EVENT, widget_impl(Wizard))]
+    pub fn on_begin<on_pre_begin, can_begin>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
+        BEGIN_CMD
+    }
+
     /// Wizard finish requested.
     #[property(EVENT, widget_impl(Wizard))]
     pub fn on_finish<on_pre_finish, can_finish>(child: impl IntoUiNode, handler: Handler<CommandArgs>) -> UiNode {
         FINISH_CMD
     }
+}
+
+/// Set the name for the [`BEGIN_CMD`] scoped on this widget.
+#[property(CONTEXT, widget_impl(Wizard))]
+pub fn begin_cmd_name(child: impl IntoUiNode, name: impl IntoVar<Txt>) -> UiNode {
+    let name = name.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let begin_name = BEGIN_CMD.scoped(WIDGET.id()).name();
+            let h = name.set_bind(&begin_name);
+            WIDGET.push_var_handle(h);
+        }
+    })
 }
 
 /// Set the name for the [`FINISH_CMD`] scoped on this widget.
