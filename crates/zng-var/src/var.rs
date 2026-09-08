@@ -1537,9 +1537,16 @@ impl<T: VarValue> Var<T> {
 
     /// Gets if this variable is the same as `other`.
     ///
-    /// If this variable is [`SHARE`] compares the *pointer*. If this variable is local this is always `false`.
+    /// Shared variables are equal if they point to the same value and have the same capabilities.
+    /// Const variables are equal if their value is equal. Contextual variables are equal if they are
+    /// the same context variable.
     ///
-    /// [`SHARE`]: crate::VarCapability::SHARE
+    /// Use [`current_context`] to compare the variables at the caller context.
+    ///
+    /// Use [`var_instance_tag`] to compare only the shared pointers at the caller context.
+    ///
+    /// [`current_context`]: Self::current_context
+    /// [`var_instance_tag`]: AnyVar::var_instance_tag
     pub fn var_eq(&self, other: &Self) -> bool {
         self.any.var_eq(&other.any)
     }
