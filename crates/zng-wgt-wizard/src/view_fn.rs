@@ -1,4 +1,4 @@
-use crate::{BACK_CMD, CANCEL_CMD, FINISH_CMD, NEXT_CMD, PageArgs, Wizard};
+use crate::{BACK_CMD, BEGIN_CMD, CANCEL_CMD, FINISH_CMD, NEXT_CMD, PageArgs, Wizard};
 use zng_ext_font::FontWeight;
 use zng_ext_input::focus::TabIndex;
 use zng_wgt::{align, border, is_rtl, prelude::*};
@@ -390,7 +390,7 @@ pub fn default_page_footer(args: PageArgs) -> UiNode {
     if args.is_first() {
         ui_vec![default_page_footer_next(id), default_page_footer_cancel(id)]
     } else if args.is_last() {
-        ui_vec![default_page_footer_back(id), default_page_footer_finish(id)]
+        ui_vec![default_page_footer_back(id), default_page_footer_begin(id)]
     } else {
         ui_vec![
             default_page_footer_back(id),
@@ -412,6 +412,14 @@ pub fn default_page_footer_next(wizard_id: WidgetId) -> UiNode {
     Button! {
         cmd = NEXT_CMD.scoped(wizard_id);
         tab_index = TabIndex::FIRST;
+    }
+}
+/// Default [`BEGIN_CMD`] button.
+pub fn default_page_footer_begin(wizard_id: WidgetId) -> UiNode {
+    Button! {
+        cmd = BEGIN_CMD.scoped(wizard_id);
+        tab_index = TabIndex::FIRST;
+        style_fn = style_fn!(|_| zng_wgt_button::PrimaryStyle!());
     }
 }
 /// Default [`FINISH_CMD`] button.

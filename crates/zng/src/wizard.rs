@@ -14,7 +14,7 @@
 //! ```
 //! use zng::focus::{TabIndex, tab_index};
 //! use zng::prelude::*;
-//! use zng::wizard::{self, Wizard};
+//! use zng::wizard::{self, WIZARD, Wizard};
 //! # let _scope = zng::APP.defaults();
 //!
 //! let wizard_id = WidgetId::new_unique();
@@ -32,11 +32,11 @@
 //!
 //! // more customized page, with wizard commands control
 //! let can_cancel = var(true);
-//! let can_finish = var(true);
+//! let can_begin = var(true);
 //! let mut page = wizard::Page::new(
 //!     "Commands",
 //!     "What wizard commands are enabled?",
-//!     wgt_fn!(can_cancel, can_finish, |args: wizard::PageArgs| {
+//!     wgt_fn!(can_cancel, can_begin, |args: wizard::PageArgs| {
 //!         Stack! {
 //!             // on enter page
 //!             widget::on_init = hn!(can_cancel, |_| {
@@ -56,8 +56,8 @@
 //!                     child = Text!("CANCEL_CMD");
 //!                 },
 //!                 Toggle! {
-//!                     checked = can_finish.clone();
-//!                     child = Text!("FINISH_CMD");
+//!                     checked = can_begin.clone();
+//!                     child = Text!("BEGIN_CMD");
 //!                 },
 //!                 Text!("Also wizard navigation commands:"),
 //!                 Toggle! {
@@ -68,7 +68,7 @@
 //!         }
 //!     }),
 //! );
-//! // by default the last page only has BACK and FINISH buttons
+//! // by default the last page only has BACK and BEGIN buttons
 //! page.footer = wgt_fn!(|_| {
 //!     ui_vec![
 //!         Button! {
@@ -76,7 +76,7 @@
 //!             tab_index = TabIndex::FIRST - 1;
 //!         },
 //!         Button! {
-//!             cmd = wizard::FINISH_CMD.scoped(wizard_id);
+//!             cmd = wizard::BEGIN_CMD.scoped(wizard_id);
 //!             tab_index = TabIndex::FIRST;
 //!             style_fn = style_fn!(|_| zng::button::PrimaryStyle!());
 //!         },
@@ -88,6 +88,9 @@
 //!     .into_node()
 //! });
 //!
+//! # fn some_status_page() -> wizard::Page { wizard::Page::nil() }
+//! # async fn some_task() -> { task::deadline(500.ms()).await }
+//! # fn some_results_page() -> wizard::Page { wizard::Page::nil() }
 //! # let _ =
 //! Wizard! {
 //!     id = wizard_id;
@@ -99,8 +102,16 @@
 //!         println!("Cancel!");
 //!         WINDOW.close();
 //!     });
-//!     finish_cmd_name = "Apply";
-//!     can_finish;
+//!     begin_cmd_name = "Apply";
+//!     can_begin;
+//!     on_begin = async_hn!(|a| {
+//!         // go to custom page
+//!         WIZARD.selected_page().set(some_status_page());
+//!         // run task
+//!         some_task().await;
+//!         // go to results page with the finish button
+//!         WIZARD.selected_page().set(some_results_page());
+//!     });
 //!     on_finish = hn!(|a| {
 //!         println!("Finish!");
 //!         WINDOW.close();
@@ -114,6 +125,7 @@
 //! See [`zng_wgt_wizard`] for the full API.
 
 pub use zng_wgt_wizard::{
-    BACK_CMD, CANCEL_CMD, ContentFnArgs, FINISH_CMD, FooterFnArgs, HeaderFnArgs, NEXT_CMD, Page, PageArgs, PanelFnArgs, SideFnArgs, WIZARD,
-    Wizard, content_fn, footer_extra_fn, footer_fn, header_background_fn, header_fn, panel_fn, side_background_fn, side_extra_fn, side_fn,
+    BACK_CMD, BEGIN_CMD, CANCEL_CMD, ContentFnArgs, FINISH_CMD, FooterFnArgs, HeaderFnArgs, NEXT_CMD, Page, PageArgs, PanelFnArgs,
+    SideFnArgs, WIZARD, Wizard, content_fn, footer_extra_fn, footer_fn, header_background_fn, header_fn, panel_fn, side_background_fn,
+    side_extra_fn, side_fn,
 };
