@@ -394,7 +394,7 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                 if !p.is_empty() {
                     sel_pg_i = 0;
                     cmds = subscribe(0, p);
-                    *c.node() = build(0, p);
+                    *c.node() = build(0, p, None);
                     SELECTED_PAGE_VAR.set(p[0].clone());
                 }
             });
@@ -491,7 +491,7 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                         // subscribe back/next
                         cmds = subscribe(sel_pg_i, pages);
                         // build and init
-                        *c.node() = build(sel_pg_i, pages);
+                        *c.node() = build(sel_pg_i, pages, None);
                         c.init();
                     } else {
                         // custom page or empty pages
@@ -502,7 +502,7 @@ fn node(pages: Var<Vec<Page>>) -> UiNode {
                         if sel_pg_i == CUSTOM_PAGE_I {
                             // valid custom selection
                             SELECTED_PAGE_VAR.with(|pg| {
-                                *c.node() = build(CUSTOM_PAGE_I, std::slice::from_ref(pg));
+                                *c.node() = build(CUSTOM_PAGE_I, pages, Some(pg));
                             });
                             c.init();
                         } else {
@@ -564,8 +564,8 @@ fn subscribe(index: usize, pages: &[Page]) -> [CommandHandle; 2] {
 
     cmds
 }
-fn build(index: usize, pages: &[Page]) -> UiNode {
-    let page = &pages[index];
+fn build(index: usize, pages: &[Page], custom_page: Option<&Page>) -> UiNode {
+    let page = custom_page.unwrap_or_else(|| &pages[index]);
     let args = PageArgs {
         index,
         pages_len: pages.len(),

@@ -133,6 +133,7 @@
 //! ```
 //! # use zng::prelude::*;
 //! # use zng::setup::{task as setup_task, *};
+//! # use zng::wizard::WIZARD;
 //! # fn demo(sfx: SfxClient) -> UiNode {
 //! let destination_page = page::InstallDirPage::new();
 //! let destination = destination_page.install_dir.clone();
@@ -143,17 +144,27 @@
 //!     pages = vec![page::WelcomePage::new("").build(), destination_page.build()];
 //!     setup_op = SetupOp::Install;
 //!
-//!     on_finish = async_hn!(destination, sfx, |args| {
+//!     on_begin = async_hn!(destination, sfx, |args| {
 //!         args.propagation.stop();
 //!
-//!         let mut cfg = InstallConfig::new();
+//!         // define install operation
+//!         let mut install_cfg = InstallConfig::new();
 //!
+//!         // first task, extract TAR read from SFX
 //!         let data = sfx.read("data").await.unwrap().into_blocking().await;
-//!         cfg.push::<setup_task::ExtractTar>("extract", setup_task::ExtractTarConfig::from_sfx(data, destination.get()));
+//!         let extract_cfg = setup_task::ExtractTarConfig::from_sfx(data, destination.get());
+//!         install_cfg.push::<setup_task::ExtractTar>("extract", extract_cfg);
 //!
-//!         let r = SETUP.install(cfg, None);
+//!         // begin install
+//!         let r = SETUP.install(install_cfg, None);
 //!
-//!         let uninstall = r.wait_rsp().await.unwrap();
+//!         // go to progress page, wizard cannot back to `pages` after this call
+//!         WIZARD.selected_page().set(page::StatusPage::new().build());
+//!
+//!         // wait
+//!         let uninstall_cfg = r.wait_rsp().await.unwrap();
+//!
+//!         // !!: TODO go to finish page
 //!     });
 //! }
 //! # }
@@ -205,5 +216,5 @@ pub mod task {
 ///
 /// See [`zng_wgt_setup::page`] for the full API.
 pub mod page {
-    pub use zng_wgt_setup::page::{EulaPage, EulaTxt, InstallDirPage, WelcomePage};
+    pub use zng_wgt_setup::page::{EulaPage, EulaTxt, InstallDirPage, StatusPage, WelcomePage};
 }

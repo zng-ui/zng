@@ -1,4 +1,4 @@
-use crate::{BACK_CMD, CANCEL_CMD, FINISH_CMD, NEXT_CMD, PageArgs, Wizard};
+use crate::{BACK_CMD, BEGIN_CMD, CANCEL_CMD, FINISH_CMD, NEXT_CMD, PageArgs, Wizard};
 use zng_ext_font::FontWeight;
 use zng_ext_input::focus::TabIndex;
 use zng_wgt::{align, border, is_rtl, prelude::*};
@@ -61,6 +61,10 @@ pub struct HeaderFnArgs {
     pub background: UiNode,
 
     /// Page index on the pages list.
+    ///
+    /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -78,6 +82,11 @@ impl HeaderFnArgs {
     /// Is last page on the list.
     pub fn is_last(&self) -> bool {
         self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Is custom page, not on the list.
+    pub fn is_custom(&self) -> bool {
+        self.index == usize::MAX
     }
 
     /// Get `WIDGET.id()`.
@@ -121,6 +130,10 @@ pub struct SideFnArgs {
     pub background: UiNode,
 
     /// Page index on the pages list.
+    ///
+    /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -134,6 +147,11 @@ impl SideFnArgs {
     /// Is last page on the list.
     pub fn is_last(&self) -> bool {
         self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Is custom page, not on the list.
+    pub fn is_custom(&self) -> bool {
+        self.index == usize::MAX
     }
 
     /// Get `WIDGET.id()`.
@@ -162,6 +180,10 @@ pub struct ContentFnArgs {
     pub content_fill: bool,
 
     /// Page index on the pages list.
+    ///
+    /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -175,6 +197,11 @@ impl ContentFnArgs {
     /// Is last page on the list.
     pub fn is_last(&self) -> bool {
         self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Is custom page, not on the list.
+    pub fn is_custom(&self) -> bool {
+        self.index == usize::MAX
     }
 
     /// Get `WIDGET.id()`.
@@ -206,6 +233,10 @@ pub struct FooterFnArgs {
     pub footer_extra: UiNode,
 
     /// Page index on the pages list.
+    ///
+    /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -219,6 +250,11 @@ impl FooterFnArgs {
     /// Is last page on the list.
     pub fn is_last(&self) -> bool {
         self.index == self.pages_len.saturating_sub(1)
+    }
+
+    /// Is custom page, not on the list.
+    pub fn is_custom(&self) -> bool {
+        self.index == usize::MAX
     }
 
     /// Get `WIDGET.id()`.
@@ -390,7 +426,13 @@ pub fn default_page_footer(args: PageArgs) -> UiNode {
     if args.is_first() {
         ui_vec![default_page_footer_next(id), default_page_footer_cancel(id)]
     } else if args.is_last() {
-        ui_vec![default_page_footer_back(id), default_page_footer_finish(id)]
+        ui_vec![
+            default_page_footer_back(id),
+            default_page_footer_begin(id),
+            default_page_footer_cancel(id)
+        ]
+    } else if args.is_custom() {
+        ui_vec![default_page_footer_cancel(id)]
     } else {
         ui_vec![
             default_page_footer_back(id),
@@ -412,6 +454,14 @@ pub fn default_page_footer_next(wizard_id: WidgetId) -> UiNode {
     Button! {
         cmd = NEXT_CMD.scoped(wizard_id);
         tab_index = TabIndex::FIRST;
+    }
+}
+/// Default [`BEGIN_CMD`] button.
+pub fn default_page_footer_begin(wizard_id: WidgetId) -> UiNode {
+    Button! {
+        cmd = BEGIN_CMD.scoped(wizard_id);
+        tab_index = TabIndex::FIRST;
+        style_fn = style_fn!(|_| zng_wgt_button::PrimaryStyle!());
     }
 }
 /// Default [`FINISH_CMD`] button.

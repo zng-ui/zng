@@ -8,3 +8,6 @@ pub use install_dir::InstallDirPage;
 
 mod eula;
 pub use eula::{EulaPage, EulaTxt};
+
+mod status;
+pub use status::StatusPage;
