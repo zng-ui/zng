@@ -89,7 +89,7 @@
 //! });
 //!
 //! # fn some_status_page() -> wizard::Page { wizard::Page::nil() }
-//! # async fn some_task() -> { task::deadline(500.ms()).await }
+//! # async fn some_task() { task::deadline(500.ms()).await }
 //! # fn some_results_page() -> wizard::Page { wizard::Page::nil() }
 //! # let _ =
 //! Wizard! {

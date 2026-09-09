@@ -63,6 +63,8 @@ pub struct HeaderFnArgs {
     /// Page index on the pages list.
     ///
     /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -130,6 +132,8 @@ pub struct SideFnArgs {
     /// Page index on the pages list.
     ///
     /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -178,6 +182,8 @@ pub struct ContentFnArgs {
     /// Page index on the pages list.
     ///
     /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -229,6 +235,8 @@ pub struct FooterFnArgs {
     /// Page index on the pages list.
     ///
     /// Is `usize::MAX` if the page is a custom assign to [`WIZARD::selected_page`] that is not on the list.
+    ///
+    /// [`WIZARD::selected_page`]: crate::WIZARD::selected_page
     pub index: usize,
     /// Count of pages on the list.
     pub pages_len: usize,
@@ -418,7 +426,11 @@ pub fn default_page_footer(args: PageArgs) -> UiNode {
     if args.is_first() {
         ui_vec![default_page_footer_next(id), default_page_footer_cancel(id)]
     } else if args.is_last() {
-        ui_vec![default_page_footer_back(id), default_page_footer_begin(id), default_page_footer_cancel(id)]
+        ui_vec![
+            default_page_footer_back(id),
+            default_page_footer_begin(id),
+            default_page_footer_cancel(id)
+        ]
     } else if args.is_custom() {
         ui_vec![default_page_footer_cancel(id)]
     } else {
