@@ -1,5 +1,7 @@
 # Unreleased
 
+* Change `Var::var_eq` and `VarEq` to now compare values when both variables are const.
+
 * Add `WIZARD` contextual service.
     - Calls commands.
     - Tracks selected page.

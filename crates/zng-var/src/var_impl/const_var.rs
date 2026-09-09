@@ -76,7 +76,7 @@ impl VarImpl for ConstVar {
 
     fn var_eq(&self, other: &DynAnyVar) -> bool {
         match other {
-            DynAnyVar::Const(b) => std::ptr::eq(self, b),
+            DynAnyVar::Const(b) => self.0.eq_any(&*b.0),
             _ => false,
         }
     }
