@@ -8,7 +8,7 @@ use zng_clone_move::clmv;
 use zng_ext_config::RawConfigValue;
 use zng_task::{Progress, parking_lot::Mutex};
 use zng_txt::Txt;
-use zng_var::{ResponderVar, ResponseVar, Var, VarEq, VarValue, const_var, response_var, var};
+use zng_var::{IntoVar, ResponderVar, ResponseVar, Var, VarEq, VarValue, const_var, response_var, var};
 
 use crate::task::{SetupTask, SetupTaskError, SetupTaskType, TaskTypeId};
 
@@ -469,6 +469,23 @@ pub struct SetupOpStatus {
     pub errors: Vec<((usize, TaskTypeId, Txt), SetupTaskError)>,
 }
 impl SetupOpStatus {
+    /// New custom  status.
+    pub fn new(
+        cancel: bool,
+        task: (TaskTypeId, Txt),
+        progress: (usize, usize),
+        task_progress: impl IntoVar<Progress>,
+        errors: Vec<((usize, TaskTypeId, Txt), SetupTaskError)>,
+    ) -> Self {
+        Self {
+            cancel,
+            task,
+            progress,
+            task_progress: VarEq(task_progress.into_var()),
+            errors,
+        }
+    }
+
     /// If `progress` is last task and `task_progress` is complete.
     ///
     /// Note that tasks report completion on error.
