@@ -10,4 +10,4 @@ mod eula;
 pub use eula::{EulaPage, EulaTxt};
 
 mod status;
-pub use status::StatusPage;
+pub use status::{StatusPage, StatusTaskInfo, StatusTaskInfoFnArgs};

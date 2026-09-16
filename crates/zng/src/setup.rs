@@ -181,7 +181,7 @@
 pub use zng_wgt_setup::{APP_ID_VAR, APP_NAME_VAR, APP_ORG_VAR, APP_VERSION_VAR, SETUP_OP_VAR, SetupOp, SetupWizard};
 
 pub use zng_ext_setup::{
-    InstallConfig, PreparedInstallConfig, SETUP, SetupError, SetupErrorState, SetupOpStatus, SfxClient, SfxDataInfo, SfxError,
+    InstallConfig, PreparedInstallConfig, SETUP, SetupError, SetupErrorState, SetupOpStatus, SetupStatus, SfxClient, SfxDataInfo, SfxError,
     UninstallConfig,
 };
 
@@ -196,7 +196,9 @@ pub use zng_ext_setup::{
 ///
 /// See [`zng_ext_setup::task`] for the full API.
 pub mod task {
-    pub use zng_ext_setup::task::{CopyCurrentExe, CopyCurrentExeConfig, ExtractTar, ExtractTarConfig, SetupTask, SetupTaskError};
+    pub use zng_ext_setup::task::{
+        CopyCurrentExe, CopyCurrentExeConfig, ExtractTar, ExtractTarConfig, SetupTask, SetupTaskError, TaskTypeId,
+    };
 
     #[cfg(windows)]
     pub use zng_ext_setup::task::{RegisterUninstaller, RegisterUninstallerConfig};
@@ -216,5 +218,5 @@ pub mod task {
 ///
 /// See [`zng_wgt_setup::page`] for the full API.
 pub mod page {
-    pub use zng_wgt_setup::page::{EulaPage, EulaTxt, InstallDirPage, StatusPage, WelcomePage};
+    pub use zng_wgt_setup::page::{EulaPage, EulaTxt, InstallDirPage, StatusPage, StatusTaskInfo, StatusTaskInfoFnArgs, WelcomePage};
 }

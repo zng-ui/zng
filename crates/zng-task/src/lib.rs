@@ -867,6 +867,8 @@ pub async fn yield_now() {
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
+#[doc(alias = "timeout")]
+#[doc(alias = "timer")]
 pub fn deadline(deadline: impl Into<Deadline>) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let deadline = deadline.into();
     if zng_app_context::LocalContext::current_app().is_some() {

@@ -253,6 +253,7 @@ impl SetupTaskError {
 
     /// New `Other` error with a single entry.
     pub fn other(error: impl Error + Send + Sync + 'static) -> Self {
+        // TODO(breaking) copy signature of std::io::Error::other
         Self::Other(vec![Arc::new(error)])
     }
 }

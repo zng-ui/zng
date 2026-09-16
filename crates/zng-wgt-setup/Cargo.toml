@@ -28,5 +28,9 @@ zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.15.4", default-featu
 zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.15.4", default-features = false }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.16.4", default-features = false }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.14.4", default-features = false }
+zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.13.4", default-features = false }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.15.4", default-features = false }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.14.4", default-features = false }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.14.4", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
