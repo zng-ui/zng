@@ -4,6 +4,9 @@ info =
     .install = Where should {$app} be installed?
     .update-repair-uninstall = Where {$app} is installed.
 
+# $bytes is already formatted e.g.: 900kB or 50MB.
+min-required-space = At least {$bytes} of free disk space is required.
+
 reset-label = Default Location
 
 select-label = Select Location

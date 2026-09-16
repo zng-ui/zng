@@ -80,7 +80,7 @@ impl InstallDirPage {
             } else {
                 // l10n-# $bytes is already formatted e.g.: 900kB or 50MB.
                 l10n!(
-                    "install-dir/min-required-space",
+                    "install_dir/min-required-space",
                     "At least {$bytes} of free disk space is required.",
                     bytes = s
                 )

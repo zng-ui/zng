@@ -1,6 +1,9 @@
 BACK_CMD =
     .name = Voltar
 
+BEGIN_CMD =
+    .name = Iniciar
+
 CANCEL_CMD =
     .name = Cancelar
 
