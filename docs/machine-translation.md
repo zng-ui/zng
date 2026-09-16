@@ -45,7 +45,7 @@ Optionally you can also set the `GEMINI_TRANSLATOR_MODEL`:
 export GEMINI_TRANSLATOR_MODEL=gemini-3.1-pro-preview
 ```
 
-The default model is `gemini-3.1-flash-lite-preview`.
+The default model is `gemini-3.1-flash-lite`.
 
 You can also optionally set the requests-per-minute (RPM):
 

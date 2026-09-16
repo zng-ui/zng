@@ -81,7 +81,7 @@ fn main() {
             }
         }
         Err(e) => match e {
-            std::env::VarError::NotPresent => "gemini-3.1-flash-lite-preview".to_owned(),
+            std::env::VarError::NotPresent => "gemini-3.1-flash-lite".to_owned(),
             std::env::VarError::NotUnicode(_) => fatal!("invalid `GEMINI_TRANSLATOR_MODEL`"),
         },
     };
