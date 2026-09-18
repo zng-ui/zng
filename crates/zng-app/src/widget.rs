@@ -923,9 +923,9 @@ impl WIDGET {
         // function to avoid generics code bloat
         fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
             if WIDGET_HANDLES_CTX.is_default() {
-                w.handles.var_handles.lock().push(s);
+                w.handles.handles.lock().0.push(s);
             } else {
-                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+                WIDGET_HANDLES_CTX.get().handles.lock().0.push(s);
             }
         }
         push(w, s);
@@ -948,9 +948,9 @@ impl WIDGET {
         // function to avoid generics code bloat
         fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
             if WIDGET_HANDLES_CTX.is_default() {
-                w.handles.var_handles.lock().push(s);
+                w.handles.handles.lock().0.push(s);
             } else {
-                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+                WIDGET_HANDLES_CTX.get().handles.lock().0.push(s);
             }
         }
         push(w, s);
@@ -1041,9 +1041,9 @@ impl WIDGET {
         // function to avoid generics code bloat
         fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
             if WIDGET_HANDLES_CTX.is_default() {
-                w.handles.var_handles.lock().push(s);
+                w.handles.handles.lock().0.push(s);
             } else {
-                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+                WIDGET_HANDLES_CTX.get().handles.lock().0.push(s);
             }
         }
         push(w, s);
@@ -1066,9 +1066,9 @@ impl WIDGET {
         // function to avoid generics code bloat
         fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
             if WIDGET_HANDLES_CTX.is_default() {
-                w.handles.var_handles.lock().push(s);
+                w.handles.handles.lock().0.push(s);
             } else {
-                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+                WIDGET_HANDLES_CTX.get().handles.lock().0.push(s);
             }
         }
         push(w, s);
@@ -1138,18 +1138,38 @@ impl WIDGET {
     /// Hold the var `handle` until the widget is deinited.
     pub fn push_var_handle(&self, handle: VarHandle) {
         if WIDGET_HANDLES_CTX.is_default() {
-            WIDGET_CTX.get().handles.var_handles.lock().push(handle);
+            WIDGET_CTX.get().handles.handles.lock().0.push(handle);
         } else {
-            WIDGET_HANDLES_CTX.get().var_handles.lock().push(handle);
+            WIDGET_HANDLES_CTX.get().handles.lock().0.push(handle);
         }
     }
 
     /// Hold the var `handles` until the widget is deinited.
     pub fn push_var_handles(&self, handles: VarHandles) {
         if WIDGET_HANDLES_CTX.is_default() {
-            WIDGET_CTX.get().handles.var_handles.lock().extend(handles);
+            WIDGET_CTX.get().handles.handles.lock().0.extend(handles);
         } else {
-            WIDGET_HANDLES_CTX.get().var_handles.lock().extend(handles);
+            WIDGET_HANDLES_CTX.get().handles.lock().0.extend(handles);
+        }
+    }
+
+    /// Hold the `handle` until the widget is deinited.
+    #[doc(alias = "hold")]
+    pub fn push_any_handle(&self, handle: impl std::any::Any + Send + 'static) {
+        let handle: Box<dyn std::any::Any + Send> = Box::new(handle);
+        match handle.downcast::<VarHandle>() {
+            Ok(h) => self.push_var_handle(*h),
+            Err(h) => match h.downcast::<Box<dyn std::any::Any + Send>>() {
+                Ok(h) => self.push_any_handle_impl(*h),
+                Err(h) => self.push_any_handle_impl(h),
+            },
+        }
+    }
+    fn push_any_handle_impl(&self, handle: Box<dyn std::any::Any + Send + 'static>) {
+        if WIDGET_HANDLES_CTX.is_default() {
+            WIDGET_CTX.get().handles.handles.lock().1.push(handle);
+        } else {
+            WIDGET_HANDLES_CTX.get().handles.lock().1.push(handle);
         }
     }
 
@@ -1363,7 +1383,11 @@ impl WidgetCtx {
     /// If `retain_state` is enabled the state will not be cleared and can still read.
     pub fn deinit(&mut self, retain_state: bool) {
         let ctx = self.0.as_mut().unwrap();
-        ctx.handles.var_handles.lock().clear();
+        {
+            let mut h = ctx.handles.handles.lock();
+            h.0.clear();
+            h.1.clear();
+        }
         ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
 
@@ -1444,13 +1468,13 @@ impl WidgetCtxData {
 }
 
 struct WidgetHandlesCtxData {
-    var_handles: Mutex<VarHandles>,
+    handles: Mutex<(VarHandles, Vec<Box<dyn std::any::Any + Send + 'static>>)>,
 }
 
 impl WidgetHandlesCtxData {
     const fn dummy() -> Self {
         Self {
-            var_handles: Mutex::new(VarHandles::dummy()),
+            handles: Mutex::new((VarHandles::dummy(), vec![])),
         }
     }
 }
@@ -1468,7 +1492,9 @@ impl WidgetHandlesCtx {
     /// Drop all handles.
     pub fn clear(&mut self) {
         let h = self.0.as_ref().unwrap();
-        h.var_handles.lock().clear();
+        let mut h = h.handles.lock();
+        h.0.clear();
+        h.1.clear();
     }
 }
 impl Default for WidgetHandlesCtx {

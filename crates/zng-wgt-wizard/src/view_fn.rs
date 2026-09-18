@@ -424,7 +424,11 @@ pub fn default_footer_fn(args: FooterFnArgs) -> UiNode {
 pub fn default_page_footer(args: PageArgs) -> UiNode {
     let id = args.wizard_id();
     if args.is_first() {
-        ui_vec![default_page_footer_next(id), default_page_footer_cancel(id)]
+        if args.is_last() {
+            ui_vec![default_page_footer_begin(id), default_page_footer_cancel(id)]
+        } else {
+            ui_vec![default_page_footer_next(id), default_page_footer_cancel(id)]
+        }
     } else if args.is_last() {
         ui_vec![
             default_page_footer_back(id),

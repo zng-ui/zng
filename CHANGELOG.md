@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `WIDGET.push_any_handle` to hold arbitrary handle types.
+
 * Change `Var::var_eq` and `VarEq` to now compare values when both variables are const.
 
 * Add `WIZARD` contextual service.

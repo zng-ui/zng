@@ -989,6 +989,7 @@ impl CommandArgs {
 /// The handle also needs to be enabled to indicate that the command primary action can be executed.
 ///
 /// You can use the [`Command::subscribe`] method in a command type to create a handle.
+#[must_use = "command handle indicates presence of a subscriber"]
 pub struct CommandHandle {
     command: Option<Command>,
     local_enabled: Var<bool>,
