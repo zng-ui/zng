@@ -171,7 +171,11 @@ impl AnyVar {
             return self.try_set(other.get());
         }
         let weak_other = if caps.is_contextual() {
-            other.current_context().downgrade()
+            let other = other.current_context();
+            if other.capabilities().is_const() {
+                return self.try_set(other.get());
+            }
+            other.downgrade()
         } else {
             other.downgrade()
         };
@@ -222,7 +226,11 @@ impl AnyVar {
             return self.try_set(other.with(map));
         }
         let weak_other = if caps.is_contextual() {
-            other.current_context().downgrade()
+            let other = other.current_context();
+            if other.capabilities().is_const() {
+                return self.try_set(other.with(map));
+            }
+            other.downgrade()
         } else {
             other.downgrade()
         };
