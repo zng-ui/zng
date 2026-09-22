@@ -1,15 +1,15 @@
-### Machine translated by `cargo zng l10n`, 0b1afb2b50bb026726c0531d85ae2f8c2ce81c3ae17e93445959e2db7ce271bc
+### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
 ### Samodejno ustvarjeno z `cargo zng l10n`
 
 ### Veljavna imena tipk za kretnje
 ### 
 ### * ID je ime variante `Key`. [1]
-### * Podano mora biti splošno besedilo za OS, izbirno lahko nastavite besedilo, specifično za OS, kot atribute.
+### * Navesti je treba generično besedilo OS, neobvezno pa lahko nastavite besedilo za določen OS kot atribute.
 ### * Atribut OS je vrednost `std::env::consts::OS`. [2]
-### * L10n ne vključuje znakov, nizov, modifikatorjev in sestavljenih tipk.
+### * L10n ne vključuje znakov (Char), nizov (Str), modifikatorjev in sestavljenih tipk.
 ### 
-### Opomba: Ta datoteka ne vključuje vseh veljavnih tipk; za celoten seznam glejte [1].
+### Opomba: Ta datoteka ne vključuje vseh veljavnih tipk, glejte [1] za celoten seznam.
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
@@ -56,6 +56,8 @@ PageDown = PgDn
 PageUp = PgUp
 
 Paste = Prilepi
+
+Print = Natisni
 
 PrintScreen = PrtSc
 

@@ -1,11 +1,12 @@
-### Machine translated by `cargo zng l10n`, 4292840b02efe22ea758535122b9d05ba08fe158b1edf04331363016191aab59
+### Machine translated by `cargo zng l10n`, 7e38427d13a824c01f61a40c9cc84343f4089dd04c28a1f541f14d6f9c1dff32
 
-### تم إنشاؤه تلقائياً بواسطة `cargo zng l10n`
+### تم الإنشاء تلقائيًا بواسطة `cargo zng l10n`
 
 message =
-    .install = سيؤدي هذا إلى تثبيت {$app} {$version} على جهاز الكمبيوتر الخاص بك.
-    .uninstall = سيؤدي هذا إلى إلغاء تثبيت {$app} {$version} من جهاز الكمبيوتر الخاص بك.
-    .update = سيؤدي هذا إلى تحديث {$app} من {$current_version} إلى {$new_version} على جهاز الكمبيوتر الخاص بك.
+    .install = سيؤدي هذا إلى تثبيت {$app} إصدار {$version} على جهاز الكمبيوتر الخاص بك.
+    .repair = سيؤدي هذا إلى إصلاح تثبيت {$app} إصدار {$version} على جهاز الكمبيوتر الخاص بك.
+    .uninstall = سيؤدي هذا إلى إلغاء تثبيت {$app} إصدار {$version} من جهاز الكمبيوتر الخاص بك.
+    .update = سيؤدي هذا إلى تحديث {$app} من الإصدار {$current_version} إلى {$new_version} على جهاز الكمبيوتر الخاص بك.
 
 title =
     .install = مرحبًا بك في معالج تثبيت {$app}

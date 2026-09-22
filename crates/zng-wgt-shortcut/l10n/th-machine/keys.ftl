@@ -1,15 +1,15 @@
-### Machine translated by `cargo zng l10n`, 0b1afb2b50bb026726c0531d85ae2f8c2ce81c3ae17e93445959e2db7ce271bc
+### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
-### สร้างอัตโนมัติโดย `cargo zng l10n`
+### สร้างโดยอัตโนมัติโดย `cargo zng l10n`
 
-### ชื่อคีย์ท่าทาง (Gesture) ที่ถูกต้อง
+### ชื่อปุ่มกดที่ถูกต้อง
 ### 
 ### * ID คือชื่อตัวแปร `Key` [1]
-### * ต้องระบุข้อความทั่วไปของ OS โดยสามารถตั้งค่าข้อความเฉพาะของ OS เป็นแอตทริบิวต์ได้
+### * ต้องระบุข้อความทั่วไปของ OS โดยสามารถตั้งค่าข้อความเฉพาะของ OS เป็นแอตทริบิวต์ได้ (ไม่บังคับ)
 ### * แอตทริบิวต์ OS คือค่า `std::env::consts::OS` [2]
-### * L10n ไม่รวม Char, Str, modifiers และคีย์ผสม
+### * L10n ไม่รวม Char, Str, ตัวปรับแก้ (modifiers) และปุ่มผสม
 ### 
-### หมายเหตุ: ไฟล์นี้ไม่รวมคีย์ที่ถูกต้องทั้งหมด โปรดดูรายการเต็มที่ [1]
+### หมายเหตุ: ไฟล์นี้ไม่รวมปุ่มทั้งหมดที่ใช้ได้ โปรดดูรายการทั้งหมดที่ [1]
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
@@ -34,12 +34,12 @@ Copy = คัดลอก
 Cut = ตัด
 
 Delete = ลบ
-    .macos = ลบไปข้างหน้า
+    .macos = Forward Delete
 
 Eject = ⏏ดีดออก
 
-Enter = ↵ตกลง
-    .macos = ↵ย้อนกลับ
+Enter = ↵Enter
+    .macos = ↵Return
 
 Escape = Esc
 
@@ -57,6 +57,8 @@ PageUp = PgUp
 
 Paste = วาง
 
+Print = พิมพ์
+
 PrintScreen = PrtSc
 
 Redo = ทำซ้ำ
@@ -67,6 +69,6 @@ Tab = ⭾Tab
 
 Undo = เลิกทำ
 
-ZoomIn = +ขยาย
+ZoomIn = +ซูมเข้า
 
-ZoomOut = -ย่อ
+ZoomOut = -ซูมออก

@@ -45,7 +45,7 @@ impl Default for WelcomePage {
                     new_version = APP_VERSION_VAR,
                 ),
                 SetupOp::Repair => l10n!(
-                    "welcome/message.install",
+                    "welcome/message.repair",
                     "This will repair {$app} {$version} installation on your computer.",
                     app = APP_NAME_VAR,
                     version = APP_VERSION_VAR,

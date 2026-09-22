@@ -47,13 +47,15 @@ Help = ?Help
 
 New = New
 
-Open = Print
+Open = Open
 
 PageDown = PgDn
 
 PageUp = PgUp
 
 Paste = Paste
+
+Print = Print
 
 PrintScreen = PrtSc
 
