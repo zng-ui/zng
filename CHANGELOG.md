@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.5
+
 * Fix `Var::set_bind` and related methods when the source variable is contextual representing a const var.
 
 * Add `WIDGET.push_any_handle` to hold arbitrary handle types.

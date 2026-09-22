@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.24.4", features = ["view_prebuilt"] }
+zng = { version = "0.24.5", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 97 feature flags, 1 enabled by default.
+This crate provides 100 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -375,6 +375,17 @@ Enable undo/redo service.
 
 #### `"wrap"`
 Enable wrap widget.
+
+#### `"wizard"`
+Enable wizard widget.
+
+#### `"setup"`
+Enable setup wizard widget and self-setup toolkit.
+
+#### `"setup_save"`
+Enable save/load install config.
+
+Config is saved as ZStd JSON.
 
 #### `"shortcut_text"`
 Enable the shortcut text widget.
