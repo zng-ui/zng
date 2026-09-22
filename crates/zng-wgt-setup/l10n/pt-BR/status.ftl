@@ -4,7 +4,7 @@ default-info =
     .register-uninstaller = Registrar desinstalador
     .remove-files = Remover arquivos
     .remove-shortcut = Remover atalho
-    .unregister-uninstaller = Remover registro do desinstalador
+    .unregister-uninstaller = Desregistrar desinstalador
 
 info =
     .install = Por favor, aguarde enquanto o {$app} é instalado em seu computador.

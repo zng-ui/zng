@@ -16,7 +16,7 @@ mod finish;
 pub use finish::{FinishAction, FinishPage};
 
 use zng_ext_l10n::l10n;
-use zng_ext_setup::task::{SetupTask as _, TaskTypeId};
+use zng_ext_setup::task::{SetupTask, TaskTypeId};
 use zng_wgt::prelude::*;
 
 use crate::{SETUP_OP_VAR, SetupOp};
