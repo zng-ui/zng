@@ -11,8 +11,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = "0.24.4"
-//! zng-view = "0.19.4"
+//! zng = "0.24.5"
+//! zng-view = "0.19.5"
 //! ```
 //!
 //! Then call `zng::env::init` before any other code in `main` to setup a view-process that uses
