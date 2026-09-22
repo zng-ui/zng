@@ -66,9 +66,9 @@ impl TaskInfo {
         if id.0 == zng_ext_setup::task::RegisterUninstaller::task_type_id() {
             let info = SETUP_OP_VAR.flat_map(|op| match op {
                 SetupOp::Install | SetupOp::Update | SetupOp::Repair => {
-                    l10n!("status/default-info.extract-files", "Register uninstaller")
+                    l10n!("status/default-info.register-uninstaller", "Register uninstaller")
                 }
-                SetupOp::Uninstall => l10n!("status/default-info.remove-files", "Unregister uninstaller"),
+                SetupOp::Uninstall => l10n!("status/default-info.unregister-uninstaller", "Unregister uninstaller"),
             });
             return Some(TaskInfo { id, info: VarEq(info) });
         }

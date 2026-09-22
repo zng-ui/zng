@@ -193,13 +193,9 @@ impl FinishAction {
 
     /// Action that runs the installed app.
     pub fn run_app(mut run_app_cmd: std::process::Command) -> Self {
-        Self::new(
-            l10n!("finished/action-run.info", "Run {$app}", app = APP_NAME_VAR),
-            true,
-            move || {
-                run_app_cmd.spawn()?;
-                Ok(())
-            },
-        )
+        Self::new(l10n!("finish/action-run.info", "Run {$app}", app = APP_NAME_VAR), true, move || {
+            run_app_cmd.spawn()?;
+            Ok(())
+        })
     }
 }
