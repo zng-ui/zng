@@ -164,7 +164,8 @@
 //!         // wait
 //!         let uninstall_cfg = r.wait_rsp().await.unwrap();
 //!
-//!         // !!: TODO go to finish page
+//!         // go to finish page
+//!         WIZARD.selected_page().set(page::FinishPage::new().build());
 //!     });
 //! }
 //! # }

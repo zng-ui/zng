@@ -539,6 +539,15 @@ $ cargo zng res --tools
 .zr-l10n @ cargo-zng
   Copy localization files (.ftl) and optimize for release
 
+.zr-sfx @ cargo-zng
+  Compile a self-extracting executable
+
+.zr-sfxf @ cargo-zng
+  Build a self-extracting executable on the final pass
+
+.zr-tar @ cargo-zng
+  Pack files and dirs into a TAR container with optional compression
+
 call 'cargo zng res --help tool' to read full help from a tool
 ```
 
@@ -596,12 +605,12 @@ $ cargo zng res --tool glob
 
   The glob pattern syntax is:
 
-      ? — matches any single character.
-      * — matches any (possibly empty) sequence of characters.
-     ** — matches the current directory and arbitrary subdirectories.
-    [c] — matches any character inside the brackets.
-  [a-z] — matches any characters in the Unicode sequence.
-   [!b] — negates the brackets match.
+      ? — Matches any single character.
+      * — Matches any (possibly empty) sequence of characters.
+     ** — Matches the current directory and arbitrary subdirectories.
+    [c] — Matches any character inside the brackets.
+  [a-z] — Matches any characters in the Unicode sequence.
+   [!b] — Negates the brackets match.
 
   And in filter patterns only:
 
@@ -705,7 +714,7 @@ $ cargo zng res --tool sh
   ZR_SOURCE_DIR — Resources directory that is being build.
   ZR_TARGET_DIR — Target directory where resources are being built to.
   ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
-  ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
+  ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. This is also the working dir.
   ZR_REQUEST — Request file that called the tool (.zr-sh).
   ZR_REQUEST_DD — Parent dir of the request file.
   ZR_TARGET — Target file implied by the request file name.
