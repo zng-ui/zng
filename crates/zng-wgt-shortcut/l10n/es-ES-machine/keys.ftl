@@ -1,15 +1,15 @@
-### Machine translated by `cargo zng l10n`, 0b1afb2b50bb026726c0531d85ae2f8c2ce81c3ae17e93445959e2db7ce271bc
+### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
-### Generado automáticamente por `cargo zng l10n`
+### Auto generado por `cargo zng l10n`
 
 ### Nombres de teclas de gestos válidos
 ### 
 ### * El ID es el nombre de la variante `Key`. [1]
-### * Se debe proporcionar un texto genérico para el SO, se puede definir texto opcional específico del SO mediante atributos.
+### * Se debe proporcionar un texto genérico para el SO, opcionalmente se puede establecer texto específico para un SO mediante atributos.
 ### * El atributo de SO es un valor de `std::env::consts::OS`. [2]
-### * L10n no incluye Char, Str, modificadores ni teclas compuestas.
+### * La localización no incluye Char, Str, modificadores ni teclas compuestas.
 ### 
-### Nota: Este archivo no incluye todas las teclas válidas, ver [1] para una lista completa.
+### Nota: Este archivo no incluye todas las teclas válidas, consulte [1] para obtener la lista completa.
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
@@ -34,7 +34,7 @@ Copy = Copiar
 Cut = Cortar
 
 Delete = Suprimir
-    .macos = Suprimir hacia adelante
+    .macos = Eliminar hacia delante
 
 Eject = ⏏Expulsar
 
@@ -51,19 +51,21 @@ New = Nuevo
 
 Open = Abrir
 
-PageDown = AvPág
+PageDown = Pág. Av.
 
-PageUp = RePág
+PageUp = Pág. Re.
 
 Paste = Pegar
 
-PrintScreen = ImprPant
+Print = Imprimir
+
+PrintScreen = Impr. Pant.
 
 Redo = Rehacer
 
 Save = Guardar
 
-Tab = ⭾Tab
+Tab = ⭾Tabulador
 
 Undo = Deshacer
 

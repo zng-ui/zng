@@ -1,13 +1,13 @@
-### Machine translated by `cargo zng l10n`, 0b1afb2b50bb026726c0531d85ae2f8c2ce81c3ae17e93445959e2db7ce271bc
+### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
 ### Gerado automaticamente pelo `cargo zng l10n`
 
-### Nomes de teclas de gestos válidos
+### Nomes das teclas de gestos válidos
 ### 
-### * O ID é o nome da variante `Key`. [1]
-### * Deve ser fornecido um texto genérico do SO; texto específico do SO pode ser definido opcionalmente como atributos.
-### * O atributo do SO é um valor `std::env::consts::OS`. [2]
-### * A localização (l10n) não inclui Char, Str, modificadores e teclas compostas.
+### * O ID é o nome da variante da `Key`. [1]
+### * Deve ser fornecido um texto genérico para o SO; texto específico para o SO pode ser definido como atributos, opcionalmente.
+### * O atributo do SO é um valor de `std::env::consts::OS`. [2]
+### * A localização não inclui Char, Str, modificadores e teclas compostas.
 ### 
 ### Nota: Este ficheiro não inclui todas as teclas válidas, consulte [1] para a lista completa.
 ### 
@@ -23,7 +23,7 @@ ArrowRight = →
 ArrowUp = ↑
 
 Backspace = ←Retroceder
-    .macos = Apagar
+    .macos = Eliminar
 
 Close = Fechar
 
@@ -34,7 +34,7 @@ Copy = Copiar
 Cut = Cortar
 
 Delete = Eliminar
-    .macos = Apagar para a Frente
+    .macos = Eliminar à Frente
 
 Eject = ⏏Ejetar
 
@@ -51,19 +51,21 @@ New = Novo
 
 Open = Abrir
 
-PageDown = Pág. Seg.
+PageDown = PágSeg
 
-PageUp = Pág. Ant.
+PageUp = PágAnt
 
 Paste = Colar
 
-PrintScreen = Imprimir Ecrã
+Print = Imprimir
+
+PrintScreen = ImpEcrã
 
 Redo = Refazer
 
 Save = Guardar
 
-Tab = ⭾Tabulação
+Tab = ⭾Tab
 
 Undo = Anular
 

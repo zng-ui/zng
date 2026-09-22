@@ -1,12 +1,12 @@
-### Machine translated by `cargo zng l10n`, 0b1afb2b50bb026726c0531d85ae2f8c2ce81c3ae17e93445959e2db7ce271bc
+### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
-### Generat automàticament per `cargo zng l10n`
+### Auto generat per `cargo zng l10n`
 
 ### Noms de tecles vàlids per a gestos
 ### 
 ### * L'ID és el nom de la variant `Key`. [1]
-### * S'ha de proporcionar un text genèric per al sistema operatiu; es pot definir text específic per a SO com a atributs.
-### * L'atribut del SO és un valor de `std::env::consts::OS`. [2]
+### * S'ha de proporcionar un text genèric per al SO; es pot establir text específic per a cada SO com a atributs.
+### * L'atribut del SO és un valor `std::env::consts::OS`. [2]
 ### * La localització no inclou Char, Str, modificadors ni tecles compostes.
 ### 
 ### Nota: Aquest fitxer no inclou totes les tecles vàlides, vegeu [1] per a la llista completa.
@@ -34,11 +34,11 @@ Copy = Copia
 Cut = Retalla
 
 Delete = Suprimir
-    .macos = Suprimeix cap endavant
+    .macos = Suprimeix endavant
 
-Eject = ⏏Ejecta
+Eject = ⏏Expulsa
 
-Enter = ↵Intro
+Enter = ↵Retorn
     .macos = ↵Retorn
 
 Escape = Esc
@@ -51,11 +51,13 @@ New = Nou
 
 Open = Obre
 
-PageDown = Pàg↓
+PageDown = PàgAvall
 
-PageUp = Pàg↑
+PageUp = PàgAmunt
 
 Paste = Enganxa
+
+Print = Imprimeix
 
 PrintScreen = ImprPant
 
@@ -63,7 +65,7 @@ Redo = Refés
 
 Save = Desa
 
-Tab = ⭾Tab
+Tab = ⭾Tabulador
 
 Undo = Desfés
 
