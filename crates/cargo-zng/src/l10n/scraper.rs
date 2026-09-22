@@ -548,6 +548,23 @@ impl FluentTemplate {
                         c.push_str("\n\n");
                         c.push_str(&comment);
                     }
+
+                    // check value
+                    let prev = &self.entries[i - 1];
+                    let e = &self.entries[i];
+                    if prev.message != e.message {
+                        let key = format_args!(
+                            "{}/{}{}{}",
+                            e.file,
+                            e.id,
+                            if e.attribute.is_empty() { "" } else { "." },
+                            e.attribute
+                        );
+                        error!(
+                            "{key} is declared multiple times with different messages\n{:?}\n{:?}",
+                            prev.message, e.message
+                        );
+                    }
                 }
             } else {
                 id_start = i;

@@ -1,5 +1,6 @@
 # Unreleased
 
+* `cargo zng l10n` now validates same key declared with different messages.
 
 # 0.24.5
 
