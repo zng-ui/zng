@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix `Var::set_bind` and related methods when the source variable is contextual representing a const var.
+
+* Add `WIDGET.push_any_handle` to hold arbitrary handle types.
+
 * Change `Var::var_eq` and `VarEq` to now compare values when both variables are const.
 
 * Add `WIZARD` contextual service.

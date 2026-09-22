@@ -3,8 +3,10 @@
 default-info =
     .create-shortcut = Create shortcut
     .extract-files = Extract files
+    .register-uninstaller = Register uninstaller
     .remove-files = Remove files
     .remove-shortcut = Remove shortcut
+    .unregister-uninstaller = Unregister uninstaller
 
 info =
     .install = Please wait while {$app} is installed on your computer.

@@ -1,8 +1,10 @@
 default-info =
     .create-shortcut = Criar atalho
     .extract-files = Extrair arquivos
+    .register-uninstaller = Registrar desinstalador
     .remove-files = Remover arquivos
     .remove-shortcut = Remover atalho
+    .unregister-uninstaller = Desregistrar desinstalador
 
 info =
     .install = Por favor, aguarde enquanto o {$app} é instalado em seu computador.

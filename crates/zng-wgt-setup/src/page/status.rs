@@ -1,10 +1,7 @@
 use std::fmt::Write as _;
 
 use zng_ext_l10n::l10n;
-use zng_ext_setup::{
-    SETUP, SetupOpStatus, SetupStatus,
-    task::{SetupTask, SetupTaskError, TaskTypeId},
-};
+use zng_ext_setup::{SETUP, SetupOpStatus, SetupStatus, task::SetupTaskError};
 use zng_wgt::{ICONS, Wgt, align, prelude::*};
 use zng_wgt_container::{Container, child_out_bottom};
 use zng_wgt_fill::background;
@@ -16,7 +13,7 @@ use zng_wgt_text::{Text, icon::ico_color};
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wizard::{Page, PageArgs};
 
-use crate::{APP_NAME_VAR, SETUP_OP_VAR, SetupOp};
+use crate::{APP_NAME_VAR, SETUP_OP_VAR, SetupOp, page::TaskInfo};
 
 /// Setup operation status page.
 #[non_exhaustive]
@@ -33,7 +30,7 @@ pub struct StatusPage {
     ///
     /// If this list is empty or a task is not present only the overall operation progress
     /// indicator is shown.
-    pub task_infos: Vec<StatusTaskInfo>,
+    pub task_infos: Vec<TaskInfo>,
 
     /// Widget that generates the status item for each item in `task_infos`.
     pub task_info_fn: WidgetFn<StatusTaskInfoFnArgs>,
@@ -54,7 +51,7 @@ impl StatusPage {
     }
 
     /// Insert display info about a setup task component.
-    pub fn push_info(&mut self, info: StatusTaskInfo) {
+    pub fn push_info(&mut self, info: TaskInfo) {
         if let Some(i) = self.task_infos.iter().position(|t| t.id == info.id) {
             tracing::debug!("task info for {:?} replaced", info.id);
             self.task_infos.remove(i);
@@ -63,7 +60,7 @@ impl StatusPage {
     }
 
     /// Insert display info about a setup task component.
-    pub fn with_info(mut self, info: StatusTaskInfo) -> Self {
+    pub fn with_info(mut self, info: TaskInfo) -> Self {
         self.push_info(info);
         self
     }
@@ -103,6 +100,7 @@ impl StatusPage {
             info,
             wgt_fn!(|_| build(self.status.clone(), self.task_infos.clone(), self.task_info_fn.clone())),
         );
+        pg.side = WidgetFn::nil();
         pg.footer = wgt_fn!(|a: PageArgs| {
             let id = a.wizard_id();
             zng_wgt_wizard::default_page_footer_cancel(id)
@@ -111,63 +109,7 @@ impl StatusPage {
     }
 }
 
-/// Represents display info about a setup task component of a setup operation.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub struct StatusTaskInfo {
-    /// The id is [`SetupTask::task_type_id`] and task instance name.
-    pub id: (TaskTypeId, Txt),
-
-    /// Short description of the task.
-    pub info: VarEq<Txt>,
-}
-impl StatusTaskInfo {
-    /// New with short description.
-    pub fn new(task_type_id: impl Into<TaskTypeId>, task_instance_name: impl Into<Txt>, info: impl IntoVar<Txt>) -> Self {
-        Self {
-            id: (task_type_id.into(), task_instance_name.into()),
-            info: VarEq(info.into_var()),
-        }
-    }
-
-    /// Get display info for common setup task types.
-    pub fn try_from_type(task_type_id: impl Into<TaskTypeId>, task_instance_name: impl Into<Txt>) -> Option<Self> {
-        Self::try_from_ty_impl((task_type_id.into(), task_instance_name.into()))
-    }
-    fn try_from_ty_impl(id: (TaskTypeId, Txt)) -> Option<Self> {
-        if id.0 == zng_ext_setup::task::ExtractTar::task_type_id() || id.0 == zng_ext_setup::task::CopyCurrentExe::task_type_id() {
-            let info = SETUP_OP_VAR.flat_map(|op| match op {
-                SetupOp::Install | SetupOp::Update | SetupOp::Repair => l10n!("status/default-info.extract-files", "Extract files"),
-                SetupOp::Uninstall => l10n!("status/default-info.remove-files", "Remove files"),
-            });
-            return Some(StatusTaskInfo { id, info: VarEq(info) });
-        }
-
-        #[cfg(any(windows, target_os = "linux"))]
-        if id.0 == zng_ext_setup::task::CreateShortcut::task_type_id() {
-            let info = SETUP_OP_VAR.flat_map(|op| match op {
-                SetupOp::Install | SetupOp::Update | SetupOp::Repair => l10n!("status/default-info.create-shortcut", "Create shortcut"),
-                SetupOp::Uninstall => l10n!("status/default-info.remove-shortcut", "Remove shortcut"),
-            });
-            return Some(StatusTaskInfo { id, info: VarEq(info) });
-        }
-
-        #[cfg(windows)]
-        if id.0 == zng_ext_setup::task::RegisterUninstaller::task_type_id() {
-            let info = SETUP_OP_VAR.flat_map(|op| match op {
-                SetupOp::Install | SetupOp::Update | SetupOp::Repair => {
-                    l10n!("status/default-info.extract-files", "Register uninstaller")
-                }
-                SetupOp::Uninstall => l10n!("status/default-info.remove-files", "Unregister uninstaller"),
-            });
-            return Some(StatusTaskInfo { id, info: VarEq(info) });
-        }
-
-        None
-    }
-}
-
-fn build(status: Var<SetupStatus>, tasks: Vec<StatusTaskInfo>, item_fn: WidgetFn<StatusTaskInfoFnArgs>) -> UiNode {
+fn build(status: Var<SetupStatus>, tasks: Vec<TaskInfo>, item_fn: WidgetFn<StatusTaskInfoFnArgs>) -> UiNode {
     // get (is_prepare, SetupOpStatus), but only if it matches SETUP_OP_VAR
     let op_status = expr_var! {
         match #{SETUP_OP_VAR} {
@@ -223,12 +165,12 @@ fn build(status: Var<SetupStatus>, tasks: Vec<StatusTaskInfo>, item_fn: WidgetFn
 #[non_exhaustive]
 pub struct StatusTaskInfoFnArgs {
     /// Task info.
-    pub info: StatusTaskInfo,
+    pub info: TaskInfo,
 
     status: Var<Option<(bool, SetupOpStatus)>>,
 }
 impl StatusTaskInfoFnArgs {
-    fn new(info: StatusTaskInfo, status: &Var<Option<(bool, SetupOpStatus)>>) -> Self {
+    fn new(info: TaskInfo, status: &Var<Option<(bool, SetupOpStatus)>>) -> Self {
         Self {
             info,
             status: status.clone(),
