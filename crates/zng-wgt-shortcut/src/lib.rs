@@ -680,7 +680,7 @@ pub fn key_txt(key: GestureKey) -> Var<Txt> {
             Key::Close => l10n_helper::os_or("keys", "Close", l10n!("keys/Close", "Close")),
             Key::New => l10n_helper::os_or("keys", "New", l10n!("keys/New", "New")),
             Key::Open => l10n_helper::os_or("keys", "Open", l10n!("keys/Open", "Open")),
-            Key::Print => l10n_helper::os_or("keys", "Print", l10n!("keys/Open", "Print")),
+            Key::Print => l10n_helper::os_or("keys", "Print", l10n!("keys/Print", "Print")),
             Key::Save => l10n_helper::os_or("keys", "Save", l10n!("keys/Save", "Save")),
             key => l10n_helper::l10n("keys", key.name()),
         },

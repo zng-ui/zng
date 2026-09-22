@@ -7,6 +7,7 @@ action-run =
 
 message =
     .install = O assistente instalou o {$app} {$version} no seu computador.
+    .repair = O assistente reparou o {$app} {$version} no seu computador.
     .uninstall = O assistente desinstalou o {$app} {$version} do seu computador.
     .update = O assistente atualizou o {$app} de {$current_version} para {$new_version} no seu computador.
 

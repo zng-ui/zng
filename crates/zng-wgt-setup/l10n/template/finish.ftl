@@ -5,6 +5,7 @@ action-run =
 
 message =
     .install = Wizard has installed {$app} {$version} on your computer.
+    .repair = Wizard has repaired {$app} {$version} installation on your computer.
     .uninstall = Wizard has uninstalled {$app} {$version} from your your computer.
     .update = Wizard has updated {$app} from {$current_version} to {$new_version} on your computer.
 

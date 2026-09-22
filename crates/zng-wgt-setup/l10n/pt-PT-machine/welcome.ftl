@@ -4,6 +4,7 @@
 
 message =
     .install = Isto irá instalar o {$app} {$version} no seu computador.
+    .repair = Isto irá reparar o {$app} {$version} no seu computador.
     .uninstall = Isto irá desinstalar o {$app} {$version} do seu computador.
     .update = Isto irá atualizar o {$app} da versão {$current_version} para a {$new_version} no seu computador.
 

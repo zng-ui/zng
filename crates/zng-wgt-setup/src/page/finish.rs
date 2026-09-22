@@ -55,7 +55,7 @@ impl Default for FinishPage {
                     new_version = APP_VERSION_VAR,
                 ),
                 SetupOp::Repair => l10n!(
-                    "finish/message.install",
+                    "finish/message.repair",
                     "Wizard has repaired {$app} {$version} installation on your computer.",
                     app = APP_NAME_VAR,
                     version = APP_VERSION_VAR,

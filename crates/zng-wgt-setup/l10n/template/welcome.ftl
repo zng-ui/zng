@@ -2,6 +2,7 @@
 
 message =
     .install = This will install {$app} {$version} on your computer.
+    .repair = This will repair {$app} {$version} installation on your computer.
     .uninstall = This will uninstall {$app} {$version} from your your computer.
     .update = This will update {$app} from {$current_version} to {$new_version} on your computer.
 

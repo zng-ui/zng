@@ -28,7 +28,9 @@ Help = ?Ajuda
 
 New = Novo
 
-Open = Imprimir
+Open = Abrir
+
+Print = Imprimir
 
 Paste = Colar
 
