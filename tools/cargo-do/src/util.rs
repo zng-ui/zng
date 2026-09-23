@@ -211,6 +211,10 @@ impl TaskInfo {
 
     pub fn set_dump(dump: bool) {
         TASK_INFO.try_lock().unwrap().dump = dump;
+        if dump {
+            // SAFETY: single threaded call, to disable color from 'do' and child processes
+            unsafe { std::env::set_var("NO_COLOR", "1") }
+        }
     }
 
     // Get the stdout dump stream.
