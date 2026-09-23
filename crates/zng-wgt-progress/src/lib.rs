@@ -166,8 +166,7 @@ impl DefaultStyle {
                     zng_wgt::Wgt! {
                         background_color = colors::ACCENT_COLOR_VAR.rgba();
 
-                        #[easing(200.ms())]
-                        width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
+                        width = PROGRESS_VAR.map(|p| Length::from(p.fct())).easing(200.ms(), easing::linear);
 
                         on_progress = {
                             let mut handle = VarHandle::dummy();
