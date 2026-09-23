@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix window not respawning when a view-process crashes while opening it.
 * `cargo zng l10n` now validates same key declared with different messages.
 
 # 0.24.5
