@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{
     mem,
     sync::atomic::{AtomicU8, Ordering},
@@ -143,6 +144,9 @@ pub(crate) fn process_init() -> impl Drop {
 }
 
 fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
+    // set path env var
+    let _ = process_path();
+
     let process_state = std::mem::replace(
         &mut *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock(),
         ProcessLifetimeState::Inited,
@@ -339,6 +343,211 @@ pub fn process_lifetime_state() -> ProcessLifetimeState {
     *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock()
 }
 
+/// Identifies the process as component of an app instance.
+///
+/// The path format as string is the `"instance_id//process_id/process_id"`, the `instance_id` is in in hexadecimal, followed by
+/// the `process_ids` in decimal, separated by `'/'`.
+///
+/// Use [`process_path`] to get the current process path.
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub struct ProcessPath {
+    instance_id: u64,
+    process_ids: Box<[u32]>,
+}
+impl ProcessPath {
+    /// Unique ID of the current app instance.
+    pub fn instance_id(&self) -> u64 {
+        self.instance_id
+    }
+
+    /// The [`std::process::id`] of the process chain, from parent to child.
+    pub fn process_ids(&self) -> &[u32] {
+        &self.process_ids[..]
+    }
+
+    /// Get the parent process path if has parent.
+    pub fn parent(&self) -> Option<Self> {
+        if self.process_ids.len() == 1 {
+            None
+        } else {
+            Some(Self {
+                instance_id: self.instance_id,
+                process_ids: self.process_ids[..self.process_ids.len() - 1].into(),
+            })
+        }
+    }
+}
+impl fmt::Debug for ProcessPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            f.debug_struct("ProcessPath")
+                .field("instance_id", &self.instance_id)
+                .field("process_ids", &self.process_ids)
+                .finish()
+        } else {
+            write!(f, "ProcessPath({self})")
+        }
+    }
+}
+/// Alternate mode (`"{:#}"`) uses `-` separator.
+impl fmt::Display for ProcessPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "{:x}", self.instance_id)?;
+            for id in &self.process_ids {
+                write!(f, "-{id}")?;
+            }
+        } else {
+            write!(f, "{:x}/", self.instance_id)?;
+            for id in &self.process_ids {
+                write!(f, "/{id}")?;
+            }
+        }
+        Ok(())
+    }
+}
+impl serde::Serialize for ProcessPath {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.collect_str(self)
+        } else {
+            (self.instance_id, &self.process_ids[..]).serialize(serializer)
+        }
+    }
+}
+impl<'de> serde::Deserialize<'de> for ProcessPath {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            struct FromStrVisitor;
+            impl<'de> serde::de::Visitor<'de> for FromStrVisitor {
+                type Value = ProcessPath;
+
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    write!(f, "process path string")
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error,
+                {
+                    v.parse().map_err(serde::de::Error::custom)
+                }
+            }
+            deserializer.deserialize_str(FromStrVisitor)
+        } else {
+            let (instance_id, process_ids) = <(u64, Box<[u32]>)>::deserialize(deserializer)?;
+            Ok(Self { instance_id, process_ids })
+        }
+    }
+}
+impl std::str::FromStr for ProcessPath {
+    type Err = ParseProcessPathError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_process_path(s, false)
+    }
+}
+fn parse_process_path(s: &str, extend: bool) -> Result<ProcessPath, ParseProcessPathError> {
+    if let Some((instance_id, p_ids)) = s.split_once("//")
+        && !instance_id.is_empty()
+        && !p_ids.is_empty()
+    {
+        let instance_id = u64::from_str_radix(instance_id, 16)?;
+        let mut process_ids = Vec::with_capacity(p_ids.split('/').count() + if extend { 1 } else { 0 });
+        for id in p_ids.split('/') {
+            let id = id.parse::<u32>()?;
+            process_ids.push(id);
+        }
+        if extend {
+            process_ids.push(std::process::id());
+        }
+        Ok(ProcessPath {
+            instance_id,
+            process_ids: process_ids.into_boxed_slice(),
+        })
+    } else {
+        Err(ParseProcessPathError::MissingPart)
+    }
+}
+
+/// Represents an error parsing [`ProcessPath`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseProcessPathError {
+    /// Cannot parse a component.
+    Int(std::num::ParseIntError),
+    /// Missing component.
+    MissingPart,
+}
+impl fmt::Display for ParseProcessPathError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseProcessPathError::Int(e) => fmt::Display::fmt(e, f),
+            ParseProcessPathError::MissingPart => write!(f, "missing part"),
+        }
+    }
+}
+impl std::error::Error for ParseProcessPathError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ParseProcessPathError::Int(e) => Some(e),
+            ParseProcessPathError::MissingPart => None,
+        }
+    }
+}
+impl From<std::num::ParseIntError> for ParseProcessPathError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        ParseProcessPathError::Int(e)
+    }
+}
+
+zng_unique_id::lazy_static! {
+    static ref PROCESS_PATH: ProcessPath = {
+        let path = match std::env::var("ZNG_PROCESS_PATH") {
+            Ok(s) => match parse_process_path(&s, true) {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    eprintln!("invalid ZNG_PROCESS_PATH, {s:?}, {e}");
+                    None
+                }
+            },
+            Err(e) => match e {
+                std::env::VarError::NotPresent => None,
+                std::env::VarError::NotUnicode(s) => {
+                    eprintln!("invalid ZNG_PROCESS_PATH, {s:?}");
+                    None
+                }
+            },
+        };
+        let path = match path {
+            Some(p) => p,
+            None => ProcessPath {
+                #[cfg(target_arch = "wasm32")]
+                instance_id: 0,
+                #[cfg(not(target_arch = "wasm32"))]
+                instance_id: rand::random(),
+                process_ids: Box::new([std::process::id()]),
+            },
+        };
+        // SAFETY: this runs on `process_init` before anything else
+        // so the variable will remain the same for the lifetime of the process
+        unsafe {
+            std::env::set_var("ZNG_PROCESS_PATH", path.to_string());
+        }
+        path
+    };
+}
+
+/// Gets the current process ID as a component of an app instance.
+pub fn process_path() -> &'static ProcessPath {
+    &PROCESS_PATH
+}
+
 /// Gets a process runtime name.
 ///
 /// The primary use of this name is to identify the process in logs, see [`set_process_name`] for details about the logged name.
@@ -382,6 +591,8 @@ fn set_process_name_impl(new_name: Txt, replace: bool) -> bool {
     if replace || name.is_empty() {
         *name = new_name;
         drop(name);
+        // WARNING: format of this message is public API, changing it is a breaking change
+        // TODO(breaking) replace pid with process_path?
         tracing::info!("pid: {}, name: {}", std::process::id(), process_name());
         true
     } else {
