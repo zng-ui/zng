@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::env::process_path` and related types.
+    - Unique identifier for "app instance" and child process chain.
 * Fix window not respawning when a view-process crashes while opening it.
 * `cargo zng l10n` now validates same key declared with different messages.
 

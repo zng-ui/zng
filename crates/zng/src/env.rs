@@ -35,8 +35,8 @@
 //! See [`zng_env`] for the full API.
 
 pub use zng_env::{
-    About, ProcessExitArgs, ProcessStartArgs, about, bin, cache, clear_cache, config, exit, init, init_cache, init_config, init_res,
-    migrate_cache, migrate_config, on_process_exit, on_process_start, process_name, res,
+    About, ProcessExitArgs, ProcessPath, ProcessStartArgs, about, bin, cache, clear_cache, config, exit, init, init_cache, init_config,
+    init_res, migrate_cache, migrate_config, on_process_exit, on_process_start, process_name, process_path, res,
 };
 
 #[cfg(target_os = "android")]
