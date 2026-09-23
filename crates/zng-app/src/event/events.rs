@@ -56,17 +56,17 @@ impl EVENTS {
         EVENTS_SV.read().commands.clone()
     }
 
-    pub(super) fn register_command(&self, cmd: Command) {
-        tracing::trace!("register {cmd:?}");
+    pub(super) fn register_command(&self, cmd: Command, static_name: &'static str) {
+        tracing::trace!("register {static_name}");
         UPDATES.once_update("register_command", move || {
             let mut ev = EVENTS_SV.write();
             if !ev.commands.insert(cmd) {
-                tracing::error!("command `{cmd:?}` is already registered");
+                tracing::error!("command `{static_name}` is already registered");
             }
         });
     }
-    pub(super) fn unregister_command(&self, cmd: Command) {
-        tracing::trace!("unregister {cmd:?}");
+    pub(super) fn unregister_command(&self, cmd: Command, static_name: &'static str) {
+        tracing::trace!("unregister {static_name}");
         UPDATES.once_update("unregister_command", move || {
             EVENTS_SV.write().commands.remove(&cmd);
         });
