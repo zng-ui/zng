@@ -510,7 +510,7 @@ impl Command {
                         entry.get_mut().observer_count -= 1;
                         if entry.get().observer_count == 0 && entry.get().handle_count == 0 {
                             entry.remove();
-                            EVENTS.unregister_command(command);
+                            EVENTS.unregister_command(command, write.static_name);
                         }
                     })
                     .perm();
@@ -547,7 +547,7 @@ impl Command {
                         entry.get_mut().observer_count -= 1;
                         if entry.get().observer_count == 0 && entry.get().handle_count == 0 {
                             entry.remove();
-                            EVENTS.unregister_command(command);
+                            EVENTS.unregister_command(command, write.static_name);
                         }
                     })
                     .perm();
@@ -1190,7 +1190,7 @@ impl Drop for CommandHandle {
                     }
 
                     tracing::trace!(
-                        "unsubscribe to {:?}, handle_count: {:?}, enabled_count: {:?}",
+                        "unsubscribe from {:?}, handle_count: {:?}, enabled_count: {:?}",
                         CommandDbg::new(write.static_name, command.scope),
                         write.handle_count,
                         write.enabled_count
@@ -1234,7 +1234,7 @@ impl Drop for CommandHandle {
                         }
 
                         tracing::trace!(
-                            "unsubscribe to {:?}, handle_count: {:?}, enabled_count: {:?}",
+                            "unsubscribe from {:?}, handle_count: {:?}, enabled_count: {:?}",
                             CommandDbg::new(write.static_name, command.scope),
                             data.handle_count,
                             data.enabled_count
@@ -1244,7 +1244,7 @@ impl Drop for CommandHandle {
                             modify_has_handlers(&data.has_handlers, command);
                             if data.observer_count == 0 {
                                 entry.remove();
-                                EVENTS.unregister_command(command);
+                                EVENTS.unregister_command(command, write.static_name);
                             }
                         }
                     }
@@ -1720,7 +1720,7 @@ impl CommandData {
         match command.scope {
             CommandScope::App => {
                 if !mem::replace(&mut self.registered, true) {
-                    EVENTS.register_command(command);
+                    EVENTS.register_command(command, self.static_name);
                 }
 
                 self.handle_count += 1;
@@ -1746,7 +1746,7 @@ impl CommandData {
                 let data = self.scopes.entry(scope).or_default();
 
                 if !mem::replace(&mut data.registered, true) {
-                    EVENTS.register_command(command);
+                    EVENTS.register_command(command, self.static_name);
                 }
 
                 data.handle_count += 1;

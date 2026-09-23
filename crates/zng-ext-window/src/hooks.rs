@@ -49,12 +49,19 @@ pub(crate) fn hook_events() {
                     // cleanup old view handles
                     if has_view {
                         debug_assert!(args.is_respawn);
+                        #[cfg(debug_assertions)]
+                        if let Some(n) = &w.root {
+                            debug_assert!(n.view_opening.is_dummy());
+                        }
 
                         w.renderer = None;
                         w.view_headless = None;
                         w.view_window = None;
 
                         vars.0.instance_state.set(WindowInstanceState::Loaded { has_view: false });
+                    } else if let Some(r) = &mut w.root {
+                        // in case view-process crashed while opening the window
+                        r.view_opening = VarHandle::dummy();
                     }
                 }
             }
