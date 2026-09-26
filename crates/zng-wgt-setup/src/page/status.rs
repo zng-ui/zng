@@ -162,7 +162,6 @@ fn build(status: Var<SetupStatus>, tasks: Vec<TaskInfo>, item_fn: WidgetFn<Statu
 
 /// Arguments for generating a task status UI.
 #[derive(Clone)]
-#[non_exhaustive]
 pub struct StatusTaskInfoFnArgs {
     /// Task info.
     pub info: TaskInfo,
