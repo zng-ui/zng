@@ -32,5 +32,6 @@ zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.13.5", default-f
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.15.5", default-features = false }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.14.5", default-features = false }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.14.5", default-features = false }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.14.5", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }

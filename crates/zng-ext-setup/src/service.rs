@@ -397,7 +397,7 @@ pub enum SetupErrorState {
         data: UninstallConfig,
         /// Tasks that failed without generating uninstall data.
         ///
-        /// If this is not empty uninstalling `data` will definitely not fully cleanup the broken install.
+        /// If this is not empty uninstalling `data` will not fully cleanup the broken install.
         ///
         /// Tasks are identified by index on the operation, type and name.
         no_data: Vec<(usize, TaskTypeId, Txt)>,
