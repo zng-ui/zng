@@ -1,19 +1,19 @@
+use std::fmt::Write as _;
 use zng_ext_l10n::l10n;
 use zng_ext_setup::{
     SetupError, SetupErrorState,
     task::{SetupTaskError, TaskTypeId},
 };
-use zng_wgt::{ICONS, Wgt, WidgetFn, is_inited, prelude::*, wgt_fn, visibility};
+use zng_wgt::{ICONS, Wgt, WidgetFn, is_inited, prelude::*, visibility, wgt_fn};
 use zng_wgt_container::Container;
+use zng_wgt_fill::background;
 use zng_wgt_filter::opacity;
-use zng_wgt_size_offset::{y, size};
+use zng_wgt_input::{CursorIcon, cursor};
+use zng_wgt_size_offset::{size, y};
 use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_text::icon::ico_color;
 use zng_wgt_text::{self as text, Text};
 use zng_wgt_wizard::{Page, PageArgs};
-use zng_wgt_fill::background;
-use std::fmt::Write as _;
-use zng_wgt_text::icon::ico_color;
-use zng_wgt_input::{cursor, CursorIcon};
 
 use crate::{APP_NAME_VAR, INSTALLED_VERSION_VAR, SETUP_OP_VAR, SetupOp, page::TaskInfo};
 
