@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.24.6
+
 * Add `setup::page::FailedPage`.
 
 * Add `zng::env::process_path` and related types.
