@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng res --tool sfx` requiring arguments with default values.
 * Fix `cargo zng res --tool tar` support for entry name `"/*"`.
 * `cargo zng res --tools` now have a `"ZR_VERBOSE"` env variable when running with `--verbose`.
 * Fix builds with `"material_icons_subset"` feature always rebuilding.
