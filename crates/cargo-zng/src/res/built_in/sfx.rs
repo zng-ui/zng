@@ -507,9 +507,6 @@ fn sfx_main(
 
     const DATA: &str = "static DATA: &[(&str, Compression, &[&[u8]])] = &[";
     let mut out_data = String::new();
-    if windows_subsystem {
-        out_data.push_str("#![windows_subsystem = \"windows\"]\n");
-    }
     out_data.push_str(DATA);
     out_data.push('\n');
     for (name, compression, parts) in data {
