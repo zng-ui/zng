@@ -273,7 +273,9 @@ fn default_sign() -> Sign {
 struct Sfx {
     run: PathBuf,
     icon: Option<PathBuf>,
+    #[serde(default)]
     args: Vec<String>,
+    #[serde(default)]
     env: indexmap::IndexMap<String, String>,
     #[serde(rename = "rustc-target")]
     #[serde(default = "rustc_host_triple")]
