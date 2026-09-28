@@ -172,7 +172,11 @@ fn collect_tar_entries(entries: Vec<Entry>) -> Vec<TarEntry> {
             };
             if glob_entry.is_file() {
                 let name = if name_is_prefix {
-                    format!("{name}/{entry_name}")
+                    if name.is_empty() {
+                        entry_name.to_owned()
+                    } else {
+                        format!("{name}/{entry_name}")
+                    }
                 } else {
                     if name.ends_with('/') {
                         error!("matched file, but name ends with /");
