@@ -1,16 +1,16 @@
-pub fn pseudo(dir: &str, check: bool, verbose: bool) {
-    fluent_pseudo_impl(dir, "pseudo", false, false, check, verbose)
+pub fn pseudo(dir: &str, check: bool) {
+    fluent_pseudo_impl(dir, "pseudo", false, false, check)
 }
 
-pub fn pseudo_mirr(dir: &str, check: bool, verbose: bool) {
-    fluent_pseudo_impl(dir, "pseudo-mirr", true, false, check, verbose)
+pub fn pseudo_mirr(dir: &str, check: bool) {
+    fluent_pseudo_impl(dir, "pseudo-mirr", true, false, check)
 }
 
-pub fn pseudo_wide(dir: &str, check: bool, verbose: bool) {
-    fluent_pseudo_impl(dir, "pseudo-wide", false, true, check, verbose)
+pub fn pseudo_wide(dir: &str, check: bool) {
+    fluent_pseudo_impl(dir, "pseudo-wide", false, true, check)
 }
 
-fn fluent_pseudo_impl(dir: &str, to_name: &str, flipped: bool, elongate: bool, check: bool, verbose: bool) {
+fn fluent_pseudo_impl(dir: &str, to_name: &str, flipped: bool, elongate: bool, check: bool) {
     crate::l10n::generate_util::transform_dir(
         dir,
         to_name,
@@ -18,6 +18,5 @@ fn fluent_pseudo_impl(dir: &str, to_name: &str, flipped: bool, elongate: bool, c
         &|_, _| true,
         &|s| fluent_pseudo::transform(s, flipped, elongate),
         check,
-        verbose,
     )
 }

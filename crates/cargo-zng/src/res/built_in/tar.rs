@@ -137,6 +137,9 @@ fn collect_tar_entries(entries: Vec<Entry>) -> Vec<TarEntry> {
     let mut names = HashSet::new();
     for entry in entries {
         let mut name = entry.name.as_str();
+
+        println_v!("name={name:?}");
+
         if name.contains("/..") {
             error!("name cannot contain /..");
             continue;

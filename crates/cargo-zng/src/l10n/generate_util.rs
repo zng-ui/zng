@@ -11,7 +11,6 @@ pub fn transform_dir(
     filter: &dyn Fn(&str, &str) -> bool,
     transform: &dyn Fn(&str) -> Cow<str>,
     check: bool,
-    verbose: bool,
 ) {
     let dir_path = Path::new(dir);
     let pattern = dir_path.join("**/*.ftl");
@@ -21,7 +20,7 @@ pub fn transform_dir(
         let relative_entry = entry.strip_prefix(dir_path).unwrap();
         let to_file = to_dir.join(relative_entry);
         let _ = util::check_or_create_dir_all(check, to_file.parent().unwrap());
-        let ok = transform_file(&entry, &to_file, file_header, filter, transform, check, verbose);
+        let ok = transform_file(&entry, &to_file, file_header, filter, transform, check);
         if ok {
             let display_to = to_file.strip_prefix(to_dir.parent().unwrap()).unwrap();
             println!("  generated {}", display_to.display());
@@ -37,7 +36,6 @@ pub fn transform_file(
     filter: &dyn Fn(&str, &str) -> bool,
     transform: &dyn Fn(&str) -> Cow<str>,
     check: bool,
-    verbose: bool,
 ) -> bool {
     let source = match fs::read_to_string(from) {
         Ok(s) => s,
@@ -71,7 +69,7 @@ pub fn transform_file(
         }
     }
 
-    if let Err(e) = util::check_or_write(check, to, output.trim().as_bytes(), verbose) {
+    if let Err(e) = util::check_or_write(check, to, output.trim().as_bytes()) {
         all_ok = false;
         error!("cannot write `{}`, {e}", to.display());
     }

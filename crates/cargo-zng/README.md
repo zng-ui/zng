@@ -469,6 +469,7 @@ Tools are configured using environment variables:
 * `ZR_TARGET_DD` — Parent dir of the target file.
 * `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
 * `ZR_HELP` — Print help text for `cargo zng res --tools`. If this is set the other vars will not be set.
+* `ZR_VERBOSE` — Print extra output. No value means not verbose, any value indicates verbose, currently `"v"` is used.
 
 In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the primary binary crate:
 
