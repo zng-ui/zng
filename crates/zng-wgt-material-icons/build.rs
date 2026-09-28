@@ -232,10 +232,12 @@ fn read_subset_allow() -> HashMap<String, HashSet<String>> {
     for profile in [path, pair_path] {
         use std::io::BufRead as _;
 
-        println!("cargo::rerun-if-changed={}", profile.display());
-
-        let profile = match fs::File::open(profile) {
-            Ok(f) => f,
+        let profile = match fs::File::open(&profile) {
+            Ok(f) => {
+                // cargo always rerun when file is missing
+                println!("cargo::rerun-if-changed={}", profile.display());
+                f
+            }
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => continue,
                 e => panic!("{e}"),

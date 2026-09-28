@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix builds with `"material_icons_subset"` feature always rebuilding.
 
 # 0.24.6
 
