@@ -5,7 +5,7 @@ use std::{
     io::{self, BufReader, Read},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, AtomicU8},
 };
 
 use semver::{Version, VersionReq};
@@ -56,6 +56,75 @@ macro_rules! fatal {
         }
     };
 }
+
+static VERBOSE_LEVEL: AtomicU8 = AtomicU8::new(255);
+
+// TODO(breaking) move --verbose to cargo-zng, remove from each command
+pub(crate) fn enable_verbose() {
+    if VERBOSE_LEVEL.swap(1, std::sync::atomic::Ordering::Relaxed) == 255 {
+        // SAFETY: This is called at startup, when command is
+        // single threaded, it is only really used in tools where
+        // it will definitely be called after `res` command startup
+        unsafe { std::env::set_var(crate::res_tool_util::ZR_VERBOSE, "v") }
+    }
+}
+
+/// Get cached `--verbose` or ZR_VERBOSE.
+pub fn verbose_enabled() -> bool {
+    // crate code is mostly linear and we don't mind
+    // a potential double check of ZR_VERBOSE
+    use std::sync::atomic::Ordering::Relaxed;
+
+    let level = VERBOSE_LEVEL.load(Relaxed);
+    if level > 0 {
+        if level < 255 {
+            return true;
+        }
+        if let Ok(v) = std::env::var(crate::res_tool_util::ZR_VERBOSE)
+            && !v.is_empty()
+        {
+            VERBOSE_LEVEL.store(1, Relaxed);
+            return true;
+        }
+    }
+    false
+}
+
+/// Print only if [`verbose_enabled`].
+macro_rules! println_v {
+    ($($tt:tt)*) => {
+        if $crate::util::verbose_enabled() {
+            println!($($tt)*)
+        }
+    };
+}
+
+// /// Print only if [`verbose_enabled`].
+// macro_rules! print_v {
+//     ($($tt:tt)*) => {
+//         if $crate::util::verbose_enabled() {
+//             print!($($tt)*)
+//         }
+//     };
+// }
+
+/// Print only if [`verbose_enabled`].
+macro_rules! eprintln_v {
+    ($($tt:tt)*) => {
+        if $crate::util::verbose_enabled() {
+            eprintln!($($tt)*)
+        }
+    };
+}
+
+// /// Print only if [`verbose_enabled`].
+// macro_rules! eprint_v {
+//     ($($tt:tt)*) => {
+//         if $crate::util::verbose_enabled() {
+//             eprint!($($tt)*)
+//         }
+//     };
+// }
 
 static RUN_FAILED: AtomicBool = AtomicBool::new(false);
 
@@ -351,7 +420,7 @@ pub fn check_or_create_dir_all(check: bool, path: impl AsRef<Path>) -> io::Resul
     }
 }
 
-pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<[u8]>, verbose: bool) -> io::Result<()> {
+pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
     let path = path.as_ref();
     let contents = contents.as_ref();
     if check {
@@ -366,20 +435,18 @@ pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<
 
         if bytes != contents {
             fatal!("file `{}` contents changed", path.display());
-        } else if verbose {
-            println!("file `{}` contents did not change", path.display());
+        } else {
+            println_v!("file `{}` contents did not change", path.display());
         }
 
         Ok(())
     } else {
-        if verbose {
-            println!("writing `{}`", path.display());
-        }
+        println_v!("writing `{}`", path.display());
         fs::write(path, contents)
     }
 }
 
-pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>, verbose: bool) -> io::Result<u64> {
+pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<u64> {
     let from = from.as_ref();
     let to = to.as_ref();
     if check {
@@ -400,15 +467,13 @@ pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>, 
 
         if bytes[0] != bytes[1] {
             fatal!("file `{}` contents changed", to.display());
-        } else if verbose {
-            println!("file `{}` contents did not change", to.display());
+        } else {
+            println_v!("file `{}` contents did not change", to.display());
         }
 
         Ok(bytes[1].len() as u64)
     } else {
-        if verbose {
-            println!("copying\n  from: `{}`\n    to: `{}`", from.display(), to.display());
-        }
+        println_v!("copying\n  from: `{}`\n    to: `{}`", from.display(), to.display());
         fs::copy(from, to)
     }
 }

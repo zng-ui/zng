@@ -41,6 +41,12 @@ pub const ZR_FINAL: &str = "ZR_FINAL";
 /// Env var set when it needs the tool print the help text shown in `cargo zng res --tools`.
 pub const ZR_HELP: &str = "ZR_HELP";
 
+/// Env var set when running with `--verbose`.
+///
+/// Note that empty value indicates not verbose. Any value indicates verbose, currently
+/// value is `"v"`.
+pub const ZR_VERBOSE: &str = "ZR_VERBOSE";
+
 /// Env var set to package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
 pub const ZR_APP_ID: &str = "ZR_APP_ID";
 /// Env var set to package.metadata.zng.about.app or package.name

@@ -307,12 +307,10 @@ pub struct Tools {
     about: About,
 }
 impl Tools {
-    pub fn capture(local: &Path, cache: PathBuf, about: About, verbose: bool) -> anyhow::Result<Self> {
+    pub fn capture(local: &Path, cache: PathBuf, about: About) -> anyhow::Result<Self> {
         let mut tools = vec![];
         visit_tools(local, |t| {
-            if verbose {
-                println!("found tool `{}` in `{}`", t.name, t.path.display())
-            }
+            println_v!("found tool `{}` in `{}`", t.name, t.path.display());
             tools.push(t);
             Ok(ControlFlow::Continue(()))
         })?;

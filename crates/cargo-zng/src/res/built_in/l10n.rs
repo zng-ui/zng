@@ -265,7 +265,6 @@ fn l10n_filter_copy(from: PathBuf, to: PathBuf) {
                         },
                         &|s| Cow::Borrowed(s),
                         false,
-                        false,
                     );
                     if !ok {
                         fatal!("cannot optimize {}", from_entry.display());

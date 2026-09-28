@@ -12,7 +12,7 @@ use unic_langid::LanguageIdentifier;
 
 use crate::util;
 
-pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, verbose: bool) {
+pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool) {
     let dir_path = Path::new(dir);
     if !dir_path.exists() {
         fatal!("dir `{dir}` does not exist")
@@ -22,17 +22,13 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
         let name = dir_path.file_name().unwrap().to_string_lossy();
         let name = &*name;
         if name == "template" {
-            if verbose {
-                println!("from language set to `en`, default language for `template` folder");
-            }
+            println_v!("from language set to `en`, default language for `template` folder");
             LanguageIdentifier::from_bytes(b"en").unwrap()
         } else {
             let name = name.strip_suffix("-machine").unwrap_or(name);
             match LanguageIdentifier::from_bytes(name.as_bytes()) {
                 Ok(l) => {
-                    if verbose {
-                        println!("from language language set to `{l}`, derived from `{name}` folder");
-                    }
+                    println_v!("from language language set to `{l}`, derived from `{name}` folder");
                     l
                 }
                 Err(e) => fatal!("cannot define from language, `{name}` is not a language, {e}\nset --translate-from to resolve"),
@@ -79,17 +75,13 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
     }
     let files = files;
 
-    if verbose {
-        println!("collected {} source files", files.len());
-    }
+    println_v!("collected {} source files", files.len());
 
     let dir_path = dunce::canonicalize(dir_path).unwrap();
     let dir_parent = dir_path.parent().unwrap();
 
     let translator = Translator::default();
-    if verbose {
-        println!("using `{}`, RPM: {}", translator.path.display(), translator.rpm);
-    }
+    println_v!("using `{}`, RPM: {}", translator.path.display(), translator.rpm);
 
     to.into_par_iter().for_each(|to| {
         if to == from {
@@ -106,9 +98,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
 
         files.par_iter().for_each(|(relative_path, file, hash)| {
             let file_to = dir_to.join(relative_path);
-            if verbose {
-                println!("  {}", file_to.display());
-            }
+            println_v!("  {}", file_to.display());
 
             let _ = util::check_or_create_dir_all(check, file_to.parent().unwrap());
 
@@ -141,7 +131,7 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool, ve
             }
 
             if !check && (replace || stale || !file_to.exists()) {
-                let r = translator.translate(&from, &to, file, verbose);
+                let r = translator.translate(&from, &to, file);
                 let write = || -> io::Result<()> {
                     let mut f = fs::File::create(&file_to)?;
                     f.write_all(HEADER_PREFIX.as_bytes())?;
@@ -256,7 +246,7 @@ impl Translator {
         }
     }
 
-    fn translate(&self, from: &LanguageIdentifier, to: &LanguageIdentifier, file: &str, _verbose: bool) -> String {
+    fn translate(&self, from: &LanguageIdentifier, to: &LanguageIdentifier, file: &str) -> String {
         self.limiter.acquire_one();
 
         let mut cmd = std::process::Command::new(&self.path)

@@ -142,6 +142,10 @@ pub struct L10nArgs {
 }
 
 pub fn run(mut args: L10nArgs) {
+    if args.verbose {
+        crate::util::enable_verbose();
+    }
+
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
     }
@@ -194,12 +198,11 @@ pub fn run(mut args: L10nArgs) {
         args.clean_template = true;
     }
 
-    if args.verbose {
-        println!(
-            "input: `{input}`\noutput: `{output}`\nclean_deps: {}\nclean_template: {}",
-            args.clean_deps, args.clean_template
-        );
-    }
+    println_v!(
+        "input: `{input}`\noutput: `{output}`\nclean_deps: {}\nclean_template: {}",
+        args.clean_deps,
+        args.clean_template
+    );
 
     if input.is_empty() {
         return run_others(&args);
@@ -235,7 +238,7 @@ pub fn run(mut args: L10nArgs) {
             let file = format!("{}.ftl", if file.is_empty() { "_" } else { file });
             let output = output.join(&file);
             clean_files.insert(file);
-            util::check_or_write(args.check, output, contents, args.verbose)
+            util::check_or_write(args.check, output, contents)
         });
         if let Err(e) = r {
             fatal!("error writing template files, {e}");
@@ -302,9 +305,8 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
             .unwrap_or_else(|e| fatal!("cannot cleanup deps in `{}`, {e}", output.display()))
         {
             let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
-            if args.verbose {
-                println!("removing `{}` to clean dependencies", dir.display());
-            }
+            println_v!("removing `{}` to clean dependencies", dir.display());
+
             if let Err(e) = std::fs::remove_dir_all(&dir)
                 && !matches!(e.kind(), io::ErrorKind::NotFound)
             {
@@ -437,7 +439,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                         } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
                             let _ = util::check_or_create_dir_all(args.check, &output_dir);
                             let to = output_dir.join(lang_entry.file_name().unwrap());
-                            if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to, args.verbose) {
+                            if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to) {
                                 error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
                                 continue;
                             }
@@ -461,7 +463,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     let target = target.join(entry.strip_prefix(&deps).unwrap());
                     if !target.exists()
                         && entry.is_file()
-                        && let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose)
+                        && let Err(e) = util::check_or_copy(args.check, &entry, &target)
                     {
                         error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
                     }
@@ -519,13 +521,13 @@ fn run_others(args: &L10nArgs) {
         return;
     }
     if !args.pseudo.is_empty() {
-        pseudo::pseudo(&args.pseudo, args.check, args.verbose);
+        pseudo::pseudo(&args.pseudo, args.check);
     }
     if !args.pseudo_m.is_empty() {
-        pseudo::pseudo_mirr(&args.pseudo_m, args.check, args.verbose);
+        pseudo::pseudo_mirr(&args.pseudo_m, args.check);
     }
     if !args.pseudo_w.is_empty() {
-        pseudo::pseudo_wide(&args.pseudo_w, args.check, args.verbose);
+        pseudo::pseudo_wide(&args.pseudo_w, args.check);
     }
     if !args.translate.is_empty() {
         translate::translate(
@@ -534,7 +536,6 @@ fn run_others(args: &L10nArgs) {
             &args.translate_to,
             args.translate_replace,
             args.check,
-            args.verbose,
         );
     }
 }
@@ -543,9 +544,7 @@ fn check_fluent_output(args: &L10nArgs, output: &Path) {
     let read_dir = match fs::read_dir(output) {
         Ok(d) => d,
         Err(e) if matches!(e.kind(), io::ErrorKind::NotFound) => {
-            if args.verbose {
-                eprintln!("no fluent files to check, `{}` not found", output.display());
-            }
+            eprintln_v!("no fluent files to check, `{}` not found", output.display());
             return;
         }
         Err(e) => fatal!("cannot read `{}`, {e}", output.display()),
@@ -604,9 +603,7 @@ fn check_fluent_output(args: &L10nArgs, output: &Path) {
     // check
     if let Some(template) = template {
         if langs.is_empty() {
-            if args.verbose {
-                eprintln!("no fluent files to compare with template");
-            }
+            eprintln_v!("no fluent files to compare with template");
         } else {
             // faster template lookup
             let template = template
@@ -669,8 +666,8 @@ fn check_fluent_output(args: &L10nArgs, output: &Path) {
                 }
             }
         }
-    } else if args.verbose {
-        eprintln!("no template to compare, `{}` not found", output.join("template").display());
+    } else {
+        eprintln_v!("no template to compare, `{}` not found", output.join("template").display());
     }
 }
 struct FluentParserErrors(Vec<fluent_syntax::parser::ParserError>);

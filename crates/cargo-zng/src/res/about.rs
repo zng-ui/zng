@@ -8,11 +8,9 @@ use std::{
 
 use crate::util::workspace_dir;
 
-pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
+pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
     if let Some(m) = metadata {
-        if verbose {
-            println!("parsing `{}`", m.display());
-        }
+        println_v!("parsing `{}`", m.display());
 
         let cargo_toml = fs::read_to_string(m).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", m.display()));
         return zng_env::About::parse_manifest(&cargo_toml).unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", m.display()));
@@ -22,9 +20,7 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
 
     let workspace_manifest =
         workspace_dir().unwrap_or_else(|| fatal!("cannot locate workspace, use --metadata if source is not in a cargo project"));
-    if verbose {
-        println!("workspace `{}`", workspace_manifest.display())
-    }
+    println_v!("workspace `{}`", workspace_manifest.display());
 
     for manifest in glob::glob(&format!(
         "{}/**/Cargo.toml",
@@ -52,9 +48,7 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
         }
         let w2 = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
         if w2 != workspace_manifest {
-            if verbose {
-                println!("skip `{}`, not a workspace member", manifest.display())
-            }
+            println_v!("skip `{}`, not a workspace member", manifest.display());
             continue;
         }
 
@@ -63,9 +57,7 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
             Ok(a) => a,
             Err(e) => {
                 if e.message().contains("missing field `package`") {
-                    if verbose {
-                        println!("skip `{}`, no package metadata", manifest.display());
-                    }
+                    println_v!("skip `{}`, no package metadata", manifest.display());
                 } else {
                     error!("cannot parse `{}`, {e}", manifest.display());
                 }
@@ -75,8 +67,8 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
 
         if about.has_about || manifest_dir.join("src/main.rs").exists() {
             options.push(about);
-        } else if verbose {
-            println!(
+        } else {
+            println_v!(
                 "skip `{}` cause it has no zng metadata and/or it is not a bin crate",
                 manifest.display()
             );

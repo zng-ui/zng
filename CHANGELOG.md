@@ -1,5 +1,6 @@
 # Unreleased
 
+* `cargo zng res --tools` now have a `"ZR_VERBOSE"` env variable when running with `--verbose`.
 * Fix builds with `"material_icons_subset"` feature always rebuilding.
 
 # 0.24.6
