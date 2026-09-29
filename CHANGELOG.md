@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::setup::SfxClient::can_connect`.
 * Fix `cargo zng res --tool sfx` generating two `windows_subsystem` attributes.
 * Fix `cargo zng res --tool sfx` requiring arguments with default values.
 * Fix `cargo zng res --tool tar` support for entry name `"/*"`.

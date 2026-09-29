@@ -9,6 +9,16 @@ pub struct SfxClient {
     manifest: Box<[SfxDataInfo]>,
 }
 impl SfxClient {
+    /// Get if environment "SFX_ARGS" is set.
+    ///
+    /// Note that `connect` may still fail if the environment is not properly set.
+    pub fn can_connect() -> bool {
+        match std::env::var("SFX_ARGS") {
+            Ok(_) => true,
+            Err(e) => !SfxError::from(e).is_no_sfx(),
+        }
+    }
+
     /// Connect with the "SFX_ARGS" defined server.
     pub fn connect_blocking() -> Result<Self, SfxError> {
         // read args, if is running by sfx
