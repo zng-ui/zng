@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add support for local translators.
+    - New adapter `zng-l10n-translator-local` can connect to local llama.cpp servers.
+    - Updated `docs/machine-translation.md` guide.
 * Add `zng::setup::SfxClient::can_connect`.
 * Fix `cargo zng res --tool sfx` generating two `windows_subsystem` attributes.
 * Fix `cargo zng res --tool sfx` requiring arguments with default values.

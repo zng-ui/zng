@@ -1,13 +1,13 @@
 #![doc(html_favicon_url = "https://zng-ui.github.io/res/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://zng-ui.github.io/res/zng-logo.png")]
 //!
-//! Gemini plugin for `cargo zng l10n --translate`.
+//! Gemini plugin for `cargo zng l10n`.
 //!
 //! Define `GEMINI_API_KEY` environment variable.
 //!
 //! Optionally define `GEMINI_TRANSLATOR_MODEL`, is "gemini-3.1-flash-lite-preview" by default.
 //!
-//! Call `cargo zng l10n --translate gemini|en->ja "l10n/path/"`
+//! Call `cargo zng l10n`
 //!
 //! # Crate
 //!
@@ -21,15 +21,13 @@ use clap::*;
 use zng_ext_l10n::Lang;
 mod gemini;
 
-/// Gemini plugin for `cargo zng l10n --translate`
+/// Gemini plugin for `cargo zng l10n`
 ///
 /// Define `GEMINI_API_KEY` environment variable
 ///
 /// Optionally define `GEMINI_TRANSLATOR_MODEL`, is "gemini-3.1-flash-lite-preview" by default
 ///
 /// Optionally define `GEMINI_TRANSLATOR_RPM`, is 15 by default
-///
-/// Call `cargo zng l10n --translate gemini --from-lang en --to-lang ja "l10n/path/"`
 #[derive(Parser, Debug)]
 struct Cli {
     #[arg(long)]

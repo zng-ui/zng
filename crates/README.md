@@ -136,6 +136,7 @@ Tools that can be installed by cargo for use in Zng apps.
 
 - `cargo-zng`
     - `zng-l10n-translator-gemini`
+    - `zng-l10n-translator-local`
 
 ### Webrender
 

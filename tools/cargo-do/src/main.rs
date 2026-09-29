@@ -578,7 +578,7 @@ fn l10n(mut args: Vec<&str>) {
 
     cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
     if translate {
-        cmd_req("cargo", &["build", "--package", "zng-l10n-translator-gemini"], &[]);
+        cmd_req("cargo", &["build", "--package", "zng-l10n-translator-local"], &[]);
     }
 
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
@@ -599,7 +599,7 @@ fn l10n(mut args: Vec<&str>) {
             &args,
         );
         if translate && template.exists() {
-            let translator_exe = format!("target/debug/zng-l10n-translator-gemini{}", std::env::consts::EXE_SUFFIX);
+            let translator_exe = format!("target/debug/zng-l10n-translator-local{}", std::env::consts::EXE_SUFFIX);
             let template = template.display().to_string();
             cmd_env_req(
                 &exe,
@@ -613,7 +613,7 @@ fn l10n(mut args: Vec<&str>) {
                 &args,
                 &[
                     ("ZNG_L10N_TRANSLATOR", translator_exe.as_str()),
-                    // ("GEMINI_TRANSLATOR_TEST", "on"),
+                    // ("LOCAL_TRANSLATOR_LLM_TEST", "on"),
                 ],
             );
         }
