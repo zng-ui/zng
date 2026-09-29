@@ -21,9 +21,29 @@ The plugin is instantiated for each file, multiple instances in parallel.
 
 [`Lang`]: https://zng-ui.github.io/doc/zng/l10n/struct.Lang.html
 
+### Local
+
+In this guide we will use the [`zng-l10n-translator-local`] adapter that connects to a local OpenAI like REST server:
+
+[`zng-l10n-translator-local`]: https://crates.io/crates/zng-l10n-translator-gemini
+
+```console
+cargo install zng-l10n-translator-local
+```
+
+You can use the [llama.cpp] app to run the local server:
+
+[llama.cpp]: https://github.com/ggml-org/llama.cpp
+
+```console
+llama serve -hf ggml-org/gemma-4-e4b-it-GGUF:Q4_0
+```
+
+The `LOCAL_TRANSLATOR_LLM_URL` can be set for custom URLs, the default is `"http://localhost:8080/v1/chat/completions"`.
+
 ### Gemini
 
-In this guide we will use the [`zng-l10n-translator-gemini`] that uses the Google Gemini API to translate:
+Alternatively you can use the Google Gemini API to translate with the [`zng-l10n-translator-gemini`] adapter:
 
 [`zng-l10n-translator-gemini`]: https://crates.io/crates/zng-l10n-translator-gemini
 
