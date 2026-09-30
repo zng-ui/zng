@@ -1,5 +1,6 @@
 # Unreleased
 
+* Recursive `cargo zng res` tools now apply immediately.
 * Add support for local translators.
     - New adapter `zng-l10n-translator-local` can connect to local llama.cpp servers.
     - Updated `docs/machine-translation.md` guide.
