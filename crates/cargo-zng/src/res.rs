@@ -158,15 +158,6 @@ pub(crate) fn run(mut args: ResArgs) {
 fn build(args: &ResArgs, about: About) -> anyhow::Result<()> {
     let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone(), about)?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
-
-    let mut passes = 0;
-    while target_to_target_pass(args, &tools, &args.target)? {
-        passes += 1;
-        if passes >= args.recursion_limit {
-            bail!("reached --recursion-limit of {}", args.recursion_limit)
-        }
-    }
-
     tools.run_final(&args.source, &args.target)
 }
 
@@ -186,13 +177,22 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
             let source = entry.path();
 
             // run tool
-            if let Some(ext) = source.extension() {
-                let ext = ext.to_string_lossy();
-                if let Some(tool) = ext.strip_prefix("zr-") {
-                    // run prints request path
-                    tools.run(tool, &args.source, &args.target, source)?;
-                    continue;
+            if let Some(ext) = source.extension()
+                && let Some(ext) = ext.to_str()
+                && let Some(tool) = ext.strip_prefix("zr-")
+            {
+                // run prints request path
+                tools.run(tool, &args.source, &args.target, source)?;
+
+                // recurse immediately
+                let mut passes = 0;
+                while target_to_target_pass(args, tools, &args.target)? {
+                    passes += 1;
+                    if passes >= args.recursion_limit {
+                        bail!("reached --recursion-limit of {}", args.recursion_limit)
+                    }
                 }
+                continue;
             }
 
             // or pack
