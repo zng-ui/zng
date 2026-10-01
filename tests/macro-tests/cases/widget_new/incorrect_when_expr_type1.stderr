@@ -12,8 +12,8 @@ error[E0308]: mismatched types
    | |_____expected `Var<bool>`, found `Var<SideOffsets>`
    |       arguments to this method are incorrect
    |
-   = note: expected struct `zng::var::Var<bool>`
-              found struct `zng::var::Var<SideOffsets>`
+   = note: expected struct `Var<bool>`
+              found struct `Var<SideOffsets>`
 note: method defined here
   --> $WORKSPACE/crates/zng-app/src/widget/base.rs
    |
