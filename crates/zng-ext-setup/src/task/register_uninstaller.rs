@@ -4,6 +4,7 @@ use std::fmt::Write as _;
 use std::sync::Arc;
 use std::{fmt, path::PathBuf};
 
+use zng_txt::{ToTxt as _, Txt};
 use zng_unit::ByteLength;
 
 use crate::task::{InstallTaskError, SetupTaskError, escape_arg, path_utf8};
@@ -12,8 +13,8 @@ use crate::task::{InstallTaskError, SetupTaskError, escape_arg, path_utf8};
 pub enum RegisterUninstaller {}
 
 /// Config for [`RegisterUninstaller`].
+#[non_exhaustive]
 pub struct RegisterUninstallerConfig {
-    // TODO(breaking) non_exhaustive
     /// Globally unique ID of the app.
     ///
     /// This must be the same ID as previous versions if the installer is updating.
@@ -28,17 +29,17 @@ pub struct RegisterUninstallerConfig {
     /// if the setup app is defined on the same app executable.
     ///
     /// [`zng::env::About::app_id`]: zng_env::About::app_id
-    pub app_id: String, // TODO(breaking) Txt
+    pub app_id: Txt,
 
     /// Uninstaller executable.
     pub uninstaller: PathBuf,
     /// Arguments for the uninstaller that can show a GUI.
-    pub args: Vec<String>,
+    pub args: Vec<Txt>,
     /// Arguments for the uninstaller to run without showing any GUI.
     ///
     /// Note that this replaces `args` when running in silent mode. Any common args
     /// between GUI and silent must be duplicated here.
-    pub silent_args: Vec<String>,
+    pub silent_args: Vec<Txt>,
 
     /// App display name.
     ///
@@ -48,7 +49,7 @@ pub struct RegisterUninstallerConfig {
     /// if the setup app is defined on the same app executable.
     ///
     /// [`zng::env::About::app`]: zng_env::About::app
-    pub app: String,
+    pub app: Txt,
     /// App display version.
     ///
     /// # Default
@@ -57,7 +58,7 @@ pub struct RegisterUninstallerConfig {
     /// if the setup app is defined on the same app executable.
     ///
     /// [`zng::env::About::version`]: zng_env::About::version
-    pub version: String,
+    pub version: Txt,
     /// Path to the executable that defines the app icon.
     ///
     /// # Default
@@ -79,15 +80,15 @@ impl RegisterUninstallerConfig {
     ///
     /// Note that `app_id` and other metadata are copied from the `zng::env::about()`. This
     /// is only valid if the setup app is implemented on the same app executable.
-    pub fn new(uninstaller: PathBuf, args: Vec<String>, silent_args: Vec<String>, install_location: PathBuf) -> Self {
+    pub fn new(uninstaller: PathBuf, args: Vec<Txt>, silent_args: Vec<Txt>, install_location: PathBuf) -> Self {
         Self {
             uninstaller,
             args,
             silent_args,
             install_location,
-            app_id: String::new(),
-            app: String::new(),
-            version: String::new(),
+            app_id: Txt::default(),
+            app: Txt::default(),
+            version: Txt::default(),
             icon: PathBuf::new(),
             estimated_size: ByteLength(0),
         }
@@ -99,12 +100,12 @@ impl RegisterUninstallerConfig {
 pub struct PrepareInstallData {
     update: Option<InstallData>,
 
-    app_id: String,
+    app_id: Txt,
     uninstall: String,
     quiet_uninstall: String,
 
-    display_name: String,
-    display_version: String,
+    display_name: Txt,
+    display_version: Txt,
 
     icon: String,
     install_location: String,
@@ -115,7 +116,7 @@ pub struct PrepareInstallData {
 #[doc(hidden)]
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InstallData {
-    app_id: String,
+    app_id: Txt,
 }
 
 impl super::SetupTask for RegisterUninstaller {
@@ -134,7 +135,7 @@ impl super::SetupTask for RegisterUninstaller {
 
         // validate app_id, required, no leading/trailing spaces, no '\'
         let app_id = if d.app_id.is_empty() {
-            zng_env::about().app_id.to_string()
+            zng_env::about().app_id.clone()
         } else {
             d.app_id
         };
@@ -153,15 +154,11 @@ impl super::SetupTask for RegisterUninstaller {
 
         let uninstaller = format!("{}", escape_arg(&path_utf8(d.uninstaller)?));
 
-        let display_name = if d.app.is_empty() {
-            zng_env::about().app.to_string()
-        } else {
-            d.app
-        };
+        let display_name = if d.app.is_empty() { zng_env::about().app.clone() } else { d.app };
         let display_version = if d.version.is_empty() {
-            zng_env::about().version.to_string()
+            zng_env::about().version.to_txt()
         } else {
-            d.version.to_string()
+            d.version
         };
         let icon = if d.icon.as_os_str().is_empty() {
             uninstaller.clone()
@@ -169,7 +166,7 @@ impl super::SetupTask for RegisterUninstaller {
             path_utf8(d.icon)?
         };
 
-        fn cmd(mut exe: String, args: Vec<String>) -> String {
+        fn cmd(mut exe: String, args: Vec<Txt>) -> String {
             for arg in args {
                 write!(&mut exe, " {}", escape_arg(&arg)).unwrap();
             }
