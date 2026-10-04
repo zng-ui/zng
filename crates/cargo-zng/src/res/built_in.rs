@@ -44,7 +44,7 @@ pub const ZR_HELP: &str = "ZR_HELP";
 /// Env var set when running with `--verbose`.
 ///
 /// Note that empty value indicates not verbose. Any value indicates verbose, currently
-/// value is `"v"`.
+/// value is "v", "vv", ...
 pub const ZR_VERBOSE: &str = "ZR_VERBOSE";
 
 /// Env var set to package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case

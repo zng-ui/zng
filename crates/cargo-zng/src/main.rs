@@ -44,6 +44,15 @@ struct Zng {
     /// Command.
     #[command(subcommand)]
     pub command: Command,
+
+    /// Use verbose output (-vv very verbose)
+    #[arg(
+        long,
+        short = 'v',
+        action = clap::ArgAction::Count,
+        global = true,
+    )]
+    verbose: u8,
 }
 
 #[derive(Subcommand, Debug)]
@@ -75,6 +84,8 @@ fn main() {
     res::built_in::run();
 
     let CargoCli::Zng(cli) = CargoCli::parse();
+
+    util::set_verbose(cli.verbose);
 
     match cli.command {
         Command::Fmt(args) => fmt::run(args),

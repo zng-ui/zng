@@ -65,10 +65,6 @@ pub struct ResArgs {
     /// Writes the metadata extracted the workspace or --metadata
     #[arg(long, action)]
     metadata_dump: bool,
-
-    /// Use verbose output.
-    #[arg(short, long, action)]
-    verbose: bool,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -76,10 +72,6 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
-    if args.verbose {
-        crate::util::enable_verbose();
-    }
-
     if args.tool_dir.exists() {
         args.tool_dir = canonicalize(&args.tool_dir);
     }
