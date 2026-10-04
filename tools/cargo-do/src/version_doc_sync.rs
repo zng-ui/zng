@@ -80,8 +80,8 @@ pub fn close_changelog() {
     let changelog_path = format!("{manifest_dir}/../../CHANGELOG.md");
 
     let mut changelog = read_to_string(&changelog_path).expect("CHANGELOG.md");
-    let title = format!("\n# {}\n\n", crate::util::crate_version("zng"));
-    let unreleased = "# Unreleased\n\n";
+    let title = format!("\n## {}\n\n", crate::util::crate_version("zng"));
+    let unreleased = "## [Unreleased]\n\n";
     assert!(changelog.starts_with(unreleased));
     if !changelog.contains(&title) {
         changelog.insert_str(unreleased.len(), &title);
