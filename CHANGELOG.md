@@ -1,7 +1,10 @@
-# Unreleased
+# Changelog
 
+All notable changes to this project are documented in this file.
 
-# 0.24.7
+## [Unreleased]
+
+## 0.24.7
 
 * Recursive `cargo zng res` tools now apply immediately.
 * Add support for local translators.
@@ -14,7 +17,7 @@
 * `cargo zng res --tools` now have a `"ZR_VERBOSE"` env variable when running with `--verbose`.
 * Fix builds with `"material_icons_subset"` feature always rebuilding.
 
-# 0.24.6
+## 0.24.6
 
 * Add `setup::page::FailedPage`.
 
@@ -25,7 +28,7 @@
 
 * `cargo zng l10n` now validates same key declared with different messages.
 
-# 0.24.5
+## 0.24.5
 
 * Add `setup::page::FinishPage`.
 
@@ -45,7 +48,7 @@
     - Added `BEGIN_CMD` and related properties that better represents 
       the "transition to progress page" action.
 
-# 0.24.4
+## 0.24.4
 
 * Implement disabled visual state for `Toggle!` styles.
     - `RadioStyle!`, `SwitchStyle!` and `CheckStyle!`.
@@ -80,7 +83,7 @@
     - Adds `.zr-tar`. Produces .tar, .tar.gz or .tar.zst fully compatible with `.zr-sfx`.
     - See `cargo zng res --tool tar` for features.
 
-# 0.24.3
+## 0.24.3
 
 * Fix ANSI code block not formatting in `Markdown!`.
     - Add `AnsiText::alternate_esc` property.
@@ -104,7 +107,7 @@
     - `Display` now hides the total estimated length when read/write overshoots it.
     - `Measure::metrics` is now `&self`.
 
-# 0.24.2
+## 0.24.2
 
 * Add self-extracting executable builder tool for `cargo zng res`.
     - Files with `.zr-sfx` or `.zr-sfxf` build a SFX.
@@ -114,11 +117,11 @@
 * Improve "unknown format" image error by including the first 24 bytes.
 * Fix renderer requesting texture ID from error images.
 
-# 0.24.1
+## 0.24.1
 
 * Fix Unix compilation error caused by a dependency, see [#1178](https://github.com/zng-ui/zng/pull/1178).
 
-# 0.24.0
+## 0.24.0
 
 * Fix `BacktraceFrame::parse` panicking in crash dialogs.
 * **Breaking** Change `zng::task::Progress::msg` into a `Var<Txt>` to support localized messages.
@@ -131,7 +134,7 @@
     - **Breaking** Removed `Font::harfbuzz`.
     - **Breaking** Removed `FontFaceMetrics` and `FontFace::metrics`.
 
-# 0.23.5
+## 0.23.5
 
 * Fix `Markdown!` parser including Fluent bidi markers in URIs.
 * Fix measure metrics use not tracking for invalidation.
@@ -140,7 +143,7 @@
 * Fix panics on `zng::task::process::tap::PanicInfo::find` parser.
 * Fix crash dialog crash logging stdio with ANSI escape sequences.
 
-# 0.23.4
+## 0.23.4
 
 * Fix `Markdown!` default link handling.
     - "Reveal in File Manager" now never opens the file.
@@ -159,7 +162,7 @@
 * Add `TabIndex::FIRST`.
 * Change auto mnemonic key to be selected by tab index order.
 
-# 0.23.3
+## 0.23.3
 
 * Add `list_presenter_from_node`.
     - Add `present_list_from_node` extension method to all vars.
@@ -169,7 +172,7 @@
 * Add `MergeVarBuilder::build_bidi` and `build_bidi_modify`.
 * Add `zng::var::AnyMergeVarBuilder`.
 
-# 0.23.2
+## 0.23.2
 
 * **Deprecated** `yield_until_app` in `on_process_start!` args.
 * Fix `ContextMenu!` in `Markdown!` and `AnsiText!` having the parent text font and size.
@@ -182,7 +185,7 @@
 * Optimized crash-handler-process stdout/err capture.
 * Add `MergeVarBuilder::join_txt`.
 
-# 0.23.1
+## 0.23.1
 
 * Fix shader cache not invalidating after driver update.
 * Fix view-process not reporting as connected after a respawn.
@@ -192,7 +195,7 @@
     - When the window was closed in a second monitor.
     - When window was closed minimized.
 
-# 0.23.0
+## 0.23.0
 
 * **Breaking** Remove window `enabled_buttons` and related types.
     - Added `can_maximize`, `can_minimize`, `can_fullscreen` and `can_close`.
@@ -213,7 +216,7 @@
 * **Breaking** Remove deprecated `RAW_SCALE_FACTOR_CHANGED_EVENT`.
 * **Breaking** Remove deprecated `VIEW_PROCESS.pending_frames`.
 
-# 0.22.10
+## 0.22.10
 
 * Optimize renderer for binary size.
     - Saves up to 1.8MB with a trade-off of slightly slower shader compilation on first use.
@@ -227,7 +230,7 @@
     - `zng-view` feature `"bundle_licenses"` renamed to `"embed_licenses"`.
 * **Deprecated** `zng` feature `"view_bundle_licenses"`, not needed.
 
-# 0.22.9
+## 0.22.9
 
 * Fix `cargo zng res` infinite recursion when a res script also calls `cargo zng`.
 * Add `cargo zng l10n --release-langs PATH` for packaging tools.
@@ -236,7 +239,7 @@
     - Change how `restore_state` operates.
 * Fix invalid window state after changing Normal -> Maximized -> Fullscreen -> Normal.
 
-# 0.22.8
+## 0.22.8
 
 * Optimize `collect_cargo_about` license collection.
     - Skips optional dependencies not being compiled.
@@ -253,7 +256,7 @@
     - Added `"material_icons_usage_recorder"` and `"material_icons_subset"` features.
     - Added tutorial in docs for `zng::icon::material`.
 
-# 0.22.7
+## 0.22.7
 
 * Add `"image_fast_downscale"` Cargo feature.
     - Enabled in the prebuilt view-process, and in `"dev"` of the main crate.
@@ -261,7 +264,7 @@
 * Add `try_unwrap_vec` and `unwrap_or_to_vec` for `IpcBytes` and `IpcBytesMut`.
 * Compile size optimizations and dependency trimming, ~8MB reduction in release builds.
 
-# 0.22.6
+## 0.22.6
 
 * Fix `start_position` issues.
     - Avoid opening with title bar out of monitor bounds.
@@ -272,7 +275,7 @@
     - Fixes markdown default table layout.
 * Fix ANGLE license attribution in `zng_view_angle::register_license`.
 
-# 0.22.5
+## 0.22.5
 
 * Implement compiled shader caching, enabled by default.
     - Add `WINDOWS.default_cache_shaders` and `Window::cache_shaders`.
@@ -290,13 +293,13 @@
 
 * Fix `WINDOW_EXTENSIONS.view_extensions_init` for an existing window after respawn.
 
-# 0.22.4
+## 0.22.4
 
 * Fix warning (panic in debug builds) using embedded tar localization resources.
 * Fix menu item label underlined in menus with scroll active.
 * Fix large submenu dropdown covering the header.
 
-# 0.22.3
+## 0.22.3
 
 * Implement mnemonic access keys.
     - Add `mnemonic_scope`, `mnemonic` and `mnemonic_txt` properties.
@@ -316,7 +319,7 @@
 * Fix command metadata init sometimes not initing for the app scope.
     - Fixes sporadic localized command names not translating.
 
-# 0.22.2
+## 0.22.2
 
 * Fix text selection not extending when pressed pointer is outside the viewport.
 * Fix `SELECT_ALL_CMD` auto scrolling text to end.
@@ -331,7 +334,7 @@
 * Fix `rich_text` causing repeated updates.
 * Debug builds now detect incorrect repeated updates and logs an error.
 
-# 0.22.1
+## 0.22.1
 
 * Better default markdown link popup.
 * Change default `Scroll::auto_hide_extra` to a fixed 50dip.
@@ -339,7 +342,7 @@
 * Fix widget scoped commands only matching ancestors when direct match is disabled.
 * Fix builds with inspector notifying INSPECT_CMD every frame.
 
-# 0.22.0
+## 0.22.0
 
 This release contains only advanced API breaking changes, it should not affect most use cases. The changes
 improve IPC performance and security.
@@ -362,7 +365,7 @@ improve IPC performance and security.
 * **Breaking** Add `use FrequencyUnits as _` in preludes.
 * Internal features (image_any, audio_any) are now named with underscore prefix and hidden from docs.
 
-# 0.21.13
+## 0.21.13
 
 * Fix `AnyVar::try_set_from_map` panic when the other variable is const.
 * Fix `IMAGES` and `AUDIOS` extensions not always applying.
@@ -385,7 +388,7 @@ improve IPC performance and security.
 * Add `Image::on_load_size_layout`.
 * Fix panic on raw image and audio events without handle.
 
-# 0.21.12
+## 0.21.12
 
 * Fix Malay and Uzbek languages defaulting to RTL when no script tag is given.
 * Fix non-spacing marks rendering disconnected in text width ligatures disabled.
@@ -396,7 +399,7 @@ improve IPC performance and security.
     - All supported desktop platforms now cover the full range of languages that have a defined `Lang::autonym`.
 * Fix panic in `Text!` when an incorrect `render_update` happens before first `render` after view-process respawn.
 
-# 0.21.11
+## 0.21.11
 
 * Implement `Window::movable`.
     - Disabling now works in all windowed platforms except Wayland.
@@ -410,7 +413,7 @@ improve IPC performance and security.
 * Fix panic when http task response is missing code.
 * Surface http task API `CacheMode` in `zng::task::http`.
 
-# 0.21.10
+## 0.21.10
 
 * Define autonym for pseudo (test) locales.
 * Fix `cargo zng l10n --pseudo` issues.
@@ -427,7 +430,7 @@ improve IPC performance and security.
     - Add `GenericFonts::system_ui` and related methods.
     - Fixes Chinese, Japanese and Korean UI fonts not loading.
 
-# 0.21.9
+## 0.21.9
 
 * Force update `tar` dependency to avoid vulnerability.
 * Add machine translated l10n resources for German, Spanish, French, Italian, Japanese, Korean and Simplified Chinese.
@@ -436,12 +439,12 @@ improve IPC performance and security.
 * Fix scoped command state variables disconnecting.
 * Fix `can_<command>` properties holding command handle after deinit.
 
-# 0.21.8
+## 0.21.8
 
 * Fix view-process image format magic number matching any empty pattern.
 * Fix AVIF image format magic number.
 
-# 0.21.7
+## 0.21.7
 
 * Add `ImageSource::Entries` for generating multi entry images.
     - SVG renderer now uses this to generate downscaled samples if requested.
@@ -457,12 +460,12 @@ improve IPC performance and security.
 * Add `ImageFormat::magic_numbers`.
 * Add `HeadlessApp::doc_test_deadline` so spawn a timeout task in doctests.
 
-# 0.21.6
+## 0.21.6
 
 * Fix `zng` build with `"view_bundle_licenses"` feature.
     - Fix `zng-view` build with `"bundle_licenses"`.
 
-# 0.21.5
+## 0.21.5
 
 * Fix images decoded from RGBf32 crashing the view-process.
 * Implement image encoding for GIF, PNM, TGA, HDR, OpenEXR and Farbfeld.
@@ -471,7 +474,7 @@ improve IPC performance and security.
 * Add `IpcBytesMut::from_slice_blocking`.
 * Fix Inspector screenshot save dialog suggesting formats that do not implement encoding.
 
-# 0.21.4
+## 0.21.4
 
 * Fix build with `"image_tiff"` and `"view"` features.
 
@@ -487,7 +490,7 @@ improve IPC performance and security.
     - Check if localized messages match the template.
     - Add `--check-strict` to also check for missing messages.
 
-# 0.21.3
+## 0.21.3
 
 * Fix window updating scale factor before updating other parameters when moving to another monitor.
 
@@ -517,18 +520,18 @@ improve IPC performance and security.
 * Fix scroll commands not receiving params.
 * Fix `ImageEntry::flat_entries` var force updating.
 
-# 0.21.2
+## 0.21.2
 
 * Add `APP.wait_view_process`.
 * Add `zng_env::windows_subsystem` (also in `zng::env`) to support hybrid CLI and GUI apps in Windows.
 * Change `HeadlessApp::renderer_enabled` to block until the view-process is connected, if running with renderer.
 * Fix `command_property!` not generating full property for `can_*`.
 
-# 0.21.1
+## 0.21.1
 
 * Fix `command_property!` syntax requiring preview property declaration.
 
-# 0.21.0
+## 0.21.0
 
 This release contains breaking changes in the surface API that are trivial to fix and more extensive
 breaking changes in the app extensions API only affect custom app service implementers.
@@ -687,21 +690,21 @@ Changes that only affect custom view-process implementers.
 
 </details>
 
-# 0.20.4
+## 0.20.4
 
 * Fix high CPU usage when idling in Ubuntu and macOS.
 * Fix memory pressure watcher not working in Ubuntu and macOS.
 
-# 0.20.5
+## 0.20.5
 
 * Upgrade dependencies to fix Linux build with `"view"` feature.
 
-# 0.20.4
+## 0.20.4
 
 * Fix high CPU usage when idling in Ubuntu and macOS.
 * Fix memory pressure watcher not working in Ubuntu and macOS.
 
-# 0.20.3
+## 0.20.3
 
 * Fix image encoding with premultiplied alpha.
 * Fix BGRA image tagged as mask.
@@ -713,7 +716,7 @@ Changes that only affect custom view-process implementers.
 * Fix `Scroll!` child alignment fill. Remove non standard layout, now only applies in dimensions without scrolling.
 * Fix panic on view-process respawn when a window is initing.
 
-# 0.20.2
+## 0.20.2
 
 * Add `Image::on_load_layout` event fired after new image is loaded and layout.
 * Optimize image decoding, faster and less memory use.
@@ -726,7 +729,7 @@ Changes that only affect custom view-process implementers.
 * Add `IpcBytes::cast` and `IpcBytesMut::cast` for bytemuck safe casting.
 * Fix missing image formats in the view-process encoder and decoder lists.
 
-# 0.20.1
+## 0.20.1
 
 * `UiNode::init_widget` and `into_widget` anonymous widget now uses detailed hit-test mode.
     - Fix issues with `LAYERS.insert_node` blocking all interaction with window.
@@ -738,7 +741,7 @@ Changes that only affect custom view-process implementers.
 
 * Add `WINDOW.try_info` and `WIDGET.try_info` to get contextual info without panic if widget has not built info yet.
 
-# 0.20.0
+## 0.20.0
 
 * Add support for gigapixel images.
     - Now decoded image length can exceed i32::MAX.
@@ -795,7 +798,7 @@ Changes that only affect custom view-process implementers.
 * Add blocking API for `zng::task::channel` sender and receiver.
 * Fix `Window!` config properties trying to use `CONFIG` in builds without `"config"` feature.
 
-# 0.19.2
+## 0.19.2
 
 * Implement workaround deadlocks caused by the `notify` crate.
 * Improve advanced animation API. 
@@ -806,7 +809,7 @@ Changes that only affect custom view-process implementers.
 * Change `mask_image` to apply to the borders too.
 * Add `zng::process::CircularStyle`.
 
-# 0.19.1
+## 0.19.1
 
 * Implement basic paragraph support in base `Text!` widget.
     - Added `paragraph_break` property that defines how the text is split in paragraphs.
@@ -821,7 +824,7 @@ Changes that only affect custom view-process implementers.
 * Image widget now ignores `img_scale_factor` when `img_scale_density` is enabled.
 * Implement `FromStr` for `PxDensity`. Fixes regression, the previous density units implemented parse.
 
-# 0.19.0
+## 0.19.0
 
 * Add `"view_hardware"` feature to make hardware rendering optional.
     - On Windows the `"view_software"` renderer uses ~20MB less RAM than Nvidia OpenGL drivers.
@@ -860,7 +863,7 @@ Changes that only affect custom view-process implementers.
 * View process timeout is now configurable with ZNG_VIEW_TIMEOUT env var.
 * Fix view-process recover when it stops responding.
 
-# 0.18.2
+## 0.18.2
 
 * Fix `async_hn!` handlers in the app scope unsubscribing after first event.
 * Fix layout dependent on `LayoutMetrics::screen_ppi` not updating on change.
@@ -873,7 +876,7 @@ Changes that only affect custom view-process implementers.
 * Add `flat_expr_var!`, a helper for declaring an expression var that flattens.
 * Fix EXIF metadata reading to define `ppi`.
 
-# 0.18.1
+## 0.18.1
 
 * Implement color management in `zng-view`, supports ICC profiles and PNG gamma, chromaticities.
 * Update default inspector watchers. Root widget now watches some general stats. All widgets now show *actual_size*.
@@ -881,7 +884,7 @@ Changes that only affect custom view-process implementers.
 * Implement image `ppi` metadata in `zng-view` for JPEG, PNG and TIFF.
 * Add pixels-per-centimeter support in `ImagePpi`.
 
-# 0.18.0
+## 0.18.0
 
 * Refactor child insert properties (`child_top`, `child_start` and others).
     - **Breaking** Removed `spacing` input from each property.
@@ -918,7 +921,7 @@ Changes that only affect custom view-process implementers.
 
 * Fix menu not appearing in Inspector Window.
 
-# 0.17.4
+## 0.17.4
 
 * Fix misaligned icons in `Menu!`.
 
@@ -935,7 +938,7 @@ Changes that only affect custom view-process implementers.
 * Style more widgets inside `Menu!` root.
     - Add `menu::{TextInputStyle, ComboStyle}`.
 
-# 0.17.3
+## 0.17.3
 
 * Fix default accent color and color scheme not using system values in Ubuntu.
 * Fix default accent color and color scheme not updating on Windows settings change.
@@ -945,7 +948,7 @@ Changes that only affect custom view-process implementers.
 * Fix unrecoverable crash in respawned view-process not reaching the crash-handler-process.
 * Fix respawn when a view-process panic happens during window creation.
 
-# 0.17.2
+## 0.17.2
 
 * Add `zng::gesture::is_pointer_active` and related properties.
     - Allows implementing media player like controls, that vanish after a while without cursor movement.
@@ -954,7 +957,7 @@ Changes that only affect custom view-process implementers.
 * Add `Menu::has_open` state property.
 * Fix `zng::rule_line::CollapseMode::MERGE` not applying.
 
-# 0.17.1
+## 0.17.1
 
 * Optimize read-only variables, now all var kinds are zero-cost.
 * Fix `VarCapability::is_const` for contextual read-only variables.
@@ -971,7 +974,7 @@ Changes that only affect custom view-process implementers.
 * View-process now tries to guess image format in case of header decode error for an extension or mime defined format.
 * Fix `cargo zng fmt` wrap instability inside macros.
 
-# 0.17.0
+## 0.17.0
 
 This release contains breaking changes that affect the build and app startup.
 
@@ -998,7 +1001,7 @@ This release contains breaking changes that affect the build and app startup.
 * Add `read` associated function for `zng::config::{JsonConfig, RonConfig, TomlConfig, YamlConfig}`.
     - This is a more efficient alternative to wrapping `sync` with `ReadOnlyConfig`.
 
-# 0.16.6
+## 0.16.6
 
 * Fix focus scope `Popup!` widgets not focusing first descendant in some cases. 
 
@@ -1022,7 +1025,7 @@ This release contains breaking changes that affect the build and app startup.
 
 * Add `zng::rule_line::{hr::width, vr::height}` for contextually configuring the separator line length.
 
-# 0.16.5
+## 0.16.5
 
 * Fix race condition in `zng::task::SignalOnce`.
 
@@ -1046,7 +1049,7 @@ This release contains breaking changes that affect the build and app startup.
     - Also strongly associated with `Scroll!` widget as `Scroll::ctrl_scroll`.
     - When enabled inverts priority of mouse wheel gesture so that it zooms when no modifier is pressed and scrolls when `CTRL` is pressed.
 
-# 0.16.4
+## 0.16.4
 
 * Fix bitflags serialization error in RON configs.
 * Add `Window::parallel` and `WINDOW.vars().parallel` that has the same effect as the standalone property plus it also applies
@@ -1065,7 +1068,7 @@ This release contains breaking changes that affect the build and app startup.
     - Columns `min/max_width` and rows `min/max_height` are now respected in auto sized or leftover sized columns/rows.
     - Default sized columns are now proportionally downsized in case of overflow.
 
-# 0.16.3
+## 0.16.3
 
 * Improve UI parallelization, now can also parallelize smaller lists if the child nodes are *heavy*.
     - Custom list nodes now should use `dyn UiNodeImpl::parallelize_hint` together with `PARALLEL_VAR` to enable parallelization.
@@ -1084,7 +1087,7 @@ This release contains breaking changes that affect the build and app startup.
 * Deprecated feature `"dyn_node"`, no longer needed.
 * Add `Var<VarEq<T>>::flatten` method.
 
-# 0.16.2
+## 0.16.2
 
 * Fix image request made before view-process init never loading.
 * Improve view-process crash detection for respawn.
@@ -1092,7 +1095,7 @@ This release contains breaking changes that affect the build and app startup.
     - Removed support for AVIF images in the prebuilt for this target.
     - Follow the `docs/avif-setup.md` guide to build view-process with AVIF support.
 
-# 0.16.1
+## 0.16.1
 
 * Multiple improvements for `cargo zng fmt`.
     - Now only reformats modified files when running in crates/workspaces.
@@ -1112,7 +1115,7 @@ This release contains breaking changes that affect the build and app startup.
 * Implement `IntoUiNode` for `std::iter` iterators of `UiNode` items.
     - You can now omit `.collect::<UiVec>()` in code that generates widget lists from iterators.
 
-# 0.16.0
+## 0.16.0
 
 This release contains breaking changes that affect the normal surface API. All changes are trivial to fix, its mostly a job for find & replace.
 
@@ -1206,7 +1209,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 
 * **Breaking** Add unimplemented audio decoding and playback to the view-process API in preparation of a future release.
 
-# 0.15.11
+## 0.15.11
 
 * Fix `DIALOG.confirm` always cancelling.
 * Fix auto scroll on text caret move, only apply if the `Text!` or rich text context has focus.
@@ -1217,7 +1220,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
     - **Deprecated** multiple event args methods that reimplemented this feature.
 * Fix disabled `SubMenu!` opening.
 
-# 0.15.10
+## 0.15.10
 
 * **Deprecated** Zng features "ron", "toml" and "yaml" renamed to "config_ron", "config_toml" and "config_yaml".
 * **Deprecated** the view-process API "raw devices", it is replaced by "raw input devices", distinct from audio or any other devices.
@@ -1232,7 +1235,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Add `zng::widget::node::list_presenter_from_iter`.
     - Reexported by the `prelude_wgt`.
 
-# 0.15.9
+## 0.15.9
 
 * Add `ImageSource::linear_vertical` and `linear_horizontal` for generating fast gradient masks.
 * Implement `Eq` and `Hash` for `Length`, `LengthExpr`, `Size`, `Line`, `Point`, `Factor2d`, `GridSpacing`, `FactorSideOffsets`, `Rect`, `SideOffsets`, `Vector`, `LinearGradientAxis`, `ColorStop`, `GradientStop`, `GradientStops`.
@@ -1245,7 +1248,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Remove warnings about `touch_config` not being implemented in Linux, macOS and Windows.
 * Fix localization resources fallback going to different file name (take 2).
 
-# 0.15.8
+## 0.15.8
 
 * Implement `LOW_MEMORY_EVENT` for macOS, all supported platforms covered now.
 * Fix view-process config in Linux not reading default values that are only defined in schema.
@@ -1258,7 +1261,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Fix localization resources fallback going to different file name.
 * Fix localization showing resource as loaded after load error.
 
-# 0.15.7
+## 0.15.7
 
 * Add `"dyn_node"` to `zng` default features to avoid build issues in release builds.
   - GitHub workflow runners can't handle building with all the generics inlining that happens without this feature.
@@ -1269,7 +1272,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 
 [`docs/optimize-release.md`]: ./docs/optimize-release.md
 
-# 0.15.6
+## 0.15.6
 
 * Add `cargo zng trace` subcommand for recording and post processing traces.
 * Add `zng::env::process_name` and name the Zng processes.
@@ -1277,7 +1280,7 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Fix `cargo zng l10n` handling of repeated sections.
 * Fix `cargo zng new` removing already existing target.
 
-# 0.15.5
+## 0.15.5
 
 * Add support for `CLIPBOARD.file_list` in Linux and macOS.
 * `LocalContext::with_context_blend` now also overrides the tracing dispatcher if it captures a dispatcher.
@@ -1305,13 +1308,13 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Fix `TimeUnits::ms` impl for `f32`.
 * Fix `Txt::split_off` when the `Txt` is backed by `&'static str`. 
 
-# 0.15.4
+## 0.15.4
 
 * Fix interactive carets in rich texts losing pointer capture when crossing over leaf texts.
 * Fix interactive insert caret appearing in non editable text.
 * Update renderer dependencies.
 
-# 0.15.3
+## 0.15.3
 
 * Inspector properties panel is now a selectable rich text.
 * Rich text selection operations that apply to lines now ignore wrap line breaks.
@@ -1325,15 +1328,15 @@ Optimized release builds (following the `./docs/optimized-release.md` guide) are
 * Enable rich text selection in debug crash dialog, removed "plain" stdio panels.
 * Rich text copy now includes line breaks between *vertically stacked* texts in non-wrap panels.
 
-# 0.15.2
+## 0.15.2
 
 * Fix build of version 0.14 users. See #650 and #649 for details.
 
-# 0.15.1
+## 0.15.1
 
 * Fix release.
 
-# 0.15.0
+## 0.15.0
 
 This release contains many small breaking changes, almost all on advanced API, the normal surface API is mostly untouched.
 All changes are trivial to fix, they are either a rename or types that are now non-exhaustive. 
@@ -1372,13 +1375,13 @@ All changes are trivial to fix, they are either a rename or types that are now n
   - To create an update with custom args now use `cmd.event().new_update(args)`.
 * Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
 
-# 0.14.4
+## 0.14.4
 
 * `Markdown!` is not a rich text context, enable `txt_selectable` to provide simple selection and copy.
 * Add `zng::text::txt_selectable_alt_only` to coordinate click events with rich text selection gestures.
   - `Button!` widgets enable this by default, any button or derived widget is now clickable inside rich texts.
 
-# 0.14.3
+## 0.14.3
 
 * Enable basic text selection and copy for `Markdown!` and `AnsiText!`.
 * Add rich text context, `TEXT.rich` and associated API.
@@ -1397,27 +1400,27 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix shift+arrow key gestures not starting text selection until next arrow key press.
 * Update dependencies.
 
-# 0.14.2
+## 0.14.2
 
 * Fix build error in Rust 1.86. [See details](https://github.com/zng-ui/zng/pull/633#issuecomment-2777515702)
 
-# 0.14.1
+## 0.14.1
 
 * Add functions `all`, `all_ok`, `all_some`, `any`, `any_ok`, `any_some` in `zng::task`. These functions are dynamic versions of the
 * Task macros `all!`, `all_ok!`, `all_some!`, `any!`, `any_ok!` and `any_some` now accept `IntoFuture` inputs.
 
-# 0.14.0
+## 0.14.0
 
 * Upgrade all crates to Rust 2024 edition.
 * **Breaking** Many return impl Trait changed lifetimes slightly, some replaced with doc hidden types. In practice all code should still just compile, but these are breaking changes.
 * **Breaking** Some public `hashbrown::{HashMap, HashSet}` API replaced with the `std::collections` equivalent.
 * **Breaking** Remove deprecated `zng::text::justify` that was replaced with `justify_mode` in 0.13.11.
 
-# 0.13.12
+## 0.13.12
 
 * Implemented text justify for *rich text* composed of `Wrap!` and `Text!`.
 
-# 0.13.11
+## 0.13.11
 
 * Implement text fill/justify.
 * Deprecate `justify`, add `justify_mode`.
@@ -1427,55 +1430,55 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix misaligned hyphenation split points.
 * Fix missing lang region in hyphenation query.
 
-# 0.13.10
+## 0.13.10
 
 * Fix regression, some `Text!` in `Wrap!` not rendering.
 
-# 0.13.9
+## 0.13.9
 
 * Fix `Text!` measure incorrect size after a previous layout.
 * Add `scroll::zoom_size_only` property that disables scaling in `Scroll!` descendants and resizes them instead.
 * Fix small `Text!` in a `Wrap!` not starting a new line.
 
-# 0.13.8
+## 0.13.8
 
 * Fix `cargo zng fmt` for widgets with more than one `when` block.
 * Fix `Wrap!` ignoring child `Text!` that is only a line-break.
 * Fix soft/hard breaks in `Markdown!`.
 * Improve cache of font data to use less memory.
 
-# 0.13.7
+## 0.13.7
 
 * More feature optimization.
 
-# 0.13.6
+## 0.13.6
 
 * Fix compilation of `zng-var` without features in debug mode.
 * Add features for each sub-module of the `zng`. This enabled compile size optimization.
 
-# 0.13.5
+## 0.13.5
 
 * Various optimizations to reduce code bloat.
 
-# 0.13.4
+## 0.13.4
 
 * Fix crash handler creating a temp file in the executable directory.
 
-# 0.13.3
+## 0.13.3
 
 * Fix hang rendering some text with image emojis.
 
-# 0.13.2
+## 0.13.2
 
 * Fix deadlock in release builds (introduced in 0.13.1).
 
-# 0.13.1
+## 0.13.1
 
 * Add `L10N.load_tar` to support embedded localization resources.
 * Changed `ByteLength` to display unit symbols.
 * Ignore not found error on `cargo zng l10n` cleanup.
 
-# 0.13.0
+## 0.13.0
 
 * Add `zng::drag_drop`, with limited support drag&drop gestures.
 * Add missing `zng::var::OnVarArgs`.
@@ -1489,15 +1492,15 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * **Breaking** Changed default image filter to only allow images in `zng::env::res`, replacing the current exe dir filter.
 * **Breaking** Add missing inputs in 9-patch border rendering methods in `FrameBuilder` and `DisplayListBuilder`.
 
-# 0.12.10
+## 0.12.10
 
 * Fix `zng_tp_licenses::collect_cargo_about` call in Powershell.
 
-# 0.12.9
+## 0.12.9
 
 * Fix EXIF orientation not applying to images.
 
-# 0.12.8
+## 0.12.8
 
 * Properties `size` and related now have a default value allowing conditional assign.
 * Add `zng::slider` with `Slider` widget.
@@ -1505,11 +1508,11 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix hit-test in rounded rectangles with too large corner radius.
 * Fix headless rendering in Wayland. Property `needs_fallback_chrome` now is `false` for headless windows.
 
-# 0.12.7
+## 0.12.7
 
 * Revert `fs4` dependency upgrade to fix build. It was yanked.
 
-# 0.12.6
+## 0.12.6
 
 * Add debug validation of capture only property use in widgets that don't capture it.
 * Fix Wayland custom chrome breaking window padding.
@@ -1526,12 +1529,12 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Add `zng::task::Progress` value type for reporting a task progress status.
 * Add `zng::progress` with `ProgressView` widget for displaying a task progress status.
 
-# 0.12.5
+## 0.12.5
 
 * Fix `cargo zng fmt` and `cargo zng l10n` on files that start with `#!`.
 * Fix layers anchored to the root widget never rendering in some windows.
 
-# 0.12.4
+## 0.12.4
 
 * Export `LOW_MEMORY_EVENT` on the surface API in `zng::app`.
 * Fix `LOW_MEMORY_EVENT` not notifying in Android.
@@ -1544,7 +1547,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Add software render in macOS.
 * Fix software render in Wayland.
 
-# 0.12.3
+## 0.12.3
 
 * Fix close button icon in Wayland instances without any close icon available
 * Add `IMAGES.image_task` to load async image sources.
@@ -1558,7 +1561,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.
 * Add `"zng-view.prefer_angle"` window extension to support enabling ANGLE EGL over WGL on Windows.
 
-# 0.12.2
+## 0.12.2
 
 * Add `widget_impl:` directive for `command_property!`.
 * Allow missing trailing comma in `event_property!`.
@@ -1570,7 +1573,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Implement `--verbose` for `cargo zng res`.
 * Localize settings search box placeholder text.
 
-# 0.12.1
+## 0.12.1
 
 * Fix panic trying to use font index on macOS.
 * Fix default UI font in Apple systems.
@@ -1579,7 +1582,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix `--clean-deps` in `cargo zng l10n`.
 * Implement `--verbose` for `cargo zng l10n`.
 
-# 0.12.0
+## 0.12.0
 
 * Log warning when property is not used because it has no default value.
 * Define default `max_size`, `max_width` and `max_height` so these properties can now be only set by when conditions.
@@ -1595,7 +1598,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * **Breaking** Remove previous deprecated `UiNodeVec`.
 * **Breaking** Remove unused renderer param in `FrameUpdate::new`.
 
-# 0.11.8
+## 0.11.8
 
 * Add `cargo zng l10n --clean`.
     - Add `cargo zng l10n --clean-deps` to remove previously copied localization before new copy.
@@ -1604,7 +1607,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Don't show keyboard shortcuts in mobile menus.
 * Fix incorrect `TouchInputArgs::position` in nested windows.
 
-# 0.11.7
+## 0.11.7
 
 * Fix OpenGL version check.
 * Fix window receiving a cursor move event while cursor is not over (on x11).
@@ -1615,11 +1618,11 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * **Breaking** Add `ChromeConfig` and related events to the view API.
     - Note that this is only a breaking change for direct dependents of `zng-view-api` and `zng-app`.
 
-# 0.11.6
+## 0.11.6
 
 * Fix breaking change in 0.11.5, `UiNodeVec` is only deprecated, but was removed from preludes and re-exports.
 
-# 0.11.5
+## 0.11.5
 
 * Monitor query now falls back to largest screen when there is no primary monitor.
 * Fix monitor query not updating for new window before first layout. Fixes window size in Ubuntu without GPU.
@@ -1637,7 +1640,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix app context in nested windows.
 * Add `CaptureFilter::app_only` and `ContextValueSet::insert_app`.
 
-# 0.11.4
+## 0.11.4
 
 * Add `zng::container::{child_out_*, child_under, child_over}` properties.
 * Implement window nesting, primarily as an adapter for mobile platforms.
@@ -1653,7 +1656,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix panic on old macOS (<11). Color scheme and accent is only supported >=11.
 * Fix `cargo zng fmt` of widgets with multi value property assigns.
 
-# 0.11.3
+## 0.11.3
 
 * Add `IS_MOBILE_VAR`, `is_mobile` and `force_mobile` context var and properties.
 * Add `WindowVars::safe_padding` and implement it for Android.
@@ -1666,7 +1669,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - See [docs/avif-setup.md] for more details.
 * `Markdown!` now supports definition lists.
 
-# 0.11.2
+## 0.11.2
 
 * Implement initial `ColorScheme` for Android.
 * Support `RUSTFLAGS` "deny warnings" in cargo zng.
@@ -1676,7 +1679,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Implement `IntoFuture for ResponseVar<T>`.
 * Remove `.zr-apk` requirement of extension on the folder name.
 
-# 0.11.1
+## 0.11.1
 
 * Add `zng::env::android_install_res` helper.
 * Add `zng::env::android_external`.
@@ -1699,7 +1702,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix build in platforms without `AtomicU64`.
 * Fix `zng::env::bin` in Wasm builds.
 
-# 0.11.0
+## 0.11.0
 
 * **Breaking** Remove `OutlineHintingOptions` and change `Font::outline` signature.
 * **Breaking** Remove `FontFace::font_kit`, `Font::advance`, `Font::origin` and `Font::typographic_bounds`.
@@ -1719,7 +1722,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - View-process is **not implemented**, only headless without renderer apps can run on this release.
     - Unfortunately many dependencies compile without actually supporting Wasm and panic during runtime, these will be fixed gradually.
 
-# 0.10.5
+## 0.10.5
 
 * Add `cargo zng fmt` that formats normal code with `cargo fmt` + Zng and other macros.
     - See [`cargo-zng/README.md`](./crates/cargo-zng/README.md#fmt) for details on IDE integration.
@@ -1735,7 +1738,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - The new `zng::dialog` is the new surface API for all dialogs.
     - The underlying native dialogs will not be removed, just the surface API.
 
-# 0.10.4
+## 0.10.4
 
 * `DInstant` addition now also saturates like subtraction.
     - Fixes crash in systems without caret blink animation.
@@ -1746,24 +1749,24 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix `tooltip` showing instead of `disabled_tooltip` in contexts that disable the widget after a slight delay.
 * Fix tooltip opened by `ACCESS.show_tooltip` closing immediately on mouse leave.
 
-# 0.10.3
+## 0.10.3
 
 * Fix view-process sometimes never connecting in slow machines.
 * Fix `#.#.#-local` localization not matching the app resources.
 
-# 0.10.2
+## 0.10.2
 
 * Localization now scraps `#.#.#-local` workspace dependencies.
 * Add `Var::hold`, `AnyVar::hold_any`.
 * Add `AnyVar::perm`, `VARS::perm`.
 
-# 0.10.1
+## 0.10.1
 
 * Fix race condition in command metadata init when parallel widgets read the same metadata.
 * Fix `cargo zng l10n` not generating a .gitignore file for deps.
 * Implement serialization for l10n types.
 
-# 0.10.0
+## 0.10.0
 
 * **Breaking** Removed support for `{lang}.ftl` localization files, now is named `{lang}/_.ftl`.
 * **Breaking** Removed `L10N.localized_message`, use `L10N.message(..).build_for(lang)`.
@@ -1825,7 +1828,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Add `AnyVarValue::eq_any`.
 * Add `zng::config::settings`.
 
-# 0.9.1
+## 0.9.1
 
 * Sanitize file names in `cargo zng new`.
     - Also add `f-key-f` and `f-Key-f` for templates to interpolate sanitized file names.
@@ -1837,7 +1840,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Support multiple :case functions in `.zr-rp`.
     - Pipe separator, `:T|f` applies `:Title` them `:file`.
 
-# 0.9.0
+## 0.9.0
 
 * **Breaking** Remove `L10N.load_exe_dir`, use `zng::env::res` with `L10N.load_dir`. 
 * **Breaking** `.zr-rp` now trims the values.
@@ -1866,7 +1869,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - Relative dirs are now resolved from where the file is defined.
 * **Breaking** Remove deprecated "APP.about" and related types and macro.
 
-# 0.8.2
+## 0.8.2
 
 * Implement some system config reading for macOS.
 * Add `aarch64-pc-windows-msvc` view_prebuilt.
@@ -1875,14 +1878,14 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix `cargo zng res` in non-workspace crates.
 * Fix zr-glob not printing copied paths in subdirectories.
 
-# 0.8.1
+## 0.8.1
 
 * Fix align of search box in the Inspector window.
 * Fix `l10n!` interpolation of non-var values.
 * Allow missing authors field in `zng_env::About::parse_manifest`.
 * Fix `cargo zng res` not finding any metadata.
 
-# 0.8.0
+## 0.8.0
 
 * **Breaking** `get_font_use` now gets font references, not just names.
 * Add `ZNG_NO_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
@@ -1894,7 +1897,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * [Updated Webrender](https://github.com/zng-ui/zng-webrender/pull/1)
 * Fix unbalanced HTML text style tags in `Markdown!` leaking outside of their block.
 
-# 0.7.1
+## 0.7.1
 
 * Fix integrated/dedicated render mode on Ubuntu.
 * Fix build of zng-view-* without `"ipc"` feature.
@@ -1911,7 +1914,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - The feature ended-up activated by the numerous crates that depend on `zng-app`.
     - This is only a breaking change for direct dependents.
 
-# 0.7.0
+## 0.7.0
 
 * Add `zng::env::on_process_start!` to inject custom code in `zng::env::init!`.
 * Add `zng::env::on_process_exit` to register a handler for process exit.
@@ -1937,7 +1940,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
     - Use `zng::app::crash_handler::crash_handler_config` to config.
 * **Breaking** Methods of `HeadlessAppKeyboardExt` now require key location.
 
-# 0.6.2
+## 0.6.2
 
 * Add `log` support in hot reloaded dylib.
 * Add `cargo-zng`, a Cargo extension for managing Zng projects.
@@ -1953,14 +1956,14 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Fix `AutoGrowMode::rows` actually enabling Columns auto grow.
 * Fix "unsafe precondition(s) violated" issue ([#242](https://github.com/zng-ui/zng/issues/242)).
 
-# 0.6.1
+## 0.6.1
 
 * Add more hot reload `BuildArgs` helpers.
 * Change default hot reload rebuilder to first try env var `"ZNG_HOT_RELOAD_REBUILDER"`.
     - This feature is used in the `zng-template`, releasing soon.
 * Fix `tracing` in hot reloaded dylib.
 
-# 0.6.0
+## 0.6.0
 
 * **Breaking** Remove deprecated `NilAnimationObserver`.
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
@@ -1988,7 +1991,7 @@ All changes are trivial to fix, they are either a rename or types that are now n
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 
-# 0.5.1
+## 0.5.1
 
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
 * Add `auto_scroll` in the `Scroll!` widget, enabled by default.
@@ -2003,15 +2006,15 @@ All changes are trivial to fix, they are either a rename or types that are now n
 * Add `ForceAnimationController` to force important animations to run when animations are disabled on the system.
 * Fix crash handler passing app name twice as command line arguments.
 * **Breaking** Implemented new syntax for the localization scrapper to separate standalone notes per file:
-    - `// l10n-file-### {note}` only adds the note to the `template/file.ftl`.
-    - `// l10n-*-### {note}` adds the note to all files that match the glob pattern (`template/*.ftl`).
-    - The old syntax `// l10n-### {note}` is still supported, but now it is equivalent to `// l10n--###` that
+    - `// l10n-file-#### {note}` only adds the note to the `template/file.ftl`.
+    - `// l10n-*-#### {note}` adds the note to all files that match the glob pattern (`template/*.ftl`).
+    - The old syntax `// l10n-#### {note}` is still supported, but now it is equivalent to `// l10n--###` that
       matches the default `template.ftl` file only.
     - Note that this is only a breaking change for dependents of `zng-l10n-scraper`. Normal users (cargo install)
       must update the tool to scrap using the new syntax, comments with the new file pattern matcher are ignored
       by older scrappers.
 
-# 0.5.0
+## 0.5.0
 
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` for windows.
 * Add `DRAG_MOVE_RESIZE_CMD` for windows.
@@ -2089,7 +2092,7 @@ fn version_0_5() -> impl UiNode {
     - Note that the `CursorIcon` type converts to `CursorSource`.
 * Implement custom cursor images in the default view.
 
-# 0.4.0
+## 0.4.0
 
 * Panics in `task::respond` are now resumed in the response var modify closure.
 * Add `task::ipc` module, for running tasks in worker processes.
@@ -2120,7 +2123,7 @@ fn version_0_5() -> impl UiNode {
     - Users should prefer using scroll commands over these properties, but they are useful for implementing features
       like binding two side-by-side scrolls, saving scroll state.
 
-# 0.3.4
+## 0.3.4
 
 * Add Cargo feature documentation in each crate `README.md` and `lib.rs` docs.
 * Add Screenshot function to the Inspector window.
@@ -2137,12 +2140,12 @@ fn version_0_5() -> impl UiNode {
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Fix many doc broken links.
 
-# 0.3.3
+## 0.3.3
 
 * Fix `zng-tp-licenses` build in docs.rs.
 * You can now suppress license collection on build by setting `"ZNG_TP_LICENSES=false`.
 
-# 0.3.2
+## 0.3.2
 
 * Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
 * Add AVIF support in prebuilt view.
@@ -2153,12 +2156,12 @@ fn version_0_5() -> impl UiNode {
 * Add `zng::third_party` with service and types for aggregating third party license info.
     - Includes a default impl of `OPEN_LICENSES_CMD` that shows bundled licenses.
 
-# 0.3.0
+## 0.3.0
 
 * **Breaking:** Fix typos in public function names, struct members and enum variants.
 * Fix cfg features not enabling because of typos.
 
-# 0.2.5
+## 0.2.5
 
 * Fix docs.rs build for `zng-view-prebuilt`, `zng-app`, `zng-wgt`.
 * Unlock `cc` dependency version.
@@ -2167,22 +2170,22 @@ fn version_0_5() -> impl UiNode {
 * In debug builds, prints info, warn and error tracing events if no tracing subscriber is set before the first call to `APP.defaults` or
 `APP.minimal`.
 
-# 0.2.4
+## 0.2.4
 
 * Fix `zng` README not showing in crates.io.
 
-# 0.2.3
+## 0.2.3
 
 * Change docs website.
 
-# 0.2.2
+## 0.2.2
 
 * Fix `"zng-ext-font"` standalone build.
 
-# 0.2.1
+## 0.2.1
 
 * Fix build with feature `"view"`.
 
-# 0.2.0
+## 0.2.0
 
 * Crates published, only newer changes are logged.

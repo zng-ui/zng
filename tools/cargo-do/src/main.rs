@@ -1868,8 +1868,8 @@ fn latest_release_changes(args: Vec<&str>) {
 
     let mut changes = String::new();
     let mut started = false;
-    for line in changelog.lines().skip(1) {
-        if line.starts_with("# ") {
+    for line in changelog.lines() {
+        if line.starts_with("## ") && !line.starts_with("## [") {
             if started {
                 break;
             }
