@@ -135,17 +135,9 @@ pub struct L10nArgs {
     /// Require that all template keys be present in all localized files
     #[arg(long, action)]
     check_strict: bool,
-
-    /// Use verbose output.
-    #[arg(short, long, action)]
-    verbose: bool,
 }
 
 pub fn run(mut args: L10nArgs) {
-    if args.verbose {
-        crate::util::enable_verbose();
-    }
-
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
     }
@@ -505,7 +497,6 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     translate_replace: false,
                     check: args.check,
                     check_strict: args.check_strict,
-                    verbose: args.verbose,
                 },
                 &input,
                 output,

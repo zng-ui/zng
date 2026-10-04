@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* `cargo zng --verbose` is now a global argument.
+
 ## 0.24.7
 
 * Recursive `cargo zng res` tools now apply immediately.

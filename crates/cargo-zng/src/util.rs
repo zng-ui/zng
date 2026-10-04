@@ -59,13 +59,13 @@ macro_rules! fatal {
 
 static VERBOSE_LEVEL: AtomicU8 = AtomicU8::new(255);
 
-// TODO(breaking) move --verbose to cargo-zng, remove from each command
-pub(crate) fn enable_verbose() {
-    if VERBOSE_LEVEL.swap(1, std::sync::atomic::Ordering::Relaxed) == 255 {
+pub(crate) fn set_verbose(level: u8) {
+    assert!(level < 255);
+    if VERBOSE_LEVEL.swap(level, std::sync::atomic::Ordering::Relaxed) == 255 {
         // SAFETY: This is called at startup, when command is
         // single threaded, it is only really used in tools where
         // it will definitely be called after `res` command startup
-        unsafe { std::env::set_var(crate::res_tool_util::ZR_VERBOSE, "v") }
+        unsafe { std::env::set_var(crate::res_tool_util::ZR_VERBOSE, "v".repeat(level as _)) }
     }
 }
 
