@@ -1,5 +1,7 @@
 #![cfg(any(windows, target_os = "linux"))]
 
+use zng_txt::{ToTxt as _, Txt};
+
 use crate::task::InstallTaskError;
 use crate::task::{escape_arg, path_utf8};
 use std::fmt::Write as _;
@@ -14,7 +16,7 @@ pub enum CreateShortcut {}
 
 fn common_prepare_install(mut c: CreateShortcutConfig) -> CreateShortcutConfig {
     if c.app_id.is_empty() {
-        c.app_id = zng_env::about().windows_aumid().to_string()
+        c.app_id = zng_env::about().windows_aumid()
     }
     if c.working_dir.as_os_str().is_empty() {
         c.working_dir = c.target_file.parent().unwrap_or_else(|| std::path::Path::new("")).to_path_buf()
@@ -23,7 +25,7 @@ fn common_prepare_install(mut c: CreateShortcutConfig) -> CreateShortcutConfig {
         && let Some(name) = c.link_file.file_name()
         && let Some(name) = name.to_str()
     {
-        c.name = name.to_owned();
+        c.name = name.to_txt();
     }
     c
 }
@@ -185,8 +187,8 @@ impl super::SetupTask for CreateShortcut {
 }
 
 /// Config for [`CreateShortcut`].
+#[non_exhaustive]
 pub struct CreateShortcutConfig {
-    // TODO(breaking) non_exhaustive
     /// Path to the shortcut, without extension.
     pub link_file: PathBuf,
     /// Path to the shortcut target executable file.
@@ -198,7 +200,7 @@ pub struct CreateShortcutConfig {
     /// Empty is the `target_file` parent executable.
     pub working_dir: PathBuf,
     /// Arguments to pass the executable.
-    pub args: Vec<String>,
+    pub args: Vec<Txt>,
 
     /// Globally unique app ID.
     ///
@@ -213,14 +215,14 @@ pub struct CreateShortcutConfig {
     /// if the setup app is defined on the same app executable.
     ///
     /// [`zng::env::About::windows_aumid`]: zng_env::About::windows_aumid
-    pub app_id: String,
+    pub app_id: Txt,
 
     /// Optional display name of the shortcut.
     ///
     /// # Default
     ///
     /// Empty is the `link_file` file name.
-    pub name: String,
+    pub name: Txt,
     /// Optional icon for the shortcut.
     ///
     /// # Default
@@ -236,8 +238,8 @@ impl CreateShortcutConfig {
             target_file,
             working_dir: PathBuf::new(),
             args: vec![],
-            app_id: String::new(),
-            name: String::new(),
+            app_id: Txt::default(),
+            name: Txt::default(),
             icon: PathBuf::new(),
         }
     }
@@ -259,8 +261,8 @@ pub struct PrepareInstallData {
     target_file: PathBuf,
     working_dir: String,
     arguments: String,
-    app_id: String,
-    name: String,
+    app_id: Txt,
+    name: Txt,
     icon: String,
 }
 

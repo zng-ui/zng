@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* **Breaking** All `zng::config` config types are now `#[non_exhaustive]` and use `Txt` strings.
 * `cargo zng --verbose` is now a global argument.
 
 ## 0.24.7
