@@ -20,6 +20,8 @@ mod about;
 pub mod built_in;
 mod tool;
 
+mod upgrade;
+
 #[derive(Args, Debug)]
 pub struct ResArgs {
     /// Resources source dir
@@ -65,6 +67,10 @@ pub struct ResArgs {
     /// Writes the metadata extracted the workspace or --metadata
     #[arg(long, action)]
     metadata_dump: bool,
+
+    /// Rename all .zr-tool files to new syntax 'tool
+    #[arg(long, value_name = "DIR")]
+    upgrade_zr: Option<PathBuf>,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -72,6 +78,10 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
+    if let Some(p) = args.upgrade_zr {
+        return upgrade::zr(p);
+    }
+
     if args.tool_dir.exists() {
         args.tool_dir = canonicalize(&args.tool_dir);
     }
