@@ -11,7 +11,7 @@ ZR_SOURCE_DIR — Resources directory that is being build.
 ZR_TARGET_DIR — Target directory where resources are being built to.
 ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
 ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. This is also the working dir.
-ZR_REQUEST — Request file that called the tool (.zr-sh).
+ZR_REQUEST — Request file that called the tool ('sh).
 ZR_REQUEST_DD — Parent dir of the request file.
 ZR_TARGET — Target file implied by the request file name.
 ZR_TARGET_DD — Parent dir of the target file.

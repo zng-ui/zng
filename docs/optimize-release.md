@@ -96,7 +96,7 @@ The [`zng-template`] already setups something like this, call `cargo do build -r
 
 ### Localization
 
-If you are embedding localization, consider packaging using `cargo zng res` with a `.zr-l10n` tool, the
+If you are embedding localization, consider packaging using `cargo zng res` with a ` 'l10n` tool, the
 dependency files are trimmed and stripped of comments saving space. You can optimize further by creating
 a dependency usage profile.
 

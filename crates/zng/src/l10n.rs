@@ -171,13 +171,13 @@
 //! ## Packaging
 //!
 //! When packaging a release build for publish you want to only include the dependency resources for the locales supported by your
-//! application. The easiest way to do this is `cargo zng res` with a `.zr-l10n` tool call, it will automatically filter out
+//! application. The easiest way to do this is `cargo zng res` with a ` 'l10n` tool call, it will automatically filter out
 //! languages that only have dependency resources and also. Call `cargo zng res --tool sh` to read detailed help.
 //!
 //! ### Subsetting
 //!
 //! Your app may not use all localization resources from dependencies, with some work you can collect a *subset* allow list that
-//! can be used by `.zr-l10n` to only package the entries used, in this mode the dependency Fluent files are edited down to
+//! can be used by ` 'l10n` to only package the entries used, in this mode the dependency Fluent files are edited down to
 //! include only the text actually used by the app.
 //!
 //! The easiest way to get started is to build with the `"l10n_usage_recorder"` Cargo feature, run the app and visit every

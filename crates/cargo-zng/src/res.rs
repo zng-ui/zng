@@ -226,9 +226,9 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
         if crate::util::ansi_enabled() {
-            println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+            println!(cstr!("<bold>'{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
         } else {
-            println!(".zr-{} @ {}", tool.name, display_tool_path(&tool.path));
+            println!("'{} @ {}", tool.name, display_tool_path(&tool.path));
         }
         match tool.help() {
             Ok(h) => {
@@ -248,14 +248,14 @@ fn tools_help(tools: &Path) {
 }
 
 fn tool_help(tools: &Path, name: &str) {
-    let name = name.strip_prefix(".zr-").unwrap_or(name);
+    let name = name.strip_prefix("'").unwrap_or(name);
     let mut found = false;
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
             if crate::util::ansi_enabled() {
-                println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+                println!(cstr!("<bold>'{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
             } else {
-                println!(".zr-{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
+                println!("'{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
             }
             match tool.help() {
                 Ok(h) => {

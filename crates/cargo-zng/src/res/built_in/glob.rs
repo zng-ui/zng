@@ -4,7 +4,7 @@ const GLOB_HELP: &str = "
 Copy all matches in place
 
 The request file:
-  source/l10n/fluent-files.zr-glob
+  source/l10n/fluent-files 'glob
    | # localization dir
    | l10n
    | # only Fluent files

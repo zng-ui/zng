@@ -93,7 +93,7 @@ pub struct L10nArgs {
     #[arg(long, default_value = "", value_name = "PATH", hide_default_value = true)]
     pseudo_w: String,
 
-    /// Output comma separated list of langs that would be included by .zr-l10n
+    /// Output comma separated list of langs that would be included by 'l10n
     /// sourcing localization from the given PATH
     ///
     /// See cargo zng res --tool l10n for details

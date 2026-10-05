@@ -30,7 +30,7 @@ pub const ZR_REQUEST: &str = "ZR_REQUEST";
 pub const ZR_REQUEST_DD: &str = "ZR_REQUEST_DD";
 /// Env var set to the target file implied by the request file name.
 ///
-/// That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
+/// That is, the request filename without ` '{tool}` and in the equivalent target subdirectory.
 pub const ZR_TARGET: &str = "ZR_TARGET";
 /// Env var set to the target file parent dir.
 pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
@@ -176,7 +176,7 @@ macro_rules! built_in {
         ];
     };
 }
-// TODO(breaking) support chaining tools without needing to repeat ".zr-"
+// TODO(breaking) remove shf, sfxf, add some ` 'f'sfx`, a "final tool".
 built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n, sfx, sfxf, tar }
 
 pub(crate) use l10n::release_langs;

@@ -17,11 +17,11 @@ The expected file system layout:
 | ├── res/
 | |   └── android-res
 | └── AndroidManifest.xml
-| my-app.zr-apk
+| my-app 'apk
 
-Both 'apk/' and 'my-app.zr-apk' will be replaced with the built my-app.apk
+Both 'apk/' and 'my-app 'apk' will be replaced with the built my-app.apk
 
-Expected .zr-apk file content:
+Expected 'apk file content:
 
 | # Relative path to the staging directory. If not set uses ./apk if it exists
 | # or the parent dir .. if it is named something.apk
@@ -59,7 +59,7 @@ pub(super) fn apk() {
     let mut raw = false;
     let mut tar_assets = true;
     for line in read_lines(&path(ZR_REQUEST)) {
-        let (ln, line) = line.unwrap_or_else(|e| fatal!("error reading .zr-apk request, {e}"));
+        let (ln, line) = line.unwrap_or_else(|e| fatal!("error reading 'apk request, {e}"));
         if let Some((key, value)) = line.split_once('=') {
             let key = key.trim();
             let value = value.trim();

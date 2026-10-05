@@ -95,7 +95,7 @@ pub fn generate(args: Vec<&str>) {
 
                         while let Some(line) = out_lines.next() {
                             let line = line.trim_end().replace("@ target/debug/cargo-zng", "@ cargo-zng");
-                            if line == ".zr-tool-crate @ cargo-zng-res-tool-crate" {
+                            if line == "'tool-crate @ cargo-zng-res-tool-crate" {
                                 out_lines.next().unwrap(); // skip help
                                 out_lines.next().unwrap(); // skip empty line
                             } else {

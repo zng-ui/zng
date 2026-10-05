@@ -9,7 +9,7 @@ const TAR_HELP: &str = r#"
 Pack files and dirs into a TAR container with optional compression
 
 The request file:
-  source/data.tar.zst.zr-tar
+  source/data.tar.zst 'tar
    | [[entry]]
    | path = "res/bin/*"
    | name = "bin/*"
@@ -48,13 +48,13 @@ bcj — Branch/Call/Jump filter that optimizes compression of binary code files.
     Values: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv"
     Note that decompressor must revert the filter.
 
-The decompressor must undo these changes before reading the TAR. The .zr-sfx supports decoding BCJ. 
+The decompressor must undo these changes before reading the TAR. The 'sfx supports decoding BCJ. 
 
 [zstd] — Optional ZStandard compression
 level — Compression level, -131072..=22, 0 means no compression, default is 19.
 
 Compress the TAR, after [filter] is applied, using ZStandard. The "contentsize" field of zstd header
-is correctly set, so this is fully compatible with .zr-sfx that uses this field to report response stream length.
+is correctly set, so this is fully compatible with 'sfx that uses this field to report response stream length.
 
 [gzip] — Optional GZip compression
 level — Compression level, 0..=9, 0 means no compression, default is 8.

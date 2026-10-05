@@ -4,7 +4,7 @@ const FAIL_HELP: &str = "
 Print an error message and fail the build
 
 The request file:
-  some/dir/disallow.zr-fail.zr-rp
+  some/dir/disallow 'rp'fail
    | Don't copy ${ZR_REQUEST_DD} with a glob!
 
 Prints an error message and fails the build if copied

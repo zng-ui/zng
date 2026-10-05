@@ -3,10 +3,10 @@ use super::*;
 const WARN_HELP: &str = "
 Print a warning message
 
-You can combine this with '.zr-rp' tool
+You can combine this with 'rp tool
 
 The request file:
-  source/warn.zr-warn.zr-rp
+  source/warn 'rp'warn
    | ${ZR_APP}!
 
 Prints a warning with the value of ZR_APP
