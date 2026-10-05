@@ -43,7 +43,7 @@
 //! });
 //! ```
 //!
-//! The service also supports embedded localization resources in the `.tar` and `.tar.gz` formats using
+//! The service also supports embedded localization resources in the `.tar`, `.tar.gz` and `.tar.zst` formats using
 //! [`L10N.load_tar`], see the [localize example] for more details. You can also implement more container formats using [`L10N.load`].
 //!
 //! [`L10N.load_dir`]: crate::l10n::L10N::load_dir
