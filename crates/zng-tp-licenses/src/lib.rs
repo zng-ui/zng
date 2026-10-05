@@ -313,8 +313,9 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
 pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
     let mut r = vec![];
     {
-        let mut encoder = flate2::write::DeflateEncoder::new(&mut r, flate2::Compression::default());
-        postcard::to_io(licenses, &mut encoder).expect("postcard error");
+        let mut encoder = zstd::Encoder::new(&mut r, *zstd::compression_level_range().end()).expect("zstd error");
+        postcard::to_io(licenses, &mut encoder).expect("postcard or zstd error");
+        encoder.finish().expect("zstd error");
     }
     r
 }
@@ -346,7 +347,6 @@ macro_rules! decode_embedding {
 /// if both encoding and decoding is made with the same `Cargo.lock` dependencies.
 #[cfg(feature = "embed")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
-    let bin = flate2::read::DeflateDecoder::new(bin);
-    let mut scratch = [0u8; 1024];
-    postcard::from_io((bin, &mut scratch)).expect("invalid postard binary").0
+    let bin = zstd::decode_all(bin).expect("zstd error");
+    postcard::from_bytes(&bin).expect("postcard error")
 }

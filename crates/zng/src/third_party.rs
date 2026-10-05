@@ -93,7 +93,7 @@
 //! ```
 //! #[cfg(feature = "embed_licenses")]
 //! fn embedded_licenses() -> Vec<zng::third_party::LicenseUsed> {
-//!     zng_tp_licenses::include_embedding!()
+//!     zng_tp_licenses::decode_embedding!()
 //! }
 //!
 //! # fn demo() {
