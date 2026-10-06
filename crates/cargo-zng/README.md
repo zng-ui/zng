@@ -570,7 +570,7 @@ The expanded help for each:
 ```console
 $ cargo zng res --tool apk
 
-'apk</bold> @ cargo-zng
+'apk @ cargo-zng
   Build an Android APK from a staging directory
 
   The expected file system layout:
@@ -621,7 +621,7 @@ $ cargo zng res --tool apk
 ```console
 $ cargo zng res --tool copy
 
-'copy</bold> @ cargo-zng
+'copy @ cargo-zng
   Copy the file or dir
 
   The request file:
@@ -641,7 +641,7 @@ $ cargo zng res --tool copy
 ```console
 $ cargo zng res --tool fail
 
-'fail</bold> @ cargo-zng
+'fail @ cargo-zng
   Print an error message and fail the build
 
   The request file:
@@ -658,7 +658,7 @@ $ cargo zng res --tool fail
 ```console
 $ cargo zng res --tool glob
 
-'glob</bold> @ cargo-zng
+'glob @ cargo-zng
   Copy all matches in place
 
   The request file:
@@ -702,7 +702,7 @@ $ cargo zng res --tool glob
 ```console
 $ cargo zng res --tool l10n
 
-'l10n</bold> @ cargo-zng
+'l10n @ cargo-zng
   Copy localization files (.ftl) and optimize for release
 
   The request file:
@@ -754,7 +754,7 @@ $ cargo zng res --tool l10n
 ```console
 $ cargo zng res --tool rp
 
-'rp</bold> @ cargo-zng
+'rp @ cargo-zng
   Replace ${VAR|<file|!cmd} occurrences in the content
 
   The request file:
@@ -837,7 +837,7 @@ $ cargo zng res --tool rp
 ```console
 $ cargo zng res --tool sfx
 
-'sfx</bold> @ cargo-zng
+'sfx @ cargo-zng
   Compile a self-extracting executable
 
   The request file:
@@ -959,7 +959,7 @@ $ cargo zng res --tool sfx
 ```console
 $ cargo zng res --tool sfxf
 
-'sfxf</bold> @ cargo-zng
+'sfxf @ cargo-zng
   Build a self-extracting executable on the final pass
 
   Apart from running on final this tool behaves exactly like 'sfx
@@ -971,7 +971,7 @@ $ cargo zng res --tool sfxf
 ```console
 $ cargo zng res --tool sh
 
-'sh</bold> @ cargo-zng
+'sh @ cargo-zng
   Run a bash script
 
   Script is configured using environment variables (like other tools):
@@ -1020,7 +1020,7 @@ $ cargo zng res --tool sh
 ```console
 $ cargo zng res --tool shf
 
-'shf</bold> @ cargo-zng
+'shf @ cargo-zng
   Run a bash script on the final pass
 
   Apart from running on final this tool behaves exactly like 'sh
@@ -1032,7 +1032,7 @@ $ cargo zng res --tool shf
 ```console
 $ cargo zng res --tool tar
 
-'tar</bold> @ cargo-zng
+'tar @ cargo-zng
   Pack files and dirs into a TAR container with optional compression
 
   The request file:
@@ -1093,7 +1093,7 @@ $ cargo zng res --tool tar
 ```console
 $ cargo zng res --tool warn
 
-'warn</bold> @ cargo-zng
+'warn @ cargo-zng
   Print a warning message
 
   You can combine this with 'rp tool
