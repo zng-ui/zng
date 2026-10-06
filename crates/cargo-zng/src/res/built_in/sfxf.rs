@@ -3,7 +3,7 @@ use super::*;
 const SFXF_HELP: &str = r#"
 Build a self-extracting executable on the final pass
 
-Apart from running on final this tool behaves exactly like .zr-sfx
+Apart from running on final this tool behaves exactly like 'sfx
 "#;
 pub(super) fn sfxf() {
     help(SFXF_HELP);

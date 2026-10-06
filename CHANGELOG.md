@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* **Breaking** Changed syntax for `cargo zng res` tools.
+    - `.zr-*` becomes ` '*`, e.g. `foo.zr-copy` becomes `foo 'copy`.
+    - Tool chains now resolve from start to end, e.g. `foo.tar.zr-tar.zr-rp` becomes `foo.tar 'rp'tar`.
+    - Added `cargo zng res --upgrade-zr <DIR>` command to automatically convert to new syntax.
+
 * `L10N.load_tar` now supports data in `.tar.zst` format.
 * `zng_tp_licenses` now uses `zstd` for compression.
 * **Breaking** All `zng::config` config types are now `#[non_exhaustive]` and use `Txt` strings.

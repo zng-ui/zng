@@ -20,6 +20,8 @@ mod about;
 pub mod built_in;
 mod tool;
 
+mod upgrade;
+
 #[derive(Args, Debug)]
 pub struct ResArgs {
     /// Resources source dir
@@ -65,6 +67,10 @@ pub struct ResArgs {
     /// Writes the metadata extracted the workspace or --metadata
     #[arg(long, action)]
     metadata_dump: bool,
+
+    /// Rename all "name.zr-tool" files to new syntax "name 'tool"
+    #[arg(long, value_name = "DIR")]
+    upgrade_zr: Option<PathBuf>,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -72,6 +78,10 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
+    if let Some(p) = args.upgrade_zr {
+        return upgrade::zr(p);
+    }
+
     if args.tool_dir.exists() {
         args.tool_dir = canonicalize(&args.tool_dir);
     }
@@ -166,15 +176,12 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
 
             source_to_target_pass(args, tools, source, &target)?;
         } else if entry.file_type().is_file() {
-            let source = entry.path();
+            let request = entry.path();
 
             // run tool
-            if let Some(ext) = source.extension()
-                && let Some(ext) = ext.to_str()
-                && let Some(tool) = ext.strip_prefix("zr-")
-            {
+            if let Some((request_wt, tool)) = take_tool(request) {
                 // run prints request path
-                tools.run(tool, &args.source, &args.target, source)?;
+                tools.run(tool, &args.source, &args.target, request, &request_wt)?;
 
                 // recurse immediately
                 let mut passes = 0;
@@ -189,9 +196,9 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
 
             // or pack
             if args.pack {
-                println!("{}", display_path(source));
-                let target = target.join(source.file_name().unwrap());
-                fs::copy(source, &target).with_context(|| format!("cannot copy {} to {}", source.display(), target.display()))?;
+                println!("{}", display_path(request));
+                let target = target.join(request.file_name().unwrap());
+                fs::copy(request, &target).with_context(|| format!("cannot copy {} to {}", request.display(), target.display()))?;
                 println!(cstr!("  <dim>{}</>"), display_path(&target));
             }
         } else if entry.file_type().is_symlink() {
@@ -206,16 +213,14 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
     for entry in walkdir::WalkDir::new(dir).min_depth(1).sort_by_file_name() {
         let entry = entry.with_context(|| format!("cannot read dir entry {}", dir.display()))?;
         if entry.file_type().is_file() {
-            let path = entry.path();
+            let request = entry.path();
+
             // run tool
-            if let Some(ext) = path.extension() {
-                let ext = ext.to_string_lossy();
-                if let Some(tool) = ext.strip_prefix("zr-") {
-                    // run prints request path and removes file if not needed
-                    let done = tools.run(tool, &args.source, &args.target, path)?;
-                    if done {
-                        advanced = true;
-                    }
+            if let Some((request_wt, tool)) = take_tool(request) {
+                // run prints request path and removes file if not needed
+                let done = tools.run(tool, &args.source, &args.target, request, &request_wt)?;
+                if done {
+                    advanced = true;
                 }
             }
         }
@@ -226,9 +231,9 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
         if crate::util::ansi_enabled() {
-            println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+            println!(cstr!("<bold>'{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
         } else {
-            println!(".zr-{} @ {}", tool.name, display_tool_path(&tool.path));
+            println!("'{} @ {}", tool.name, display_tool_path(&tool.path));
         }
         match tool.help() {
             Ok(h) => {
@@ -248,14 +253,14 @@ fn tools_help(tools: &Path) {
 }
 
 fn tool_help(tools: &Path, name: &str) {
-    let name = name.strip_prefix(".zr-").unwrap_or(name);
+    let name = name.strip_prefix("'").unwrap_or(name);
     let mut found = false;
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
             if crate::util::ansi_enabled() {
-                println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+                println!(cstr!("<bold>'{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
             } else {
-                println!(".zr-{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
+                println!("'{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
             }
             match tool.help() {
                 Ok(h) => {
@@ -295,4 +300,96 @@ fn display_tool_path(p: &Path) -> String {
 
     #[cfg(not(windows))]
     r
+}
+
+fn take_tool(p: &Path) -> Option<(PathBuf, &str)> {
+    if let Some(ext) = p.extension()
+        && let Some(ext) = ext.to_str()
+        && let Some(tool) = ext.strip_prefix("zr-")
+    {
+        warn!("deprecated syntax, call \"cargo zng res --upgrade-zr .\" to auto upgrade");
+        return Some((p.with_extension(""), tool));
+    }
+
+    if let Some(name) = p.file_name()
+        && let Some(name) = name.to_str()
+        && let Some((file, tools)) = name.split_once(" '")
+    {
+        let name = file.trim_end(); // "name.txt   'tool"
+        let mut tools = tools.split('\'');
+        let tool = tools.next().unwrap().trim();
+
+        if let Some(next_tool) = tools.next() {
+            let mut name = format!("{name} '{}", next_tool.trim());
+            for next_tool in tools {
+                name.push('\'');
+                name.push_str(next_tool.trim());
+            }
+            // "name.txt 'next_tool1'tool2"
+            return Some((p.with_file_name(name), tool));
+        }
+
+        return Some((p.with_file_name(name), tool));
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::take_tool;
+
+    #[test]
+    fn take_legacy_one() {
+        let path = PathBuf::from("foo/bar/name.txt.zr-copy");
+        let (file, tool) = take_tool(&path).unwrap();
+        assert_eq!(tool, "copy");
+        assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
+    }
+
+    #[test]
+    fn take_legacy_two() {
+        let path = PathBuf::from("foo/bar/name.txt.zr-copy.zr-rp");
+        let (file, tool) = take_tool(&path).unwrap();
+        assert_eq!(tool, "rp");
+        assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt.zr-copy");
+
+        let (file, tool) = take_tool(&file).unwrap();
+        assert_eq!(tool, "copy");
+        assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
+    }
+
+    #[test]
+    fn take_one() {
+        let path = PathBuf::from("foo/bar/name.txt.zr-copy");
+        let (file, tool) = take_tool(&path).unwrap();
+        assert_eq!(tool, "copy");
+        assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
+    }
+
+    #[test]
+    fn take_two() {
+        let path = PathBuf::from("foo/bar/name.txt 'rp'copy");
+        let (file, tool) = take_tool(&path).unwrap();
+        assert_eq!(tool, "rp");
+        assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt 'copy"));
+
+        let (file, tool) = take_tool(&file).unwrap();
+        assert_eq!(tool, "copy");
+        assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt"));
+    }
+
+    #[test]
+    fn take_two_space() {
+        let path = PathBuf::from("foo/bar/name.txt 'rp 'copy");
+        let (file, tool) = take_tool(&path).unwrap();
+        assert_eq!(tool, "rp");
+        assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt 'copy"));
+
+        let (file, tool) = take_tool(&file).unwrap();
+        assert_eq!(tool, "copy");
+        assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt"));
+    }
 }

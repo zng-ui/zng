@@ -11,7 +11,7 @@ const L10N_HELP: &str = "
 Copy localization files (.ftl) and optimize for release
 
 The request file:
-  source/l10n.zr-l10n
+  source/l10n 'l10n
    | # comment
    | path/dev-l10n
 
@@ -60,8 +60,8 @@ pub(super) fn l10n() {
     let source = read_path(&path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     // target derived from the request file name
     let mut target = path(ZR_TARGET);
-    // request without name "./.zr-l10n", take name from source (this is deliberate not documented)
-    if target.ends_with(".zr-l10n") {
+    // request without name "./'l10n", take name from source (this is deliberate not documented)
+    if target.ends_with("'l10n") || target.ends_with(" 'l10n") {
         target = target.with_file_name(source.file_name().unwrap());
     }
 

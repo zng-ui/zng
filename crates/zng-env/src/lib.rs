@@ -583,7 +583,7 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 /// The resources are installed in the [`res`] directory, if the tar archive has only a root dir named `res` it is stripped.
 /// This function assumes that it is the only app component that writes to this directory.
 ///
-/// Note that the tar file is not compressed, because the APK already compresses it. The `cargo zng res` tool `.zr-apk`
+/// Note that the tar file is not compressed, because the APK already compresses it. The `cargo zng res` tool ` 'apk`
 /// tar resources by default, simply place the resources in `/assets/res/`.
 pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
     #[cfg(target_os = "android")]

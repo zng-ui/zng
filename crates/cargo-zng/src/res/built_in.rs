@@ -30,7 +30,7 @@ pub const ZR_REQUEST: &str = "ZR_REQUEST";
 pub const ZR_REQUEST_DD: &str = "ZR_REQUEST_DD";
 /// Env var set to the target file implied by the request file name.
 ///
-/// That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
+/// That is, the request filename without ` '{tool}` and in the equivalent target subdirectory.
 pub const ZR_TARGET: &str = "ZR_TARGET";
 /// Env var set to the target file parent dir.
 pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
@@ -156,7 +156,7 @@ fn read_path(request_file: &Path) -> io::Result<PathBuf> {
 }
 
 pub(crate) fn symlink_warn(path: &Path) {
-    warn!("symlink ignored in `{}`, use zr-tools to 'link'", path.display());
+    warn!("symlink ignored in `{}`, use cargo res tools to 'link'", path.display());
 }
 
 pub const ENV_TOOL: &str = "ZNG_RES_TOOL";
@@ -176,8 +176,13 @@ macro_rules! built_in {
         ];
     };
 }
-// TODO(breaking) support chaining tools without needing to repeat ".zr-"
-built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n, sfx, sfxf, tar }
+// TODO(breaking) remove shf, sfxf, add some ` 'f'sfx`, a "final tool".
+
+// When adding new tools:
+//
+// * Position in sorted order.
+// * Add a new section for it in cargo-zng/README.md
+built_in! { apk, copy, fail, glob, l10n, rp, sfx, sfxf, sh, shf, tar, warn }
 
 pub(crate) use l10n::release_langs;
 pub(crate) use sh::sh_run;

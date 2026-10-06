@@ -4,7 +4,7 @@ const COPY_HELP: &str = "
 Copy the file or dir
 
 The request file:
-  source/foo.txt.zr-copy
+  source/foo.txt 'copy
    | # comment
    | path/bar.txt
 
@@ -20,8 +20,8 @@ pub(super) fn copy() {
     let source = read_path(&path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     // target derived from the request file name
     let mut target = path(ZR_TARGET);
-    // request without name "./.zr-copy", take name from source (this is deliberate not documented)
-    if target.ends_with(".zr-copy") {
+    // request without name "./'copy", take name from source (this is deliberate not documented)
+    if target.ends_with("'copy") || target.ends_with(" 'copy") {
         target = target.with_file_name(source.file_name().unwrap());
     }
 

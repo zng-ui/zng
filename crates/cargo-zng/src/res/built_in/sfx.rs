@@ -15,7 +15,7 @@ const SFX_HELP: &str = r#"
 Compile a self-extracting executable
 
 The request file:
-  source/sfx-package.zr-sfx
+  source/sfx-package 'sfx
    | [sfx]
    | # executable to run, required
    | run = "target/release/run"
@@ -77,11 +77,11 @@ The `zng::setup::SfxClient` can also be used to connect and get data.
 
 File Paths:
 
-Paths are relative to the Cargo workspace root, you can also use .zr-rp to select files in the
+Paths are relative to the Cargo workspace root, you can also use 'rp to select files in the
 resource target dir.
 
 This request file:
-  source/sfx-package.zr-sfxf.zr-rp
+  source/sfx-package 'rp'sfxf
    | [[data]]
    | file = "${ZR_TARGET_DD}/res.txt"
 

@@ -1,1 +1,0 @@
-echo "finally!" > $ZR_TARGET

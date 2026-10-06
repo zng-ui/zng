@@ -24,7 +24,7 @@ use zng::{
 // cargo do zng l10n -p "zng-example-localize" -o "examples/localize/res/l10n"
 
 #[cfg(feature = "embedded_l10n")]
-const EMBEDDED_L10N: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pack-l10n/zl10n.tar.zst"));
+const EMBEDDED_L10N: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pack-l10n/l10n.tar.zst"));
 
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));

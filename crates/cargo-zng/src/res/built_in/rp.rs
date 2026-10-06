@@ -8,7 +8,7 @@ const RP_HELP: &str = r#"
 Replace ${VAR|<file|!cmd} occurrences in the content
 
 The request file:
-  source/greetings.txt.zr-rp
+  source/greetings.txt 'rp
    | Thanks for using ${ZR_APP}!
 
 Writes the text content with ZR_APP replaced:
@@ -27,7 +27,7 @@ ${<file:case}   — Replaces with the 'file.txt' content, case converted.
 ${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
 
 ${!cmd -h}      — Replaces with the stdout of the bash script line. 
-                  The script runs the same bash used by '.zr-sh'.
+                  The script runs the same bash used by 'sh.
                   The script must be defined all in one line.
                   A separate bash instance is used for each occurrence.
                   The working directory is the workspace root.

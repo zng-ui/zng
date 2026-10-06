@@ -2,7 +2,7 @@ use std::{env, fs, path::PathBuf};
 
 fn main() {
     if env::var("ZR_HELP").is_ok() {
-        println!(".zr-tool-crate help!");
+        println!("'tool-crate help!");
         std::process::exit(0);
     }
     println!("tool-crate print!");

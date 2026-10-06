@@ -33,7 +33,7 @@ you only need to install some packages:
         - See [test example].
     - Copy binary to `app.apk/lib/<platform>/<binary>.so`.
     - Copy resources to `app.apk/assets/res/`.
-    - Create a `app.apk/build.zr-apk` file and call use `cargo zng res --pack ..` to build.
+    - Create a `app.apk/build 'apk` file and call use `cargo zng res --pack ..` to build.
 
 Android cross compilation is tested for macOS, Ubuntu and Windows, see the "check-android*" jobs in [ci.yml],
 the [multi](examples/multi/) example and the [build-apk] task in the `do` tool. Also see `cargo zng res --tool apk`

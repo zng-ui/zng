@@ -39,7 +39,7 @@
 //! Before implementing the setup app lets overview how the `cargo zng res` command will be used to package
 //! it and the rest of the app data in a single setup executable.
 //!
-//! The `pack/windows/my-app-setup.exe.zr-sfxf` file:
+//! The `pack/windows/my-app-setup.exe 'sfxf` file:
 //!
 //! ```toml
 //! [sfx]
@@ -53,7 +53,7 @@
 //!
 //! The command `cargo zng res --pack "pack/windows" "target/pack/windows"` will generate a `target/pack/windows/my-app-setup.exe`
 //! file that contains the executable and data, both compressed. Note that the data is pre-packed into a `tar`, this can be
-//! done using the `.zr-tar` tool, outside of the scope of this example.
+//! done using the ` 'tar` tool, outside of the scope of this example.
 //!
 //! When the `my-app-setup.exe` runs it extracts the `my-app.exe` and runs it with the `SFX_ARGS` environment variable set.
 //! Inside the `my-app.exe` this variable causes the setup app to run, instead of the normal app.
