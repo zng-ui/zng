@@ -1,1 +1,1 @@
-echo "finally!" > $ZR_TARGET
+echo "finally!" > "$ZR_TARGET"

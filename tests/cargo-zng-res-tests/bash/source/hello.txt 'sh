@@ -1,1 +1,1 @@
-echo "echo hello!" > $ZR_TARGET
+echo "echo hello!" > "$ZR_TARGET"

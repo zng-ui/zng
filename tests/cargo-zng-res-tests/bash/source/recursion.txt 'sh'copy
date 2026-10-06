@@ -1,1 +1,1 @@
-echo "tests/cargo-zng-res-tests/copy/refs/file-b.txt" > $ZR_TARGET
+echo "tests/cargo-zng-res-tests/copy/refs/file-b.txt" > "$ZR_TARGET"
