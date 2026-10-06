@@ -15,5 +15,5 @@ zng = { path = "../../crates/zng", features = [
 zng-view-prebuilt = { path = "../../crates/zng-view-prebuilt" }
 zng-view = { path = "../../crates/zng-view", features = ["ipc", "software"] }
 
-color-print = "0.3"
+color-print = { version = "0.3", default-features = false }
 tracing = "0.1"

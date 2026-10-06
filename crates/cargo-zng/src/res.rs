@@ -260,7 +260,7 @@ fn tool_help(tools: &Path, name: &str) {
             if crate::util::ansi_enabled() {
                 println!(cstr!("<bold>'{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
             } else {
-                println!("'{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
+                println!("'{} @ {}", tool.name, display_tool_path(&tool.path));
             }
             match tool.help() {
                 Ok(h) => {
