@@ -1,6 +1,6 @@
 [[entry]]
-path = "${ZR_TARGET_DD}/l10n/*"
-name = "l10n/*"
+path = "${ZR_TARGET_DD}/l10n"
+name = "l10n"
 
 [zstd]
 level = 19

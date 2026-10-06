@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* Fix `cargo zng res --tool tar` double nesting the root dir when `source = "dir", name = "dir"`.
+
 * Add `L10nTarData::extract` helper.
     - Surface type in `zng::l10n::L10nTarData`.
 
