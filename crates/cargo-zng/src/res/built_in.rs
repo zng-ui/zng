@@ -156,7 +156,7 @@ fn read_path(request_file: &Path) -> io::Result<PathBuf> {
 }
 
 pub(crate) fn symlink_warn(path: &Path) {
-    warn!("symlink ignored in `{}`, use zr-tools to 'link'", path.display());
+    warn!("symlink ignored in `{}`, use cargo res tools to 'link'", path.display());
 }
 
 pub const ENV_TOOL: &str = "ZNG_RES_TOOL";
@@ -177,7 +177,12 @@ macro_rules! built_in {
     };
 }
 // TODO(breaking) remove shf, sfxf, add some ` 'f'sfx`, a "final tool".
-built_in! { copy, glob, rp, sh, shf, warn, fail, apk, l10n, sfx, sfxf, tar }
+
+// When adding new tools:
+//
+// * Position in sorted order.
+// * Add a new section for it in cargo-zng/README.md
+built_in! { apk, copy, fail, glob, l10n, rp, sfx, sfxf, sh, shf, tar, warn }
 
 pub(crate) use l10n::release_langs;
 pub(crate) use sh::sh_run;

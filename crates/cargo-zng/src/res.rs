@@ -68,7 +68,7 @@ pub struct ResArgs {
     #[arg(long, action)]
     metadata_dump: bool,
 
-    /// Rename all .zr-tool files to new syntax 'tool
+    /// Rename all "name.zr-tool" files to new syntax "name 'tool"
     #[arg(long, value_name = "DIR")]
     upgrade_zr: Option<PathBuf>,
 }

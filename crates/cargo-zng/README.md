@@ -20,7 +20,7 @@ $ cargo zng --help
 
 Zng project manager.
 
-Usage: cargo zng <COMMAND>
+Usage: cargo zng [OPTIONS] <COMMAND>
 
 Commands:
   fmt    Format code and macros
@@ -31,8 +31,9 @@ Commands:
   help   Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -v, --verbose...  Use verbose output (-vv very verbose)
+  -h, --help        Print help
+  -V, --version     Print version
 ```
 
 ## `fmt`
@@ -69,6 +70,9 @@ Options:
           Rustfmt style edition, enforced for all files
 
           [default: 2024]
+
+  -v, --verbose...
+          Use verbose output (-vv very verbose)
 
       --full
           Format or check every file, not just changed files
@@ -156,6 +160,9 @@ Options:
 
   -k, --keys
           Show all possible values that can be set on the template
+
+  -v, --verbose...
+          Use verbose output (-vv very verbose)
 
   -h, --help
           Print help (see a summary with '-h')
@@ -283,6 +290,9 @@ Options:
 
           Use with --package or --manifest-path to not scrap local dependencies.
 
+  -v, --verbose...
+          Use verbose output (-vv very verbose)
+
       --no-pkg
           Don't scrap the target package.
 
@@ -314,7 +324,7 @@ Options:
           Generate pseudo wide locale
 
       --release-langs <PATH>
-          Output comma separated list of langs that would be included by .zr-l10n sourcing localization from the given PATH
+          Output comma separated list of langs that would be included by 'l10n sourcing localization from the given PATH
 
           See cargo zng res --tool l10n for details
 
@@ -346,9 +356,6 @@ Options:
       --check-strict
           Require that all template keys be present in all localized files
 
-  -v, --verbose
-          Use verbose output
-
   -h, --help
           Print help (see a summary with '-h')
 
@@ -370,7 +377,7 @@ $ cargo zng res --help
 
 Build resources
 
-Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.
+Builds resources SOURCE to TARGET, delegates `'{tool}` files to `cargo-zng-res-{tool}` executables and crates.
 
 Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
 
@@ -412,6 +419,9 @@ Options:
 
           [default: 32]
 
+  -v, --verbose...
+          Use verbose output (-vv very verbose)
+
       --metadata <TOML_FILE>
           TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
 
@@ -422,8 +432,8 @@ Options:
       --metadata-dump
           Writes the metadata extracted the workspace or --metadata
 
-  -v, --verbose
-          Use verbose output
+      --upgrade-zr <DIR>
+          Rename all "name.zr-tool" files to new syntax "name 'tool"
 
   -h, --help
           Print help (see a summary with '-h')
@@ -434,7 +444,7 @@ Options:
 
 This subcommand can be used to build resources and package releases. It is very simple, you create
 a resources directory tree as close as possible to the final resources structure, and place special
-`.zr-{tool}` files on it that are calls to `cargo-zng-res-{tool}` crates or executables.
+`name '{tool}` files on it that are calls to `cargo-zng-res-{tool}` crates or executables.
 
 ### Resource Build
 
@@ -513,58 +523,109 @@ These are the builtin tools provided:
 ```console
 $ cargo zng res --tools
 
-.zr-copy @ cargo-zng
-  Copy the file or dir
-
-.zr-glob @ cargo-zng
-  Copy all matches in place
-
-.zr-rp @ cargo-zng
-  Replace ${VAR|<file|!cmd} occurrences in the content
-
-.zr-sh @ cargo-zng
-  Run a bash script
-
-.zr-shf @ cargo-zng
-  Run a bash script on the final pass
-
-.zr-warn @ cargo-zng
-  Print a warning message
-
-.zr-fail @ cargo-zng
-  Print an error message and fail the build
-
-.zr-apk @ cargo-zng
+'apk @ cargo-zng
   Build an Android APK from a staging directory
 
-.zr-l10n @ cargo-zng
+'copy @ cargo-zng
+  Copy the file or dir
+
+'fail @ cargo-zng
+  Print an error message and fail the build
+
+'glob @ cargo-zng
+  Copy all matches in place
+
+'l10n @ cargo-zng
   Copy localization files (.ftl) and optimize for release
 
-.zr-sfx @ cargo-zng
+'rp @ cargo-zng
+  Replace ${VAR|<file|!cmd} occurrences in the content
+
+'sfx @ cargo-zng
   Compile a self-extracting executable
 
-.zr-sfxf @ cargo-zng
+'sfxf @ cargo-zng
   Build a self-extracting executable on the final pass
 
-.zr-tar @ cargo-zng
+'sh @ cargo-zng
+  Run a bash script
+
+'shf @ cargo-zng
+  Run a bash script on the final pass
+
+'tar @ cargo-zng
   Pack files and dirs into a TAR container with optional compression
+
+'warn @ cargo-zng
+  Print a warning message
 
 call 'cargo zng res --help tool' to read full help from a tool
 ```
 
 The expanded help for each:
 
-#### `.zr-copy`
+#### `'apk`
+
+<!--do doc --readme do zng res --tool apk -->
+```console
+$ cargo zng res --tool apk
+
+'apk</bold> @ cargo-zng
+  Build an Android APK from a staging directory
+
+  The expected file system layout:
+
+  | apk/
+  | ├── lib/
+  | |   └── arm64-v8a
+  | |       └── my-app.so
+  | ├── assets/
+  | |   └── res
+  | |       └── zng-res.txt
+  | ├── res/
+  | |   └── android-res
+  | └── AndroidManifest.xml
+  | my-app 'apk
+
+  Both 'apk/' and 'my-app 'apk' will be replaced with the built my-app.apk
+
+  Expected 'apk file content:
+
+  | # Relative path to the staging directory. If not set uses ./apk if it exists
+  | # or the parent dir .. if it is named something.apk
+  | apk-dir = ./apk
+  |
+  | # Sign using the debug key. Note that if ZR_APK_KEYSTORE or ZR_APK_KEY_ALIAS are not
+  | # set the APK is also signed using the debug key.
+  | debug = true
+  |
+  | # Don't sign and don't zipalign the APK. This outputs an incomplete package that
+  | # cannot be installed, but can be modified such as custom linking and signing.
+  | raw = true
+  |
+  | # Don't tar assets. By default `assets/res` are packed as `assets/res.tar`
+  | # for use with `android_install_res`.
+  | tar-assets-res = false
+
+  APK signing is configured using these environment variables:
+
+  ZR_APK_KEYSTORE - path to the private .keystore file
+  ZR_APK_KEYSTORE_PASS - keystore file password
+  ZR_APK_KEY_ALIAS - key name in the keystore
+  ZR_APK_KEY_PASS - key password
+```
+
+#### `'copy`
 
 <!--do doc --readme do zng res --tool copy -->
 ```console
 $ cargo zng res --tool copy
 
-.zr-copy</bold> @ cargo-zng
+'copy</bold> @ cargo-zng
   Copy the file or dir
 
   The request file:
-    source/foo.txt.zr-copy
+    source/foo.txt 'copy
      | # comment
      | path/bar.txt
 
@@ -574,17 +635,34 @@ $ cargo zng res --tool copy
   Paths are relative to the Cargo workspace root
 ```
 
-#### `.zr-glob`
+#### `'fail`
+
+<!--do doc --readme do zng res --tool fail -->
+```console
+$ cargo zng res --tool fail
+
+'fail</bold> @ cargo-zng
+  Print an error message and fail the build
+
+  The request file:
+    some/dir/disallow 'rp'fail
+     | Don't copy ${ZR_REQUEST_DD} with a glob!
+
+  Prints an error message and fails the build if copied
+```
+
+
+#### `'glob`
 
 <!--do doc --readme do zng res --tool glob -->
 ```console
 $ cargo zng res --tool glob
 
-.zr-glob</bold> @ cargo-zng
+'glob</bold> @ cargo-zng
   Copy all matches in place
 
   The request file:
-    source/l10n/fluent-files.zr-glob
+    source/l10n/fluent-files 'glob
      | # localization dir
      | l10n
      | # only Fluent files
@@ -618,17 +696,69 @@ $ cargo zng res --tool glob
   !:pattern — negates the entire pattern.
 ```
 
-#### `.zr-rp`
+#### `'l10n`
+
+<!--do doc --readme do zng res --tool l10n -->
+```console
+$ cargo zng res --tool l10n
+
+'l10n</bold> @ cargo-zng
+  Copy localization files (.ftl) and optimize for release
+
+  The request file:
+    source/l10n 'l10n
+     | # comment
+     | path/dev-l10n
+
+  Copies the `path/dev-l10n` dir to:
+    target/l10n
+
+  Paths are relative to the Cargo workspace root
+
+  Filter:
+
+  Only localization files are included
+      **/*.ftl
+
+  Development langs are excluded
+      !./pseudo*
+      !./template
+
+  Only lang folders that have local translations are included
+      If ./{lang}/deps/** exists but no ./{lang}/*.ftl exists it is excluded
+
+  Comments are stripped
+
+  Subsetting:
+
+  If a l10n subset profile is found is is applied to the dependency localization
+
+  The subset profile is an allow list, see the docs `zng::l10n` for how to create one
+
+  The subset profile is resolved in this order:
+
+  ZNG_L10N_PROFILE_FILE env if is set
+      Must be set to a .subset file path, relative to the Cargo workspace root
+      If the file is a {name}.rec.subset auto includes a {name}.subset and vice versa
+
+  res/optimization-profiles/zng-ext-l10n.rec.subset
+      Default location, also includes zng-ext-l10n.subset if present
+
+  {l10n-path}/*.subset
+      If multiple files match all are used
+```
+
+#### `'rp`
 
 <!--do doc --readme do zng res --tool rp -->
 ```console
 $ cargo zng res --tool rp
 
-.zr-rp</bold> @ cargo-zng
+'rp</bold> @ cargo-zng
   Replace ${VAR|<file|!cmd} occurrences in the content
 
   The request file:
-    source/greetings.txt.zr-rp
+    source/greetings.txt 'rp
      | Thanks for using ${ZR_APP}!
 
   Writes the text content with ZR_APP replaced:
@@ -647,7 +777,7 @@ $ cargo zng res --tool rp
   ${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
 
   ${!cmd -h}      — Replaces with the stdout of the bash script line.
-                    The script runs the same bash used by '.zr-sh'.
+                    The script runs the same bash used by 'sh.
                     The script must be defined all in one line.
                     A separate bash instance is used for each occurrence.
                     The working directory is the workspace root.
@@ -701,13 +831,147 @@ $ cargo zng res --tool rp
   See the cargo-zng crate docs for a full list of ZR vars.
 ```
 
-#### `.zr-sh`
+#### `'sfx`
+
+<!--do doc --readme do zng res --tool sfx -->
+```console
+$ cargo zng res --tool sfx
+
+'sfx</bold> @ cargo-zng
+  Compile a self-extracting executable
+
+  The request file:
+    source/sfx-package 'sfx
+     | [sfx]
+     | # executable to run, required
+     | run = "target/release/run"
+     |
+     | # Embedded icon for the sfx executable (Windows only)
+     | icon = "res/sfx.ico"
+     |
+     | # optional args for 'run'
+     | args = ["--foo"]
+     | # optional extra env for 'run'
+     | env = {
+     |     FOO = "bar",
+     | }
+     |
+     | # rustc target triple, default is the host triple
+     | # rustc-target = "x86_64-pc-windows-msvc"
+     | # build a console exe on Windows, default is true (build a GUI exe)
+     | windows-subsystem = false
+     |
+     | # compression to use for 'run', default is "zstd-bcj"
+     | # compress = "none"
+     |
+     | # data the sfx can serve the 'run'
+     | [[data]]
+     | # name must be unique and not include ':' or '\n', default is "", for single data
+     | name = "payload"
+     | # compress data on build, default is "zstd"
+     | compress = "zstd"
+     | # file to include
+     | file = "./data.tar"
+     |
+     | [sign]
+     | # optional, code sign the sfx exe
+     | tool = "signtool sign /v /f $PFX /tr http://timestamp.sectigo.com /td SHA256 /fd SHA256 $SIGN_TARGET"
+     | # only sign the sfx exe, default 'false' signs the 'run' exe too
+     | # sfx-only = true
+
+  Compiles and signs a 'sfx-package.exe' with custom icon on Windows, or a 'sfx-package' on Unix.
+
+  Run:
+
+  When sfx runs it extracts the 'run' executable to a temp dir and runs it.
+
+  The optional 'env' variables override the system env. The SFX_ARGS var is always set.
+
+  The SFX_ARGS is set to the sfx command line args, '\n' separated. The first arg is the path to the sfx exe.
+
+  On build, also searches for "$run.exe" if "$run" is not found and has no extension.
+
+  Data:
+
+  To read data the 'run' exe must spawn another instance of the sfx with the "SFX_GET_DATA" set
+  to the entry name. It will serve the data to stdout. The data may be decompressed on demand.
+
+  To get a list of data names and decompressed lengths run with "SFX_GET_MANIFEST", each stdout
+  line is <name>:<len>, <len> is an u64 or "unknown".
+
+  The `zng::setup::SfxClient` can also be used to connect and get data.
+
+  File Paths:
+
+  Paths are relative to the Cargo workspace root, you can also use 'rp to select files in the
+  resource target dir.
+
+  This request file:
+    source/sfx-package 'rp'sfxf
+     | [[data]]
+     | file = "${ZR_TARGET_DD}/res.txt"
+
+  Compiles a 'sfx-package' that includes the 'res.txt' copied to the target dir by `cargo zng res`.
+
+  Compress:
+
+  The sfx exe includes a zstd decompressor that is used to extract the 'run' exe.
+
+  The decompressor code can be used to read data too. The 'compress' field values are:
+
+  "none" — No compression on build. Data is served as is.
+  "zstd" — Compress on build unless file is already zstd (magic number check). Decompress on demand while reading.
+  "zstd-[filter]" — Transform data to improve compression, unless file is already zstd. Reverses
+    transform on demand while reading.
+
+  Sfx is optimized for small number of large data entries. Use a container format to
+  package many small entries.
+
+  Filter:
+
+  Currently only BCJ (Branch/Call/Jump) filters are supported, identified by CPU instruction set:
+
+  "zstd-bcj-[set]" where [set] is: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv".
+  "zstd-bcj" — Select filter from 'rustc-target' arch, or zstd unfiltered for no matches.
+
+  The target file must be a binary (exe or lib) or a container (like tar) with only binary entries. The filters
+  are non-destructive but if the wrong filter is selected it will have negative impact on the compression level.
+
+  Signing:
+
+  Code signing must be applied to both the run exe and sfx exe, to facilitate this you can set the 'sign.tool'.
+
+  The sign-tool command will run twice, with $SIGN_TARGET set to "./run.exe" and "package.exe".
+
+  In the example above The $PFX var is an example of how to set the the private key.
+  Keep the private key file outside the repository and set an env var to it. In CI use
+  secure variables.
+
+  Icon:
+
+  On Windows the sfx executable icon can be set with 'icon' field. Note that this requires the build
+  to run on a Windows machine with MSVC Toolkit installed. Cross-compilation from other systems will not work.
+```
+
+#### `'sfxf`
+
+<!--do doc --readme do zng res --tool sfxf -->
+```console
+$ cargo zng res --tool sfxf
+
+'sfxf</bold> @ cargo-zng
+  Build a self-extracting executable on the final pass
+
+  Apart from running on final this tool behaves exactly like 'sfx
+```
+
+#### `'sh`
 
 <!--do doc --readme do zng res --tool sh -->
 ```console
 $ cargo zng res --tool sh
 
-.zr-sh</bold> @ cargo-zng
+'sh</bold> @ cargo-zng
   Run a bash script
 
   Script is configured using environment variables (like other tools):
@@ -716,7 +980,7 @@ $ cargo zng res --tool sh
   ZR_TARGET_DIR — Target directory where resources are being built to.
   ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
   ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. This is also the working dir.
-  ZR_REQUEST — Request file that called the tool (.zr-sh).
+  ZR_REQUEST — Request file that called the tool ('sh).
   ZR_REQUEST_DD — Parent dir of the request file.
   ZR_TARGET — Target file implied by the request file name.
   ZR_TARGET_DD — Parent dir of the target file.
@@ -750,48 +1014,93 @@ $ cargo zng res --tool sh
   Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 ```
 
-#### `.zr-shf`
+#### `'shf`
 
 <!--do doc --readme do zng res --tool shf -->
 ```console
 $ cargo zng res --tool shf
 
-.zr-shf</bold> @ cargo-zng
+'shf</bold> @ cargo-zng
   Run a bash script on the final pass
 
-  Apart from running on final this tool behaves exactly like .zr-sh
+  Apart from running on final this tool behaves exactly like 'sh
 ```
 
-#### `.zr-warn`
+#### `'tar`
+
+<!--do doc --readme do zng res --tool tar -->
+```console
+$ cargo zng res --tool tar
+
+'tar</bold> @ cargo-zng
+  Pack files and dirs into a TAR container with optional compression
+
+  The request file:
+    source/data.tar.zst 'tar
+     | [[entry]]
+     | path = "res/bin/*"
+     | name = "bin/*"
+     |
+     | [[entry]]
+     | path = "README.md"
+     | name = "docs/README.md"
+     |
+     | # Optional compression
+     | [zstd]
+     | level = 19
+
+  Packs entries into a TAR, compresses it with ZSTD.
+
+  The syntax is a TOML file, the tables are:
+
+  [[entry]] — Array of entries to pack.
+  path — Path or glob pattern, relative to the workspace root. Required.
+  name — Optional name of the file on the TAR container. Optional.
+
+  Each entry can be a file, directory or glob selection. Only file and directory
+  entries are supported by this tool, other tar archive entries are not supported.
+
+  If 'path' matches a directory all contained files and sub directories are packed.
+
+  If 'name' is not set it is path relative to workspace root.
+
+  If 'name' is set it must not contain "/..".
+
+  If 'name' ends with "/*" the selected files and dirs are named in this TAR dir.
+
+  All 'name' paths are relative to the TAR root, "/foo" is packed as "foo".
+
+  [filter] — Optional lossless transform to apply to the TAR
+  bcj — Branch/Call/Jump filter that optimizes compression of binary code files.
+      Values: "x86", "arm", "arm64", "arm-thumb", "ppc", "sparc", "ia64", "riscv"
+      Note that decompressor must revert the filter.
+
+  The decompressor must undo these changes before reading the TAR. The 'sfx supports decoding BCJ.
+
+  [zstd] — Optional ZStandard compression
+  level — Compression level, -131072..=22, 0 means no compression, default is 19.
+
+  Compress the TAR, after [filter] is applied, using ZStandard. The "contentsize" field of zstd header
+  is correctly set, so this is fully compatible with 'sfx that uses this field to report response stream length.
+
+  [gzip] — Optional GZip compression
+  level — Compression level, 0..=9, 0 means no compression, default is 8.
+```
+
+#### `'warn`
 
 <!--do doc --readme do zng res --tool warn -->
 ```console
 $ cargo zng res --tool warn
 
-.zr-warn</bold> @ cargo-zng
+'warn</bold> @ cargo-zng
   Print a warning message
 
-  You can combine this with '.zr-rp' tool
+  You can combine this with 'rp tool
 
   The request file:
-    source/warn.zr-warn.zr-rp
+    source/warn 'rp'warn
      | ${ZR_APP}!
 
   Prints a warning with the value of ZR_APP
-```
-
-#### `.zr-fail`
-
-<!--do doc --readme do zng res --tool fail -->
-```console
-$ cargo zng res --tool fail
-
-.zr-fail</bold> @ cargo-zng
-  Print an error message and fail the build
-
-  The request file:
-    some/dir/disallow.zr-fail.zr-rp
-     | Don't copy ${ZR_REQUEST_DD} with a glob!
-
-  Prints an error message and fails the build if copied
 ```
