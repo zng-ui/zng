@@ -1,13 +1,15 @@
 use std::fs;
 
+use crate::util::glob_walker;
+
 /// Rename **/*.zr-* to **/* '*
 pub(crate) fn zr(p: std::path::PathBuf) {
-    let iter =
-        glob::glob(&format!("{}/**/*.zr-*", p.to_str().unwrap_or_else(|| fatal!("path not utf-8")))).unwrap_or_else(|e| fatal!("{e}"));
+    let pat = format!("{}/**/*.zr-*", p.to_str().unwrap_or_else(|| fatal!("path not utf-8")));
+    let iter = glob_walker(&pat, false).unwrap_or_else(|e| fatal!("{e}"));
 
     let mut targets = vec![];
     for p in iter {
-        let p = p.unwrap_or_else(|e| fatal!("{e}"));
+        let p = p.unwrap_or_else(|e| fatal!("{e}")).into_path();
         targets.push(p);
     }
 

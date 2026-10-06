@@ -8,6 +8,8 @@ use std::{
 use clap::*;
 use serde::Deserialize as _;
 
+use crate::util::glob_walker;
+
 #[derive(Args, Debug, Default)]
 pub struct TraceArgs {
     /// Path or command to run the Zng executable
@@ -96,13 +98,13 @@ pub fn run(args: TraceArgs) {
         .unwrap_or_else(|e| fatal!("cannot write {}, {e}", out_file.display()));
     let mut separator = "";
 
-    for trace in glob::glob(out_dir.join("*.json").display().to_string().as_str())
+    for trace in glob_walker(out_dir.join("*.json").display().to_string().as_str(), false)
         .ok()
         .into_iter()
         .flatten()
     {
         let trace = match trace {
-            Ok(t) => t,
+            Ok(t) => t.into_path(),
             Err(e) => {
                 error!("error globing trace files, {e}");
                 continue;

@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use crate::util::glob_walker;
+
 use super::*;
 
 const APK_HELP: &str = r#"
@@ -243,8 +245,8 @@ pub(super) fn apk() {
 
     // add libs
     let aapt_path = build_tools.join("aapt");
-    for lib in ::glob::glob(apk_folder.join("lib/*/*.so").display().to_string().as_str()).unwrap() {
-        let lib = lib.unwrap_or_else(|e| fatal!("error searching libs, {e}"));
+    for lib in glob_walker(apk_folder.join("lib/*/*.so").display().to_string().as_str(), false).unwrap() {
+        let lib = lib.unwrap_or_else(|e| fatal!("error searching libs, {e}")).into_path();
 
         let lib = lib.display().to_string().replace('\\', "/");
         let lib = &lib[lib.rfind("/lib/").unwrap() + 1..];

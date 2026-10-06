@@ -684,16 +684,18 @@ $ cargo zng res --tool glob
 
   The glob pattern syntax is:
 
-      ? — Matches any single character.
-      * — Matches any (possibly empty) sequence of characters.
-     ** — Matches the current directory and arbitrary subdirectories.
-    [c] — Matches any character inside the brackets.
-  [a-z] — Matches any characters in the Unicode sequence.
-   [!b] — Negates the brackets match.
+       ? — Matches any single character.
+       * — Matches any (possibly empty) sequence of characters.
+      ** — Matches the current directory and arbitrary subdirectories.
+     [c] — Matches any character inside the brackets.
+    [!c] — Negates the brackets match.
+   {a,b} — Matches any of the inner patterns.
 
   And in filter patterns only:
 
   !:pattern — negates the entire pattern.
+
+  Matching is case insensitive on all platforms.
 ```
 
 #### `'l10n`
@@ -1061,6 +1063,8 @@ $ cargo zng res --tool tar
   entries are supported by this tool, other tar archive entries are not supported.
 
   If 'path' matches a directory all contained files and sub directories are packed.
+
+  Matching is case insensitive in all platforms. See 'glob tool for glob syntax.
 
   If 'name' is not set it is path relative to workspace root.
 

@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use sha2::Digest;
 
-use crate::util;
+use crate::util::{self, glob_walker};
 
 /// Bump this for every change that can affect format result.
 const FMT_VERSION: &str = "1";
@@ -162,8 +162,8 @@ pub fn run(mut args: FmtArgs) {
     let files: HashSet<PathBuf> = file_patterns
         .into_par_iter()
         .flat_map(|pattern| {
-            let files = match glob::glob(&pattern.display().to_string().replace('\\', "/")) {
-                Ok(f) => f.flat_map(|e| e.ok()).collect(),
+            let files = match glob_walker(&pattern.display().to_string().replace('\\', "/"), true) {
+                Ok(f) => f.flat_map(|e| e.ok().map(|p| p.into_path())).collect(),
                 Err(_) => vec![],
             };
             files

@@ -209,7 +209,7 @@ enum Template {
 }
 impl Template {
     /// Clone repository, if it is a template return the `.zng-template/keys,ignore` files contents.
-    fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<(KeyMap, Vec<glob::Pattern>)> {
+    fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<(KeyMap, Vec<globset::GlobMatcher>)> {
         let (from, branch) = match self {
             Template::Git(url, b) => (url, b),
             Template::Local(path, b) => {
@@ -242,7 +242,11 @@ impl Template {
         match fs::read_to_string(to.join(".zng-template/ignore")) {
             Ok(i) => {
                 for glob in i.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
-                    let glob = glob::Pattern::new(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                    let glob = globset::GlobBuilder::new(glob)
+                        .case_insensitive(true)
+                        .build()
+                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
+                        .compile_matcher();
                     ignore.push(glob);
                 }
             }
@@ -351,11 +355,11 @@ fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> 
 struct Context {
     template_root: PathBuf,
     replace: ReplaceMap,
-    ignore_workspace: glob::Pattern,
-    ignore: Vec<glob::Pattern>,
+    ignore_workspace: globset::GlobMatcher,
+    ignore: Vec<globset::GlobMatcher>,
 }
 impl Context {
-    fn new(template_root: &Path, mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
+    fn new(template_root: &Path, mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<globset::GlobMatcher>) -> io::Result<Self> {
         for (i, (key, value)) in arg_keys.into_iter().enumerate() {
             if key.is_empty() {
                 if i >= template_keys.len() {
@@ -377,7 +381,7 @@ impl Context {
         Ok(Self {
             template_root: dunce::canonicalize(template_root)?,
             replace: make_replacements(&template_keys)?,
-            ignore_workspace: glob::Pattern::new(".zng-template").unwrap(),
+            ignore_workspace: globset::Glob::new(".zng-template").unwrap().compile_matcher(),
             ignore,
         })
     }
@@ -385,12 +389,12 @@ impl Context {
     fn ignore(&self, template_path: &Path, is_post: bool) -> bool {
         let template_path = template_path.strip_prefix(&self.template_root).unwrap();
 
-        if !is_post && self.ignore_workspace.matches_path(template_path) {
+        if !is_post && self.ignore_workspace.is_match(template_path) {
             return true;
         }
 
         for glob in &self.ignore {
-            if glob.matches_path(template_path) {
+            if glob.is_match(template_path) {
                 return true;
             }
         }

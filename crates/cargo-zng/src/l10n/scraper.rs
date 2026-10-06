@@ -6,6 +6,8 @@ use litrs::StringLit;
 use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
 use rayon::prelude::*;
 
+use crate::util::glob_walker;
+
 /// Scrapes all use of the `l10n!` macro in Rust files selected by a glob pattern.
 ///
 /// The `custom_macro_names` can contain extra macro names to search in the form of the name literal only (no :: or !).
@@ -23,8 +25,8 @@ pub fn scrape_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) ->
     let mut buf = Vec::with_capacity(num_threads);
 
     let mut r = FluentTemplate::default();
-    for file in glob::glob(code_files_glob).unwrap_or_else(|e| fatal!("{e}")) {
-        let file = file.unwrap_or_else(|e| fatal!("{e}"));
+    for file in glob_walker(code_files_glob, true).unwrap_or_else(|e| fatal!("{e}")) {
+        let file = file.unwrap_or_else(|e| fatal!("{e}")).into_path();
         if file.is_dir() {
             continue;
         }
@@ -633,8 +635,8 @@ impl FluentTemplate {
                     let mut any_note = false;
                     for n in &self.notes {
                         let matches_file = if n.file.contains('*') {
-                            match glob::Pattern::new(&n.file) {
-                                Ok(b) => b.matches(&entry.file),
+                            match globset::Glob::new(&n.file) {
+                                Ok(b) => b.compile_matcher().is_match(&entry.file),
                                 Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidInput, e)),
                             }
                         } else {

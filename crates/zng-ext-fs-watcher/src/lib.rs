@@ -1394,9 +1394,9 @@ impl FsChange {
     }
 
     /// If the change affects any path matched by the glob pattern.
-    pub fn is_for_glob(&self, pattern: &glob::Pattern) -> bool {
+    pub fn is_for_glob(&self, pattern: &globset::GlobMatcher) -> bool {
         if let Ok(ev) = &self.event {
-            return ev.paths.iter().any(|p| pattern.matches_path(p));
+            return ev.paths.iter().any(|p| pattern.is_match(p));
         }
         false
     }
@@ -1445,8 +1445,8 @@ impl FsChangesArgs {
     }
 
     /// Iterate over all changes that affects paths selected by the `glob` pattern.
-    pub fn changes_for(&self, glob: &str) -> Result<impl Iterator<Item = &FsChange> + '_, glob::PatternError> {
-        let glob = glob::Pattern::new(glob)?;
+    pub fn changes_for(&self, glob: &str) -> Result<impl Iterator<Item = &FsChange> + '_, globset::Error> {
+        let glob = globset::Glob::new(glob)?.compile_matcher();
         Ok(self.changes.iter().filter(move |c| c.is_for_glob(&glob)))
     }
 
@@ -1456,9 +1456,9 @@ impl FsChangesArgs {
     }
 
     /// Iterate over all change events that affects that are equal to `path` or inside it.
-    pub fn events_for(&self, glob: &str) -> Result<impl Iterator<Item = &fs_event::Event> + '_, glob::PatternError> {
-        let glob = glob::Pattern::new(glob)?;
-        Ok(self.events().filter(move |ev| ev.paths.iter().any(|p| glob.matches_path(p))))
+    pub fn events_for(&self, glob: &str) -> Result<impl Iterator<Item = &fs_event::Event> + '_, globset::Error> {
+        let glob = globset::Glob::new(glob)?.compile_matcher();
+        Ok(self.events().filter(move |ev| ev.paths.iter().any(|p| glob.is_match(p))))
     }
 
     /// Iterate over all change events that affects paths that are equal to `path` or inside it.

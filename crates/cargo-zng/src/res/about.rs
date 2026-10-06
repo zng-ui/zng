@@ -6,7 +6,7 @@ use std::{
     process::Stdio,
 };
 
-use crate::util::workspace_dir;
+use crate::util::{glob_walker, workspace_dir};
 
 pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
     if let Some(m) = metadata {
@@ -22,13 +22,16 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
         workspace_dir().unwrap_or_else(|| fatal!("cannot locate workspace, use --metadata if source is not in a cargo project"));
     println_v!("workspace `{}`", workspace_manifest.display());
 
-    for manifest in glob::glob(&format!(
-        "{}/**/Cargo.toml",
-        workspace_manifest.display().to_string().replace("\\", "/").trim_end_matches('/')
-    ))
+    for manifest in glob_walker(
+        &format!(
+            "{}/**/Cargo.toml",
+            workspace_manifest.display().to_string().replace("\\", "/").trim_end_matches('/')
+        ),
+        false,
+    )
     .unwrap_or_else(|e| fatal!("cannot search metadata, {e}"))
     {
-        let manifest = manifest.unwrap_or_else(|e| fatal!("error searching metadata, {e}"));
+        let manifest = manifest.unwrap_or_else(|e| fatal!("error searching metadata, {e}")).into_path();
         let _empty = PathBuf::new();
         let manifest_dir = manifest.parent().unwrap_or(&_empty);
         if manifest_dir.as_os_str().is_empty() {

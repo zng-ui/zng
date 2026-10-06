@@ -15,7 +15,10 @@ use std::{
 
 use clap::*;
 
-use crate::{l10n::scraper::FluentTemplate, util};
+use crate::{
+    l10n::scraper::FluentTemplate,
+    util::{self, glob_walker},
+};
 
 mod scraper;
 
@@ -293,10 +296,10 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
 
     // cleanup dependencies
     if args.clean_deps {
-        for entry in glob::glob(&format!("{}/*/deps", output.display()))
+        for entry in glob_walker(&format!("{}/*/deps", output.display()), false)
             .unwrap_or_else(|e| fatal!("cannot cleanup deps in `{}`, {e}", output.display()))
         {
-            let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
+            let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}")).into_path();
             println_v!("removing `{}` to clean dependencies", dir.display());
 
             if let Err(e) = std::fs::remove_dir_all(&dir)
@@ -450,8 +453,10 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                 let target = l10n_dir(deps.parent().and_then(|p| p.file_name()));
 
                 // deps/pkg-name/pkg-version/*.ftl
-                for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
-                    let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
+                for entry in glob_walker(&deps.join("*/*/*.ftl").display().to_string(), false).unwrap() {
+                    let entry = entry
+                        .unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()))
+                        .into_path();
                     let target = target.join(entry.strip_prefix(&deps).unwrap());
                     if !target.exists()
                         && entry.is_file()
