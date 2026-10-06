@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* **Breaking** `zng::fs_watcher` API now uses `globset` adding support for braced alternate patterns.
+
 * Fix `cargo zng res --tool tar` double nesting the root dir when `source = "dir", name = "dir"`.
 
 * Add `L10nTarData::extract` helper.
