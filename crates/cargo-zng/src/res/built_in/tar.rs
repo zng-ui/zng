@@ -3,6 +3,8 @@ use std::{collections::HashSet, io::Write, rc::Rc};
 use lzma_rust2::filter::bcj::BcjWriter;
 use serde::Deserialize;
 
+use crate::util::glob_walker;
+
 use super::*;
 
 const TAR_HELP: &str = r#"
@@ -34,6 +36,8 @@ Each entry can be a file, directory or glob selection. Only file and directory
 entries are supported by this tool, other tar archive entries are not supported.
 
 If 'path' matches a directory all contained files and sub directories are packed. 
+
+Matching is case insensitive in all platforms. See 'glob tool for glob syntax.
 
 If 'name' is not set it is path relative to workspace root. 
 
@@ -161,8 +165,8 @@ fn collect_tar_entries(entries: Vec<Entry>) -> Vec<TarEntry> {
         }
 
         let mut any = false;
-        for glob_entry in ::glob::glob(&entry.path).unwrap_or_else(|e| fatal!("{e}")) {
-            let glob_entry = glob_entry.unwrap_or_else(|e| fatal!("{e}"));
+        for glob_entry in glob_walker(&entry.path, true).unwrap_or_else(|e| fatal!("{e}")) {
+            let glob_entry = glob_entry.unwrap_or_else(|e| fatal!("{e}")).into_path();
             let entry_name = if let Some(n) = glob_entry.file_name()
                 && let Some(n) = n.to_str()
             {

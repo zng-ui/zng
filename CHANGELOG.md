@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* Implement alternate braces (e.g.: "*.{txt,md}") for all `cargo zng res` tools that accept glob patterns.
+
 * **Breaking** `zng::fs_watcher` API now uses `globset` adding support for braced alternate patterns.
 
 * Fix `cargo zng res --tool tar` double nesting the root dir when `source = "dir", name = "dir"`.

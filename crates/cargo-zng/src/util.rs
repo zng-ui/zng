@@ -486,3 +486,53 @@ pub fn unix_path(path: &Path) -> Cow<'_, str> {
         path.to_string_lossy()
     }
 }
+
+pub type GlobItem = Result<walkdir::DirEntry, walkdir::Error>;
+/// `globset` + `walkdir`
+pub fn glob_walker(pattern: &str, case_insensitive: bool) -> Result<impl Iterator<Item = GlobItem> + Send, globset::Error> {
+    const META: [char; 4] = ['*', '?', '[', '{'];
+
+    // split root/glob
+    let mut root = PathBuf::new();
+    let mut glob: Vec<&str> = Vec::new();
+    for comp in Path::new(pattern).components() {
+        let s = comp.as_os_str().to_str().unwrap();
+        if glob.is_empty() && !s.contains(META) {
+            root.push(comp);
+        } else {
+            glob.push(s);
+        }
+    }
+    if root.as_os_str().is_empty() {
+        root.push(".");
+    }
+
+    let mut walker = walkdir::WalkDir::new(&root);
+    let matcher = if glob.is_empty() {
+        // pattern is a path
+        walker = walker.max_depth(0);
+        None
+    } else {
+        if !glob.iter().any(|c| c.contains("**")) {
+            // glob has known depth
+            walker = walker.max_depth(glob.len());
+        }
+        walker = walker.min_depth(1);
+        let glob = glob.join("/"); // globset always uses '/'
+        Some(
+            globset::GlobBuilder::new(&glob)
+                .case_insensitive(case_insensitive)
+                .literal_separator(true)
+                .build()?
+                .compile_matcher(),
+        )
+    };
+
+    Ok(walker.into_iter().filter(move |entry| {
+        let (Some(matcher), Ok(entry)) = (&matcher, entry) else {
+            return true; // literal path, or an error we must not hide
+        };
+        let rel = entry.path().strip_prefix(&root).unwrap_or(entry.path());
+        matcher.is_match(rel)
+    }))
+}

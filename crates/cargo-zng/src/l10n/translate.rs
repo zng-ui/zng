@@ -10,7 +10,7 @@ use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterato
 use sha2::Digest;
 use unic_langid::LanguageIdentifier;
 
-use crate::util;
+use crate::util::{self, glob_walker};
 
 pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool) {
     let dir_path = Path::new(dir);
@@ -61,8 +61,8 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool) {
 
     let pattern = dir_path.join("**/*.ftl");
     let mut files = vec![];
-    for entry in glob::glob(&pattern.display().to_string()).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
-        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}"));
+    for entry in glob_walker(&pattern.display().to_string(), true).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
+        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}")).into_path();
         let relative_entry = entry.strip_prefix(dir_path).unwrap();
         let file = match std::fs::read_to_string(&entry) {
             Ok(f) => f,
@@ -176,8 +176,8 @@ impl Default for Translator {
         } else {
             let translators_pattern = install_dir.join("zng-l10n-translator-*").display().to_string();
             let mut options = vec![];
-            for opt in glob::glob(&translators_pattern).unwrap() {
-                options.push(opt.unwrap());
+            for opt in glob_walker(&translators_pattern, false).unwrap() {
+                options.push(opt.unwrap().into_path());
             }
             if options.is_empty() {
                 fatal!("no translator installed\n   install a zng-l10n-translator-* crate\nor set ZNG_L10N_TRANSLATOR to a path")

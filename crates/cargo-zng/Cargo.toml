@@ -18,7 +18,7 @@ color-print = { version = "0.3", default-features = false }
 
 # l10n
 rayon = { version = "1.10", default-features = false }
-glob = { version = "0.3", default-features = false }
+globset = { version = "0.4", default-features = false }
 fluent-pseudo = { version = "0.3", default-features = false }
 fluent-syntax = { version = "0.12", default-features = false }
 proc-macro2 = { version = "1.0", features = ["span-locations"], default-features = false }

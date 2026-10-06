@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt::Write as _, fs, path::Path};
 
 use fluent_syntax::ast::{Attribute, CallArguments, Entry, Expression, Identifier, InlineExpression, Pattern, PatternElement, VariantKey};
 
-use crate::util;
+use crate::util::{self, glob_walker};
 
 pub fn transform_dir(
     dir: &str,
@@ -15,8 +15,8 @@ pub fn transform_dir(
     let dir_path = Path::new(dir);
     let pattern = dir_path.join("**/*.ftl");
     let to_dir = dir_path.with_file_name(to_name);
-    for entry in glob::glob(&pattern.display().to_string()).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
-        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}"));
+    for entry in glob_walker(&pattern.display().to_string(), true).unwrap_or_else(|e| fatal!("cannot read `{dir}`, {e}")) {
+        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{dir}` entry, {e}")).into_path();
         let relative_entry = entry.strip_prefix(dir_path).unwrap();
         let to_file = to_dir.join(relative_entry);
         let _ = util::check_or_create_dir_all(check, to_file.parent().unwrap());

@@ -1,3 +1,5 @@
+use crate::util::glob_walker;
+
 use super::*;
 
 const GLOB_HELP: &str = "
@@ -26,16 +28,18 @@ the dir and descendants.
 
 The glob pattern syntax is:
 
-    ? — Matches any single character.
-    * — Matches any (possibly empty) sequence of characters.
-   ** — Matches the current directory and arbitrary subdirectories.
-  [c] — Matches any character inside the brackets.
-[a-z] — Matches any characters in the Unicode sequence.
- [!b] — Negates the brackets match.
+     ? — Matches any single character.
+     * — Matches any (possibly empty) sequence of characters.
+    ** — Matches the current directory and arbitrary subdirectories.
+   [c] — Matches any character inside the brackets.
+  [!c] — Negates the brackets match.
+ {a,b} — Matches any of the inner patterns.
 
 And in filter patterns only:
 
 !:pattern — negates the entire pattern.
+
+Matching is case insensitive in all platforms.
 
 ";
 pub(super) fn glob() {
@@ -53,7 +57,7 @@ pub(super) fn glob() {
         .unwrap_or_else(|e| fatal!("{e}"));
 
     // parse first pattern
-    let selection = ::glob::glob(&selection).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
+    let selection = glob_walker(&selection, true).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
     // parse filter patterns
     let mut filters = vec![];
     for r in lines {
@@ -63,14 +67,18 @@ pub(super) fn glob() {
         } else {
             (filter.as_str(), true)
         };
-        let pat = ::glob::Pattern::new(filter).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
+        let pat = globset::GlobBuilder::new(filter)
+            .case_insensitive(true)
+            .build()
+            .unwrap_or_else(|e| fatal!("at line {ln}, {e}"))
+            .compile_matcher();
         filters.push((pat, matches_if));
     }
     // collect first matches
     let selection = {
         let mut s = vec![];
         for entry in selection {
-            s.push(entry.unwrap_or_else(|e| fatal!("{e}")));
+            s.push(entry.unwrap_or_else(|e| fatal!("{e}")).into_path());
         }
         // sorted for deterministic results in case flattened files override previous
         s.sort();
@@ -88,7 +96,7 @@ pub(super) fn glob() {
                 // filters match 'entry/**'
                 let match_source = source.strip_prefix(&filters_root).unwrap();
                 for (filter, matches_if) in &filters {
-                    if filter.matches_path(match_source) != *matches_if {
+                    if filter.is_match(match_source) != *matches_if {
                         continue 'copy_dir;
                     }
                 }
@@ -110,7 +118,7 @@ pub(super) fn glob() {
             // filters match 'entry'
             let source_name = source.file_name().unwrap().to_string_lossy();
             for (filter, matches_if) in &filters {
-                if filter.matches(&source_name) != *matches_if {
+                if filter.is_match(&*source_name) != *matches_if {
                     continue 'apply;
                 }
             }

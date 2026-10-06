@@ -5,6 +5,8 @@ use std::{
 
 use once_cell::unsync::Lazy;
 
+use crate::util::glob_walker;
+
 use super::*;
 
 const L10N_HELP: &str = "
@@ -297,8 +299,8 @@ fn allow_subset(from: &Path) -> SubsetMap {
             if default_profile_pair.exists() {
                 read_subset(default_profile, false, &mut out);
             } else {
-                for file in ::glob::glob(&format!("{}/*.subset", from.display())).unwrap() {
-                    let file = file.unwrap_or_else(|e| fatal!("cannot read {}, {}", from.display(), e));
+                for file in glob_walker(&format!("{}/*.subset", from.display()), false).unwrap() {
+                    let file = file.unwrap_or_else(|e| fatal!("cannot read {}, {}", from.display(), e)).into_path();
                     read_subset(&file, false, &mut out);
                 }
             }
