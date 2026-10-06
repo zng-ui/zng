@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+* Add `L10nTarData::extract` helper.
+    - Surface type in `zng::l10n::L10nTarData`.
+
 * **Breaking** Changed syntax for `cargo zng res` tools.
     - `.zr-*` becomes ` '*`, e.g. `foo.zr-copy` becomes `foo 'copy`.
     - Tool chains now resolve from start to end, e.g. `foo.tar.zr-tar.zr-rp` becomes `foo.tar 'rp'tar`.

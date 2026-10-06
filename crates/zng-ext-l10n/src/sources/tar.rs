@@ -1,4 +1,12 @@
-use std::{borrow::Cow, collections::HashMap, fmt, io::Read as _, path::PathBuf, str::FromStr as _, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt,
+    io::Read as _,
+    path::{Path, PathBuf},
+    str::FromStr as _,
+    sync::Arc,
+};
 
 use semver::Version;
 use zng_clone_move::clmv;
@@ -263,6 +271,20 @@ impl L10nTarData {
         } else {
             Ok(Cow::Borrowed(self.bytes()))
         }
+    }
+
+    /// Extract data to a directory.
+    ///
+    /// The extracted directory can be used as a l10n source that can be live edited.
+    ///
+    /// Note that [`L10nTar`] does not use this, it references the TAR data in memory directly for better performance.
+    pub fn extract(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
+        self.extract_impl(path.as_ref())
+    }
+    fn extract_impl(&self, path: &Path) -> std::io::Result<()> {
+        let data = self.decode_bytes()?;
+        let mut data = tar::Archive::new(&*data);
+        data.unpack(path)
     }
 }
 
