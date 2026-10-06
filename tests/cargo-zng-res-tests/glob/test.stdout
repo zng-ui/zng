@@ -1,11 +1,11 @@
-tests/cargo-zng-res-tests/glob/source/filter.zr-glob
+tests/cargo-zng-res-tests/glob/source/filter 'glob
 [2m  target/tmp/tests/zng_res/glob/refs/aa
   target/tmp/tests/zng_res/glob/refs/ac
   target/tmp/tests/zng_res/glob/refs/i/aai
   target/tmp/tests/zng_res/glob/refs/i/aci
 [0mtests/cargo-zng-res-tests/glob/source/flatten
   [2mtarget/tmp/tests/zng_res/glob/flatten[22m
-tests/cargo-zng-res-tests/glob/source/flatten/refs-glob.zr-glob
+tests/cargo-zng-res-tests/glob/source/flatten/refs-glob 'glob
 [2m  target/tmp/tests/zng_res/glob/flatten/aa
   target/tmp/tests/zng_res/glob/flatten/ab
   target/tmp/tests/zng_res/glob/flatten/ac

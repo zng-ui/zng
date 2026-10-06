@@ -1,8 +1,8 @@
-tests/cargo-zng-res-tests/custom/source/hello-tool-crate.txt.zr-tool-crate
+tests/cargo-zng-res-tests/custom/source/hello-tool-crate.txt 'tool-crate
 [2m  tool-crate print!
-[0mtests/cargo-zng-res-tests/custom/source/hello-tool1.txt.zr-tool1
+[0mtests/cargo-zng-res-tests/custom/source/hello-tool1.txt 'tool1
 [2m  tool1 print!
-[0mtests/cargo-zng-res-tests/custom/source/hello-tool2.txt.zr-tool2
+[0mtests/cargo-zng-res-tests/custom/source/hello-tool2.txt 'tool2
 [2m  tool2 print!
 [0m[32m[1mFinished[39m[22m res build in #ms
          #DIR#
