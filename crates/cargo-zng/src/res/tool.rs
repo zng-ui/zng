@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fs,
     io::{self, BufRead, Read, Write},
     ops::ControlFlow,
@@ -133,12 +134,14 @@ impl Tool {
         Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn run(
         &self,
         cache: &Path,
         source_dir: &Path,
         target_dir: &Path,
         request: &Path,
+        request_wt: &Path,
         about: &About,
         final_args: Option<String>,
     ) -> anyhow::Result<ToolOutput> {
@@ -165,12 +168,12 @@ impl Tool {
             cmd.env(ZR_FINAL, args);
         }
 
-        // if the request is already in `target` (recursion)
-        let mut target = request.with_extension("");
-        // if the request is in `source`
-        if let Ok(p) = target.strip_prefix(source_dir) {
-            target = target_dir.join(p);
-        }
+        // if the request-without_tool is in `source_dir`, change to `target_dir`
+        let target = if let Ok(p) = request_wt.strip_prefix(source_dir) {
+            Cow::Owned(target_dir.join(p))
+        } else {
+            Cow::Borrowed(request_wt)
+        };
 
         cmd.env(ZR_WORKSPACE_DIR, &*unix_path(&std::env::current_dir().unwrap()))
             .env(ZR_SOURCE_DIR, &*unix_path(source_dir))
@@ -303,7 +306,7 @@ impl Tool {
 pub struct Tools {
     tools: Vec<Tool>,
     cache: PathBuf,
-    on_final: Mutex<Vec<(usize, PathBuf, String)>>,
+    on_final: Mutex<Vec<(usize, PathBuf, PathBuf, String)>>,
     about: About,
 }
 impl Tools {
@@ -323,17 +326,19 @@ impl Tools {
     }
 
     /// Returns `true` if the request is done.
-    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<bool> {
+    ///
+    /// `request_wt` is `request` without tool
+    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path, request_wt: &Path) -> anyhow::Result<bool> {
         println!("{}", display_path(request));
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
                 let mut fin = self.on_final.lock();
-                if fin.iter().any(|(ti, r, _)| *ti == i && r == request) {
+                if fin.iter().any(|(ti, r, _, _)| *ti == i && r == request) {
                     // already ran and requested final
                     return Ok(false);
                 }
 
-                let output = tool.run(&self.cache, source, target, request, &self.about, None)?;
+                let output = tool.run(&self.cache, source, target, request, request_wt, &self.about, None)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
@@ -347,7 +352,7 @@ impl Tools {
                     }
                 } else {
                     for args in output.on_final {
-                        fin.push((i, request.to_owned(), args));
+                        fin.push((i, request.to_owned(), request_wt.to_owned(), args));
                     }
                 }
                 if !output.delegate {
@@ -362,9 +367,9 @@ impl Tools {
         let on_final = self.on_final.into_inner();
         if !on_final.is_empty() {
             println!("--final--");
-            for (i, request, args) in on_final {
+            for (i, request, request_wt, args) in on_final {
                 println!("{}", display_path(&request));
-                let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
+                let output = self.tools[i].run(&self.cache, source, target, &request, &request_wt, &self.about, Some(args))?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }

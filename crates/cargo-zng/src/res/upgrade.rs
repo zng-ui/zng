@@ -2,11 +2,8 @@ use std::fs;
 
 /// Rename **/*.zr-* to **/* '*
 pub(crate) fn zr(p: std::path::PathBuf) {
-    let iter = glob::glob(&format!(
-        "{}/**/*.zr-*",
-        p.to_str().unwrap_or_else(|| fatal!("path not utf-8"))
-    ))
-    .unwrap_or_else(|e| fatal!("{e}"));
+    let iter =
+        glob::glob(&format!("{}/**/*.zr-*", p.to_str().unwrap_or_else(|| fatal!("path not utf-8")))).unwrap_or_else(|e| fatal!("{e}"));
 
     let mut targets = vec![];
     for p in iter {
@@ -23,7 +20,7 @@ pub(crate) fn zr(p: std::path::PathBuf) {
             None => {
                 error!("   not utf-8");
                 continue;
-            },
+            }
         };
         let (name, tools) = name.split_once(".zr-").unwrap();
         let mut name = name.to_owned();

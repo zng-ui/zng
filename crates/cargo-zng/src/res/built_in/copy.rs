@@ -21,7 +21,7 @@ pub(super) fn copy() {
     // target derived from the request file name
     let mut target = path(ZR_TARGET);
     // request without name "./'copy", take name from source (this is deliberate not documented)
-    if target.ends_with("'copy") ||  target.ends_with(" 'copy") {
+    if target.ends_with("'copy") || target.ends_with(" 'copy") {
         target = target.with_file_name(source.file_name().unwrap());
     }
 
