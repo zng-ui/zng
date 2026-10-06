@@ -207,13 +207,19 @@ fn collect_tar_entries(entries: Vec<Entry>) -> Vec<TarEntry> {
                     header,
                 });
             } else if glob_entry.is_dir() {
-                let dir_parent = glob_entry.parent().unwrap_or_else(|| Path::new(""));
+                let dir_prefix = if name_is_prefix {
+                    glob_entry.parent().unwrap_or_else(|| Path::new(""))
+                } else {
+                    &glob_entry
+                };
+
                 for dir_entry in walkdir::WalkDir::new(&glob_entry).follow_links(false) {
                     let dir_entry = dir_entry.unwrap_or_else(|e| fatal!("{e}"));
                     let dir_entry = dir_entry.path();
+
                     if dir_entry.is_file() || dir_entry.is_dir() {
                         let name = Path::new(&name)
-                            .join(dir_entry.strip_prefix(dir_parent).unwrap())
+                            .join(dir_entry.strip_prefix(dir_prefix).unwrap())
                             .display()
                             .to_string()
                             .replace('\\', "/")
