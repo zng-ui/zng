@@ -7,7 +7,7 @@ use zng_var::{ArcEq, Var, WeakVar, const_var, var, weak_var};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
-/// Represents localization resources loaded from a `.tar` or `.tar.gz` container.
+/// Represents localization resources loaded from a `.tar`, `.tar.gz` or `.tar.zst` container.
 ///
 /// The expected container layout is `root_dir/{lang}/{file}.ftl` app files and `root_dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
 /// for dependencies, same as [`L10nDir`], `root_dir` can have any name.
@@ -230,10 +230,20 @@ impl L10nTarData {
         }
     }
 
-    /// Check if the bytes have the GZIP magic number.
+    /// Check if [`bytes`] have the GZIP magic number.
+    ///
+    /// [`bytes`]: Self::bytes
     pub fn is_gz(&self) -> bool {
         let bytes = self.bytes();
-        bytes.len() >= 2 && bytes[0..2] == [0x1F, 0x8B]
+        bytes.len() > 2 && bytes[0..2] == [0x1F, 0x8B]
+    }
+
+    /// Check if [`bytes`] have the ZSTD magic number.
+    ///
+    /// [`bytes`]: Self::bytes
+    pub fn is_zst(&self) -> bool {
+        let bytes = self.bytes();
+        bytes.len() > 4 && bytes[0..4] == [0x28, 0xB5, 0x2F, 0xFD]
     }
 
     /// Decompress bytes.
@@ -242,6 +252,12 @@ impl L10nTarData {
             let bytes = self.bytes();
             let mut data = vec![];
             let mut decoder = flate2::read::GzDecoder::new(bytes);
+            decoder.read_to_end(&mut data)?;
+            Ok(Cow::Owned(data))
+        } else if self.is_zst() {
+            let bytes = self.bytes();
+            let mut data = vec![];
+            let mut decoder = zstd::Decoder::new(bytes)?;
             decoder.read_to_end(&mut data)?;
             Ok(Cow::Owned(data))
         } else {
