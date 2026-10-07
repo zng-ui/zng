@@ -252,9 +252,9 @@ impl SetupTaskError {
     }
 
     /// New `Other` error with a single entry.
-    pub fn other(error: impl Error + Send + Sync + 'static) -> Self {
-        // TODO(breaking) copy signature of std::io::Error::other
-        Self::Other(vec![Arc::new(error)])
+    pub fn other(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
+        // Into<Box.. because this conversion is implemented for types like String
+        Self::Other(vec![error.into().into()])
     }
 }
 /// Inner errors only compare `Arc` pointer.
