@@ -50,11 +50,6 @@ ZR_APK_KEY_PASS - key password
 "#;
 pub(super) fn apk() {
     help(APK_HELP);
-    if std::env::var(ZR_FINAL).is_err() {
-        println!("zng-res::on-final=");
-        return;
-    }
-
     // read config
     let mut apk_dir = String::new();
     let mut debug = false;

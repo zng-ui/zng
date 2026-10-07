@@ -27,14 +27,12 @@
     "rust-analyzer.runnables.command": "cargo do rust_analyzer_run",
     "files.associations": {
         "*'sh": "shellscript",
-        "*'shf": "shellscript",
         "*'copy": "ini",
         "*'glob": "ini",
         "*'l10n": "ini",
         "*.md 'rp": "markdown",
         "*.md'rp": "markdown",
         "*'sfx": "toml",
-        "*'sfxf": "toml",
         "*'tar": "toml",
     },
     "cSpell.words": [

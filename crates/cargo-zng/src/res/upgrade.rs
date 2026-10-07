@@ -29,7 +29,12 @@ pub(crate) fn zr(p: std::path::PathBuf) {
         name.push(' ');
         for tool in tools.rsplit(".zr-") {
             name.push('\'');
-            name.push_str(tool);
+            match tool {
+                "sfxf" => name.push_str("'z'sfx"),
+                "shf" => name.push_str("'z'sh"),
+                "apk" => name.push_str("'z'apk"),
+                tool => name.push_str(tool),
+            }
         }
         let target = p.with_file_name(&name);
         match fs::rename(p, target) {

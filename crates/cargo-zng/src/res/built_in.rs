@@ -35,9 +35,6 @@ pub const ZR_TARGET: &str = "ZR_TARGET";
 /// Env var set to the target file parent dir.
 pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
 
-/// Env var set when it is running a tool that requested `zng-res::on-final=` again.
-pub const ZR_FINAL: &str = "ZR_FINAL";
-
 /// Env var set when it needs the tool print the help text shown in `cargo zng res --tools`.
 pub const ZR_HELP: &str = "ZR_HELP";
 
@@ -176,13 +173,11 @@ macro_rules! built_in {
         ];
     };
 }
-// TODO(breaking) remove shf, sfxf, add some ` 'f'sfx`, a "final tool".
-
 // When adding new tools:
 //
 // * Position in sorted order.
 // * Add a new section for it in cargo-zng/README.md
-built_in! { apk, copy, fail, glob, l10n, rp, sfx, sfxf, sh, shf, tar, warn }
+built_in! { apk, copy, fail, glob, l10n, rp, sfx, sh, tar, warn, z }
 
 pub(crate) use l10n::release_langs;
 pub(crate) use sh::sh_run;

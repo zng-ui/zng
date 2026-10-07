@@ -16,8 +16,6 @@ ZR_REQUEST_DD — Parent dir of the request file.
 ZR_TARGET — Target file implied by the request file name.
 ZR_TARGET_DD — Parent dir of the target file.
 
-ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
-
 In a Cargo workspace the `zng::env::about` metadata is also set:
 
 ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
@@ -37,7 +35,6 @@ Script can make requests to the resource builder by printing to stdout.
 Current supported requests:
 
 zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
-zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
 If the script fails the entire stderr is printed and the resource build fails. Scripts run with
 `set -e` by default.
