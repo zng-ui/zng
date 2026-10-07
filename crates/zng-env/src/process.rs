@@ -592,7 +592,6 @@ fn set_process_name_impl(new_name: Txt, replace: bool) -> bool {
         *name = new_name;
         drop(name);
         // WARNING: format of this message is public API, changing it is a breaking change
-        // TODO(breaking) replace pid with process_path?
         tracing::info!("pid: {}, name: {}", std::process::id(), process_name());
         true
     } else {
