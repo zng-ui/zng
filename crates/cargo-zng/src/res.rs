@@ -51,9 +51,12 @@ pub struct ResArgs {
     #[arg(long, default_value = "target/res.cache")]
     tool_cache: PathBuf,
 
-    /// Number of build passes allowed before final
+    /// Max number of nested tools that can run from a single source tool
     #[arg(long, default_value = "32")]
     recursion_limit: u32,
+    /// Max number of 'z passes
+    #[arg(long, default_value = "32")]
+    z_limit: u32,
 
     /// TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
     ///
@@ -69,6 +72,8 @@ pub struct ResArgs {
     metadata_dump: bool,
 
     /// Rename all "name.zr-tool" files to new syntax "name 'tool"
+    ///
+    /// Rename sfxf and shf to 'z'sfx and 'z'sh
     #[arg(long, value_name = "DIR")]
     upgrade_zr: Option<PathBuf>,
 }
@@ -160,7 +165,7 @@ pub(crate) fn run(mut args: ResArgs) {
 fn build(args: &ResArgs, about: About) -> anyhow::Result<()> {
     let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone(), about)?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
-    tools.run_final(&args.source, &args.target)
+    z_passes(args, &tools)
 }
 
 fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> anyhow::Result<()> {
@@ -179,7 +184,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
             let request = entry.path();
 
             // run tool
-            if let Some((request_wt, tool)) = take_tool(request) {
+            if let Some((request_wt, tool)) = take_tool(request, false) {
                 // run prints request path
                 tools.run(tool, &args.source, &args.target, request, &request_wt)?;
 
@@ -216,7 +221,7 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
             let request = entry.path();
 
             // run tool
-            if let Some((request_wt, tool)) = take_tool(request) {
+            if let Some((request_wt, tool)) = take_tool(request, false) {
                 // run prints request path and removes file if not needed
                 let done = tools.run(tool, &args.source, &args.target, request, &request_wt)?;
                 if done {
@@ -226,6 +231,26 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
         }
     }
     Ok(advanced)
+}
+
+fn z_passes(args: &ResArgs, tools: &Tools) -> anyhow::Result<()> {
+    let mut passes = 0;
+    loop {
+        passes += 1;
+        if passes > args.z_limit {
+            bail!("reached --z-limit of {}", args.z_limit);
+        }
+
+        let pending = tools.pop_z();
+        if pending.is_empty() {
+            break;
+        }
+        for request in pending {
+            let (request_wt, tool) = take_tool(&request, true).unwrap();
+            tools.run(tool, &args.source, &args.target, &request, &request_wt)?;
+        }
+    }
+    Ok(())
 }
 
 fn tools_help(tools: &Path) {
@@ -253,7 +278,10 @@ fn tools_help(tools: &Path) {
 }
 
 fn tool_help(tools: &Path, name: &str) {
-    let name = name.strip_prefix("'").unwrap_or(name);
+    let mut name = name.strip_prefix("'").unwrap_or(name);
+    if name.chars().all(|c| c == 'z') {
+        name = "z";
+    }
     let mut found = false;
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
@@ -302,7 +330,7 @@ fn display_tool_path(p: &Path) -> String {
     r
 }
 
-fn take_tool(p: &Path) -> Option<(PathBuf, &str)> {
+fn take_tool(p: &Path, skip_z: bool) -> Option<(PathBuf, &str)> {
     if let Some(ext) = p.extension()
         && let Some(ext) = ext.to_str()
         && let Some(tool) = ext.strip_prefix("zr-")
@@ -317,7 +345,10 @@ fn take_tool(p: &Path) -> Option<(PathBuf, &str)> {
     {
         let name = file.trim_end(); // "name.txt   'tool"
         let mut tools = tools.split('\'');
-        let tool = tools.next().unwrap().trim();
+        let mut tool = tools.next().unwrap().trim();
+        if skip_z && tool.chars().all(|c| c == 'z') {
+            tool = tools.next()?.trim();
+        }
 
         if let Some(next_tool) = tools.next() {
             let mut name = format!("{name} '{}", next_tool.trim());
@@ -344,7 +375,7 @@ mod tests {
     #[test]
     fn take_legacy_one() {
         let path = PathBuf::from("foo/bar/name.txt.zr-copy");
-        let (file, tool) = take_tool(&path).unwrap();
+        let (file, tool) = take_tool(&path, false).unwrap();
         assert_eq!(tool, "copy");
         assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
     }
@@ -352,11 +383,11 @@ mod tests {
     #[test]
     fn take_legacy_two() {
         let path = PathBuf::from("foo/bar/name.txt.zr-copy.zr-rp");
-        let (file, tool) = take_tool(&path).unwrap();
+        let (file, tool) = take_tool(&path, false).unwrap();
         assert_eq!(tool, "rp");
         assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt.zr-copy");
 
-        let (file, tool) = take_tool(&file).unwrap();
+        let (file, tool) = take_tool(&file, false).unwrap();
         assert_eq!(tool, "copy");
         assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
     }
@@ -364,7 +395,7 @@ mod tests {
     #[test]
     fn take_one() {
         let path = PathBuf::from("foo/bar/name.txt.zr-copy");
-        let (file, tool) = take_tool(&path).unwrap();
+        let (file, tool) = take_tool(&path, false).unwrap();
         assert_eq!(tool, "copy");
         assert_eq!(file.to_str().unwrap(), "foo/bar/name.txt");
     }
@@ -372,11 +403,11 @@ mod tests {
     #[test]
     fn take_two() {
         let path = PathBuf::from("foo/bar/name.txt 'rp'copy");
-        let (file, tool) = take_tool(&path).unwrap();
+        let (file, tool) = take_tool(&path, false).unwrap();
         assert_eq!(tool, "rp");
         assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt 'copy"));
 
-        let (file, tool) = take_tool(&file).unwrap();
+        let (file, tool) = take_tool(&file, false).unwrap();
         assert_eq!(tool, "copy");
         assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt"));
     }
@@ -384,11 +415,11 @@ mod tests {
     #[test]
     fn take_two_space() {
         let path = PathBuf::from("foo/bar/name.txt 'rp 'copy");
-        let (file, tool) = take_tool(&path).unwrap();
+        let (file, tool) = take_tool(&path, false).unwrap();
         assert_eq!(tool, "rp");
         assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt 'copy"));
 
-        let (file, tool) = take_tool(&file).unwrap();
+        let (file, tool) = take_tool(&file, false).unwrap();
         assert_eq!(tool, "copy");
         assert_eq!(file.to_str().unwrap(), Path::new("foo/bar/name.txt"));
     }

@@ -143,7 +143,6 @@ impl Tool {
         request: &Path,
         request_wt: &Path,
         about: &About,
-        final_args: Option<String>,
     ) -> anyhow::Result<ToolOutput> {
         use sha2::Digest;
         let mut hasher = digest_io::IoWrapper(sha2::Sha256::new());
@@ -164,9 +163,6 @@ impl Tool {
         let cache_dir = format!("{:x}", base16ct::HexDisplay(&hasher.0.finalize()));
 
         let mut cmd = self.cmd();
-        if let Some(args) = final_args {
-            cmd.env(ZR_FINAL, args);
-        }
 
         // if the request-without_tool is in `source_dir`, change to `target_dir`
         let target = if let Ok(p) = request_wt.strip_prefix(source_dir) {
@@ -306,8 +302,8 @@ impl Tool {
 pub struct Tools {
     tools: Vec<Tool>,
     cache: PathBuf,
-    on_final: Mutex<Vec<(usize, PathBuf, PathBuf, String)>>,
     about: About,
+    z: Mutex<Vec<(usize, PathBuf)>>,
 }
 impl Tools {
     pub fn capture(local: &Path, cache: PathBuf, about: About) -> anyhow::Result<Self> {
@@ -320,8 +316,8 @@ impl Tools {
         Ok(Self {
             tools,
             cache,
-            on_final: Mutex::new(vec![]),
             about,
+            z: Mutex::default(),
         })
     }
 
@@ -329,47 +325,23 @@ impl Tools {
     ///
     /// `request_wt` is `request` without tool
     pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path, request_wt: &Path) -> anyhow::Result<bool> {
-        println!("{}", display_path(request));
-        for (i, tool) in self.tools.iter().enumerate() {
-            if tool.name == tool_name {
-                let mut fin = self.on_final.lock();
-                if fin.iter().any(|(ti, r, _, _)| *ti == i && r == request) {
-                    // already ran and requested final
-                    return Ok(false);
-                }
-
-                let output = tool.run(&self.cache, source, target, request, request_wt, &self.about, None)?;
-                for warn in output.warnings {
-                    warn!("{warn}")
-                }
-                let done = output.on_final.is_empty();
-                if done {
-                    if request.starts_with(target) {
-                        // cleanup generated request
-                        if let Err(e) = fs::remove_file(request) {
-                            bail!("cannot cleanup request {}, {e}", display_path(target))
-                        }
-                    }
-                } else {
-                    for args in output.on_final {
-                        fin.push((i, request.to_owned(), request_wt.to_owned(), args));
-                    }
-                }
-                if !output.delegate {
-                    return Ok(done);
-                }
+        if tool_name.chars().all(|c| c == 'z') {
+            let mut z = self.z.lock();
+            if !z.iter().any(|(_, p)| p == request) {
+                z.push((tool_name.len(), request.to_owned()));
             }
+            return Ok(false);
         }
-        bail!("no tool `{tool_name}` to handle request")
-    }
 
-    pub fn run_final(self, source: &Path, target: &Path) -> anyhow::Result<()> {
-        let on_final = self.on_final.into_inner();
-        if !on_final.is_empty() {
-            println!("--final--");
-            for (i, request, request_wt, args) in on_final {
-                println!("{}", display_path(&request));
-                let output = self.tools[i].run(&self.cache, source, target, &request, &request_wt, &self.about, Some(args))?;
+        println!("{}", display_path(request));
+
+        if ["sfxf", "shf"].contains(&tool_name) {
+            bail!("tool deprecated, call `cargo zng res --upgrade-zr .` to fix");
+        }
+
+        for tool in self.tools.iter() {
+            if tool.name == tool_name {
+                let output = tool.run(&self.cache, source, target, request, request_wt, &self.about)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
@@ -379,9 +351,25 @@ impl Tools {
                         bail!("cannot cleanup request {}, {e}", display_path(target))
                     }
                 }
+                if !output.delegate {
+                    return Ok(true);
+                }
             }
         }
-        Ok(())
+        bail!("no tool `{tool_name}` to handle request")
+    }
+
+    pub fn pop_z(&self) -> Vec<PathBuf> {
+        let mut z = self.z.lock();
+        let mut r = vec![];
+        if let Some(min) = z.iter().map(|(z, _)| *z).min() {
+            while let Some(i) = z.iter().position(|(z, _)| *z == min) {
+                let request = z.remove(i).1;
+                r.push(request);
+            }
+        }
+
+        r
     }
 }
 
@@ -390,23 +378,18 @@ struct ToolOutput {
     pub delegate: bool,
     // zng-res::warning=
     pub warnings: Vec<String>,
-    // zng-res::on-final=
-    pub on_final: Vec<String>,
 }
 impl From<&str> for ToolOutput {
     fn from(value: &str) -> Self {
         let mut out = Self {
             delegate: false,
             warnings: vec![],
-            on_final: vec![],
         };
         for line in value.lines() {
             if line == "zng-res::delegate" {
                 out.delegate = true;
             } else if let Some(w) = line.strip_prefix("zng-res::warning=") {
                 out.warnings.push(w.to_owned());
-            } else if let Some(a) = line.strip_prefix("zng-res::on-final=") {
-                out.on_final.push(a.to_owned());
             }
         }
         out

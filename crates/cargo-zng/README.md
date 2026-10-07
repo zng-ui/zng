@@ -435,6 +435,8 @@ Options:
       --upgrade-zr <DIR>
           Rename all "name.zr-tool" files to new syntax "name 'tool"
 
+          Rename sfxf and shf to 'z'sfx and 'z'sh
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -458,7 +460,8 @@ The resource build follows these steps:
     - After each tool run the TARGET dir is walked, any nested or new `'tool` is called.
     - This can repeat until there are no tools in TARGET or the `--recursion-limit` is reached.
   - Files are processed in order (natural sort).
-* Run all tools that requested `zng-res::on-final=` from a request that still exists.
+* If the special `'z` tool was used a second pass occurs
+  - These passes repeat for `'zzz...` tools.
 
 ### Tools
 
@@ -481,7 +484,6 @@ Tools are configured using environment variables:
 * `ZR_REQUEST_DD` — Parent dir of the request file.
 * `ZR_TARGET` — Target file implied by the request file name. That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
 * `ZR_TARGET_DD` — Parent dir of the target file.
-* `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
 * `ZR_HELP` — Print help text for `cargo zng res --tools`. If this is set the other vars will not be set.
 * `ZR_VERBOSE` — Print extra output. No value means not verbose, any value indicates verbose, currently `"v"` is used.
 
@@ -507,7 +509,6 @@ Current supported requests:
 
 * `zng-res::delegate` — Continue searching for a tool that can handle this request.
 * `zng-res::warning={message}` — Prints the `{message}` as a warning.
-* `zng-res::on-final={args}` — Subscribe to be called again with `ZR_FINAL={args}` after all tools have run.
 
 If the tool fails the entire stderr is printed and the resource build fails.
 
@@ -548,20 +549,17 @@ $ cargo zng res --tools
 'sfx @ cargo-zng
   Compile a self-extracting executable
 
-'sfxf @ cargo-zng
-  Build a self-extracting executable on the final pass
-
 'sh @ cargo-zng
   Run a bash script
-
-'shf @ cargo-zng
-  Run a bash script on the final pass
 
 'tar @ cargo-zng
   Pack files and dirs into a TAR container with optional compression
 
 'warn @ cargo-zng
   Print a warning message
+
+'z @ cargo-zng
+  Skip an entire pass for each 'z'
 
 call 'cargo zng res --help tool' to read full help from a tool
 ```
@@ -699,7 +697,7 @@ $ cargo zng res --tool glob
 
   !:pattern — negates the entire pattern.
 
-  Matching is case insensitive on all platforms.
+  Matching is case insensitive in all platforms.
 ```
 
 #### `'l10n`
@@ -959,18 +957,6 @@ $ cargo zng res --tool sfx
   to run on a Windows machine with MSVC Toolkit installed. Cross-compilation from other systems will not work.
 ```
 
-#### `'sfxf`
-
-<!--do doc --readme do zng res --tool sfxf -->
-```console
-$ cargo zng res --tool sfxf
-
-'sfxf @ cargo-zng
-  Build a self-extracting executable on the final pass
-
-  Apart from running on final this tool behaves exactly like 'sfx
-```
-
 #### `'sh`
 
 <!--do doc --readme do zng res --tool sh -->
@@ -991,8 +977,6 @@ $ cargo zng res --tool sh
   ZR_TARGET — Target file implied by the request file name.
   ZR_TARGET_DD — Parent dir of the target file.
 
-  ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
-
   In a Cargo workspace the `zng::env::about` metadata is also set:
 
   ZR_APP_ID — package.metadata.zng.about.app_id or "qualifier.org.app" in snake_case
@@ -1012,24 +996,11 @@ $ cargo zng res --tool sh
   Current supported requests:
 
   zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
-  zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
   If the script fails the entire stderr is printed and the resource build fails. Scripts run with
   `set -e` by default.
 
   Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
-```
-
-#### `'shf`
-
-<!--do doc --readme do zng res --tool shf -->
-```console
-$ cargo zng res --tool shf
-
-'shf @ cargo-zng
-  Run a bash script on the final pass
-
-  Apart from running on final this tool behaves exactly like 'sh
 ```
 
 #### `'tar`
@@ -1111,4 +1082,38 @@ $ cargo zng res --tool warn
      | ${ZR_APP}!
 
   Prints a warning with the value of ZR_APP
+```
+
+#### `'z`
+
+<!--do doc --readme do zng res --tool z -->
+```console
+$ cargo zng res --tool z
+
+'z @ cargo-zng
+  Skip an entire pass for each 'z'
+
+  These request files:
+    source/echo 'sh
+     | echo "first pass"
+    source/echo 'z'sh
+     | echo "second pass"
+    source/echo 'zz'sh
+     | echo "third pass"
+    source/other 'rp'warn
+     | other, ${ZR_APP}!
+
+  Will print in this order:
+
+  | first pass
+  | other, Foo
+  | second pass
+  | third pass
+
+  Note that the recursive tool 'rp'warn runs before the second pass too, because
+  recursive tools execute immediately.
+
+  The 'z tool exists to enable packages to stage files for a final tool to aggregate the result
+
+  The 'zz or 'zzz... "tools" are a special syntax, 'zz'tool is the equivalent of 'z'z'tool
 ```

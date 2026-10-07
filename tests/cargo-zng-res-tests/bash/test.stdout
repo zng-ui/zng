@@ -1,13 +1,8 @@
 tests/cargo-zng-res-tests/bash/source/hello.txt 'sh
-[2m[0mtests/cargo-zng-res-tests/bash/source/on-final 'sh
-[2m[0mtests/cargo-zng-res-tests/bash/source/on-final.txt 'shf
 [2m[0mtests/cargo-zng-res-tests/bash/source/recursion.txt 'sh'copy
 [2m[0mtarget/tmp/tests/zng_res/bash/recursion.txt 'copy
 [2m  target/tmp/tests/zng_res/bash/recursion.txt
 [0mtests/cargo-zng-res-tests/bash/source/warning 'warn
-[2m[0m--final--
-tests/cargo-zng-res-tests/bash/source/on-final 'sh
-[2m  on final: 'final args'
-[0mtests/cargo-zng-res-tests/bash/source/on-final.txt 'shf
+[2m[0mtests/cargo-zng-res-tests/bash/source/on-final.txt 'z'sh
 [2m[0m[32m[1mFinished[39m[22m res build in #ms
          #DIR#
