@@ -9,6 +9,8 @@ This release contains minor breaking changes on the API that are trivial to fix.
 * **Breaking** `zng::fs_watcher` API now uses `globset` adding support for braced alternate patterns.
 * **Breaking** All `zng::config` config types are now `#[non_exhaustive]` and use `Txt` strings.
 
+* **Breaking** `zng-l10n-translator-local` now connects to local port 9931 by default.
+
 * Add `L10nTarData::extract` helper.
     - Surface type in `zng::l10n::L10nTarData`.
 
