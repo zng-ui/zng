@@ -5,8 +5,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-zstd = { version = "0.13", default-features = false }
-lzma-rust2 = { version = "0.19", default-features = false, features = ["std"] }
+zstd = { version = "0.14", default-features = false }
+lzma-rust2 = { version = "0.21", default-features = false, features = ["std"] }
 
 # <has-icon>
 [target.'cfg(windows)'.build-dependencies]
