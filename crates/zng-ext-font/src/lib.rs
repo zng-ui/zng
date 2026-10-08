@@ -752,7 +752,7 @@ impl FONTS {
 struct FontInstanceKey(Px, Box<[(skrifa::Tag, i32)]>);
 impl FontInstanceKey {
     /// Returns the key.
-    pub(crate) fn new(size: Px, variations: &[harfrust::Variation]) -> Self {
+    pub(crate) fn new(size: Px, variations: &[harfrust::font::Variation]) -> Self {
         let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
         FontInstanceKey(size, variations_key.into_boxed_slice())
     }
@@ -777,6 +777,7 @@ struct LoadedFontFace {
     stretch: FontStretch,
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
+    harfrust_font: Option<harfrust::Font>,
     m: Mutex<FontFaceMut>,
 }
 bitflags! {
@@ -831,6 +832,7 @@ impl FontFace {
             weight: FontWeight::NORMAL,
             stretch: FontStretch::NORMAL,
             lig_carets: LigatureCaretList::empty(),
+            harfrust_font: None,
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
                 render_ids: vec![],
@@ -872,6 +874,7 @@ impl FontFace {
                         style: other_font.0.style,
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
+                        harfrust_font: other_font.0.harfrust_font.clone(),
                         m: Mutex::new(FontFaceMut {
                             instances: Default::default(),
                             render_ids: Default::default(),
@@ -921,6 +924,8 @@ impl FontFace {
         );
         flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.svg().is_ok());
 
+        let harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
             display_name: custom_font.name.clone(),
@@ -930,6 +935,7 @@ impl FontFace {
             weight: custom_font.weight,
             stretch: custom_font.stretch,
             lig_carets,
+            harfrust_font,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -1018,6 +1024,8 @@ impl FontFace {
 
         let attr = ttf_face.attributes();
 
+        let harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
             family_name,
@@ -1027,6 +1035,7 @@ impl FontFace {
             weight: attr.weight.into(),
             stretch: attr.stretch.into(),
             lig_carets,
+            harfrust_font,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -1072,12 +1081,17 @@ impl FontFace {
         key
     }
 
-    pub(crate) fn raw(&self) -> Option<harfrust::FontRef<'_>> {
+    pub(crate) fn raw(&self) -> Option<read_fonts::FontRef<'_>> {
         if self.is_empty() {
             None
         } else {
-            Some(harfrust::FontRef::from_index(&self.0.data, self.0.face_index).unwrap())
+            Some(read_fonts::FontRef::from_index(&self.0.data, self.0.face_index).unwrap())
         }
+    }
+
+    // !!: TODO rename this
+    pub(crate) fn harfrust_raw(&self) -> Option<&harfrust::Font> {
+        self.0.harfrust_font.as_ref()
     }
 
     /// Reference the font file bytes.
@@ -1229,7 +1243,6 @@ struct LoadedFont {
     render_keys: Mutex<Vec<RenderFont>>,
     small_word_cache: RwLock<HashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
     word_cache: RwLock<HashMap<WordCacheKey<String>, ShapedSegmentData>>,
-    shaper_cache: Option<harfrust::ShaperData>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1263,9 +1276,9 @@ impl Font {
     }
 
     fn new(face: FontFace, size: Px, variations: RFontVariations) -> Self {
-        let (metrics, shaper_cache) = match face.raw() {
-            Some(f) => (FontMetrics::new(&f, size), Some(harfrust::ShaperData::new(&f))),
-            None => (FontMetrics::empty(), None),
+        let metrics = match face.raw() {
+            Some(f) => FontMetrics::new(&f, size),
+            None => FontMetrics::empty(),
         };
 
         Font(Arc::new(LoadedFont {
@@ -1276,7 +1289,6 @@ impl Font {
             render_keys: Mutex::new(vec![]),
             small_word_cache: RwLock::default(),
             word_cache: RwLock::default(),
-            shaper_cache,
         }))
     }
 
@@ -2863,6 +2875,17 @@ impl FontBytes {
             FontBytesImpl::Static(b) => WeakFontBytes::Static(b),
             FontBytesImpl::System(arc) => WeakFontBytes::Mmap(Arc::downgrade(arc)),
         }
+    }
+
+    pub(crate) fn as_harfrust_font(&self) -> read_fonts::model::Source {
+        use read_fonts::model::Blob;
+        match &self.0 {
+            FontBytesImpl::Ipc(b) => Blob::Shared(b.clone().into()),
+            FontBytesImpl::Arc(b) => Blob::Shared(b.clone()),
+            FontBytesImpl::Static(b) => Blob::Static(b),
+            FontBytesImpl::System(b) => Blob::Shared(b.mmap.clone().into()),
+        }
+        .into()
     }
 }
 impl std::ops::Deref for FontBytes {

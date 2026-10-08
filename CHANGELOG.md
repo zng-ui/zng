@@ -15,6 +15,9 @@ This release contains minor breaking changes on the API that are trivial to fix.
 * `L10N.load_tar` now supports data in `.tar.zst` format.
 * `zng_tp_licenses` now uses `zstd` for compression.
 
+* Implement `From<IpcBytes> for Arc<dyn std::convert::AsRef<[u8]> + Send + Sync>` that casts the inner reference.
+    - This helps integration with new `harfrust` crate.
+
 ### CLI
 
 This release contains breaking changes to the `cargo zng res` packaging command.

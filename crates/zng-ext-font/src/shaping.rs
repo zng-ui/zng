@@ -2828,7 +2828,7 @@ impl ShapedTextBuilder {
                     self.push_glyph_raster(glyphs_i as _, img);
                 } else if cfg!(feature = "svg")
                     && let Ok(img) = ttf.svg()
-                    && let Ok(Some(img)) = img.glyph_data(id)
+                    && let Some(img) = img.glyph_data(id)
                 {
                     self.push_glyph_svg(glyphs_i as _, img);
                 }
@@ -4307,16 +4307,16 @@ struct ShapedGlyph {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfrust::UnicodeBuffer {
-        let mut buffer = harfrust::UnicodeBuffer::new();
+    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfrust::Buffer {
+        let mut buffer = harfrust::Buffer::new();
         buffer.set_direction(key.harfbuzz_direction());
-        buffer.set_cluster_level(harfrust::BufferClusterLevel::MonotoneCharacters);
+        buffer.set_cluster_level(harfrust::ClusterLevel::MonotoneCharacters);
 
         if let Some(lang) = key.harfbuzz_lang() {
-            buffer.set_language(lang);
+            buffer.set_language(Some(lang));
         }
         if let Some(script) = key.harfbuzz_script() {
-            buffer.set_script(script);
+            buffer.set_script(Some(script));
         }
 
         buffer.push_str(segment);
@@ -4324,13 +4324,20 @@ impl Font {
     }
 
     fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[harfrust::Feature]) -> ShapedSegmentData {
-        let buffer = if let Some(font) = self.face().raw()
-            && let Some(shaper_data) = &self.0.shaper_cache
-        {
-            let buffer = self.buffer_segment(seg, key);
-            let shaper_builder = shaper_data.shaper(&font);
-            let shaper = shaper_builder.build();
-            shaper.shape(buffer, harfrust::ShapeOptions::new().features(features))
+        let buffer = if let Some(font) = self.face().harfrust_raw() {
+            let mut buffer = self.buffer_segment(seg, key);
+            let shaper = harfrust::ShaperFont::new(font);
+            match harfrust::shape(&shaper, &mut buffer, harfrust::ShapeOptions::new().features(features)) {
+                Ok(()) => buffer,
+                Err(e) => {
+                    tracing::error!("shaper error, {e}");
+                    return ShapedSegmentData {
+                        glyphs: vec![],
+                        x_advance: 0.0,
+                        y_advance: 0.0,
+                    };
+                }
+            }
         } else {
             return ShapedSegmentData {
                 glyphs: vec![],

@@ -1813,7 +1813,7 @@ impl FontVariations {
     pub fn finalize(&self) -> RFontVariations {
         self.0
             .iter()
-            .map(|(name, value)| harfrust::Variation {
+            .map(|(name, value)| harfrust::font::Variation {
                 tag: (*name).into(),
                 value: *value,
             })
@@ -1870,6 +1870,4 @@ pub use font_variations;
 use zng_var::impl_from_and_into_var;
 
 /// Finalized [`FontVariations`].
-///
-/// This is a vec of [harfbuzz variations](https://docs.rs/rustybuzz/0.17.0/rustybuzz/struct.Variation.html).
-pub type RFontVariations = Vec<harfrust::Variation>;
+pub type RFontVariations = Vec<harfrust::font::Variation>;

@@ -689,3 +689,21 @@ impl IpcBytes {
         }
     }
 }
+
+/// Cast inner reference to dynamic.
+impl From<IpcBytes> for Arc<dyn std::convert::AsRef<[u8]> + Send + Sync> {
+    fn from(b: IpcBytes) -> Self {
+        b.0
+    }
+}
+impl std::convert::AsRef<[u8]> for IpcBytesData {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            IpcBytesData::Heap(i) => i,
+            #[cfg(ipc)]
+            IpcBytesData::AnonMemMap(m) => m,
+            #[cfg(ipc)]
+            IpcBytesData::MemMap(f) => f,
+        }
+    }
+}
