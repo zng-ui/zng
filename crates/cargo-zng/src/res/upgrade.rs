@@ -30,9 +30,9 @@ pub(crate) fn zr(p: std::path::PathBuf) {
         for tool in tools.rsplit(".zr-") {
             name.push('\'');
             match tool {
-                "sfxf" => name.push_str("'z'sfx"),
-                "shf" => name.push_str("'z'sh"),
-                "apk" => name.push_str("'z'apk"),
+                "sfxf" => name.push_str("z'sfx"),
+                "shf" => name.push_str("z'sh"),
+                "apk" => name.push_str("z'apk"),
                 tool => name.push_str(tool),
             }
         }
