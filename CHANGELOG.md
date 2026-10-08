@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## Unreleased
 
 This release contains minor breaking changes on the API that are trivial to fix.
 
