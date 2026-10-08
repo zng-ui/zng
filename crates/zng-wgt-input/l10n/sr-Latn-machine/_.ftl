@@ -15,4 +15,4 @@ SAVE_CMD =
     .name = Sačuvaj
 
 SETTINGS_CMD =
-    .name = Postavke
+    .name = Podešavanja

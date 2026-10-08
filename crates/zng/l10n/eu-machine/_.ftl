@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <bat ere ez>
-    .name = Lizentzia-daturik ez
-    .user-name = <bat ere ez>
+    .id = <none>
+    .name = Baimenakiko datoz gainera ez dago
+    .user-name = <none>
 
 search =
-    .placeholder = bilatu lizentziak ({$shortcut})
+    .placeholder = bilatu baimenakiko ({$shortcut})
 
 window =
-    .title = {$app} - Hirugarrenen lizentziak
+    .title = {$app} - Baimenakiko Alde Batak

@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopēt
 
 CUT_CMD =
-    .name = Izgriezt
+    .name = Izgāzt
 
 PASTE_CMD =
-    .name = Ielīmēt
+    .name = Uzvietot

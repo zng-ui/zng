@@ -6,13 +6,13 @@ action-run =
     .info = Kör {$app}
 
 message =
-    .install = Guiden har installerat {$app} {$version} på din dator.
-    .repair = Guiden har reparerat installationen av {$app} {$version} på din dator.
-    .uninstall = Guiden har avinstallerat {$app} {$version} från din dator.
-    .update = Guiden har uppdaterat {$app} från {$current_version} till {$new_version} på din dator.
+    .install = Assistanten har installerat {$app} {$version} på din dator.
+    .repair = Assistanten har reparerat installationen av {$app} {$version} på din dator.
+    .uninstall = Assistanten har avinstallerat {$app} {$version} från din dator.
+    .update = Assistanten har uppdaterat {$app} från {$current_version} till {$new_version} på din dator.
 
 title =
-    .install = {$app} installerat
-    .repair = {$app} reparerat
-    .uninstall = {$app} avinstallerat
-    .update = {$app} uppdaterat
+    .install = {$app} Installerad
+    .repair = {$app} Reparerad
+    .uninstall = {$app} Avinstallerad
+    .update = {$app} Uppdaterad

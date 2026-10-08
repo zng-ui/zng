@@ -6,13 +6,13 @@ action-run =
     .info = 執行 {$app}
 
 message =
-    .install = 精靈已在您的電腦上安裝 {$app} {$version}。
-    .repair = 精靈已修復您電腦上的 {$app} {$version} 安裝。
-    .uninstall = 精靈已從您的電腦中解除安裝 {$app} {$version}。
-    .update = 精靈已將您電腦上的 {$app} 從 {$current_version} 更新至 {$new_version}。
+    .install = 安裝程序已在您的電腦上安裝 {$app} {$version}。
+    .repair = 安裝程序已修復您電腦上的 {$app} {$version} 安裝。
+    .uninstall = 安裝程序已從您的電腦卸載 {$app} {$version}。
+    .update = 安裝程序已將您電腦上的 {$app} 從 {$current_version} 更新到 {$new_version}。
 
 title =
     .install = {$app} 已安裝
     .repair = {$app} 已修復
-    .uninstall = {$app} 已解除安裝
+    .uninstall = {$app} 已卸載
     .update = {$app} 已更新

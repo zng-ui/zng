@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <無>
-    .name = 無授權條款資訊
-    .user-name = <無>
+    .id = <none>
+    .name = 無授權資料
+    .user-name = <none>
 
 search =
-    .placeholder = 搜尋授權條款 ({$shortcut})
+    .placeholder = 搜尋授權 ({$shortcut})
 
 window =
-    .title = {$app} - 第三方授權條款
+    .title = {$app} - 第三方許可證

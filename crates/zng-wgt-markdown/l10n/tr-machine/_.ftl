@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = Yolu Kopyala
-    .copy-url = URL'yi Kopyala
+    .copy-url = URL Kopyala
     .open-url = Tarayıcıda Aç
     .reveal-path = Dosya Yöneticisinde Göster
     .reveal-path-macos = Finder'da Göster
-    .reveal-path-windows = Dosya Gezgini'nde Göster
+    .reveal-path-windows = Dosya Gezgincisinde Göster

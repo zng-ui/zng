@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <कोई नहीं>
+    .id = <none>
     .name = कोई लाइसेंस डेटा नहीं
-    .user-name = <कोई नहीं>
+    .user-name = <none>
 
 search =
     .placeholder = लाइसेंस खोजें ({$shortcut})
 
 window =
-    .title = {$app} - तृतीय-पक्ष लाइसेंस
+    .title = {$app} - तीसरे पक्ष के लाइसेंस

@@ -9,4 +9,4 @@ REDO_CMD =
     .name = Tee uudelleen
 
 UNDO_CMD =
-    .name = Kumoa
+    .name = Peruuta

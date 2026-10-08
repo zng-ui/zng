@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Rakendus jooksis kokku
+    .title = {$app} - App krasšis
 
 ## Panels
 
 # save-copy-starting-name:
-#     default file name
+#     default fail nimi
 minidump =
-    .open-error = Minidump-faili avamine ebaõnnestus.
+    .open-error = Otsimisel minidump ei lugenud.
         {$error}
-    .remove-error = Minidump-faili eemaldamine ebaõnnestus.
+    .remove-error = Minidumpi kustutamine ebaõnnestus.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Salvesta koopia
-    .save-error = Minidump-faili koopia salvestamine ebaõnnestus.
+    .save-copy-title = Salvesta Kopia
+    .save-error = Minidumpi kopia salvestamine ebaõnnestus.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Paanika (Panic)
+    .title = Panksiir
 
 stderr =
     .title = Stderr
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Ajatempel: {$timestamp}
-        Väljumiskood: {$exit_code}
+    .text = Ajastamp: {$timestamp}
+        Eksituskood: {$exit_code}
         Signaal: {$signal}
         Stderr: {$stderr_len} baiti
         Stdout: {$stdout_len} baiti
-        Paanika: {$is_panic}
+        Panksiir: {$is_panic}
         Minidump: {$minidump_path}
         
-        Argumendid: {$args}
-        Operatsioonisüsteem: {$os}
+        Arskud: {$args}
+        OS: {$os}
     .title = Kokkuvõte
 
 widget =
-    .title = Vidin (Widget)
+    .title = Widget

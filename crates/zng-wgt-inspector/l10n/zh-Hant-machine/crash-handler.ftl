@@ -12,38 +12,38 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = 無法開啟 Minidump。
+    .open-error = 無法開啟 minidump。
         {$error}
-    .remove-error = 無法移除 Minidump。
+    .remove-error = 無法移除 minidump。
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = 儲存副本
-    .save-error = 無法儲存 Minidump 副本。
+    .save-error = 無法儲存 minidump 副本。
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panic (恐慌)
+    .title = 崩潰
 
 stderr =
-    .title = Stderr (標準錯誤)
+    .title = Stderr
 
 stdout =
-    .title = Stdout (標準輸出)
+    .title = Stdout
 
 summary =
-    .text = 時間戳記：{$timestamp}
-        結束代碼：{$exit_code}
-        訊號：{$signal}
-        Stderr：{$stderr_len} 位元組
-        Stdout：{$stdout_len} 位元組
-        Panic：{$is_panic}
-        Minidump：{$minidump_path}
+    .text = 時間戳: {$timestamp}
+        退出碼: {$exit_code}
+        訊號: {$signal}
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
+        崩潰: {$is_panic}
+        Minidump: {$minidump_path}
         
-        參數：{$args}
-        作業系統：{$os}
+        參數: {$args}
+        作業系統: {$os}
     .title = 摘要
 
 widget =
-    .title = Widget (組件)
+    .title = 小工具

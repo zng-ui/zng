@@ -6,4 +6,4 @@ BEGIN_CMD =
     .name-install = インストール
     .name-repair = 修復
     .name-uninstall = アンインストール
-    .name-update = 更新
+    .name-update = アップデート

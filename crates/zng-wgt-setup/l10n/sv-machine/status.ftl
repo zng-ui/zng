@@ -5,16 +5,16 @@
 default-info =
     .create-shortcut = Skapa genväg
     .extract-files = Extrahera filer
-    .register-uninstaller = Registrera avinstallerare
+    .register-uninstaller = Registrera avinstallatör
     .remove-files = Ta bort filer
     .remove-shortcut = Ta bort genväg
-    .unregister-uninstaller = Avregistrera avinstallerare
+    .unregister-uninstaller = Avregistrera avinstallatör
 
 info =
-    .install = Vänligen vänta medan {$app} installeras på din dator.
-    .repair = Vänligen vänta medan {$app} repareras på din dator.
-    .uninstall = Vänligen vänta medan {$app} avinstalleras från din dator.
-    .update = Vänligen vänta medan {$app} uppdateras på din dator.
+    .install = Vänta medan {$app} installeras på din dator.
+    .repair = Vänta medan {$app} repareras på din dator.
+    .uninstall = Vänta medan {$app} avinstalleras från din dator.
+    .update = Vänta medan {$app} uppdateras på din dator.
 
 title =
     .install = Installerar

@@ -23,27 +23,27 @@ ArrowRight = →
 ArrowUp = ↑
 
 Backspace = ←Backspace
-    .macos = Elimina
+    .macos = Delete
 
 Close = Chiudi
 
-ContextMenu = ≣Menu contestuale
+ContextMenu = ≣Menu Contestuale
 
 Copy = Copia
 
 Cut = Taglia
 
 Delete = Elimina
-    .macos = Cancella in avanti
+    .macos = Forward Delete
 
 Eject = ⏏Espelli
 
 Enter = ↵Invio
-    .macos = ↵A capo
+    .macos = ↵Return
 
-Escape = Esc
+Escape = Esci
 
-Find = Trova
+Find = Cerca
 
 Help = ?Aiuto
 
@@ -51,17 +51,17 @@ New = Nuovo
 
 Open = Apri
 
-PageDown = PagGiu
+PageDown = PgDn
 
-PageUp = PagSu
+PageUp = PgUp
 
 Paste = Incolla
 
 Print = Stampa
 
-PrintScreen = Stamp
+PrintScreen = PrtSc
 
-Redo = Ripeti
+Redo = Riprova
 
 Save = Salva
 
@@ -69,6 +69,6 @@ Tab = ⭾Tab
 
 Undo = Annulla
 
-ZoomIn = +Ingrandisci
+ZoomIn = +Zoom In
 
-ZoomOut = -Riduci
+ZoomOut = -Zoom Out

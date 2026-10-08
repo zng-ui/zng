@@ -2,11 +2,11 @@
 
 ### Generat automat de `cargo zng l10n`
 
-### Numele tastelor modificatoare
+### Numele cheilor de modificare
 ### 
-### * ID-ul este numele variantei `ModifierGesture`. [1]
-### * Trebuie furnizat un text generic pentru SO, textul specific pentru un SO poate fi setat ca atribut.
-### * Atributul SO este o valoare `std::env::consts::OS`. [2]
+### * ID-ul este numele variantului `ModifierGesture`. [1]
+### * Trebuie furnizat un text generic de sistem de operare, textul specific OS poate fi setat ca atribut.
+### * Atributul OS este o valoare `std::env::consts::OS`. [2]
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/gesture/enum.ModifierGesture.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html

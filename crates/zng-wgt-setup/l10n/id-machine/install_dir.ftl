@@ -4,10 +4,10 @@
 
 info =
     .install = Di mana {$app} harus diinstal?
-    .update-repair-uninstall = Tempat {$app} diinstal.
+    .update-repair-uninstall = Di mana {$app} terinstal.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Diperlukan setidaknya {$bytes} ruang disk kosong.
+min-required-space = Minimal dibutuhkan {$bytes} ruang disk kosong.
 
 reset-label = Lokasi Default
 

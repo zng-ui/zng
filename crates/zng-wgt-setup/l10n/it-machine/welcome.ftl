@@ -6,10 +6,10 @@ message =
     .install = Questo installerà {$app} {$version} sul tuo computer.
     .repair = Questo riparerà l'installazione di {$app} {$version} sul tuo computer.
     .uninstall = Questo disinstallerà {$app} {$version} dal tuo computer.
-    .update = Questo aggiornerà {$app} dalla versione {$current_version} alla {$new_version} sul tuo computer.
+    .update = Questo aggiornerà {$app} da {$current_version} a {$new_version} sul tuo computer.
 
 title =
-    .install = Benvenuto nell'Installazione guidata di {$app}
-    .repair = Benvenuto nella procedura guidata di ripristino di {$app}
-    .uninstall = Benvenuto nella procedura guidata di disinstallazione di {$app}
-    .update = Benvenuto nell'Aggiornamento guidato di {$app}
+    .install = Benvenuto nel Wizard di installazione di {$app}
+    .repair = Benvenuto nel Wizard di riparazione di {$app}
+    .uninstall = Benvenuto nel Wizard di disinstallazione di {$app}
+    .update = Benvenuto nel Wizard di aggiornamento di {$app}

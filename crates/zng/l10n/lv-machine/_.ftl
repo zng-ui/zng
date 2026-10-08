@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <nav>
-    .name = Nav licences datu
-    .user-name = <nav>
+    .id = <none>
+    .name = Nav licenču datu
+    .user-name = <none>
 
 search =
-    .placeholder = meklēt licences ({$shortcut})
+    .placeholder = meklējiet licences ({$shortcut})
 
 window =
     .title = {$app} - Trešo pušu licences

@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Installeren
-    .name-repair = Herstellen
-    .name-uninstall = Verwijderen
-    .name-update = Bijwerken
+    .name-repair = Repareren
+    .name-uninstall = Deinstalleren
+    .name-update = Updaten

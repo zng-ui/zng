@@ -19,9 +19,9 @@ MAXIMIZE_CMD =
     .name = Maximiser
 
 MINIMIZE_CMD =
-    .info = Réduire la fenêtre
-    .name = Réduire
+    .info = Minimiser la fenêtre
+    .name = Minimiser
 
 RESTORE_CMD =
-    .info = Restaurer la fenêtre à son état précédent non réduit ou à son état normal
+    .info = Restaure la fenêtre à son état non minimisé précédent ou à son état normal
     .name = Restaurer

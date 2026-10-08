@@ -4,16 +4,16 @@
 
 default-info =
     .create-shortcut = 建立捷徑
-    .extract-files = 解壓縮檔案
+    .extract-files = 提取檔案
     .register-uninstaller = 註冊解除安裝程式
     .remove-files = 移除檔案
     .remove-shortcut = 移除捷徑
-    .unregister-uninstaller = 取消註冊解除安裝程式
+    .unregister-uninstaller = 解除註冊解除安裝程式
 
 info =
     .install = 請稍候，正在您的電腦上安裝 {$app}。
     .repair = 請稍候，正在您的電腦上修復 {$app}。
-    .uninstall = 請稍候，正在從您的電腦上解除安裝 {$app}。
+    .uninstall = 請稍候，正在您的電腦上從電腦中解除安裝 {$app}。
     .update = 請稍候，正在您的電腦上更新 {$app}。
 
 title =

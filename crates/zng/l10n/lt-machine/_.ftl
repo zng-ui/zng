@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <nėra>
-    .name = Nėra licencijos duomenų
-    .user-name = <nėra>
+    .id = <none>
+    .name = Jokie licencijos duomenys
+    .user-name = <none>
 
 search =
-    .placeholder = ieškoti licencijų ({$shortcut})
+    .placeholder = Ieškoti licencijų ({$shortcut})
 
 window =
-    .title = {$app} – Trečiųjų šalių licencijos
+    .title = {$app} - Trečiosios šalies licencijos

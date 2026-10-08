@@ -9,10 +9,10 @@ OPEN_CMD =
     .name = Otvori…
 
 SAVE_AS_CMD =
-    .name = Spremi kao…
+    .name = Sačuvaj kao…
 
 SAVE_CMD =
-    .name = Spremi
+    .name = Sačuvaj
 
 SETTINGS_CMD =
     .name = Postavke

@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Vali kõik
 
 text-edit-op =
-    .clear = tühjenda
-    .generic = teksti muutmine
-    .replace = asenda
-    .transform = teisenda
+    .clear = puhasta
+    .generic = tekstredigeerimine
+    .replace = asendage
+    .transform = transformeerimine

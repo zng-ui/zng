@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Pregledaj prozor
-    .name = Inspektor za otklanjanje grešaka
+    .name = Debug Inspector
 
 ## Inspector Window (always en-US)
 
-info-help = informacije o posmatranom vidžetu
+info-help = Informacije o pratioćem vidžetu
 
-intrinsic-help = intrinzični čvor
+intrinsic-help = Intrinsični čvor
 
-nest-group-help = grupa ugnježđivanja
+nest-group-help = Grupa ugnježdenih elemenata
 
 screenshot =
-    .copy-error = Greška pri kopiranju snimka ekrana. {$error}
-    .error-dlg-title = Greška pri snimanju ekrana
-    .save-dlg-filter = Slike
+    .copy-error = Greška pri kopiranju snimka. {$error}
+    .error-dlg-title = Greška pri snimku
+    .save-dlg-filter = Datoteke slika
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Sačuvaj snimak ekrana
-    .save-error = Greška pri čuvanju snimka ekrana. {$error}
+    .save-error = Greška pri snimanju. {$error}
 
-select-widget = izaberite vidžet za pregled
+select-widget = Izaberite vidžet za pregled
 
 window =
-    .title = {$inspected_window_title} - Inspektor
+    .title = {$inspected_window_title} - Inspector

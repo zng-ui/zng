@@ -7,10 +7,10 @@ accept =
     .true = Souhlasím s dohodou
 
 info =
-    .install = Před instalací {$app} si prosím přečtěte licenční podmínky
-    .update = Před aktualizací {$app} si prosím přečtěte licenční podmínky
+    .install = Před instalací prosím o prostudování podmínek licence pro {$app}
+    .update = Před aktualizací prosím o prostudování podmínek licence pro {$app}
 
-message = Před pokračováním musíte souhlasit s podmínkami této dohody.
-    .requires_scroll = Před pokračováním musíte přečíst a odsouhlasit podmínky této dohody.
+message = Musíte přijmout podmínky této dohody, abyste mohli pokračovat.
+    .requires_scroll = Musíte přečíst a přijmout podmínky této dohody, abyste mohli pokračovat.
 
-title = Licenční dohoda
+title = Dohoda o licenčním užití

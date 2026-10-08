@@ -9,4 +9,4 @@ text-edit-op =
     .clear = נקה
     .generic = עריכת טקסט
     .replace = החלף
-    .transform = שנה תצורה
+    .transform = המר

@@ -10,7 +10,7 @@ info =
     .install = Si us plau, reviseu els termes de la llicència abans d'instal·lar {$app}
     .update = Si us plau, reviseu els termes de la llicència abans d'actualitzar {$app}
 
-message = Heu d'acceptar els termes d'aquest acord abans de continuar.
-    .requires_scroll = Heu de llegir i acceptar els termes d'aquest acord abans de continuar.
+message = Ha deu acceptar els termes d'aquest acord abans de continuar.
+    .requires_scroll = Ha deu llegir i acceptar els termes d'aquest acord abans de continuar.
 
 title = Acord de llicència

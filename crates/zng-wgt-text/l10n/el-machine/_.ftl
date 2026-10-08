@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Επιλογή όλων
 
 text-edit-op =
-    .clear = απαλοιφή
+    .clear = Εκκαθάριση
     .generic = επεξεργασία κειμένου
     .replace = αντικατάσταση
     .transform = μετασχηματισμός

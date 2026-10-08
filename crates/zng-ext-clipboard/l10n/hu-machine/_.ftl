@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Másolás
 
 CUT_CMD =
-    .name = Kivágás
+    .name = Vágás
 
 PASTE_CMD =
     .name = Beillesztés

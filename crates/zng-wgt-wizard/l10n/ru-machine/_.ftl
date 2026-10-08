@@ -6,13 +6,13 @@ BACK_CMD =
     .name = Назад
 
 BEGIN_CMD =
-    .name = Начало
+    .name = Начать
 
 CANCEL_CMD =
     .name = Отмена
 
 FINISH_CMD =
-    .name = Готово
+    .name = Закончить
 
 NEXT_CMD =
     .name = Далее

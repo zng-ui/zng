@@ -8,6 +8,6 @@ response-close = 閉じる
 
 response-no = いいえ
 
-response-ok = OK
+response-ok = はい
 
 response-yes = はい

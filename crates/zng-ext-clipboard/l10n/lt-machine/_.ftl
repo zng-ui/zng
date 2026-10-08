@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopijuoti
 
 CUT_CMD =
-    .name = Iškirpti
+    .name = Pjaustyti
 
 PASTE_CMD =
-    .name = Įklijuoti
+    .name = Įdėti

@@ -9,4 +9,4 @@ REDO_CMD =
     .name = Wiederholen
 
 UNDO_CMD =
-    .name = Rückgängig
+    .name = Rückgängig machen

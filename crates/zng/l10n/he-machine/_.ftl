@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <ללא>
-    .name = אין מידע על רישיון
-    .user-name = <ללא>
+    .id = <none>
+    .name = אין נתוני רישיון
+    .user-name = <none>
 
 search =
-    .placeholder = חיפוש רישיונות ({$shortcut})
+    .placeholder = חפש רישיונות ({$shortcut})
 
 window =
     .title = {$app} - רישיונות צד שלישי

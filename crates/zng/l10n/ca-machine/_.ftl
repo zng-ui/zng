@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <cap>
-    .name = Sense dades de llicència
-    .user-name = <cap>
+    .id = <none>
+    .name = Cap dades de llicència
+    .user-name = <none>
 
 search =
-    .placeholder = cerca llicències ({$shortcut})
+    .placeholder = cercar llicències ({$shortcut})
 
 window =
     .title = {$app} - Llicències de tercers

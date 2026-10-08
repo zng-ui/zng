@@ -8,11 +8,11 @@ CLOSE_CMD =
 
 EXCLUSIVE_FULLSCREEN_CMD =
     .info = Alternar el modo de pantalla completa exclusiva en la ventana
-    .name = Pantalla completa exclusiva
+    .name = Pantalla Completa Exclusiva
 
 FULLSCREEN_CMD =
     .info = Alternar el modo de pantalla completa en la ventana
-    .name = Pantalla completa
+    .name = Pantalla Completa
 
 MAXIMIZE_CMD =
     .info = Maximizar la ventana
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimizar
 
 RESTORE_CMD =
-    .info = Restaura la ventana a su estado anterior, no minimizado o normal
+    .info = Restaura la ventana a su estado anterior no minimizado o estado normal
     .name = Restaurar

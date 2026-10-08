@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Aplikácia spadla
+    .title = {$app} - Aplikacija se je poškodila
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Zlyhalo otvorenie minidumpu.
+    .open-error = Neuspešno odpreti minidump.
         {$error}
-    .remove-error = Zlyhalo odstránenie minidumpu.
+    .remove-error = Neuspešno odstraniti minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Uložiť kópiu
-    .save-error = Zlyhalo uloženie kópie minidumpu.
+    .save-copy-title = Shrani kopijo
+    .save-error = Neuspešno shraniti kopijo minidumpa.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panic
+    .title = Panika
 
 stderr =
     .title = Stderr
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Časová značka: {$timestamp}
-        Výstupný kód: {$exit_code}
-        Signál: {$signal}
+    .text = Časovni žig: {$timestamp}
+        Kod izhoda: {$exit_code}
+        Signal: {$signal}
         Stderr: {$stderr_len} bajtov
         Stdout: {$stdout_len} bajtov
-        Panic: {$is_panic}
+        Panika: {$is_panic}
         Minidump: {$minidump_path}
         
-        Argumenty: {$args}
+        Argumenti: {$args}
         OS: {$os}
-    .title = Zhrnutie
+    .title = Povzetek
 
 widget =
     .title = Widget

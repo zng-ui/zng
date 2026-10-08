@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = 關閉
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = 切換視窗獨佔全螢幕模式
+    .info = 切換視窗的獨佔全螢幕模式
     .name = 獨佔全螢幕
 
 FULLSCREEN_CMD =
-    .info = 切換視窗全螢幕模式
+    .info = 切換視窗的全螢幕模式
     .name = 全螢幕
 
 MAXIMIZE_CMD =
-    .info = 將視窗最大化
+    .info = 最大化視窗
     .name = 最大化
 
 MINIMIZE_CMD =
-    .info = 將視窗最小化
+    .info = 最小化視窗
     .name = 最小化
 
 RESTORE_CMD =
-    .info = 將視窗還原至之前的非最小化狀態或正常狀態
-    .name = 還原
+    .info = 將視窗恢復到其先前非最小化狀態或正常狀態
+    .name = 恢復

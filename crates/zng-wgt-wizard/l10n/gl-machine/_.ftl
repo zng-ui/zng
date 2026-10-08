@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = Cancelar
 
 FINISH_CMD =
-    .name = Rematar
+    .name = Terminar
 
 NEXT_CMD =
-    .name = Seguinte
+    .name = Próximo

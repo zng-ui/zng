@@ -7,9 +7,9 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <няма>
-    .name = Няма данни за лиценз
-    .user-name = <няма>
+    .id = <none>
+    .name = Няма данни за лиценза
+    .user-name = <none>
 
 search =
     .placeholder = търсене на лицензи ({$shortcut})

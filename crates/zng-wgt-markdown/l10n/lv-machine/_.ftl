@@ -5,7 +5,7 @@
 try_open_link =
     .copy-path = Kopēt ceļu
     .copy-url = Kopēt URL
-    .open-url = Atvērt pārlūkprogrammā
-    .reveal-path = Rādīt failu pārvaldniekā
-    .reveal-path-macos = Rādīt programmā Finder
-    .reveal-path-windows = Rādīt failu pārlūkā
+    .open-url = Atvērt pārlūku
+    .reveal-path = Parādīt failu pārvaldniekā
+    .reveal-path-macos = Parādīt Finderā
+    .reveal-path-windows = Parādīt failu izpētītājā

@@ -5,16 +5,16 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Sovellus kaatui
+    .title = {$app} - Sovellus kaatui
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Minidumpin avaaminen epäonnistui.
+    .open-error = Minidumpia ei voitu avata.
         {$error}
-    .remove-error = Minidumpin poistaminen epäonnistui.
+    .remove-error = Minidumpia ei voitu poistaa.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
@@ -24,7 +24,7 @@ minidump =
     .title = Minidump
 
 panic =
-    .title = Virhetilanne (Panic)
+    .title = Paniikki
 
 stderr =
     .title = Stderr
@@ -38,7 +38,7 @@ summary =
         Signaali: {$signal}
         Stderr: {$stderr_len} tavua
         Stdout: {$stdout_len} tavua
-        Virhetilanne: {$is_panic}
+        Paniikki: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumentit: {$args}

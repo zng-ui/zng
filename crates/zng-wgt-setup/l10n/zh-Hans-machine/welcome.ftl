@@ -4,9 +4,9 @@
 
 message =
     .install = 这将在您的计算机上安装 {$app} {$version}。
-    .repair = 这将修复您计算机上 {$app} {$version} 的安装。
+    .repair = 这将在您的计算机上修复 {$app} {$version} 的安装。
     .uninstall = 这将从您的计算机上卸载 {$app} {$version}。
-    .update = 这会将您计算机上的 {$app} 从 {$current_version} 更新至 {$new_version}。
+    .update = 这将在您的计算机上将 {$app} 从 {$current_version} 更新到 {$new_version}。
 
 title =
     .install = 欢迎使用 {$app} 安装向导

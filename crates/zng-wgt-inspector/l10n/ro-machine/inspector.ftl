@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Inspectează fereastra
-    .name = Inspector Debug
+    .name = Inspector de Debug
 
 ## Inspector Window (always en-US)
 
-info-help = informații despre widget-ul monitorizat
+info-help = informații despre widgetul monitorizat
 
 intrinsic-help = nod intrinsec
 
-nest-group-help = grup imbricat
+nest-group-help = grup încheiat
 
 screenshot =
-    .copy-error = Eroare la copierea capturii de ecran. {$error}
-    .error-dlg-title = Eroare captură de ecran
+    .copy-error = Eroare la copiere a capturii de ecran. {$error}
+    .error-dlg-title = Eroare la Captură de Ecran
     .save-dlg-filter = Fișiere imagine
-    .save-dlg-starting-name = captura-ecran.png
-    .save-dlg-title = Salvează captura de ecran
+    .save-dlg-starting-name = screenshot.png
+    .save-dlg-title = Salvează Captura de Ecran
     .save-error = Eroare la salvarea capturii de ecran. {$error}
 
-select-widget = selectați un widget pentru a-l inspecta
+select-widget = selectează un widget pentru inspecție
 
 window =
     .title = {$inspected_window_title} - Inspector

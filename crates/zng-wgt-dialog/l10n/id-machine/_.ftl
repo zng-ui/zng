@@ -8,6 +8,6 @@ response-close = Tutup
 
 response-no = Tidak
 
-response-ok = Oke
+response-ok = OK
 
 response-yes = Ya

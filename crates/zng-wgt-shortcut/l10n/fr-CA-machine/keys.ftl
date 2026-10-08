@@ -22,7 +22,7 @@ ArrowRight = →
 
 ArrowUp = ↑
 
-Backspace = ←Retour arrière
+Backspace = ←Backspace
     .macos = Supprimer
 
 Close = Fermer
@@ -34,7 +34,7 @@ Copy = Copier
 Cut = Couper
 
 Delete = Supprimer
-    .macos = Supprimer vers l'avant
+    .macos = Suppr avant
 
 Eject = ⏏Éjecter
 
@@ -51,21 +51,21 @@ New = Nouveau
 
 Open = Ouvrir
 
-PageDown = Page suiv.
+PageDown = PgDn
 
-PageUp = Page préc.
+PageUp = PgUp
 
 Paste = Coller
 
 Print = Imprimer
 
-PrintScreen = Impr. écran
+PrintScreen = PrtSc
 
-Redo = Rétablir
+Redo = Refaire
 
 Save = Enregistrer
 
-Tab = ⭾Tabulation
+Tab = ⭾Tab
 
 Undo = Annuler
 

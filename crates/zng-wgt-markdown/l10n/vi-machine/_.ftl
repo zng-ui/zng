@@ -6,6 +6,6 @@ try_open_link =
     .copy-path = Sao chép đường dẫn
     .copy-url = Sao chép URL
     .open-url = Mở trong trình duyệt
-    .reveal-path = Hiển thị trong trình quản lý tệp
+    .reveal-path = Hiển thị trong Trình quản lý tập tin
     .reveal-path-macos = Hiển thị trong Finder
     .reveal-path-windows = Hiển thị trong File Explorer

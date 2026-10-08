@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Avslutt
 
 OPEN_LICENSES_CMD =
-    .name = Tredjepartslisenser
+    .name = Tredjeparts lisenser

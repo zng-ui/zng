@@ -6,13 +6,13 @@ BACK_CMD =
     .name = Înapoi
 
 BEGIN_CMD =
-    .name = Start
+    .name = Începe
 
 CANCEL_CMD =
-    .name = Anulare
+    .name = Anulează
 
 FINISH_CMD =
-    .name = Finalizare
+    .name = Finalizează
 
 NEXT_CMD =
-    .name = Următorul
+    .name = Următor

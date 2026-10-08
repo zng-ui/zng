@@ -15,4 +15,4 @@ FINISH_CMD =
     .name = Dokončiť
 
 NEXT_CMD =
-    .name = Ďalej
+    .name = Pokračovať

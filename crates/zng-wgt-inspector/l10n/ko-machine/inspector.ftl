@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = 창 검사
-    .name = 디버그 검사기
+    .name = 디버그 인스펙터
 
 ## Inspector Window (always en-US)
 
-info-help = 감시 중인 위젯 정보
+info-help = 모니터링된 위젯 정보
 
-intrinsic-help = 고유 노드
+intrinsic-help = 본질 노드
 
 nest-group-help = 중첩 그룹
 
 screenshot =
-    .copy-error = 스크린샷 복사 오류. {$error}
+    .copy-error = 스크린샷 복사 오류입니다. {$error}
     .error-dlg-title = 스크린샷 오류
     .save-dlg-filter = 이미지 파일
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = 스크린샷 저장
-    .save-error = 스크린샷 저장 오류. {$error}
+    .save-error = 스크린샷 저장 오류입니다. {$error}
 
-select-widget = 검사할 위젯 선택
+select-widget = 검사할 위젯을 선택하십시오.
 
 window =
-    .title = {$inspected_window_title} - 검사기
+    .title = {$inspected_window_title} - 인스펙터

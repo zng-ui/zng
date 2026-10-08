@@ -4,11 +4,11 @@
 
 default-info =
     .create-shortcut = Kısayol oluştur
-    .extract-files = Dosyaları ayıkla
-    .register-uninstaller = Kaldırma aracını kaydet
+    .extract-files = Dosyaları çıkar
+    .register-uninstaller = Kaldırıcıyı kaydet
     .remove-files = Dosyaları kaldır
     .remove-shortcut = Kısayolu kaldır
-    .unregister-uninstaller = Kaldırma aracının kaydını sil
+    .unregister-uninstaller = Kaldırıcıyı kayıttan kaldır
 
 info =
     .install = Lütfen {$app} bilgisayarınıza kurulurken bekleyin.

@@ -6,7 +6,7 @@ BACK_CMD =
     .name = Nazad
 
 BEGIN_CMD =
-    .name = Početak
+    .name = Počni
 
 CANCEL_CMD =
     .name = Otkaži
@@ -15,4 +15,4 @@ FINISH_CMD =
     .name = Završi
 
 NEXT_CMD =
-    .name = Dalje
+    .name = Sledeći

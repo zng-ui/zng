@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = בטל
 
 FINISH_CMD =
-    .name = סיום
+    .name = סיים
 
 NEXT_CMD =
     .name = הבא

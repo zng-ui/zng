@@ -6,13 +6,13 @@ BACK_CMD =
     .name = Atgal
 
 BEGIN_CMD =
-    .name = Pradėti
+    .name = Pradedti
 
 CANCEL_CMD =
     .name = Atšaukti
 
 FINISH_CMD =
-    .name = Baigti
+    .name = Baigioti
 
 NEXT_CMD =
-    .name = Toliau
+    .name = Sekantis

@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopiera
 
 CUT_CMD =
-    .name = Klipp ut
+    .name = Klippa
 
 PASTE_CMD =
     .name = Klistra in

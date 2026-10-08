@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Εγκατάσταση
-    .name-repair = Επιδιόρθωση
-    .name-uninstall = Απεγκατάσταση
+    .name-repair = Επαναφορά
+    .name-uninstall = Αποεγκατάσταση
     .name-update = Ενημέρωση

@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Aplikacja uległa awarii
+    .title = {$app} - Aplikacja uległa awarii
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nie udało się otworzyć minidumpu.
+    .open-error = Nie udało się otworzyć minidumpa.
         {$error}
-    .remove-error = Nie udało się usunąć minidumpu.
+    .remove-error = Nie udało się usunąć minidumpa.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Zapisz kopię
-    .save-error = Nie udało się zapisać kopii minidumpu.
+    .save-error = Nie udało się zapisać kopii minidumpa.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panic (Panika)
+    .title = Awaria
 
 stderr =
     .title = Stderr
@@ -33,12 +33,12 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Sygnatura czasowa: {$timestamp}
+    .text = Czas: {$timestamp}
         Kod wyjścia: {$exit_code}
-        Sygnał: {$signal}
+        Sygnatura: {$signal}
         Stderr: {$stderr_len} bajtów
         Stdout: {$stdout_len} bajtów
-        Panika: {$is_panic}
+        Awaria: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumenty: {$args}

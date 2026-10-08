@@ -7,5 +7,5 @@ try_open_link =
     .copy-url = نسخ الرابط
     .open-url = فتح في المتصفح
     .reveal-path = إظهار في مدير الملفات
-    .reveal-path-macos = إظهار في Finder
+    .reveal-path-macos = إظهار في فايندر
     .reveal-path-windows = إظهار في مستكشف الملفات

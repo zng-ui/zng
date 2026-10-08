@@ -6,13 +6,13 @@ BACK_CMD =
     .name = Voltar
 
 BEGIN_CMD =
-    .name = Iniciar
+    .name = Começar
 
 CANCEL_CMD =
     .name = Cancelar
 
 FINISH_CMD =
-    .name = Concluir
+    .name = Terminar
 
 NEXT_CMD =
-    .name = Seguinte
+    .name = Próximo

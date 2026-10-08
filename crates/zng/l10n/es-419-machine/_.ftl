@@ -7,12 +7,12 @@
 # user-name:
 #     "user" es el paquete que usa la licencia
 license-none =
-    .id = <ninguna>
+    .id = <none>
     .name = Sin datos de licencia
-    .user-name = <ninguno>
+    .user-name = <none>
 
 search =
     .placeholder = buscar licencias ({$shortcut})
 
 window =
-    .title = {$app} - Licencias de terceros
+    .title = {$app} - Licencias de Terceros

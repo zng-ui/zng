@@ -7,7 +7,7 @@ reset = Auf Standard zurücksetzen
 
 search =
     .no_results = Keine Einstellungen gefunden
-    .placeholder = Einstellungen durchsuchen ({$shortcut})
+    .placeholder = Einstellungen suchen ({$shortcut})
 
 window =
     .title = {$app} - Einstellungen

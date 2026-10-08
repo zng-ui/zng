@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Установить
-    .name-repair = Исправить
+    .name-repair = Восстановить
     .name-uninstall = Удалить
     .name-update = Обновить

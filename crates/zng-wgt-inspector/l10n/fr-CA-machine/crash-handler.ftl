@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – L'application a planté
+    .title = {$app} - L'application a planté
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Impossible d'ouvrir le minidump.
+    .open-error = Échec de l'ouverture du minidump.
         {$error}
-    .remove-error = Impossible de supprimer le minidump.
+    .remove-error = Échec de la suppression du minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Enregistrer une copie
-    .save-error = Impossible d'enregistrer la copie du minidump.
+    .save-error = Échec de l'enregistrement de la copie du minidump.
         {$error}
     .title = Minidump
 
@@ -33,16 +33,16 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Horodatage : {$timestamp}
-        Code de sortie : {$exit_code}
-        Signal : {$signal}
-        Stderr : {$stderr_len} octets
-        Stdout : {$stdout_len} octets
-        Panique : {$is_panic}
-        Minidump : {$minidump_path}
+    .text = Horodatage: {$timestamp}
+        Code de sortie: {$exit_code}
+        Signal: {$signal}
+        Stderr: {$stderr_len} octets
+        Stdout: {$stdout_len} octets
+        Panique: {$is_panic}
+        Minidump: {$minidump_path}
         
-        Arguments : {$args}
-        Système d'exploitation : {$os}
+        Arguments: {$args}
+        OS: {$os}
     .title = Résumé
 
 widget =

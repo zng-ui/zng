@@ -11,10 +11,10 @@ default-info =
     .unregister-uninstaller = Désenregistrer le désinstalleur
 
 info =
-    .install = Veuillez patienter pendant l'installation de {$app} sur votre ordinateur.
-    .repair = Veuillez patienter pendant la réparation de {$app} sur votre ordinateur.
-    .uninstall = Veuillez patienter pendant la désinstallation de {$app} de votre ordinateur.
-    .update = Veuillez patienter pendant la mise à jour de {$app} sur votre ordinateur.
+    .install = Veuillez patienter pendant que {$app} est installé sur votre ordinateur.
+    .repair = Veuillez patienter pendant que {$app} est réparé sur votre ordinateur.
+    .uninstall = Veuillez patienter pendant que {$app} est désinstallé de votre ordinateur.
+    .update = Veuillez patienter pendant que {$app} est mis à jour sur votre ordinateur.
 
 title =
     .install = Installation

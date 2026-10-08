@@ -6,13 +6,13 @@ action-run =
     .info = Kør {$app}
 
 message =
-    .install = Guiden har installeret {$app} {$version} på din computer.
-    .repair = Guiden har repareret installationen af {$app} {$version} på din computer.
-    .uninstall = Guiden har afinstalleret {$app} {$version} fra din computer.
-    .update = Guiden har opdateret {$app} fra {$current_version} til {$new_version} på din computer.
+    .install = Wizard har installeret {$app} {$version} på din computer.
+    .repair = Wizard har repareret installationen af {$app} {$version} på din computer.
+    .uninstall = Wizard har afinstalleret {$app} {$version} fra din computer.
+    .update = Wizard har opdateret {$app} fra {$current_version} til {$new_version} på din computer.
 
 title =
-    .install = {$app} installeret
-    .repair = {$app} repareret
-    .uninstall = {$app} afinstalleret
-    .update = {$app} opdateret
+    .install = {$app} Installeret
+    .repair = {$app} Repareret
+    .uninstall = {$app} Afinstalleret
+    .update = {$app} Opdateret

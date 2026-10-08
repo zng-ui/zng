@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <немає>
-    .name = Дані про ліцензію відсутні
-    .user-name = <немає>
+    .id = <none>
+    .name = Відсутні дані про ліцензію
+    .user-name = <none>
 
 search =
     .placeholder = пошук ліцензій ({$shortcut})
 
 window =
-    .title = {$app} - Ліцензії третіх сторін
+    .title = {$app} - Ліцензії сторонніх сторін

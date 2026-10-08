@@ -9,10 +9,10 @@ info =
 # $bytes is already formatted e.g.: 900kB or 50MB.
 min-required-space = Det kreves minst {$bytes} ledig diskplass.
 
-reset-label = Standardplassering
+reset-label = Standard sted
 
-select-label = Velg plassering
+select-label = Velg sted
 
 title =
-    .install = Velg installasjonsplassering
-    .uninstall = Installasjonsplassering
+    .install = Velg installasjonssted
+    .uninstall = Installasjonssted

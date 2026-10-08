@@ -12,19 +12,16 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Minidump açılamadı.
-        {$error}
-    .remove-error = Minidump kaldırılamadı.
-        {$error}
+    .open-error = Minidump açılamadı.\n        {$error}
+    .remove-error = Minidump silinemedi.\n        {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Kopyasını Kaydet
-    .save-error = Minidump kopyası kaydedilemedi.
-        {$error}
+    .save-error = Minidump kopyasını kaydederken başarısız oldu.\n        {$error}
     .title = Minidump
 
 panic =
-    .title = Panic (Panik)
+    .title = Panic
 
 stderr =
     .title = Stderr
@@ -38,7 +35,7 @@ summary =
         Sinyal: {$signal}
         Stderr: {$stderr_len} bayt
         Stdout: {$stdout_len} bayt
-        Panik: {$is_panic}
+        Panic: {$is_panic}
         Minidump: {$minidump_path}
         
         Argümanlar: {$args}

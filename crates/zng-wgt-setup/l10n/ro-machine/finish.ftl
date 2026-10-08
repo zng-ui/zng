@@ -6,13 +6,13 @@ action-run =
     .info = Rulează {$app}
 
 message =
-    .install = Asistentul a instalat {$app} {$version} pe computerul dumneavoastră.
-    .repair = Asistentul a reparat instalarea {$app} {$version} pe computerul dumneavoastră.
-    .uninstall = Asistentul a dezinstalat {$app} {$version} de pe computerul dumneavoastră.
-    .update = Asistentul a actualizat {$app} de la {$current_version} la {$new_version} pe computerul dumneavoastră.
+    .install = Wizardul a instalat {$app} {$version} pe computerul dumneavoastră.
+    .repair = Wizardul a reparat instalarea {$app} {$version} de pe computerul dumneavoastră.
+    .uninstall = Wizardul a dezinstalat {$app} {$version} de pe computerul dumneavoastră.
+    .update = Wizardul a actualizat {$app} din {$current_version} la {$new_version} pe computerul dumneavoastră.
 
 title =
-    .install = {$app} instalat
-    .repair = {$app} reparat
-    .uninstall = {$app} dezinstalat
-    .update = {$app} actualizat
+    .install = {$app} Instalat
+    .repair = {$app} Reparat
+    .uninstall = {$app} Dezinstalat
+    .update = {$app} Actualizat

@@ -5,7 +5,7 @@
 try_open_link =
     .copy-path = Salin Jalur
     .copy-url = Salin URL
-    .open-url = Buka di Peramban
+    .open-url = Buka di Browser
     .reveal-path = Tampilkan di Pengelola File
     .reveal-path-macos = Tampilkan di Finder
     .reveal-path-windows = Tampilkan di File Explorer

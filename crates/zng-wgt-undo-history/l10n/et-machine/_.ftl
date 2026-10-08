@@ -5,4 +5,4 @@
 # count_actions:
 #     Number of undo/redo actions that are selected to run
 UndoHistory =
-    .count_actions = {$n} toimingut
+    .count_actions = {$n} tegevust ning tegevusi

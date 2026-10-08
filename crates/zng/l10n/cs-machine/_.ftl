@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <žádná>
-    .name = Žádné licenční údaje
-    .user-name = <žádný>
+    .id = <none>
+    .name = Žádná data licence
+    .user-name = <none>
 
 search =
-    .placeholder = hledat licence ({$shortcut})
+    .placeholder = vyhledávat licence ({$shortcut})
 
 window =
     .title = {$app} - Licence třetích stran

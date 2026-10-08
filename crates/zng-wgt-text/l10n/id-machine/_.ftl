@@ -9,4 +9,4 @@ text-edit-op =
     .clear = hapus
     .generic = sunting teks
     .replace = ganti
-    .transform = ubah
+    .transform = transformasi

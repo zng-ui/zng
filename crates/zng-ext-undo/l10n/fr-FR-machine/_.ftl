@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Effacer l'historique
 
 REDO_CMD =
-    .name = Rétablir
+    .name = Refaire
 
 UNDO_CMD =
     .name = Annuler

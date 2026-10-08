@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Inspektera fönstret
-    .name = Felsökningsinspektör
+    .name = Debug-inspektör
 
 ## Inspector Window (always en-US)
 
-info-help = information om bevakad widget
+info-help = Info om övervakad widget
 
-intrinsic-help = inneboende nod
+intrinsic-help = Intrinsisk nod
 
-nest-group-help = nästlingsgrupp
+nest-group-help = Nestgrupp
 
 screenshot =
-    .copy-error = Fel vid kopiering av skärmdump. {$error}
-    .error-dlg-title = Skärmdumpsfel
+    .copy-error = Skärmdump kopieringsfel. {$error}
+    .error-dlg-title = Skärmdumpfel
     .save-dlg-filter = Bildfiler
-    .save-dlg-starting-name = skarmdump.png
+    .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Spara skärmdump
-    .save-error = Fel vid sparande av skärmdump. {$error}
+    .save-error = Skärmdump sparingsfel. {$error}
 
-select-widget = välj en widget att inspektera
+select-widget = Välj en widget att inspektera
 
 window =
     .title = {$inspected_window_title} - Inspektör

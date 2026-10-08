@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <ไม่มี>
+    .id = <none>
     .name = ไม่มีข้อมูลใบอนุญาต
-    .user-name = <ไม่มี>
+    .user-name = <none>
 
 search =
     .placeholder = ค้นหาใบอนุญาต ({$shortcut})
 
 window =
-    .title = {$app} - ใบอนุญาตจากบุคคลที่สาม
+    .title = {$app} - ใบอนุญาตของบุคคลที่สาม

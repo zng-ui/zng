@@ -23,18 +23,18 @@ ArrowRight = →
 ArrowUp = ↑
 
 Backspace = ←Retroceso
-    .macos = Eliminar
+    .macos = Delete
 
 Close = Cerrar
 
-ContextMenu = ≣Menú contextual
+ContextMenu = ≣Menú de contexto
 
 Copy = Copiar
 
 Cut = Cortar
 
-Delete = Suprimir
-    .macos = Eliminar hacia adelante
+Delete = Eliminar
+    .macos = Supr
 
 Eject = ⏏Expulsar
 
@@ -51,15 +51,15 @@ New = Nuevo
 
 Open = Abrir
 
-PageDown = AvPág
+PageDown = PgDn
 
-PageUp = RePág
+PageUp = PgUp
 
 Paste = Pegar
 
 Print = Imprimir
 
-PrintScreen = ImprPant
+PrintScreen = PrtSc
 
 Redo = Rehacer
 
@@ -70,5 +70,4 @@ Tab = ⭾Tab
 Undo = Deshacer
 
 ZoomIn = +Acercar
-
 ZoomOut = -Alejar

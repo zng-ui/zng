@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Programmet krasjet
+    .title = {$app} - Appen krasjet
 
 ## Panels
 
@@ -34,15 +34,15 @@ stdout =
 
 summary =
     .text = Tidsstempel: {$timestamp}
-        Avslutningskode: {$exit_code}
+        Avgangskode: {$exit_code}
         Signal: {$signal}
-        Stderr: {$stderr_len} byte
-        Stdout: {$stdout_len} byte
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
         Panikk: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumenter: {$args}
-        Operativsystem: {$os}
+        OS: {$os}
     .title = Sammendrag
 
 widget =

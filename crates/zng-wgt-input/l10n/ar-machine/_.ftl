@@ -6,13 +6,13 @@ NEW_CMD =
     .name = جديد
 
 OPEN_CMD =
-    .name = فتح…
+    .name = فتح...
 
 SAVE_AS_CMD =
-    .name = حفظ باسم…
+    .name = حفظ باسم...
 
 SAVE_CMD =
     .name = حفظ
 
 SETTINGS_CMD =
-    .name = الإعدادات
+    .name = إعدادات

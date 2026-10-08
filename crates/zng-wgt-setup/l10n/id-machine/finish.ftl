@@ -8,11 +8,11 @@ action-run =
 message =
     .install = Wizard telah menginstal {$app} {$version} di komputer Anda.
     .repair = Wizard telah memperbaiki instalasi {$app} {$version} di komputer Anda.
-    .uninstall = Wizard telah menghapus {$app} {$version} dari komputer Anda.
+    .uninstall = Wizard telah menghapus instalasi {$app} {$version} dari komputer Anda.
     .update = Wizard telah memperbarui {$app} dari {$current_version} ke {$new_version} di komputer Anda.
 
 title =
     .install = {$app} Terinstal
-    .repair = {$app} Diperbaiki
-    .uninstall = {$app} Dihapus
-    .update = {$app} Diperbarui
+    .repair = {$app} Telah Diperbaiki
+    .uninstall = {$app} Telah Dihapus
+    .update = {$app} Telah Diperbarui

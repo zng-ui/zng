@@ -6,7 +6,7 @@
 reset = Kembalikan ke default
 
 search =
-    .no_results = Pengaturan tidak ditemukan
+    .no_results = Tidak ada pengaturan yang ditemukan
     .placeholder = cari pengaturan ({$shortcut})
 
 window =

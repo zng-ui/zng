@@ -6,13 +6,13 @@ NEW_CMD =
     .name = חדש
 
 OPEN_CMD =
-    .name = פתח...
+    .name = פתח…
 
 SAVE_AS_CMD =
-    .name = שמירה בשם...
+    .name = שמור בשם…
 
 SAVE_CMD =
-    .name = שמירה
+    .name = שמור
 
 SETTINGS_CMD =
     .name = הגדרות

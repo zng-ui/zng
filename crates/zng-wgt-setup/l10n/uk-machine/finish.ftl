@@ -7,12 +7,12 @@ action-run =
 
 message =
     .install = Майстер встановив {$app} {$version} на ваш комп'ютер.
-    .repair = Майстер виправив встановлення {$app} {$version} на вашому комп'ютері.
+    .repair = Майстер відновив встановлення {$app} {$version} на вашому комп'ютері.
     .uninstall = Майстер видалив {$app} {$version} з вашого комп'ютера.
     .update = Майстер оновив {$app} з версії {$current_version} до {$new_version} на вашому комп'ютері.
 
 title =
-    .install = {$app} встановлено
-    .repair = {$app} виправлено
-    .uninstall = {$app} видалено
-    .update = {$app} оновлено
+    .install = {$app} Встановлено
+    .repair = {$app} Відновлено
+    .uninstall = {$app} Видалено
+    .update = {$app} Оновлено

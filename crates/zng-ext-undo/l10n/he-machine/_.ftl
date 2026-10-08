@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = נקה היסטוריה
 
 REDO_CMD =
-    .name = בצע שוב
+    .name = הרץ מחדש
 
 UNDO_CMD =
     .name = בטל

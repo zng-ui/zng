@@ -6,8 +6,8 @@
 reset = Сбросить до настроек по умолчанию
 
 search =
-    .no_results = Настройки не найдены
-    .placeholder = поиск настроек ({$shortcut})
+    .no_results = Настроек не найдено
+    .placeholder = Поиск настроек ({$shortcut})
 
 window =
     .title = {$app} - Настройки

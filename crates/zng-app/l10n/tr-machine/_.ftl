@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Çıkış
 
 OPEN_LICENSES_CMD =
-    .name = Üçüncü Taraf Lisansları
+    .name = Üçüncü Taraf Lisanslar

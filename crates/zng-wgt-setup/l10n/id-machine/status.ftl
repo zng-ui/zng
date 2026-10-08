@@ -8,16 +8,16 @@ default-info =
     .register-uninstaller = Daftarkan uninstaller
     .remove-files = Hapus berkas
     .remove-shortcut = Hapus pintasan
-    .unregister-uninstaller = Hapus pendaftaran uninstaller
+    .unregister-uninstaller = Batalkan pendaftaran uninstaller
 
 info =
-    .install = Harap tunggu sementara {$app} diinstal pada komputer Anda.
-    .repair = Harap tunggu sementara {$app} diperbaiki pada komputer Anda.
-    .uninstall = Harap tunggu sementara {$app} dihapus dari komputer Anda.
-    .update = Harap tunggu sementara {$app} diperbarui pada komputer Anda.
+    .install = Harap tunggu saat {$app} sedang diinstal di komputer Anda.
+    .repair = Harap tunggu saat {$app} sedang diperbaiki di komputer Anda.
+    .uninstall = Harap tunggu saat {$app} sedang dihapus dari komputer Anda.
+    .update = Harap tunggu saat {$app} sedang diperbarui di komputer Anda.
 
 title =
     .install = Menginstal
     .repair = Memperbaiki
-    .uninstall = Menghapus
+    .uninstall = Mencopot instalasi
     .update = Memperbarui

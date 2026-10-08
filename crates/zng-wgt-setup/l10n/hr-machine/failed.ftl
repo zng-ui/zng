@@ -8,16 +8,16 @@ info =
 
 message =
     .install-clean = Operacija instalacije nije uspjela, {$app} nije instaliran.
-    .install-corrupted = Operacija instalacije nije uspjela, {$app} je samo djelomično instaliran.
-    .repair-clean = Operacija popravka nije uspjela, instalacija programa {$app} nije popravljena.
-    .repair-corrupted = Operacija popravka nije uspjela, {$app} je samo djelomično popravljen.
+    .install-corrupted = Operacija instalacije nije uspjela, {$app} je instaliran samo djelomično.
+    .repair-clean = Operacija popravljanja nije uspjela, instalacija {$app} nije popravljena.
+    .repair-corrupted = Operacija popravljanja nije uspjela, {$app} je popravljen samo djelomično.
     .uninstall-clean = Operacija deinstalacije nije uspjela, {$app} ostaje instaliran.
-    .uninstall-corrupted = Operacija deinstalacije nije uspjela, {$app} je samo djelomično deinstaliran.
-    .update-clean = Operacija ažuriranja nije uspjela, {$app} nije ažuriran. Trenutno instalirana verzija {$current_version} ostaje i može se i dalje koristiti.
-    .update-corrupted = Operacija ažuriranja nije uspjela, {$app} je samo djelomično ažuriran.
+    .uninstall-corrupted = Operacija deinstalacije nije uspjela, {$app} je deinstaliran samo djelomično.
+    .update-clean = Operacija ažuriranja nije uspjela, {$app} nije ažuriran. Trenutna instalirana verzija {$current_version} ostaje i i dalje se može koristiti.
+    .update-corrupted = Operacija ažuriranja nije uspjela, {$app} je ažuriran samo djelomično.
 
 title =
-    .install = Instalacija nije uspjela
-    .repair = Popravak nije uspio
-    .uninstall = Deinstalacija nije uspjela
-    .update = Ažuriranje nije uspjelo
+    .install = Neuspjela instalacija
+    .repair = Neuspjel popravak
+    .uninstall = Neuspjela deinstalacija
+    .update = Neuspjel ažuriranje

@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = Luk
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Skift eksklusiv fuldskærmstilstand for vinduet
+    .info = Skift eksklusiv fuldskærms tilstand på vinduet
     .name = Eksklusiv fuldskærm
 
 FULLSCREEN_CMD =
-    .info = Skift fuldskærmstilstand for vinduet
+    .info = Skift fuldskærms tilstand på vinduet
     .name = Fuldskærm
 
 MAXIMIZE_CMD =
-    .info = Maksimér vinduet
-    .name = Maksimér
+    .info = Maksimer vinduet
+    .name = Maksimer
 
 MINIMIZE_CMD =
-    .info = Minimér vinduet
-    .name = Minimér
+    .info = Minimer vinduet
+    .name = Minimer
 
 RESTORE_CMD =
-    .info = Genskaber vinduet til dets forrige ikke-minimeret tilstand eller normal tilstand
+    .info = Genskaber vinduet til dets forrige ikke-minimerede eller normale tilstand
     .name = Gendan

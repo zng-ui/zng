@@ -4,20 +4,20 @@
 
 default-info =
     .create-shortcut = Utwórz skrót
-    .extract-files = Wypakuj pliki
-    .register-uninstaller = Zarejestruj deinstalator
+    .extract-files = Wyodrębnij pliki
+    .register-uninstaller = Zarejestruj odinstalator
     .remove-files = Usuń pliki
     .remove-shortcut = Usuń skrót
-    .unregister-uninstaller = Wyrejestruj deinstalator
+    .unregister-uninstaller = Odrejestruj odinstalator
 
 info =
-    .install = Proszę czekać, trwa instalacja {$app} na tym komputerze.
-    .repair = Proszę czekać, trwa naprawa {$app} na tym komputerze.
-    .uninstall = Proszę czekać, trwa odinstalowywanie {$app} z tego komputera.
-    .update = Proszę czekać, trwa aktualizacja {$app} na tym komputerze.
+    .install = Proszę czekać, aż {$app} zostanie zainstalowany na komputerze.
+    .repair = Proszę czekać, aż {$app} zostanie naprawiony na komputerze.
+    .uninstall = Proszę czekać, aż {$app} zostanie odinstalowany z komputera.
+    .update = Proszę czekać, aż {$app} zostanie zaktualizowany na komputerze.
 
 title =
-    .install = Instalowanie
-    .repair = Naprawianie
-    .uninstall = Odinstalowywanie
-    .update = Aktualizowanie
+    .install = Instalacja
+    .repair = Naprawa
+    .uninstall = Odinstalowanie
+    .update = Aktualizacja

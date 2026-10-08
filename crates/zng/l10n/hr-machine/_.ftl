@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <nema>
+    .id = <none>
     .name = Nema podataka o licenci
-    .user-name = <nema>
+    .user-name = <none>
 
 search =
-    .placeholder = pretraži licence ({$shortcut})
+    .placeholder = Pretražite licence ({$shortcut})
 
 window =
-    .title = {$app} - Licencne informacije trećih strana
+    .title = {$app} - Licence trećih strana

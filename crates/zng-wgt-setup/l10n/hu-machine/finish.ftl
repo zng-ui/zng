@@ -6,13 +6,13 @@ action-run =
     .info = {$app} futtatása
 
 message =
-    .install = A varázsló telepítette a(z) {$app} {$version} verzióját a számítógépére.
-    .repair = A varázsló kijavította a(z) {$app} {$version} telepítését a számítógépén.
-    .uninstall = A varázsló eltávolította a(z) {$app} {$version} verzióját a számítógépéről.
-    .update = A varázsló frissítette a(z) {$app} alkalmazást {$current_version} verzióról {$new_version} verzióra a számítógépén.
+    .install = A varázsló telepítette a {$app} {$version}-t számítógépedre.
+    .repair = A varázsló javította a {$app} {$version} telepítést számítógépeden.
+    .uninstall = A varázsló eltávolította a {$app} {$version}-t számítógépedről.
+    .update = A varázsló frissítette a {$app}-et {$current_version}-től {$new_version}-ig számítógépeden.
 
 title =
     .install = {$app} telepítve
-    .repair = {$app} kijavítva
+    .repair = {$app} javítva
     .uninstall = {$app} eltávolítva
     .update = {$app} frissítve

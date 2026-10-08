@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = Kopioi polku
-    .copy-url = Kopioi URL-osoite
+    .copy-url = Kopioi URL
     .open-url = Avaa selaimessa
     .reveal-path = Näytä tiedostonhallinnassa
     .reveal-path-macos = Näytä Finderissa
-    .reveal-path-windows = Näytä Resurssienhallinnassa
+    .reveal-path-windows = Näytä tiedostonhakemistossa

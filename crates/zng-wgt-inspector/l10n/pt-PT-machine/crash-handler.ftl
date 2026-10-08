@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplicação bloqueou
+    .title = {$app} - Aplicação falhou
 
 ## Panels
 
@@ -18,8 +18,8 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Guardar cópia
-    .save-error = Falha ao guardar cópia do minidump.
+    .save-copy-title = Guardar Cópia
+    .save-error = Falha ao guardar a cópia do minidump.
         {$error}
     .title = Minidump
 
@@ -33,8 +33,8 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Carimbo de data/hora: {$timestamp}
-        Código de saída: {$exit_code}
+    .text = Carimbo de Data/Hora: {$timestamp}
+        Código de Saída: {$exit_code}
         Sinal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes

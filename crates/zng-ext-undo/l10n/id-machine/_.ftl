@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Hapus Riwayat
 
 REDO_CMD =
-    .name = Redo
+    .name = Ulangi
 
 UNDO_CMD =
-    .name = Undo
+    .name = Batalkan

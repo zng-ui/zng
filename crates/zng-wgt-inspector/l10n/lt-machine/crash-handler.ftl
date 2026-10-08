@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Programa užstrigo
+    .title = {$app} - Programos krasas
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nepavyko atidaryti „minidump“.
+    .open-error = Nepavyko atsidaryti minidump.
         {$error}
-    .remove-error = Nepavyko pašalinti „minidump“.
+    .remove-error = Nepavyko pašalinti minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Įrašyti kopiją
-    .save-error = Nepavyko įrašyti „minidump“ kopijos.
+    .save-copy-title = Išsaugoti kopiją
+    .save-error = Nepavyko išsaugoti minidump kopiją.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panika (Panic)
+    .title = Panika
 
 stderr =
     .title = Stderr
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Laiko žyma: {$timestamp}
-        Išėjimo kodas: {$exit_code}
-        Signalas: {$signal}
-        Stderr: {$stderr_len} baitų
-        Stdout: {$stdout_len} baitų
-        Panika: {$is_panic}
+    .text = Timestamp: {$timestamp}
+        Exit Code: {$exit_code}
+        Signal: {$signal}
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
+        Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Argumentai: {$args}
+        Args: {$args}
         OS: {$os}
-    .title = Suvestinė
+    .title = Santrauka
 
 widget =
-    .title = Valdiklis (Widget)
+    .title = Vidžetas

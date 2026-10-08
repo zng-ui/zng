@@ -6,13 +6,13 @@ action-run =
     .info = Spustiť {$app}
 
 message =
-    .install = Sprievodca nainštaloval {$app} {$version} do vášho počítača.
-    .repair = Sprievodca opravil inštaláciu {$app} {$version} vo vašom počítači.
-    .uninstall = Sprievodca odinštaloval {$app} {$version} z vášho počítača.
-    .update = Sprievodca aktualizoval {$app} z verzie {$current_version} na {$new_version} vo vašom počítači.
+    .install = Čarobník nainštaloval {$app} {$version} na vašom počítači.
+    .repair = Čarobník opravil inštaláciu {$app} {$version} na vašom počítači.
+    .uninstall = Čarobník odinstaloval {$app} {$version} z vášho počítača.
+    .update = Čarobník aktualizoval {$app} z {$current_version} na {$new_version} na vašom počítači.
 
 title =
-    .install = {$app} nainštalovaný
-    .repair = {$app} opravený
-    .uninstall = {$app} odinštalovaný
-    .update = {$app} aktualizovaný
+    .install = {$app} Nainštalovaný
+    .repair = {$app} Opravený
+    .uninstall = {$app} Odinstalovaný
+    .update = {$app} Aktualizovaný

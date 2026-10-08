@@ -4,14 +4,14 @@
 
 info =
     .install = Où {$app} doit-il être installé ?
-    .update-repair-uninstall = Emplacement où {$app} est installé.
+    .update-repair-uninstall = Où {$app} est installé.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Au moins {$bytes} d'espace disque libre sont requis.
+min-required-space = Il faut au moins {$bytes} d'espace disque libre.
 
 reset-label = Emplacement par défaut
 
-select-label = Sélectionner l'emplacement
+select-label = Sélectionner un emplacement
 
 title =
     .install = Sélectionner l'emplacement d'installation

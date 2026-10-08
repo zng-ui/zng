@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - A aplicación fallou
+    .title = {$app} - Colapso da aplicación
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Produciuse un erro ao abrir o minidump.
+    .open-error = Fallou abrir minidump.
         {$error}
-    .remove-error = Produciuse un erro ao eliminar o minidump.
+    .remove-error = Fallou remover minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Gardar copia
-    .save-error = Produciuse un erro ao gardar a copia do minidump.
+    .save-copy-title = Guardar Copia
+    .save-error = Fallou guardar a copia do minidump.
         {$error}
     .title = Minidump
 
@@ -33,7 +33,7 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Marca de tempo: {$timestamp}
+    .text = Marcador de tempo: {$timestamp}
         Código de saída: {$exit_code}
         Sinal: {$signal}
         Stderr: {$stderr_len} bytes
@@ -42,7 +42,7 @@ summary =
         Minidump: {$minidump_path}
         
         Argumentos: {$args}
-        SO: {$os}
+        S.O.: {$os}
     .title = Resumo
 
 widget =

@@ -7,12 +7,12 @@ CLOSE_CMD =
     .name = Zavřít
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Přepnout okno do exkluzivního režimu celé obrazovky
-    .name = Exkluzivní celá obrazovka
+    .info = Přepnout exkluzivní režim plné obrazovky na okně
+    .name = Exkluzivní plná obrazovka
 
 FULLSCREEN_CMD =
-    .info = Přepnout okno do režimu celé obrazovky
-    .name = Celá obrazovka
+    .info = Přepnout režim plné obrazovky na okně
+    .name = Plná obrazovka
 
 MAXIMIZE_CMD =
     .info = Maximalizovat okno
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimalizovat
 
 RESTORE_CMD =
-    .info = Obnovit okno do předchozího stavu (před minimalizací) nebo do normálního stavu
+    .info = Obnoví okno do předchozího nezmenšeného nebo normálního stavu
     .name = Obnovit

@@ -5,7 +5,7 @@
 try_open_link =
     .copy-path = Kopiraj pot
     .copy-url = Kopiraj URL
-    .open-url = Odpri v brskalniku
-    .reveal-path = Prikaži v upravitelju datotek
-    .reveal-path-macos = Prikaži v Finderju
-    .reveal-path-windows = Prikaži v Raziskovalcu datotek
+    .open-url = Odpri v brskalcu
+    .reveal-path = Pokaži v upravljalniku datotek
+    .reveal-path-macos = Pokaži v Finderju
+    .reveal-path-windows = Pokaži v upravljalniku datotek

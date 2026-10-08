@@ -4,16 +4,16 @@
 
 info =
     .clean = 操作失败，所有更改已撤销。
-    .corrupted = 操作失败，安装已损坏。
+    .corrupted = 操作失败，安装损坏。
 
 message =
-    .install-clean = 安装操作失败，未安装 {$app}。
+    .install-clean = 安装操作失败，{$app} 未安装。
     .install-corrupted = 安装操作失败，{$app} 仅部分安装。
-    .repair-clean = 修复操作失败，未修复 {$app} 安装。
+    .repair-clean = 修复操作失败，{$app} 安装未修复。
     .repair-corrupted = 修复操作失败，{$app} 仅部分修复。
     .uninstall-clean = 卸载操作失败，{$app} 仍处于安装状态。
     .uninstall-corrupted = 卸载操作失败，{$app} 仅部分卸载。
-    .update-clean = 更新操作失败，未更新 {$app}。当前已安装版本 {$current_version} 保持不变，仍可继续使用。
+    .update-clean = 更新操作失败，{$app} 未更新。当前已安装版本 {$current_version} 仍保留，仍可使用。
     .update-corrupted = 更新操作失败，{$app} 仅部分更新。
 
 title =

@@ -15,4 +15,4 @@ SAVE_CMD =
     .name = Guardar
 
 SETTINGS_CMD =
-    .name = Ajustes
+    .name = Configuración

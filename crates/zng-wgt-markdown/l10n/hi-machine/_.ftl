@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = पथ कॉपी करें
-    .copy-url = URL कॉपी करें
+    .copy-url = यूआरएल कॉपी करें
     .open-url = ब्राउज़र में खोलें
     .reveal-path = फ़ाइल मैनेजर में दिखाएं
-    .reveal-path-macos = फाइंडर (Finder) में दिखाएं
+    .reveal-path-macos = फाइंडर में दिखाएं
     .reveal-path-windows = फ़ाइल एक्सप्लोरर में दिखाएं

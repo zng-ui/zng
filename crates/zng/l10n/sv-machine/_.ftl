@@ -7,12 +7,12 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <ingen>
+    .id = <none>
     .name = Ingen licensdata
-    .user-name = <ingen>
+    .user-name = <none>
 
 search =
-    .placeholder = sök licenser ({$shortcut})
+    .placeholder = Sök licenser ({$shortcut})
 
 window =
     .title = {$app} - Tredjepartslicenser

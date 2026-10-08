@@ -7,9 +7,9 @@
 # user-name:
 #     "user" is the package that uses the license
 license-none =
-    .id = <无>
-    .name = 无许可证数据
-    .user-name = <无>
+    .id = <none>
+    .name = 无许可证信息
+    .user-name = <none>
 
 search =
     .placeholder = 搜索许可证 ({$shortcut})

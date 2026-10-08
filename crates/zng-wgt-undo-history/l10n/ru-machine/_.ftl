@@ -5,8 +5,4 @@
 # count_actions:
 #     Number of undo/redo actions that are selected to run
 UndoHistory =
-    .count_actions = {$n ->
-        [one] {$n} действие
-        [few] {$n} действия
-        *[other] {$n} действий
-    }
+    .count_actions = {$n} действия

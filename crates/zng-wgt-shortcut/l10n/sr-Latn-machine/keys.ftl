@@ -23,7 +23,7 @@ ArrowRight = →
 ArrowUp = ↑
 
 Backspace = ←Backspace
-    .macos = Delete
+    .macos = Briši
 
 Close = Zatvori
 
@@ -31,15 +31,15 @@ ContextMenu = ≣Kontekstualni meni
 
 Copy = Kopiraj
 
-Cut = Iseci
+Cut = Isecaj
 
-Delete = Obriši
-    .macos = Forward Delete
+Delete = Izbriši
+    .macos = Napredno brisanje
 
-Eject = ⏏Izbaci
+Eject = ⏏Eject
 
 Enter = ↵Enter
-    .macos = ↵Return
+    .macos = ↵Povratak
 
 Escape = Esc
 
@@ -47,7 +47,7 @@ Find = Pronađi
 
 Help = ?Pomoć
 
-New = Novo
+New = Novi
 
 Open = Otvori
 
@@ -55,9 +55,9 @@ PageDown = PgDn
 
 PageUp = PgUp
 
-Paste = Nalepi
+Paste = Zalepi
 
-Print = Štampaj
+Print = Štampanje
 
 PrintScreen = PrtSc
 
@@ -67,8 +67,8 @@ Save = Sačuvaj
 
 Tab = ⭾Tab
 
-Undo = Opozovi
+Undo = Povratak
 
-ZoomIn = +Uvećaj
+ZoomIn = +Povećanje
 
-ZoomOut = -Umanji
+ZoomOut = -Umanjenje

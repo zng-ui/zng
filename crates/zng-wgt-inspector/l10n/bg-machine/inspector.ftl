@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Инспектирай прозореца
-    .name = Инспектор за отстраняване на грешки
+    .name = Дебаг Инспектор
 
 ## Inspector Window (always en-US)
 
-info-help = информация за наблюдавания уиджет
+info-help = Информация за наблюдавания виджет
 
-intrinsic-help = вътрешен възел
+intrinsic-help = Присъщ узел
 
-nest-group-help = вложена група
+nest-group-help = Группа на гнездовете
 
 screenshot =
-    .copy-error = Грешка при копиране на екранната снимка. {$error}
-    .error-dlg-title = Грешка при екранната снимка
-    .save-dlg-filter = Файлове с изображения
-    .save-dlg-starting-name = екранна_снимка.png
-    .save-dlg-title = Запазване на екранната снимка
-    .save-error = Грешка при запис на екранната снимка. {$error}
+    .copy-error = Грешка при копиране на снимката. {$error}
+    .error-dlg-title = Грешка при снимката
+    .save-dlg-filter = Изображения файлове
+    .save-dlg-starting-name = screenshot.png
+    .save-dlg-title = Запази снимката
+    .save-error = Грешка при запазване на снимката. {$error}
 
-select-widget = изберете уиджет за инспекция
+select-widget = Избери виджет за инспектиране
 
 window =
     .title = {$inspected_window_title} - Инспектор

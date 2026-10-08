@@ -6,13 +6,13 @@ action-run =
     .info = Uruchom {$app}
 
 message =
-    .install = Kreator zainstalował {$app} {$version} na Twoim komputerze.
-    .repair = Kreator naprawił instalację {$app} {$version} na Twoim komputerze.
-    .uninstall = Kreator odinstalował {$app} {$version} z Twojego komputera.
-    .update = Kreator zaktualizował {$app} z wersji {$current_version} do {$new_version} na Twoim komputerze.
+    .install = Asystent zainstalował {$app} {$version} na komputerze.
+    .repair = Asystent naprawił instalację {$app} {$version} na komputerze.
+    .uninstall = Asystent usunął {$app} {$version} z komputera.
+    .update = Asystent zaktualizował {$app} z wersji {$current_version} do {$new_version} na komputerze.
 
 title =
-    .install = Zainstalowano {$app}
-    .repair = Naprawiono {$app}
-    .uninstall = Odinstalowano {$app}
-    .update = Zaktualizowano {$app}
+    .install = {$app} Zainstalowany
+    .repair = {$app} Naprawiony
+    .uninstall = {$app} Odinstalowany
+    .update = {$app} Zaktualizowany

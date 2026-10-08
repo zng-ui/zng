@@ -7,7 +7,7 @@ reset = Nulstil til standard
 
 search =
     .no_results = Ingen indstillinger fundet
-    .placeholder = søg i indstillinger ({$shortcut})
+    .placeholder = Søg indstillinger ({$shortcut})
 
 window =
     .title = {$app} - Indstillinger

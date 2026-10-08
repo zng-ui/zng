@@ -4,23 +4,23 @@
 
 INSPECT_CMD =
     .info = ตรวจสอบหน้าต่าง
-    .name = ตัวตรวจสอบการดีบั๊ก
+    .name = ตัวตรวจสอบสำหรับดีบัก
 
 ## Inspector Window (always en-US)
 
-info-help = ข้อมูลวิดเจ็ตที่ติดตาม
+info-help = ข้อมูลวิดเจ็ตที่กำลังถูกสังเกต
 
 intrinsic-help = โหนดภายใน
 
-nest-group-help = กลุ่มที่ซ้อนอยู่
+nest-group-help = กลุ่มซ้อน
 
 screenshot =
-    .copy-error = เกิดข้อผิดพลาดในการคัดลอกภาพหน้าจอ {$error}
+    .copy-error = ข้อผิดพลาดในการคัดลอกภาพหน้าจอ. {$error}
     .error-dlg-title = ข้อผิดพลาดของภาพหน้าจอ
     .save-dlg-filter = ไฟล์รูปภาพ
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = บันทึกภาพหน้าจอ
-    .save-error = เกิดข้อผิดพลาดในการบันทึกภาพหน้าจอ {$error}
+    .save-error = ข้อผิดพลาดในการบันทึกภาพหน้าจอ. {$error}
 
 select-widget = เลือกวิดเจ็ตเพื่อตรวจสอบ
 

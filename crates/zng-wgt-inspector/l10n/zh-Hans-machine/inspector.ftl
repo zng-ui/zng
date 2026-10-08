@@ -8,7 +8,7 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = 被观察控件信息
+info-help = 观察到的组件信息
 
 intrinsic-help = 内在节点
 
@@ -22,7 +22,7 @@ screenshot =
     .save-dlg-title = 保存截图
     .save-error = 截图保存错误。{$error}
 
-select-widget = 选择一个控件进行检查
+select-widget = 选择要检查的组件
 
 window =
     .title = {$inspected_window_title} - 检查器

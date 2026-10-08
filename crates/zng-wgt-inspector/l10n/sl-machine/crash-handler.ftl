@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplikacija se je sesula
+    .title = {$app} - Aplikasi je pačelila
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Odpiranje minidump datoteke ni uspelo.
+    .open-error = Ni je mogoče odprati minidump.
         {$error}
-    .remove-error = Odstranjevanje minidump datoteke ni uspelo.
+    .remove-error = Ni je mogoče odstraniti minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Shrani kopijo
-    .save-error = Shranjevanje kopije minidump datoteke ni uspelo.
+    .save-error = Ni je mogoče shraniti kopijo minidump.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panika (Panic)
+    .title = Panika
 
 stderr =
     .title = Stderr
@@ -34,7 +34,7 @@ stdout =
 
 summary =
     .text = Časovni žig: {$timestamp}
-        Izstopna koda: {$exit_code}
+        Kod izhoda: {$exit_code}
         Signal: {$signal}
         Stderr: {$stderr_len} bajtov
         Stdout: {$stdout_len} bajtov
@@ -46,4 +46,4 @@ summary =
     .title = Povzetek
 
 widget =
-    .title = Gradnik
+    .title = Widget

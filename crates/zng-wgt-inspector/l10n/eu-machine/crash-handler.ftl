@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplikazioa kraskatu da
+    .title = {$app} - Aplikazioa krasatu da
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Ezin izan da minidump-a ireki.
+    .open-error = Minidumpa dakartzan ez da.
         {$error}
-    .remove-error = Ezin izan da minidump-a kendu.
+    .remove-error = Minidumpa ez da bete.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Gorde kopia
-    .save-error = Ezin izan da minidump-aren kopia gorde.
+    .save-copy-title = Kopia ezartzea
+    .save-error = Minidump kopian ez da eta ezartu.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Izua (Panic)
+    .title = Paniku
 
 stderr =
     .title = Stderr
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Denbora-zigilua: {$timestamp}
-        Irteera kodea: {$exit_code}
-        Seinalea: {$signal}
-        Stderr: {$stderr_len} byte
-        Stdout: {$stdout_len} byte
-        Izua: {$is_panic}
+    .text = Timestamp: {$timestamp}
+        Exit Code: {$exit_code}
+        Signal: {$signal}
+        Stderr: {$stderr_len} baita
+        Stdout: {$stdout_len} baita
+        Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Argumentuak: {$args}
-        SE: {$os}
-    .title = Laburpena
+        Args: {$args}
+        OS: {$os}
+    .title = Epaimena
 
 widget =
     .title = Widget

@@ -15,4 +15,4 @@ FINISH_CMD =
     .name = Bitir
 
 NEXT_CMD =
-    .name = İleri
+    .name = Sonraki

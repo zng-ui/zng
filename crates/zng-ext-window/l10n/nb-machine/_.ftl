@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = Lukk
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Slå eksklusiv fullskjermmodus av/på for vinduet
+    .info = Slå til/av eksklusiv fullskjermmodus på vinduet
     .name = Eksklusiv fullskjerm
 
 FULLSCREEN_CMD =
-    .info = Slå fullskjermmodus av/på for vinduet
+    .info = Slå til/av fullskjermmodus på vinduet
     .name = Fullskjerm
 
 MAXIMIZE_CMD =
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimer
 
 RESTORE_CMD =
-    .info = Gjenoppretter vinduet til forrige tilstand (ikke-minimert eller normal)
+    .info = Gjenoppretter vinduet til sin forrige ikke-minimerte tilstand eller normal tilstand
     .name = Gjenopprett

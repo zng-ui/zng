@@ -7,10 +7,10 @@ accept =
     .true = Accept acordul
 
 info =
-    .install = Vă rugăm să citiți termenii licenței înainte de a instala {$app}
-    .update = Vă rugăm să citiți termenii licenței înainte de a actualiza {$app}
+    .install = Vă rugăm să revizuiți termenii licenței înainte de instalarea {$app}
+    .update = Vă rugăm să revizuiți termenii licenței înainte de actualizarea {$app}
 
 message = Trebuie să acceptați termenii acestui acord înainte de a continua.
     .requires_scroll = Trebuie să citiți și să acceptați termenii acestui acord înainte de a continua.
 
-title = Acord de licență
+title = Acord de Licență

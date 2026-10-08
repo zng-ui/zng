@@ -22,28 +22,27 @@ ArrowRight = →
 
 ArrowUp = ↑
 
-Backspace = ←Atpakaļatkāpe
-    .macos = Dzēst
+Backspace = ←Atrādīt atpakaļ
 
-Close = Aizvērt
+Close = Pielāgot
 
-ContextMenu = ≣Konteksta izvēlne
+ContextMenu = ≣Konteksta menu
 
 Copy = Kopēt
 
-Cut = Izgriezt
+Cut = Izgriezēt
 
 Delete = Dzēst
-    .macos = Dzēst uz priekšu
+    .macos = Tālāk Dzēst
 
-Eject = ⏏Izstumt
+Eject = ⏏Izmantot
 
-Enter = ↵Ievadīt
-    .macos = ↵Atgriezt
+Enter = ↵Ievietot
+    .macos = ↵Atgriezties
 
-Escape = Esc
+Escape = Palikt
 
-Find = Atrast
+Find = Meklēt
 
 Help = ?Palīdzība
 
@@ -51,24 +50,24 @@ New = Jauns
 
 Open = Atvērt
 
-PageDown = Lapa uz leju
+PageDown = Pmelns
 
-PageUp = Lapa uz augšu
+PageUp = PMelns
 
-Paste = Ielīmēt
+Paste = Ielādēt
 
-Print = Drukāt
+Print = Drukt
 
-PrintScreen = Ekrānuzņēmums
+PrintScreen = Ekrāna attēls
 
-Redo = Atkārtot
+Redo = Atgādināt
 
 Save = Saglabāt
 
-Tab = ⭾Tabulēšana
+Tab = ⭾Tab
 
-Undo = Atsaukt
+Undo = Atgriezt
 
-ZoomIn = +Pietuvināt
+ZoomIn = +Zoom In
 
-ZoomOut = -Attālināt
+ZoomOut = -Zoom Out

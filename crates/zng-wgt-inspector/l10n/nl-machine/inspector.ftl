@@ -8,19 +8,19 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = informatie over bekeken widget
+info-help = Informatie over het gemonitorde widget
 
-intrinsic-help = intrinsiek knooppunt
+intrinsic-help = Intrinsiek knooppunt
 
-nest-group-help = nestgroep
+nest-group-help = Nestgroep
 
 screenshot =
-    .copy-error = Fout bij kopiëren van screenshot. {$error}
-    .error-dlg-title = Screenshotfout
+    .copy-error = Screenshot kopieerfout. {$error}
+    .error-dlg-title = Screenshot Fout
     .save-dlg-filter = Afbeeldingsbestanden
     .save-dlg-starting-name = screenshot.png
-    .save-dlg-title = Screenshot opslaan
-    .save-error = Fout bij opslaan van screenshot. {$error}
+    .save-dlg-title = Screenshot Opslaan
+    .save-error = Screenshot opslagfout. {$error}
 
 select-widget = selecteer een widget om te inspecteren
 

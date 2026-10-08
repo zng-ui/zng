@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Pregledaj prozor
-    .name = Inspektor za ispravljanje pogrešaka
+    .name = Inspektor za debagovanje
 
 ## Inspector Window (always en-US)
 
-info-help = informacije o nadziranom widgetu
+info-help = Informacije o praćenom widgetu
 
-intrinsic-help = intrinzični čvor
+intrinsic-help = Intrinzični čvor
 
-nest-group-help = grupa gniježđenja
+nest-group-help = Ugnježdena grupa
 
 screenshot =
-    .copy-error = Pogreška pri kopiranju snimke zaslona. {$error}
-    .error-dlg-title = Pogreška snimke zaslona
-    .save-dlg-filter = Slikovne datoteke
-    .save-dlg-starting-name = snimka_zaslona.png
-    .save-dlg-title = Spremi snimku zaslona
-    .save-error = Pogreška pri spremanju snimke zaslona. {$error}
+    .copy-error = Greška pri kopiranju snimke zaslona. {$error}
+    .error-dlg-title = Greška pri snimci zaslona
+    .save-dlg-filter = Slika datoteke
+    .save-dlg-starting-name = screenshot.png
+    .save-dlg-title = Sačuvaj snimku zaslona
+    .save-error = Greška pri spremanju snimke zaslona. {$error}
 
-select-widget = odaberite widget za pregled
+select-widget = Odaberi widget za pregled
 
 window =
     .title = {$inspected_window_title} - Inspektor

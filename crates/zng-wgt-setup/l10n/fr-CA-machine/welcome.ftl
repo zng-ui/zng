@@ -6,7 +6,7 @@ message =
     .install = Ceci installera {$app} {$version} sur votre ordinateur.
     .repair = Ceci réparera l'installation de {$app} {$version} sur votre ordinateur.
     .uninstall = Ceci désinstallera {$app} {$version} de votre ordinateur.
-    .update = Ceci mettra à jour {$app} de la version {$current_version} à la version {$new_version} sur votre ordinateur.
+    .update = Ceci mettra à jour {$app} de {$current_version} à {$new_version} sur votre ordinateur.
 
 title =
     .install = Bienvenue dans l'assistant d'installation de {$app}

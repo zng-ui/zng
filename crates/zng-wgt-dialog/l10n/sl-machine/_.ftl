@@ -8,6 +8,6 @@ response-close = Zapri
 
 response-no = Ne
 
-response-ok = V redu
+response-ok = OK
 
 response-yes = Da

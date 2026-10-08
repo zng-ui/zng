@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = העתק נתיב
-    .copy-url = העתק כתובת URL
+    .copy-url = העתק כתובת
     .open-url = פתח בדפדפן
     .reveal-path = הצג במנהל הקבצים
     .reveal-path-macos = הצג ב-Finder
-    .reveal-path-windows = הצג בסייר הקבצים
+    .reveal-path-windows = הצג ב-File Explorer

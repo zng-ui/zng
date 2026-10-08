@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Velg alt
 
 text-edit-op =
-    .clear = tøm
-    .generic = tekstredigering
-    .replace = erstatt
-    .transform = transformer
+    .clear = Tøm
+    .generic = Tekstredigering
+    .replace = Erstatt
+    .transform = Transformasjon

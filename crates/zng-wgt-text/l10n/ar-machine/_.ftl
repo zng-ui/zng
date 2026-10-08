@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = مسح
-    .generic = تحرير نص
+    .generic = تحرير النص
     .replace = استبدال
     .transform = تحويل

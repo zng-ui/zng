@@ -12,13 +12,13 @@
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
 
 Alt = Alt
-    .macos = ⌥Aukera
+    .macos = ⌥Option
 
-Ctrl = Ktrl
-    .macos = ^Kontrola
+Ctrl = Ctrl
+    .macos = ^Control
 
-Shift = ⇧Maius
+Shift = ⇧Shift
 
 Super = Super
-    .macos = ⌘Komando
+    .macos = ⌘Command
     .windows = ⊞Win

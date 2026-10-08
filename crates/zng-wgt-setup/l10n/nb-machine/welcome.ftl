@@ -5,11 +5,11 @@
 message =
     .install = Dette vil installere {$app} {$version} på datamaskinen din.
     .repair = Dette vil reparere installasjonen av {$app} {$version} på datamaskinen din.
-    .uninstall = Dette vil avinstallere {$app} {$version} fra datamaskinen din.
+    .uninstall = Dette vil fjerne {$app} {$version} fra datamaskinen din.
     .update = Dette vil oppdatere {$app} fra {$current_version} til {$new_version} på datamaskinen din.
 
 title =
-    .install = Velkommen til installasjonsveiviseren for {$app}
-    .repair = Velkommen til reparasjonsveiviseren for {$app}
-    .uninstall = Velkommen til avinstallasjonsveiviseren for {$app}
-    .update = Velkommen til oppdateringsveiviseren for {$app}
+    .install = Velkommen til {$app} installasjonsvelgermaskin
+    .repair = Velkommen til {$app} reparasjonsvelgermaskin
+    .uninstall = Velkommen til {$app} avinstallasjonsvelgermaskin
+    .update = Velkommen til {$app} oppdateringsvelgermaskin

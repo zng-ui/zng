@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = Atcelt
 
 FINISH_CMD =
-    .name = Pabeigt
+    .name = Beigāt
 
 NEXT_CMD =
-    .name = Tālāk
+    .name = Nākamais

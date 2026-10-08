@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = Копіювати шлях
-    .copy-url = Копіювати посилання
-    .open-url = Відкрити в браузері
+    .copy-url = Копіювати URL
+    .open-url = Відкрити у браузері
     .reveal-path = Показати у файловому менеджері
     .reveal-path-macos = Показати у Finder
-    .reveal-path-windows = Показати у Провіднику
+    .reveal-path-windows = Показати у Провіднику файлів
