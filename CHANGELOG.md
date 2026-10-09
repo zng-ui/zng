@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+
+## 0.25.0
+
 This release contains minor breaking changes on the API that are trivial to fix.
 
 * **Breaking** `zng::fs_watcher` API now uses `globset` adding support for braced alternate patterns.

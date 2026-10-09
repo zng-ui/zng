@@ -81,10 +81,11 @@ pub fn close_changelog() {
 
     let mut changelog = read_to_string(&changelog_path).expect("CHANGELOG.md");
     let title = format!("\n## {}\n\n", crate::util::crate_version("zng"));
-    let unreleased = "## Unreleased\n\n";
-    assert!(changelog.starts_with(unreleased));
     if !changelog.contains(&title) {
-        changelog.insert_str(unreleased.len(), &title);
+        let unreleased = "## Unreleased\n\n";
+        let section_start = changelog.find(unreleased).unwrap();
+
+        changelog.insert_str(section_start + unreleased.len(), &title);
 
         std::fs::write(changelog_path, changelog.as_bytes()).expect("CHANGELOG.md");
     }
