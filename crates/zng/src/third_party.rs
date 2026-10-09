@@ -183,13 +183,9 @@ pub(crate) fn setup_default_view() {
     fn default_view() -> UiNode {
         let mut licenses = LICENSES.user_licenses();
         if licenses.is_empty() {
-            // l10n-# "user" is the package that uses the license
-            let user_name = l10n!("license-none.user-name", "<none>").get();
-            // l10n-# License name
-            let license_name = l10n!("license-none.name", "No license data").get();
             licenses.push(UserLicense {
-                user: User::new(user_name, "", ""),
-                license: License::new(l10n!("license-none.id", "<none>").get(), license_name, ""),
+                user: User::new("<none>", "", ""),
+                license: License::new("<none>", "No license data", ""),
             });
         }
         let selected = var(licenses[0].clone());
