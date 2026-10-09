@@ -523,6 +523,7 @@ pub fn glob_walker(pattern: &str, case_insensitive: bool) -> Result<impl Iterato
             globset::GlobBuilder::new(&glob)
                 .case_insensitive(case_insensitive)
                 .literal_separator(true)
+                .empty_alternates(true)
                 .build()?
                 .compile_matcher(),
         )
@@ -535,4 +536,22 @@ pub fn glob_walker(pattern: &str, case_insensitive: bool) -> Result<impl Iterato
         let rel = entry.path().strip_prefix(&root).unwrap_or(entry.path());
         matcher.is_match(rel)
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn globset_test() {
+        let matcher = globset::GlobBuilder::new("foo/bar{,.exe,.com}")
+            .case_insensitive(true)
+            .literal_separator(true)
+            .empty_alternates(true)
+            .build()
+            .unwrap()
+            .compile_matcher();
+
+        assert!(matcher.is_match("foo/bar.exe"));
+        assert!(matcher.is_match("foo/bar.com"));
+        assert!(matcher.is_match("foo/bar"));
+    }
 }
