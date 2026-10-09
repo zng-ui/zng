@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Instalēt
-    .name-repair = Labot
-    .name-uninstall = Atinstalēt
-    .name-update = Atjaunināt
+    .name-repair = Atnovināt
+    .name-uninstall = Demontēt
+    .name-update = Atjaunot

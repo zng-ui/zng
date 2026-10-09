@@ -3,7 +3,7 @@
 //!
 //! Local LLM plugin for `cargo zng l10n`.
 //!
-//! Optionally define `LOCAL_TRANSLATOR_LLM_URL` is "http://localhost:8080/v1/chat/completions" by default.
+//! Optionally define `LOCAL_TRANSLATOR_LLM_URL` is "http://localhost:9931/v1/chat/completions" by default.
 //!
 //! # Crate
 //!
@@ -20,7 +20,7 @@ mod local;
 
 /// Local LLVM plugin for `cargo zng l10n`
 ///
-/// Optionally define `LOCAL_TRANSLATOR_LLM_URL` is "http://localhost:8080/v1/chat/completions" by default.
+/// Optionally define `LOCAL_TRANSLATOR_LLM_URL` is "http://localhost:9931/v1/chat/completions" by default.
 #[derive(Parser, Debug)]
 struct Cli {
     #[arg(long)]
@@ -53,7 +53,7 @@ fn main() {
             }
         }
         Err(e) => match e {
-            std::env::VarError::NotPresent => "http://localhost:8080/v1/chat/completions".to_owned(),
+            std::env::VarError::NotPresent => "http://localhost:9931/v1/chat/completions".to_owned(),
             std::env::VarError::NotUnicode(_) => fatal!("invalid `LOCAL_TRANSLATOR_LLM_URL`"),
         },
     };

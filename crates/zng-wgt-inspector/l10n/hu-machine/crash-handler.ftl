@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Az alkalmazás összeomlott
+    .title = {$app} - Alkalmazás összeomlása
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nem sikerült megnyitni a minidumpot.
+    .open-error = Minidump nem sikerült megnyitani.
         {$error}
-    .remove-error = Nem sikerült eltávolítani a minidumpot.
+    .remove-error = Minidump nem sikerült törölni.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Másolat mentése
-    .save-error = Nem sikerült elmenteni a minidump másolatát.
+    .save-copy-title = Másolati mentés
+    .save-error = Nem sikerült menteni a minidump másolatát.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Pánik (Panic)
+    .title = Panik
 
 stderr =
     .title = Stderr
@@ -35,15 +35,15 @@ stdout =
 summary =
     .text = Időbélyeg: {$timestamp}
         Kilépési kód: {$exit_code}
-        Szignál: {$signal}
+        Jel: {$signal}
         Stderr: {$stderr_len} bájt
         Stdout: {$stdout_len} bájt
-        Pánik: {$is_panic}
+        Panik: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumentumok: {$args}
         OS: {$os}
-    .title = Összegzés
+    .title = Összefoglaló
 
 widget =
     .title = Widget

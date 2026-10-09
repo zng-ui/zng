@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Instalatu
-    .name-repair = Konpondu
-    .name-uninstall = Desinstalatu
-    .name-update = Eguneratu
+    .name-repair = Josebatu
+    .name-uninstall = Deskinstalatu
+    .name-update = Güncelle

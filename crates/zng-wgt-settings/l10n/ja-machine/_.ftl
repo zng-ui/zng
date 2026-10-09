@@ -6,8 +6,8 @@
 reset = デフォルトに戻す
 
 search =
-    .no_results = 設定が見つかりません
-    .placeholder = 設定を検索 ({$shortcut})
+    .no_results = 設定は見つかりませんでした
+    .placeholder = 設定を検索（{$shortcut}）
 
 window =
     .title = {$app} - 設定

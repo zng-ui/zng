@@ -6,13 +6,13 @@ action-run =
     .info = Chạy {$app}
 
 message =
-    .install = Trình hướng dẫn đã cài đặt {$app} {$version} trên máy tính của bạn.
-    .repair = Trình hướng dẫn đã sửa lỗi cài đặt {$app} {$version} trên máy tính của bạn.
-    .uninstall = Trình hướng dẫn đã gỡ cài đặt {$app} {$version} khỏi máy tính của bạn.
+    .install = Trình hướng dẫn đã cài đặt {$app} phiên bản {$version} trên máy tính của bạn.
+    .repair = Trình hướng dẫn đã sửa chữa cài đặt {$app} phiên bản {$version} trên máy tính của bạn.
+    .uninstall = Trình hướng dẫn đã gỡ cài đặt {$app} phiên bản {$version} khỏi máy tính của bạn.
     .update = Trình hướng dẫn đã cập nhật {$app} từ {$current_version} lên {$new_version} trên máy tính của bạn.
 
 title =
     .install = Đã cài đặt {$app}
-    .repair = Đã sửa lỗi {$app}
+    .repair = Đã sửa chữa {$app}
     .uninstall = Đã gỡ cài đặt {$app}
     .update = Đã cập nhật {$app}

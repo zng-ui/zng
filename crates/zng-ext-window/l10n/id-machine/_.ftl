@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = Tutup
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Beralih ke mode layar penuh eksklusif pada jendela
+    .info = Alihkan mode layar penuh eksklusif pada jendela
     .name = Layar Penuh Eksklusif
 
 FULLSCREEN_CMD =
-    .info = Beralih ke mode layar penuh pada jendela
+    .info = Alihkan mode layar penuh pada jendela
     .name = Layar Penuh
 
 MAXIMIZE_CMD =
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimalkan
 
 RESTORE_CMD =
-    .info = Mengembalikan jendela ke status sebelumnya yang tidak diminimalkan atau status normal
+    .info = Mengembalikan jendela ke kondisi normal atau kondisi yang sebelumnya tidak diminimalkan
     .name = Pulihkan

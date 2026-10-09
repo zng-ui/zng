@@ -4,20 +4,20 @@
 
 default-info =
     .create-shortcut = Opprett snarvei
-    .extract-files = Pakk ut filer
-    .register-uninstaller = Registrer avinstalleringsprogram
+    .extract-files = Ekstraher filer
+    .register-uninstaller = Registrer avinstaller
     .remove-files = Fjern filer
     .remove-shortcut = Fjern snarvei
-    .unregister-uninstaller = Avregistrer avinstalleringsprogram
+    .unregister-uninstaller = Avregistrer avinstaller
 
 info =
-    .install = Vennligst vent mens {$app} blir installert på datamaskinen din.
-    .repair = Vennligst vent mens {$app} blir reparert på datamaskinen din.
-    .uninstall = Vennligst vent mens {$app} blir avinstallert fra datamaskinen din.
-    .update = Vennligst vent mens {$app} blir oppdatert på datamaskinen din.
+    .install = Vennligst vent mens {$app} installeres på datamaskinen din.
+    .repair = Vennligst vent mens {$app} repareres på datamaskinen din.
+    .uninstall = Vennligst vent mens {$app} avinstalleres fra datamaskinen din.
+    .update = Vennligst vent mens {$app} oppdateres på datamaskinen din.
 
 title =
     .install = Installerer
     .repair = Reparerer
-    .uninstall = Avinstallerer
+    .uninstall = Avinstaller
     .update = Oppdaterer

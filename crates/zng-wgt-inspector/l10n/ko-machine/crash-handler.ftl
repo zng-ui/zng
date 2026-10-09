@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - 앱 충돌 발생
+    .title = {$app} - 앱 충돌
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = 미니덤프를 여는 데 실패했습니다.
+    .open-error = 미니덤프를 열 수 없습니다.
         {$error}
-    .remove-error = 미니덤프를 제거하는 데 실패했습니다.
+    .remove-error = 미니덤프를 제거할 수 없습니다.
         {$error}
     .save-copy-filter-name = 미니덤프
     .save-copy-starting-name = minidump
     .save-copy-title = 복사본 저장
-    .save-error = 미니덤프 복사본을 저장하는 데 실패했습니다.
+    .save-error = 미니덤프 복사에 실패했습니다.
         {$error}
     .title = 미니덤프
 
 panic =
-    .title = 패닉 (Panic)
+    .title = 패닉
 
 stderr =
     .title = Stderr
@@ -38,10 +38,10 @@ summary =
         시그널: {$signal}
         Stderr: {$stderr_len} 바이트
         Stdout: {$stdout_len} 바이트
-        패닉 여부: {$is_panic}
-        미니덤프: {$minidump_path}
+        패닉: {$is_panic}
+        Minidump: {$minidump_path}
         
-        인자: {$args}
+        인수: {$args}
         OS: {$os}
     .title = 요약
 

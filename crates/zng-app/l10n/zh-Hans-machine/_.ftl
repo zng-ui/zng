@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = 退出
 
 OPEN_LICENSES_CMD =
-    .name = 第三方许可证
+    .name = 第三方许可

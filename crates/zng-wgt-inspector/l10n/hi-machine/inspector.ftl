@@ -17,12 +17,12 @@ nest-group-help = नेस्ट समूह
 screenshot =
     .copy-error = स्क्रीनशॉट कॉपी त्रुटि। {$error}
     .error-dlg-title = स्क्रीनशॉट त्रुटि
-    .save-dlg-filter = इमेज फाइलें
+    .save-dlg-filter = छवि फ़ाइलें
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = स्क्रीनशॉट सहेजें
     .save-error = स्क्रीनशॉट सहेजने में त्रुटि। {$error}
 
-select-widget = निरीक्षण करने के लिए एक विजेट चुनें
+select-widget = निरीक्षण के लिए एक विजेट चुनें
 
 window =
     .title = {$inspected_window_title} - इंस्पेक्टर

@@ -8,21 +8,21 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = informations sur le widget surveillé
+info-help = Infos du widget surveillé
 
-intrinsic-help = nœud intrinsèque
+intrinsic-help = Nœud intrinsèque
 
-nest-group-help = groupe d'imbrication
+nest-group-help = Groupe imbriqué
 
 screenshot =
     .copy-error = Erreur lors de la copie de la capture d'écran. {$error}
     .error-dlg-title = Erreur de capture d'écran
-    .save-dlg-filter = Fichiers image
-    .save-dlg-starting-name = capture-ecran.png
+    .save-dlg-filter = Fichiers d'images
+    .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Enregistrer la capture d'écran
-    .save-error = Erreur lors de l'enregistrement de la capture d'écran. {$error}
+    .save-error = Erreur d'enregistrement de la capture d'écran. {$error}
 
-select-widget = sélectionnez un widget à inspecter
+select-widget = Sélectionner un widget à inspecter
 
 window =
     .title = {$inspected_window_title} - Inspecteur

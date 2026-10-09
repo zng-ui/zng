@@ -6,10 +6,10 @@ message =
     .install = Dit zal {$app} {$version} op uw computer installeren.
     .repair = Dit zal de installatie van {$app} {$version} op uw computer herstellen.
     .uninstall = Dit zal {$app} {$version} van uw computer verwijderen.
-    .update = Dit zal {$app} bijwerken van {$current_version} naar {$new_version} op uw computer.
+    .update = Dit zal {$app} op uw computer updaten van {$current_version} naar {$new_version}.
 
 title =
-    .install = Welkom bij de {$app} installatiewizard
-    .repair = Welkom bij de {$app} herstelwizard
-    .uninstall = Welkom bij de {$app} verwijderingswizard
-    .update = Welkom bij de {$app} updatewizard
+    .install = Welkom bij de {$app} Installatie Wizard
+    .repair = Welkom bij de {$app} Reparatie Wizard
+    .uninstall = Welkom bij de {$app} Deinstallatie Wizard
+    .update = Welkom bij de {$app} Update Wizard

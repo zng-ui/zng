@@ -5,5 +5,5 @@
 BEGIN_CMD =
     .name-install = Installer
     .name-repair = Reparer
-    .name-uninstall = Afinstaller
-    .name-update = Opdater
+    .name-uninstall = Afinstallere
+    .name-update = Opdatere

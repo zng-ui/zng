@@ -9,10 +9,10 @@ OPEN_CMD =
     .name = Obrir…
 
 SAVE_AS_CMD =
-    .name = Anomena i desa…
+    .name = Guardar com…
 
 SAVE_CMD =
-    .name = Desa
+    .name = Guardar
 
 SETTINGS_CMD =
-    .name = Configuració
+    .name = Configuracions

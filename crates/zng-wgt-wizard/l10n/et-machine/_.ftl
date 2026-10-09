@@ -9,10 +9,10 @@ BEGIN_CMD =
     .name = Alusta
 
 CANCEL_CMD =
-    .name = Loobu
+    .name = Tühista
 
 FINISH_CMD =
     .name = Lõpeta
 
 NEXT_CMD =
-    .name = Edasi
+    .name = Järgmine

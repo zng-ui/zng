@@ -4,36 +4,36 @@
 
 FOCUS_ALT_CMD =
     .info = 聚焦替代範圍
-    .name = 聚焦替代 (Focus Alt)
+    .name = 焦點替代
 
 FOCUS_DOWN_CMD =
-    .info = 聚焦下方最近的可聚焦元件
-    .name = 往下聚焦
+    .info = 聚焦最近的可聚焦元素（向下）
+    .name = 焦點向下
 
 FOCUS_ENTER_CMD =
-    .info = 聚焦子層級可聚焦元件
-    .name = 進入聚焦
+    .info = 聚焦可聚焦的子元素
+    .name = 焦點進入
 
 FOCUS_EXIT_CMD =
-    .info = 聚焦父層級可聚焦元件，或返回焦點
-    .name = 離開聚焦
+    .info = 聚焦可聚焦的父元素，或返回焦點
+    .name = 焦點退出
 
 FOCUS_LEFT_CMD =
-    .info = 聚焦左側最近的可聚焦元件
-    .name = 往左聚焦
+    .info = 聚焦最近的可聚焦元素（向左）
+    .name = 焦點向左
 
 FOCUS_NEXT_CMD =
-    .info = 聚焦下一個可聚焦元件
-    .name = 下一個焦點
+    .info = 聚焦下一個可聚焦元素
+    .name = 焦點下一個
 
 FOCUS_PREV_CMD =
-    .info = 聚焦上一個可聚焦元件
-    .name = 上一個焦點
+    .info = 聚焦上一個可聚焦元素
+    .name = 焦點上一個
 
 FOCUS_RIGHT_CMD =
-    .info = 聚焦右側最近的可聚焦元件
-    .name = 往右聚焦
+    .info = 聚焦最近的可聚焦元素（向右）
+    .name = 焦點向右
 
 FOCUS_UP_CMD =
-    .info = 聚焦上方最近的可聚焦元件
-    .name = 往上聚焦
+    .info = 聚焦最近的可聚焦元素（向上）
+    .name = 焦點向上

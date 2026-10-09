@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = Uždaryti
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Perjungti išskirtinį viso ekrano režimą lange
-    .name = Išskirtinis viso ekrano režimas
+    .info = Įjungti/išjungti ekskluzyvų pilno ekrano režimą langoje
+    .name = Ekskluzyvus pilnas ekranas
 
 FULLSCREEN_CMD =
-    .info = Perjungti viso ekrano režimą lange
-    .name = Visas ekranas
+    .info = Įjungti/išjungti pilno ekrano režimą langoje
+    .name = Pilnas ekranas
 
 MAXIMIZE_CMD =
-    .info = Išskleisti langą
-    .name = Išskleisti
+    .info = Maksimalizuoti langą
+    .name = Maksimalizuoti
 
 MINIMIZE_CMD =
-    .info = Suskleisti langą
-    .name = Suskleisti
+    .info = Minimalizuoti langą
+    .name = Minimalizuoti
 
 RESTORE_CMD =
-    .info = Atkurti langą į ankstesnę nesuskleistą arba įprastą būseną
+    .info = Atkuria langą į jo anksčiau būseną (neminimalizuotą) arba į normalią būseną
     .name = Atkurti

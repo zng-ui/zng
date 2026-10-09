@@ -6,10 +6,10 @@ action-run =
     .info = {$app} 실행
 
 message =
-    .install = 마법사가 컴퓨터에 {$app} {$version}을(를) 설치했습니다.
-    .repair = 마법사가 컴퓨터의 {$app} {$version} 설치를 복구했습니다.
-    .uninstall = 마법사가 컴퓨터에서 {$app} {$version}을(를) 제거했습니다.
-    .update = 마법사가 컴퓨터의 {$app}을(를) {$current_version}에서 {$new_version}(으)로 업데이트했습니다.
+    .install = 마법사가 {$app} {$version}을 컴퓨터에 설치했습니다.
+    .repair = 마법사가 {$app} {$version} 설치를 컴퓨터에서 복구했습니다.
+    .uninstall = 마법사가 {$app} {$version}을 컴퓨터에서 제거했습니다.
+    .update = 마법사가 {$app}을 {$current_version}에서 {$new_version}으로 컴퓨터에서 업데이트했습니다.
 
 title =
     .install = {$app} 설치됨

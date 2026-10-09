@@ -9,10 +9,10 @@ BEGIN_CMD =
     .name = Bắt đầu
 
 CANCEL_CMD =
-    .name = Hủy
+    .name = Hủy bỏ
 
 FINISH_CMD =
-    .name = Hoàn tất
+    .name = Kết thúc
 
 NEXT_CMD =
     .name = Tiếp theo

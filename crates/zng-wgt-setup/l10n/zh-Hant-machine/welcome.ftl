@@ -4,12 +4,12 @@
 
 message =
     .install = 這將在您的電腦上安裝 {$app} {$version}。
-    .repair = 這將修復您電腦上的 {$app} {$version} 安裝。
-    .uninstall = 這將從您的電腦上解除安裝 {$app} {$version}。
-    .update = 這將把您電腦上的 {$app} 從 {$current_version} 更新至 {$new_version}。
+    .repair = 這將修復您電腦上 {$app} {$version} 的安裝。
+    .uninstall = 這將從您的電腦中解除安裝 {$app} {$version}。
+    .update = 這將在您的電腦上將 {$app} 從 {$current_version} 更新到 {$new_version}。
 
 title =
-    .install = 歡迎使用 {$app} 安裝精靈
-    .repair = 歡迎使用 {$app} 修復精靈
-    .uninstall = 歡迎使用 {$app} 解除安裝精靈
-    .update = 歡迎使用 {$app} 更新精靈
+    .install = 歡迎使用 {$app} 安裝嚮導
+    .repair = 歡迎使用 {$app} 修復嚮導
+    .uninstall = 歡迎使用 {$app} 解除安裝嚮導
+    .update = 歡迎使用 {$app} 更新嚮導

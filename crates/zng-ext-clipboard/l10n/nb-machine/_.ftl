@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopier
 
 CUT_CMD =
-    .name = Klipp ut
+    .name = Kut
 
 PASTE_CMD =
-    .name = Lim inn
+    .name = Lim

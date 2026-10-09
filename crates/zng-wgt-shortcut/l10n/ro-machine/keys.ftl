@@ -27,23 +27,23 @@ Backspace = ←Backspace
 
 Close = Închide
 
-ContextMenu = ≣Meniu contextual
+ContextMenu = ≣Meniu de Context
 
 Copy = Copiază
 
 Cut = Taie
 
 Delete = Șterge
-    .macos = Forward Delete
+    .macos = Delete Avansat
 
-Eject = ⏏Eject
+Eject = ⏏Ejectare
 
-Enter = ↵Enter
+Enter = ↵Introdu
     .macos = ↵Return
 
 Escape = Esc
 
-Find = Căutare
+Find = Caută
 
 Help = ?Ajutor
 
@@ -55,13 +55,13 @@ PageDown = PgDn
 
 PageUp = PgUp
 
-Paste = Lipire
+Paste = Lipește
 
 Print = Imprimare
 
 PrintScreen = PrtSc
 
-Redo = Refă
+Redo = Reefecă
 
 Save = Salvează
 
@@ -69,6 +69,6 @@ Tab = ⭾Tab
 
 Undo = Anulează
 
-ZoomIn = +Mărire
+ZoomIn = +Zoom În
 
-ZoomOut = -Micșorare
+ZoomOut = -Zoom Ie

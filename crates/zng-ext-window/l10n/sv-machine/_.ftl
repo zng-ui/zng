@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = Stäng
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Växla exklusivt helskärmsläge för fönstret
+    .info = Växla till exklusiv helskärmsläge på fönstret
     .name = Exklusiv helskärm
 
 FULLSCREEN_CMD =
-    .info = Växla helskärmsläge för fönstret
+    .info = Växla till helskärmsläge på fönstret
     .name = Helskärm
 
 MAXIMIZE_CMD =

@@ -1,19 +1,5 @@
 ### Machine translated by `cargo zng l10n`, f66bc3e2d3fe992cf8f2ec38a95f5c05828baae1f65d73e015906b4eebfe2254
 
-### Auto generat per `cargo zng l10n`
-
-### Noms de tecles vàlids per a gestos
-### 
-### * L'ID és el nom de la variant `Key`. [1]
-### * S'ha de proporcionar un text genèric per al SO; es pot establir text específic per a cada SO com a atributs.
-### * L'atribut del SO és un valor `std::env::consts::OS`. [2]
-### * La localització no inclou Char, Str, modificadors ni tecles compostes.
-### 
-### Nota: Aquest fitxer no inclou totes les tecles vàlides, vegeu [1] per a la llista completa.
-### 
-### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
-### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
-
 ArrowDown = ↓
 
 ArrowLeft = ←
@@ -22,53 +8,53 @@ ArrowRight = →
 
 ArrowUp = ↑
 
-Backspace = ←Retrocés
-    .macos = Suprimir
+Backspace = ←Retrogrés
+    .macos = Delete
 
-Close = Tanca
+Close = Tancar
 
-ContextMenu = ≣Menú contextual
+ContextMenu = ≣Menú de context
 
-Copy = Copia
+Copy = Copiar
 
-Cut = Retalla
+Cut = Tallar
 
-Delete = Suprimir
-    .macos = Suprimeix endavant
+Delete = Eliminar
+    .macos = Sulet Forward Delete
 
-Eject = ⏏Expulsa
+Eject = ⏏Eject
 
-Enter = ↵Retorn
-    .macos = ↵Retorn
+Enter = ↵Entrar
+    .macos = ↵Return
 
 Escape = Esc
 
-Find = Cerca
+Find = Cercar
 
 Help = ?Ajuda
 
 New = Nou
 
-Open = Obre
+Open = Obrir
 
-PageDown = PàgAvall
+PageDown = PgDn
 
-PageUp = PàgAmunt
+PageUp = PgUp
 
-Paste = Enganxa
+Paste = Pegar
 
-Print = Imprimeix
+Print = Imprimir
 
-PrintScreen = ImprPant
+PrintScreen = PrtSc
 
-Redo = Refés
+Redo = Referir
 
-Save = Desa
+Save = Guardar
 
-Tab = ⭾Tabulador
+Tab = ⭾Tab
 
-Undo = Desfés
+Undo = Desfer
 
-ZoomIn = +Apropa
+ZoomIn = +Zoomar a
 
-ZoomOut = -Allunya
+ZoomOut = -Zoomar fora

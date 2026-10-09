@@ -9,7 +9,7 @@ info =
 # $bytes is already formatted e.g.: 900kB or 50MB.
 min-required-space = Potrebno je najmanje {$bytes} slobodnog prostora na disku.
 
-reset-label = Zadata lokacija
+reset-label = Podrazumijevana lokacija
 
 select-label = Odaberi lokaciju
 

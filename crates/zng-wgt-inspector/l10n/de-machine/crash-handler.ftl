@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – App abgestürzt
+    .title = {$app} - App abgestürzt
 
 ## Panels
 
@@ -19,7 +19,7 @@ minidump =
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Kopie speichern
-    .save-error = Minidump-Kopie konnte nicht gespeichert werden.
+    .save-error = Fehler beim Speichern der Minidump-Kopie.
         {$error}
     .title = Minidump
 

@@ -9,4 +9,4 @@ text-edit-op =
     .clear = xóa
     .generic = chỉnh sửa văn bản
     .replace = thay thế
-    .transform = chuyển đổi
+    .transform = biến đổi

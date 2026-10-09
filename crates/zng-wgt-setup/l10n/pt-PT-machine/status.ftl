@@ -5,19 +5,19 @@
 default-info =
     .create-shortcut = Criar atalho
     .extract-files = Extrair ficheiros
-    .register-uninstaller = Registar desinstalador
+    .register-uninstaller = Registrar desinstalador
     .remove-files = Remover ficheiros
     .remove-shortcut = Remover atalho
-    .unregister-uninstaller = Desregistar desinstalador
+    .unregister-uninstaller = Desregistrar desinstalador
 
 info =
-    .install = Por favor, aguarde enquanto o {$app} é instalado no seu computador.
-    .repair = Por favor, aguarde enquanto o {$app} é reparado no seu computador.
-    .uninstall = Por favor, aguarde enquanto o {$app} é desinstalado do seu computador.
-    .update = Por favor, aguarde enquanto o {$app} é atualizado no seu computador.
+    .install = Aguarde enquanto {$app} está a ser instalado no seu computador.
+    .repair = Aguarde enquanto {$app} está a ser reparado no seu computador.
+    .uninstall = Aguarde enquanto {$app} está a ser desinstalado do seu computador.
+    .update = Aguarde enquanto {$app} está a ser atualizado no seu computador.
 
 title =
-    .install = A instalar
-    .repair = A reparar
-    .uninstall = A desinstalar
-    .update = A atualizar
+    .install = A Instalar
+    .repair = A Reparar
+    .uninstall = A Desinstalar
+    .update = A Atualizar

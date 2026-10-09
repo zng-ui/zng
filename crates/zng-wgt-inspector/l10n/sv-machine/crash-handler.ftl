@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} – Appen kraschade
+    .title = {$app} - App kraschade
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Kunde inte öppna minidumpen.
+    .open-error = Misslyckades att öppna minidump.
         {$error}
-    .remove-error = Kunde inte ta bort minidumpen.
+    .remove-error = Misslyckades att ta bort minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Spara kopia
-    .save-error = Kunde inte spara minidump-kopia.
+    .save-error = Misslyckades med att spara minidumpkopia.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panic
+    .title = Panik
 
 stderr =
     .title = Stderr
@@ -36,13 +36,13 @@ summary =
     .text = Tidsstämpel: {$timestamp}
         Avslutningskod: {$exit_code}
         Signal: {$signal}
-        Stderr: {$stderr_len} byte
-        Stdout: {$stdout_len} byte
-        Panic: {$is_panic}
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
+        Panik: {$is_panic}
         Minidump: {$minidump_path}
         
         Argument: {$args}
-        Operativsystem: {$os}
+        OS: {$os}
     .title = Sammanfattning
 
 widget =

@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = रद्द करें
 
 FINISH_CMD =
-    .name = समाप्त
+    .name = समाप्त करें
 
 NEXT_CMD =
     .name = अगला

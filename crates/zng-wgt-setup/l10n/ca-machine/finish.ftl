@@ -6,13 +6,13 @@ action-run =
     .info = Executar {$app}
 
 message =
-    .install = L'Assistent ha instal·lat {$app} {$version} a l'ordinador.
-    .repair = L'Assistent ha reparat la instal·lació de {$app} {$version} a l'ordinador.
-    .uninstall = L'Assistent ha desinstal·lat {$app} {$version} de l'ordinador.
-    .update = L'Assistent ha actualitzat {$app} de {$current_version} a {$new_version} a l'ordinador.
+    .install = L'assistència ha instal·lat {$app} {$version} en el vostre ordinador.
+    .repair = L'assistència ha reparat l'instal·lació de {$app} {$version} en el vostre ordinador.
+    .uninstall = L'assistència ha desinstal·lat {$app} {$version} del vostre ordinador.
+    .update = L'assistència ha actualitzat {$app} de {$current_version} a {$new_version} en el vostre ordinador.
 
 title =
-    .install = {$app} instal·lat
-    .repair = {$app} reparat
-    .uninstall = {$app} desinstal·lat
-    .update = {$app} actualitzat
+    .install = {$app} Instal·lat
+    .repair = {$app} Reparat
+    .uninstall = {$app} Desinstal·lat
+    .update = {$app} Actualitzat

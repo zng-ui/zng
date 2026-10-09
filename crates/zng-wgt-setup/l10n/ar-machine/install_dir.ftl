@@ -4,14 +4,14 @@
 
 info =
     .install = أين يجب تثبيت {$app}؟
-    .update-repair-uninstall = مكان تثبيت {$app}.
+    .update-repair-uninstall = حيث تم تثبيت {$app}.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = مطلوب مساحة قرص فارغة لا تقل عن {$bytes}.
+min-required-space = يلزم وجود {$bytes} من مساحة القرص الفارغة على الأقل.
 
 reset-label = الموقع الافتراضي
 
-select-label = اختيار الموقع
+select-label = اختر الموقع
 
 title =
     .install = اختيار موقع التثبيت

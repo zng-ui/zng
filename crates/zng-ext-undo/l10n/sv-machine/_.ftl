@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Rensa historik
 
 REDO_CMD =
-    .name = Gör om
+    .name = Återför
 
 UNDO_CMD =
     .name = Ångra

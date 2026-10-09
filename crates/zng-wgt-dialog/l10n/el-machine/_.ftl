@@ -8,6 +8,6 @@ response-close = Κλείσιμο
 
 response-no = Όχι
 
-response-ok = OK
+response-ok = Εντάξει
 
 response-yes = Ναι

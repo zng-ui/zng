@@ -5,7 +5,7 @@
 try_open_link =
     .copy-path = Pad kopiëren
     .copy-url = URL kopiëren
-    .open-url = Openen in browser
-    .reveal-path = Weergeven in bestandsbeheer
-    .reveal-path-macos = Weergeven in Finder
-    .reveal-path-windows = Weergeven in Verkenner
+    .open-url = In browser openen
+    .reveal-path = In bestandbeheer tonen
+    .reveal-path-macos = In Finder tonen
+    .reveal-path-windows = In Verkenner tonen

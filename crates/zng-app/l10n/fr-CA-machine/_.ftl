@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Quitter
 
 OPEN_LICENSES_CMD =
-    .name = Licences de tiers
+    .name = Licences tierces

@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Selectează tot
 
 text-edit-op =
-    .clear = șterge
-    .generic = editare text
-    .replace = înlocuiește
-    .transform = transformă
+    .clear = Șterge
+    .generic = Editare text
+    .replace = Înlocuire
+    .transform = Transformare

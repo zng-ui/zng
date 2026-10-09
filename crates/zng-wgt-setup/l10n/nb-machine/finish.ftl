@@ -6,13 +6,13 @@ action-run =
     .info = Kjør {$app}
 
 message =
-    .install = Veiviseren har installert {$app} {$version} på datamaskinen din.
-    .repair = Veiviseren har reparert {$app} {$version}-installasjonen på datamaskinen din.
-    .uninstall = Veiviseren har avinstallert {$app} {$version} fra datamaskinen din.
-    .update = Veiviseren har oppdatert {$app} fra {$current_version} til {$new_version} på datamaskinen din.
+    .install = Guiden har installert {$app} {$version} på datamaskinen din.
+    .repair = Guiden har reparert installasjonen av {$app} {$version} på datamaskinen din.
+    .uninstall = Guiden har fjernet {$app} {$version} fra datamaskinen din.
+    .update = Guiden har oppdatert {$app} fra {$current_version} til {$new_version} på datamaskinen din.
 
 title =
-    .install = {$app} installert
-    .repair = {$app} reparert
-    .uninstall = {$app} avinstallert
-    .update = {$app} oppdatert
+    .install = {$app} Installert
+    .repair = {$app} Reparert
+    .uninstall = {$app} Avinstallert
+    .update = {$app} Oppdatert

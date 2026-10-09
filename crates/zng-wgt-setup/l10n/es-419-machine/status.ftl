@@ -8,13 +8,13 @@ default-info =
     .register-uninstaller = Registrar desinstalador
     .remove-files = Eliminar archivos
     .remove-shortcut = Eliminar acceso directo
-    .unregister-uninstaller = Anular registro del desinstalador
+    .unregister-uninstaller = Desregistrar desinstalador
 
 info =
-    .install = Por favor, espere mientras se instala {$app} en su computadora.
-    .repair = Por favor, espere mientras se repara {$app} en su computadora.
-    .uninstall = Por favor, espere mientras se desinstala {$app} de su computadora.
-    .update = Por favor, espere mientras se actualiza {$app} en su computadora.
+    .install = Por favor, espere mientras {$app} se instala en su computadora.
+    .repair = Por favor, espere mientras {$app} se repara en su computadora.
+    .uninstall = Por favor, espere mientras {$app} se desinstala de su computadora.
+    .update = Por favor, espere mientras {$app} se actualiza en su computadora.
 
 title =
     .install = Instalando

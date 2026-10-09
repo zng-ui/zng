@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Vælg alle
 
 text-edit-op =
-    .clear = ryd
+    .clear = Ryd
     .generic = tekstredigering
-    .replace = erstat
-    .transform = transformér
+    .replace = Erstat
+    .transform = Transformér

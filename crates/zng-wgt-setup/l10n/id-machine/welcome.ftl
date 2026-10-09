@@ -5,7 +5,7 @@
 message =
     .install = Ini akan menginstal {$app} {$version} di komputer Anda.
     .repair = Ini akan memperbaiki instalasi {$app} {$version} di komputer Anda.
-    .uninstall = Ini akan menghapus {$app} {$version} dari komputer Anda.
+    .uninstall = Ini akan menghapus instalasi {$app} {$version} dari komputer Anda.
     .update = Ini akan memperbarui {$app} dari {$current_version} ke {$new_version} di komputer Anda.
 
 title =

@@ -22,7 +22,7 @@ ArrowRight = →
 
 ArrowUp = ↑
 
-Backspace = ←Geri
+Backspace = ←Backspace
     .macos = Sil
 
 Close = Kapat
@@ -38,8 +38,8 @@ Delete = Sil
 
 Eject = ⏏Çıkar
 
-Enter = ↵Giriş
-    .macos = ↵Dön
+Enter = ↵Enter
+    .macos = ↵Return
 
 Escape = Esc
 
@@ -51,21 +51,21 @@ New = Yeni
 
 Open = Aç
 
-PageDown = Sayfa Aşağı
+PageDown = PgDn
 
-PageUp = Sayfa Yukarı
+PageUp = PgUp
 
 Paste = Yapıştır
 
 Print = Yazdır
 
-PrintScreen = Ekranı Yazdır
+PrintScreen = PrtSc
 
-Redo = Yinele
+Redo = Geri Al
 
 Save = Kaydet
 
-Tab = ⭾Sekme
+Tab = ⭾Tab
 
 Undo = Geri Al
 

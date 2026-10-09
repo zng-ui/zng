@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Copiere
 
 CUT_CMD =
-    .name = Decupare
+    .name = Tăiere
 
 PASTE_CMD =
     .name = Lipire

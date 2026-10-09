@@ -5,4 +5,4 @@
 # count_actions:
 #     Number of undo/redo actions that are selected to run
 UndoHistory =
-    .count_actions = {$n} 个操作
+    .count_actions = {$n} 次操作

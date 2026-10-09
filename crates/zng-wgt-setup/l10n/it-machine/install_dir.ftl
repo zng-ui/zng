@@ -9,10 +9,10 @@ info =
 # $bytes is already formatted e.g.: 900kB or 50MB.
 min-required-space = È richiesto almeno {$bytes} di spazio libero su disco.
 
-reset-label = Percorso predefinito
+reset-label = Posizione predefinita
 
-select-label = Seleziona percorso
+select-label = Seleziona posizione
 
 title =
-    .install = Seleziona percorso di installazione
-    .uninstall = Percorso di installazione
+    .install = Seleziona posizione di installazione
+    .uninstall = Posizione di installazione

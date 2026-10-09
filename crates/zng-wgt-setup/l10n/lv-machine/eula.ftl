@@ -7,10 +7,10 @@ accept =
     .true = Es piekrītu līgumam
 
 info =
-    .install = Lūdzu, izlasiet licences noteikumus pirms {$app} instalēšanas
-    .update = Lūdzu, izlasiet licences noteikumus pirms {$app} atjaunināšanas
+    .install = Lūdzu pārskatiet licences noteikumus pirms {$app} instalēšanas
+    .update = Lūdzu pārskatiet licences noteikumus pirms {$app} atjaunošanas
 
-message = Lai turpinātu, jums ir jāpiekrīt šī līguma noteikumiem.
-    .requires_scroll = Lai turpinātu, jums ir jāizlasa un jāpiekrīt šī līguma noteikumiem.
+message = Jūs cenaties piekrīt šim līguma noteikumiem, pirms turpināt.
+    .requires_scroll = Jūs cenaties lasīt un piekrītu šim līguma noteikumiem, pirms turpināt.
 
 title = Licences līgums

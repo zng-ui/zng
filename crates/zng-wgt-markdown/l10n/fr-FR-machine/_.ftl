@@ -6,6 +6,6 @@ try_open_link =
     .copy-path = Copier le chemin
     .copy-url = Copier l'URL
     .open-url = Ouvrir dans le navigateur
-    .reveal-path = Afficher dans le gestionnaire de fichiers
+    .reveal-path = Afficher dans l'Explorateur de fichiers
     .reveal-path-macos = Afficher dans le Finder
     .reveal-path-windows = Afficher dans l'Explorateur de fichiers

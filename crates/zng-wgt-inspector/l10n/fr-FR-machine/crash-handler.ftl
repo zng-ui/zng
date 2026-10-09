@@ -18,8 +18,8 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Enregistrer une copie
-    .save-error = Échec de l'enregistrement de la copie du minidump.
+    .save-copy-title = Sauvegarder une copie
+    .save-error = Échec de la sauvegarde de la copie du minidump.
         {$error}
     .title = Minidump
 
@@ -42,7 +42,7 @@ summary =
         Minidump : {$minidump_path}
         
         Arguments : {$args}
-        Système d'exploitation : {$os}
+        OS : {$os}
     .title = Résumé
 
 widget =

@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Įdiegti
-    .name-repair = Taisyti
+    .name-repair = Remontuoti
     .name-uninstall = Pašalinti
     .name-update = Atnaujinti

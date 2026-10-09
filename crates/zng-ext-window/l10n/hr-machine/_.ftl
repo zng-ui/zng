@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = Zatvori
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Uključi/isključi ekskluzivni način rada preko cijelog zaslona
-    .name = Ekskluzivni puni zaslon
+    .info = Prebacuje isključivi puni zaslon na prozoru
+    .name = Isključivi puni zaslon
 
 FULLSCREEN_CMD =
-    .info = Uključi/isključi način rada preko cijelog zaslona
+    .info = Prebacuje puni zaslon na prozoru
     .name = Puni zaslon
 
 MAXIMIZE_CMD =
-    .info = Maksimiziraj prozor
+    .info = Maksimizira prozor
     .name = Maksimiziraj
 
 MINIMIZE_CMD =
-    .info = Minimiziraj prozor
-    .name = Minimiziraj
+    .info = Smanji prozor
+    .name = Smanji
 
 RESTORE_CMD =
-    .info = Vraća prozor u prethodno stanje prije minimiziranja ili u normalno stanje
-    .name = Vrati izvorno stanje
+    .info = Vraća prozor u prethodno ne-smanjeno stanje ili normalno stanje
+    .name = Vrati

@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopiraj
 
 CUT_CMD =
-    .name = Izreži
+    .name = Isci
 
 PASTE_CMD =
     .name = Zalijepi

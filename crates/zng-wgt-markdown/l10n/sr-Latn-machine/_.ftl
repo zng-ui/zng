@@ -5,7 +5,7 @@
 try_open_link =
     .copy-path = Kopiraj putanju
     .copy-url = Kopiraj URL
-    .open-url = Otvori u pregledaču
-    .reveal-path = Prikaži u upravljaču datotekama
-    .reveal-path-macos = Prikaži u Finder-u
-    .reveal-path-windows = Prikaži u File Explorer-u
+    .open-url = Otvori u pretraživaču
+    .reveal-path = Prikaži u menadžeru fajlova
+    .reveal-path-macos = Prikaži u Finderu
+    .reveal-path-windows = Prikaži u File Exploreru

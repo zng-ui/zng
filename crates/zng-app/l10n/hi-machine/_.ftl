@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = बाहर निकलें
 
 OPEN_LICENSES_CMD =
-    .name = तृतीय-पक्ष लाइसेंस
+    .name = तृतीय पक्ष के लाइसेंस

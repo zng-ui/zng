@@ -4,20 +4,20 @@
 
 default-info =
     .create-shortcut = Kreiraj prečicu
-    .extract-files = Ekstrahuj datoteke
-    .register-uninstaller = Registruj program za deinstalaciju
-    .remove-files = Ukloni datoteke
+    .extract-files = Ekstrahuje fajlove
+    .register-uninstaller = Registruj deinstalator
+    .remove-files = Ukloni fajlove
     .remove-shortcut = Ukloni prečicu
-    .unregister-uninstaller = Ukloni registraciju programa za deinstalaciju
+    .unregister-uninstaller = Deregistruj deinstalator
 
 info =
-    .install = Molimo sačekajte dok se {$app} instalira na vaš računar.
-    .repair = Molimo sačekajte dok se {$app} popravlja na vašem računaru.
-    .uninstall = Molimo sačekajte dok se {$app} deinstalira sa vašeg računara.
-    .update = Molimo sačekajte dok se {$app} ažurira na vašem računaru.
+    .install = Molimo Vas sačekajte dok se {$app} instalira na Vašem računaru.
+    .repair = Molimo Vas sačekajte dok se {$app} popravlja na Vašem računaru.
+    .uninstall = Molimo Vas sačekajte dok se {$app} deinstalira sa Vašeg računara.
+    .update = Molimo Vas sačekajte dok se {$app} ažurira na Vašem računaru.
 
 title =
-    .install = Instaliranje
-    .repair = Popravljanje
-    .uninstall = Deinstaliranje
+    .install = Instalacija
+    .repair = Popravka
+    .uninstall = Deinstalacija
     .update = Ažuriranje

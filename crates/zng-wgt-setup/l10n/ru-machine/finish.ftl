@@ -9,10 +9,10 @@ message =
     .install = Мастер установил {$app} {$version} на ваш компьютер.
     .repair = Мастер восстановил установку {$app} {$version} на вашем компьютере.
     .uninstall = Мастер удалил {$app} {$version} с вашего компьютера.
-    .update = Мастер обновил {$app} с версии {$current_version} до {$new_version} на вашем компьютере.
+    .update = Мастер обновил {$app} с {$current_version} до {$new_version} на вашем компьютере.
 
 title =
-    .install = {$app} установлена
-    .repair = {$app} восстановлена
-    .uninstall = {$app} удалена
-    .update = {$app} обновлена
+    .install = {$app} Установлен
+    .repair = {$app} Восстановлен
+    .uninstall = {$app} Удален
+    .update = {$app} Обновлен

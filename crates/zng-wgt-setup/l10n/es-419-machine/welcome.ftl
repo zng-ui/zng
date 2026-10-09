@@ -9,7 +9,7 @@ message =
     .update = Esto actualizará {$app} de {$current_version} a {$new_version} en su computadora.
 
 title =
-    .install = Bienvenido al asistente de instalación de {$app}
-    .repair = Bienvenido al asistente de reparación de {$app}
-    .uninstall = Bienvenido al asistente de desinstalación de {$app}
-    .update = Bienvenido al asistente de actualización de {$app}
+    .install = Bienvenido al Asistente de Instalación de {$app}
+    .repair = Bienvenido al Asistente de Reparación de {$app}
+    .uninstall = Bienvenido al Asistente de Desinstalación de {$app}
+    .update = Bienvenido al Asistente de Actualización de {$app}

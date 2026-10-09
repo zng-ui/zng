@@ -4,12 +4,12 @@
 
 message =
     .install = Thao tác này sẽ cài đặt {$app} {$version} trên máy tính của bạn.
-    .repair = Thao tác này sẽ sửa lỗi cài đặt {$app} {$version} trên máy tính của bạn.
+    .repair = Thao tác này sẽ sửa chữa việc cài đặt {$app} {$version} trên máy tính của bạn.
     .uninstall = Thao tác này sẽ gỡ cài đặt {$app} {$version} khỏi máy tính của bạn.
     .update = Thao tác này sẽ cập nhật {$app} từ {$current_version} lên {$new_version} trên máy tính của bạn.
 
 title =
-    .install = Chào mừng bạn đến với Trình hướng dẫn cài đặt {$app}
-    .repair = Chào mừng bạn đến với Trình hướng dẫn sửa lỗi {$app}
-    .uninstall = Chào mừng bạn đến với Trình hướng dẫn gỡ cài đặt {$app}
-    .update = Chào mừng bạn đến với Trình hướng dẫn cập nhật {$app}
+    .install = Chào mừng đến với Trình hướng dẫn Cài đặt {$app}
+    .repair = Chào mừng đến với Trình hướng dẫn Sửa chữa {$app}
+    .uninstall = Chào mừng đến với Trình hướng dẫn Gỡ cài đặt {$app}
+    .update = Chào mừng đến với Trình hướng dẫn Cập nhật {$app}

@@ -6,13 +6,13 @@ action-run =
     .info = Suorita {$app}
 
 message =
-    .install = Ohjattu toiminto on asentanut ohjelman {$app} {$version} tietokoneellesi.
-    .repair = Ohjattu toiminto on korjannut ohjelman {$app} {$version} asennuksen tietokoneellasi.
-    .uninstall = Ohjattu toiminto on poistanut ohjelman {$app} {$version} tietokoneeltasi.
-    .update = Ohjattu toiminto on päivittänyt ohjelman {$app} versiosta {$current_version} versioon {$new_version} tietokoneellasi.
+    .install = Asennusohjelma on asennettu {$app} {$version} tietokoneellesi.
+    .repair = Asennusohjelma on korjannut {$app} {$version} asennuksen tietokoneellasi.
+    .uninstall = Asennusohjelma on poistanut {$app} {$version} tietokoneeltasi.
+    .update = Asennusohjelma on päivittänyt {$app} versioista {$current_version} versioon {$new_version} tietokoneellasi.
 
 title =
-    .install = {$app} asennettu
-    .repair = {$app} korjattu
-    .uninstall = {$app} poistettu
-    .update = {$app} päivitetty
+    .install = {$app} Asennettu
+    .repair = {$app} Korjattu
+    .uninstall = {$app} Poistettu
+    .update = {$app} Päivitetty

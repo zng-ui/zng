@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Odaberi sve
 
 text-edit-op =
-    .clear = očisti
+    .clear = obriši
     .generic = uređivanje teksta
     .replace = zamijeni
-    .transform = pretvori
+    .transform = transformiraj

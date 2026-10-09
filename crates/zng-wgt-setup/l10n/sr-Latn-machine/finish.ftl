@@ -6,13 +6,13 @@ action-run =
     .info = Pokreni {$app}
 
 message =
-    .install = Čarobnjak je instalirao {$app} {$version} na vaš računar.
-    .repair = Čarobnjak je popravio instalaciju programa {$app} {$version} na vašem računaru.
+    .install = Čarobnjak je instalirao {$app} {$version} na vašem računaru.
+    .repair = Čarobnjak je popravio instalaciju {$app} {$version} na vašem računaru.
     .uninstall = Čarobnjak je deinstalirao {$app} {$version} sa vašeg računara.
     .update = Čarobnjak je ažurirao {$app} sa {$current_version} na {$new_version} na vašem računaru.
 
 title =
-    .install = {$app} instaliran
-    .repair = {$app} popravljen
-    .uninstall = {$app} deinstaliran
-    .update = {$app} ažuriran
+    .install = {$app} Instaliran
+    .repair = {$app} Popravljen
+    .uninstall = {$app} Deinstaliran
+    .update = {$app} Ažuriran

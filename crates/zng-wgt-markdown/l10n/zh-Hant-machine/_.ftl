@@ -4,8 +4,8 @@
 
 try_open_link =
     .copy-path = 複製路徑
-    .copy-url = 複製網址
+    .copy-url = 複製URL
     .open-url = 在瀏覽器中開啟
-    .reveal-path = 在檔案管理員中顯示
+    .reveal-path = 在檔案總管中顯示
     .reveal-path-macos = 在 Finder 中顯示
     .reveal-path-windows = 在檔案總管中顯示

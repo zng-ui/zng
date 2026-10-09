@@ -6,13 +6,13 @@ NEW_CMD =
     .name = Nou
 
 OPEN_CMD =
-    .name = Deschidere…
+    .name = Deschide…
 
 SAVE_AS_CMD =
-    .name = Salvare ca…
+    .name = Salvează ca…
 
 SAVE_CMD =
-    .name = Salvare
+    .name = Salvează
 
 SETTINGS_CMD =
     .name = Setări

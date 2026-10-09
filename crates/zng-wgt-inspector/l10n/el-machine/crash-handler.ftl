@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Η εφαρμογή κατέρρευσε
+    .title = {$app} - Το πρόγραμμα κατέρρευσε
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Αποτυχία ανοίγματος του minidump.
+    .open-error = Αποτυχία άνοιγμα minidump.
         {$error}
-    .remove-error = Αποτυχία κατάργησης του minidump.
+    .remove-error = Αποτυχία αφαίρεση minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Αποθήκευση αντιγράφου
-    .save-error = Αποτυχία αποθήκευσης του αντιγράφου minidump.
+    .save-copy-title = Αποθήκευση Αντιγράφου
+    .save-error = Αποτυχία αποθήκευσης αντιγράφου minidump.
         {$error}
     .title = Minidump
 
@@ -33,16 +33,16 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Χρονική σήμανση: {$timestamp}
-        Κωδικός εξόδου: {$exit_code}
+    .text = Χρονική Σήμανση: {$timestamp}
+        Κωδικός Εξόδου: {$exit_code}
         Σήμα: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
         Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Ορίσματα: {$args}
-        Λειτουργικό σύστημα: {$os}
+        Args: {$args}
+        Λειτουργικό Σύστημα: {$os}
     .title = Σύνοψη
 
 widget =

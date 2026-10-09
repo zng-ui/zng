@@ -6,10 +6,10 @@ action-run =
     .info = 运行 {$app}
 
 message =
-    .install = 向导已在您的计算机上安装 {$app} {$version}。
-    .repair = 向导已修复您计算机上的 {$app} {$version} 安装。
-    .uninstall = 向导已从您的计算机上卸载 {$app} {$version}。
-    .update = 向导已将您计算机上的 {$app} 从 {$current_version} 更新至 {$new_version}。
+    .install = 向导已在您的计算机上安装了 {$app} {$version}。
+    .repair = 向导已修复了您的计算机上的 {$app} {$version} 安装。
+    .uninstall = 向导已从您的计算机上卸载了 {$app} {$version}。
+    .update = 向导已在您的计算机上将 {$app} 从 {$current_version} 更新到 {$new_version}。
 
 title =
     .install = {$app} 已安装

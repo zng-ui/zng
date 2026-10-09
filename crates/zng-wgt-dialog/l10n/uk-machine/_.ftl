@@ -8,6 +8,6 @@ response-close = Закрити
 
 response-no = Ні
 
-response-ok = OK
+response-ok = ОК
 
 response-yes = Так

@@ -19,9 +19,9 @@ MAXIMIZE_CMD =
     .name = Büyüt
 
 MINIMIZE_CMD =
-    .info = Pencereyi simge durumuna küçült
-    .name = Simge Durumuna Küçült
+    .info = Pencereyi küçült
+    .name = Küçült
 
 RESTORE_CMD =
-    .info = Pencereyi önceki simge durumuna küçültülmemiş haline veya normal haline getirir
+    .info = Pencereyi önceki küçültülmemiş durumuna veya normal durumuna geri yükler
     .name = Geri Yükle

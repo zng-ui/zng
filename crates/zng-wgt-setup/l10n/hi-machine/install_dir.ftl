@@ -4,15 +4,15 @@
 
 info =
     .install = {$app} कहाँ इंस्टॉल किया जाना चाहिए?
-    .update-repair-uninstall = जहाँ {$app} इंस्टॉल किया गया है।
+    .update-repair-uninstall = {$app} कहाँ इंस्टॉल है।
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = कम से कम {$bytes} डिस्क स्पेस खाली होना आवश्यक है।
+min-required-space = कम से कम {$bytes} खाली डिस्क स्थान की आवश्यकता है।
 
 reset-label = डिफ़ॉल्ट स्थान
 
 select-label = स्थान चुनें
 
 title =
-    .install = इंस्टॉल स्थान चुनें
-    .uninstall = इंस्टॉल स्थान
+    .install = इंस्टॉलेशन स्थान चुनें
+    .uninstall = इंस्टॉलेशन स्थान

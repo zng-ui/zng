@@ -6,13 +6,13 @@ action-run =
     .info = Esegui {$app}
 
 message =
-    .install = La procedura guidata ha installato {$app} {$version} sul tuo computer.
-    .repair = La procedura guidata ha riparato l'installazione di {$app} {$version} sul tuo computer.
-    .uninstall = La procedura guidata ha disinstallato {$app} {$version} dal tuo computer.
-    .update = La procedura guidata ha aggiornato {$app} dalla versione {$current_version} alla {$new_version} sul tuo computer.
+    .install = L'Assistente ha installato {$app} {$version} sul tuo computer.
+    .repair = L'Assistente ha riparato l'installazione di {$app} {$version} sul tuo computer.
+    .uninstall = L'Assistente ha disinstallato {$app} {$version} dal tuo computer.
+    .update = L'Assistente ha aggiornato {$app} da {$current_version} a {$new_version} sul tuo computer.
 
 title =
-    .install = {$app} installato
-    .repair = {$app} riparato
-    .uninstall = {$app} disinstallato
-    .update = {$app} aggiornato
+    .install = {$app} Installato
+    .repair = {$app} Riparato
+    .uninstall = {$app} Disinstallato
+    .update = {$app} Aggiornato

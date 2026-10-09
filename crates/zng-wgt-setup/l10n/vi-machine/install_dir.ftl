@@ -4,15 +4,15 @@
 
 info =
     .install = {$app} nên được cài đặt ở đâu?
-    .update-repair-uninstall = Vị trí đã cài đặt {$app}.
+    .update-repair-uninstall = {$app} được cài đặt ở đây.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Cần ít nhất {$bytes} dung lượng đĩa trống.
+min-required-space = Yêu cầu ít nhất {$bytes} dung lượng trống đĩa.
 
-reset-label = Vị trí mặc định
+reset-label = Vị trí Mặc định
 
-select-label = Chọn vị trí
+select-label = Chọn Vị trí
 
 title =
-    .install = Chọn vị trí cài đặt
-    .uninstall = Vị trí cài đặt
+    .install = Chọn Vị trí Cài đặt
+    .uninstall = Vị trí Cài đặt

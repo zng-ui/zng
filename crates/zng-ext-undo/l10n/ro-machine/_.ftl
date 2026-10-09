@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Șterge istoricul
 
 REDO_CMD =
-    .name = Refă
+    .name = Repetă
 
 UNDO_CMD =
     .name = Anulează

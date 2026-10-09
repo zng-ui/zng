@@ -7,12 +7,12 @@ info =
     .update-repair-uninstall = Unde este instalat {$app}.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Este necesar cel puțin {$bytes} de spațiu liber pe disc.
+min-required-space = Sunt necesare cel puțin {$bytes} de spațiu liber pe disc.
 
 reset-label = Locație implicită
 
-select-label = Selectați locația
+select-label = Selectează locația
 
 title =
-    .install = Selectați locația de instalare
+    .install = Selectează locația de instalare
     .uninstall = Locația de instalare

@@ -9,4 +9,4 @@ CUT_CMD =
     .name = Klip
 
 PASTE_CMD =
-    .name = Sæt ind
+    .name = Indsæt

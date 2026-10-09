@@ -8,21 +8,21 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = izlenen araç bilgisi
+info-help = izlenen bileşen bilgisi
 
 intrinsic-help = içsel düğüm
 
-nest-group-help = iç içe yerleştirme grubu
+nest-group-help = iç içe grup
 
 screenshot =
     .copy-error = Ekran görüntüsü kopyalama hatası. {$error}
     .error-dlg-title = Ekran Görüntüsü Hatası
     .save-dlg-filter = Resim Dosyaları
-    .save-dlg-starting-name = ekran-goruntusu.png
-    .save-dlg-title = Ekran Görüntüsünü Kaydet
+    .save-dlg-starting-name = screenshot.png
+    .save-dlg-title = Ekran Görüntüsü Kaydet
     .save-error = Ekran görüntüsü kaydetme hatası. {$error}
 
-select-widget = incelemek için bir araç seçin
+select-widget = incelemek için bir bileşen seçin
 
 window =
     .title = {$inspected_window_title} - Denetçi

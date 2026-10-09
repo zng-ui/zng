@@ -6,10 +6,10 @@ action-run =
     .info = Executar {$app}
 
 message =
-    .install = O assistente instalou o {$app} {$version} no seu computador.
-    .repair = O assistente reparou a instalação do {$app} {$version} no seu computador.
-    .uninstall = O assistente desinstalou o {$app} {$version} do seu computador.
-    .update = O assistente atualizou o {$app} da versão {$current_version} para a {$new_version} no seu computador.
+    .install = O assistente instalou {$app} {$version} no seu computador.
+    .repair = O assistente reparou a instalação de {$app} {$version} no seu computador.
+    .uninstall = O assistente desinstalou {$app} {$version} do seu computador.
+    .update = O assistente atualizou {$app} de {$current_version} para {$new_version} no seu computador.
 
 title =
     .install = {$app} Instalado

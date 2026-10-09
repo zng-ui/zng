@@ -7,10 +7,10 @@ accept =
     .true = Jeg accepterer aftalen
 
 info =
-    .install = Læs venligst licensbetingelserne før installation af {$app}
-    .update = Læs venligst licensbetingelserne før opdatering af {$app}
+    .install = Gennemgå licensvilkårene, før du installerer {$app}
+    .update = Gennemgå licensvilkårene, før du opdaterer {$app}
 
-message = Du skal acceptere betingelserne i denne aftale, før du kan fortsætte.
-    .requires_scroll = Du skal læse og acceptere betingelserne i denne aftale, før du kan fortsætte.
+message = Du skal acceptere vilkårene i denne aftale for at fortsætte.
+    .requires_scroll = Du skal læse og acceptere vilkårene i denne aftale, før du fortsætter.
 
 title = Licensaftale

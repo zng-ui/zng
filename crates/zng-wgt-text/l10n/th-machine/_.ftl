@@ -9,4 +9,4 @@ text-edit-op =
     .clear = ล้าง
     .generic = แก้ไขข้อความ
     .replace = แทนที่
-    .transform = แปลงรูปแบบ
+    .transform = แปลง

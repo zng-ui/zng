@@ -5,5 +5,5 @@
 BEGIN_CMD =
     .name-install = 安裝
     .name-repair = 修復
-    .name-uninstall = 解除安裝
+    .name-uninstall = 移除
     .name-update = 更新

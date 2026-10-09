@@ -6,10 +6,10 @@ action-run =
     .info = הפעל את {$app}
 
 message =
-    .install = אשף ההתקנה התקין את {$app} גרסה {$version} על המחשב שלך.
-    .repair = אשף ההתקנה תיקן את התקנת {$app} גרסה {$version} על המחשב שלך.
-    .uninstall = אשף ההתקנה הסיר את {$app} גרסה {$version} מהמחשב שלך.
-    .update = אשף ההתקנה עדכן את {$app} מגרסה {$current_version} לגרסה {$new_version} על המחשב שלך.
+    .install = המפעיל התקין את {$app} {$version} במחשב שלך.
+    .repair = המפעיל תיקן את התקנת {$app} {$version} במחשב שלך.
+    .uninstall = המפעיל הסיר את {$app} {$version} מהמחשב שלך.
+    .update = המפעיל עדכן את {$app} מ-{ $current_version } ל-{ $new_version } במחשב שלך.
 
 title =
     .install = {$app} הותקן

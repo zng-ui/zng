@@ -7,14 +7,14 @@ info =
     .corrupted = İşlem başarısız oldu, kurulum bozuldu.
 
 message =
-    .install-clean = Kurulum işlemi başarısız oldu, {$app} yüklenemedi.
-    .install-corrupted = Kurulum işlemi başarısız oldu, {$app} kısmen yüklendi.
-    .repair-clean = Onarım işlemi başarısız oldu, {$app} kurulumu onarılamadı.
-    .repair-corrupted = Onarım işlemi başarısız oldu, {$app} kısmen onarıldı.
-    .uninstall-clean = Kaldırma işlemi başarısız oldu, {$app} yüklü kalmaya devam ediyor.
-    .uninstall-corrupted = Kaldırma işlemi başarısız oldu, {$app} kısmen kaldırıldı.
-    .update-clean = Güncelleme işlemi başarısız oldu, {$app} güncellenemedi. Mevcut yüklü sürüm {$current_version} kalmaya devam ediyor ve kullanılabilir durumdadır.
-    .update-corrupted = Güncelleme işlemi başarısız oldu, {$app} kısmen güncellendi.
+    .install-clean = Kurulum işlemi başarısız oldu, {$app} kurulmadı.
+    .install-corrupted = Kurulum işlemi başarısız oldu, {$app} sadece kısmen kuruldu.
+    .repair-clean = Onarım işlemi başarısız oldu, {$app} kurulumu onarılmadı.
+    .repair-corrupted = Onarım işlemi başarısız oldu, {$app} sadece kısmen onarıldı.
+    .uninstall-clean = Kaldırma işlemi başarısız oldu, {$app} kurulu durumda kaldı.
+    .uninstall-corrupted = Kaldırma işlemi başarısız oldu, {$app} sadece kısmen kaldırıldı.
+    .update-clean = Güncelleme işlemi başarısız oldu, {$app} güncellenmedi. Mevcut kurulu sürüm {$current_version} kalmıştır ve hala kullanılabilir.
+    .update-corrupted = Güncelleme işlemi başarısız oldu, {$app} sadece kısmen güncellendi.
 
 title =
     .install = Kurulum Başarısız

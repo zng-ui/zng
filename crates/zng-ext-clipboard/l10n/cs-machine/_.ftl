@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopírovat
 
 CUT_CMD =
-    .name = Vyjmout
+    .name = Oříznout
 
 PASTE_CMD =
     .name = Vložit

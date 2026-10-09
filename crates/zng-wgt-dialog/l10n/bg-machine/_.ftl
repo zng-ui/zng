@@ -4,10 +4,10 @@
 
 response-cancel = Отказ
 
-response-close = Затваряне
+response-close = Затвори
 
 response-no = Не
 
-response-ok = Добре
+response-ok = ОК
 
 response-yes = Да

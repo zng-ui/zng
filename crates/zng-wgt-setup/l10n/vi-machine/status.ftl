@@ -11,10 +11,10 @@ default-info =
     .unregister-uninstaller = Hủy đăng ký trình gỡ cài đặt
 
 info =
-    .install = Vui lòng đợi trong khi {$app} được cài đặt trên máy tính của bạn.
-    .repair = Vui lòng đợi trong khi {$app} được sửa chữa trên máy tính của bạn.
-    .uninstall = Vui lòng đợi trong khi {$app} được gỡ cài đặt khỏi máy tính của bạn.
-    .update = Vui lòng đợi trong khi {$app} được cập nhật trên máy tính của bạn.
+    .install = Vui lòng đợi trong khi {$app} đang được cài đặt trên máy tính của bạn.
+    .repair = Vui lòng đợi trong khi {$app} đang được sửa chữa trên máy tính của bạn.
+    .uninstall = Vui lòng đợi trong khi {$app} đang được gỡ cài đặt khỏi máy tính của bạn.
+    .update = Vui lòng đợi trong khi {$app} đang được cập nhật trên máy tính của bạn.
 
 title =
     .install = Đang cài đặt

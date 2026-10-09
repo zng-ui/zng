@@ -8,21 +8,21 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = informasjon om overvåket widget
+info-help = Informasjon om overvåket widget
 
-intrinsic-help = iboende node
+intrinsic-help = Intrinsikk node
 
-nest-group-help = nøstegruppe
+nest-group-help = Nestet gruppe
 
 screenshot =
-    .copy-error = Feil ved kopiering av skjermbilde. {$error}
-    .error-dlg-title = Skjermbildefeil
-    .save-dlg-filter = Bildefiler
-    .save-dlg-starting-name = skjermbilde.png
-    .save-dlg-title = Lagre skjermbilde
-    .save-error = Feil ved lagring av skjermbilde. {$error}
+    .copy-error = Skjermdump kopieringsfeil. {$error}
+    .error-dlg-title = Skjermdumpfeil
+    .save-dlg-filter = Bildedatafiler
+    .save-dlg-starting-name = screenshot.png
+    .save-dlg-title = Lagre skjermdump
+    .save-error = Skjermdump lagringsfeil. {$error}
 
-select-widget = velg en widget å inspisere
+select-widget = Velg en widget for å inspisere
 
 window =
-    .title = {$inspected_window_title} - Inspektør
+    .title = {$inspected_window_title} - Inspektor

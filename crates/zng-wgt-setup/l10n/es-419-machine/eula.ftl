@@ -7,10 +7,10 @@ accept =
     .true = Acepto el acuerdo
 
 info =
-    .install = Por favor, revise los términos de la licencia antes de instalar {$app}
-    .update = Por favor, revise los términos de la licencia antes de actualizar {$app}
+    .install = Por favor, revisa los términos de la licencia antes de instalar {$app}
+    .update = Por favor, revisa los términos de la licencia antes de actualizar {$app}
 
-message = Debe aceptar los términos de este acuerdo antes de continuar.
-    .requires_scroll = Debe leer y aceptar los términos de este acuerdo antes de continuar.
+message = Debes aceptar los términos de este acuerdo antes de continuar.
+    .requires_scroll = Debes leer y aceptar los términos de este acuerdo antes de continuar.
 
-title = Acuerdo de licencia
+title = Acuerdo de Licencia

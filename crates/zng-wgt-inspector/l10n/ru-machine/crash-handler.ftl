@@ -5,26 +5,26 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} — Приложение аварийно завершилось
+    .title = {$app} - Приложение аварийно завершило работу
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Не удалось открыть минидамп.
+    .open-error = Не удалось открыть minidump.
         {$error}
-    .remove-error = Не удалось удалить минидамп.
+    .remove-error = Не удалось удалить minidump.
         {$error}
-    .save-copy-filter-name = Минидамп
+    .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Сохранить копию
-    .save-error = Не удалось сохранить копию минидампа.
+    .save-error = Не удалось сохранить копию minidump.
         {$error}
-    .title = Минидамп
+    .title = Minidump
 
 panic =
-    .title = Паника (Panic)
+    .title = Паника
 
 stderr =
     .title = Stderr
@@ -39,7 +39,7 @@ summary =
         Stderr: {$stderr_len} байт
         Stdout: {$stdout_len} байт
         Паника: {$is_panic}
-        Минидамп: {$minidump_path}
+        Minidump: {$minidump_path}
         
         Аргументы: {$args}
         ОС: {$os}

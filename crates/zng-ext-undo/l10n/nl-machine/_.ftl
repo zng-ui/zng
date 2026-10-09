@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Geschiedenis wissen
 
 REDO_CMD =
-    .name = Opnieuw
+    .name = Herdoen
 
 UNDO_CMD =
     .name = Ongedaan maken

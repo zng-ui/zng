@@ -4,15 +4,15 @@
 
 info =
     .install = Kur turėtų būti įdiegtas {$app}?
-    .update-repair-uninstall = Kur {$app} yra įdiegtas.
+    .update-repair-uninstall = Kur yra įdiegtas {$app}.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Reikia bent {$bytes} laisvos vietos diske.
+min-required-space = Reikalingai bent {$bytes} laisvos diskras vietos.
 
-reset-label = Numatytoji vieta
+reset-label = Standartinė vieta
 
-select-label = Pasirinkti vietą
+select-label = Pasirinkite vietą
 
 title =
-    .install = Pasirinkite diegimo vietą
-    .uninstall = Diegimo vieta
+    .install = Pasirinkite įdiegimo vietą
+    .uninstall = Įdiegimo vieta

@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = ออก
 
 OPEN_LICENSES_CMD =
-    .name = ใบอนุญาตจากบุคคลที่สาม
+    .name = ใบอนุญาตของบุคคลที่สาม

@@ -9,10 +9,10 @@ OPEN_CMD =
     .name = Abrir…
 
 SAVE_AS_CMD =
-    .name = Gardar como…
+    .name = Guardar Como…
 
 SAVE_CMD =
-    .name = Gardar
+    .name = Guardar
 
 SETTINGS_CMD =
-    .name = Axustes
+    .name = Configuración

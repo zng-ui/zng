@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - App is vastgelopen
+    .title = {$app} - App is gecrasht
 
 ## Panels
 
@@ -18,8 +18,8 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Kopie opslaan
-    .save-error = Kon kopie van minidump niet opslaan.
+    .save-copy-title = Kopie Opslaan
+    .save-error = Kon minidump-kopie niet opslaan.
         {$error}
     .title = Minidump
 
@@ -34,7 +34,7 @@ stdout =
 
 summary =
     .text = Tijdstempel: {$timestamp}
-        Exitcode: {$exit_code}
+        Uitgangscode: {$exit_code}
         Signaal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
@@ -42,7 +42,7 @@ summary =
         Minidump: {$minidump_path}
         
         Argumenten: {$args}
-        Besturingssysteem: {$os}
+        OS: {$os}
     .title = Samenvatting
 
 widget =

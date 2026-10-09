@@ -8,6 +8,6 @@ response-close = Bezárás
 
 response-no = Nem
 
-response-ok = OK
+response-ok = Rendben
 
 response-yes = Igen

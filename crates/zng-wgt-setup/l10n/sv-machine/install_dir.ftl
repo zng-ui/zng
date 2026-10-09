@@ -4,7 +4,7 @@
 
 info =
     .install = Var ska {$app} installeras?
-    .update-repair-uninstall = Var {$app} är installerad.
+    .update-repair-uninstall = Där {$app} är installerad.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
 min-required-space = Minst {$bytes} ledigt diskutrymme krävs.
