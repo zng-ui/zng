@@ -1081,7 +1081,7 @@ impl FontFace {
         key
     }
 
-    pub(crate) fn raw(&self) -> Option<read_fonts::FontRef<'_>> {
+    pub(crate) fn read_fonts_ref(&self) -> Option<read_fonts::FontRef<'_>> {
         if self.is_empty() {
             None
         } else {
@@ -1089,8 +1089,7 @@ impl FontFace {
         }
     }
 
-    // !!: TODO rename this
-    pub(crate) fn harfrust_raw(&self) -> Option<&harfrust::Font> {
+    pub(crate) fn harfrust_font(&self) -> Option<&harfrust::Font> {
         self.0.harfrust_font.as_ref()
     }
 
@@ -1188,7 +1187,7 @@ impl FontFace {
     ///
     /// Is empty if not provided by the font.
     pub fn color_palettes(&self) -> ColorPalettes<'_> {
-        match self.raw() {
+        match self.read_fonts_ref() {
             Some(ttf) => ColorPalettes::new(ttf),
             None => ColorPalettes::empty(),
         }
@@ -1198,7 +1197,7 @@ impl FontFace {
     ///
     /// Is empty if not provided by the font.
     pub fn color_glyphs(&self) -> ColorGlyphs<'_> {
-        match self.raw() {
+        match self.read_fonts_ref() {
             Some(ttf) => ColorGlyphs::new(ttf),
             None => ColorGlyphs::empty(),
         }
@@ -1276,7 +1275,7 @@ impl Font {
     }
 
     fn new(face: FontFace, size: Px, variations: RFontVariations) -> Self {
-        let metrics = match face.raw() {
+        let metrics = match face.read_fonts_ref() {
             Some(f) => FontMetrics::new(&f, size),
             None => FontMetrics::empty(),
         };
@@ -1359,7 +1358,7 @@ impl Font {
                 o as f32 * size_scale
             }
             ligature_util::LigatureCaret::GlyphContourPoint(i) => {
-                if let Some(f) = self.face().raw() {
+                if let Some(f) = self.face().read_fonts_ref() {
                     struct Search {
                         i: u16,
                         s: u16,
