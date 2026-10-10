@@ -2815,7 +2815,7 @@ impl ShapedTextBuilder {
             self.out.has_colored_glyphs = true;
         }
         if (font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()))
-            && let Some(ttf) = font.face().raw()
+            && let Some(ttf) = font.face().read_fonts_ref()
         {
             for (i, g) in shaped_seg.glyphs.iter().enumerate() {
                 use read_fonts::TableProvider as _;
@@ -4324,7 +4324,7 @@ impl Font {
     }
 
     fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[harfrust::Feature]) -> ShapedSegmentData {
-        let buffer = if let Some(font) = self.face().harfrust_raw() {
+        let buffer = if let Some(font) = self.face().harfrust_font() {
             let mut buffer = self.buffer_segment(seg, key);
             let shaper = harfrust::ShaperFont::new(font);
             match harfrust::shape(&shaper, &mut buffer, harfrust::ShapeOptions::new().features(features)) {
@@ -4536,7 +4536,7 @@ impl Font {
         }
         let size = skrifa::instance::Size::new(self.size().0 as f32);
 
-        let f = self.face().raw()?;
+        let f = self.face().read_fonts_ref()?;
         let o = f.outline_glyphs().get(skrifa::GlyphId::new(glyph_id))?;
         let mut sink = AdapterSink {
             sink,
