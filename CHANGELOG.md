@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Add `zng::setup::task::RegisterFileTypes` and associated types.
 * Fix `cargo-zng` glob patterns not matching empty braced alternate.
 
 ## 0.25.0

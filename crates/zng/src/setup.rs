@@ -202,7 +202,7 @@ pub mod task {
     };
 
     #[cfg(windows)]
-    pub use zng_ext_setup::task::{RegisterUninstaller, RegisterUninstallerConfig};
+    pub use zng_ext_setup::task::{RegisterFileTypes, RegisterFileTypesConfig, RegisterUninstaller, RegisterUninstallerConfig};
 
     #[cfg(any(windows, target_os = "linux"))]
     pub use zng_ext_setup::task::{CreateShortcut, CreateShortcutConfig};

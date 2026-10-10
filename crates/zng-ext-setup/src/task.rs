@@ -16,6 +16,9 @@ pub use register_uninstaller::{RegisterUninstaller, RegisterUninstallerConfig};
 mod copy_current_exe;
 pub use copy_current_exe::{CopyCurrentExe, CopyCurrentExeConfig};
 
+mod register_file_types;
+pub use register_file_types::{RegisterFileTypes, RegisterFileTypesConfig};
+
 use zng_task::Progress;
 use zng_txt::Txt;
 use zng_var::{Var, impl_from_and_into_var};
