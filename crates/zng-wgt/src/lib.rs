@@ -58,6 +58,7 @@ mod __prelude {
         window::{MonitorId, WINDOW, WindowId},
     };
 
+    // TODO(breaking) add MergeVarBuilder
     pub use zng_var::{
         ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarEq, VarHandle, VarHandles,
         VarUpdateId, VarValue, WeakVar, WeakVarEq, WeakVarHandle, const_var, context_var, expr_var, flat_expr_var, impl_from_and_into_var,

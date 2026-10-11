@@ -33,5 +33,6 @@ zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.16.0", default-feature
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.15.0", default-features = false }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.15.0", default-features = false }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.15.0", default-features = false }
+zng-var = { path = "../zng-var", version = "0.16.0", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
