@@ -18,6 +18,9 @@ pub use finish::{FinishAction, FinishPage};
 mod failed;
 pub use failed::{FailedPage, FailedTaskInfoFnArgs};
 
+mod optional_tasks;
+pub use optional_tasks::OptionalTasksPage;
+
 use zng_ext_l10n::l10n;
 use zng_ext_setup::task::{SetupTask, TaskTypeId};
 use zng_wgt::prelude::*;

@@ -220,7 +220,7 @@ pub mod task {
 /// See [`zng_wgt_setup::page`] for the full API.
 pub mod page {
     pub use zng_wgt_setup::page::{
-        EulaPage, EulaTxt, FailedPage, FailedTaskInfoFnArgs, FinishAction, FinishPage, InstallDirPage, StatusPage, StatusTaskInfoFnArgs,
-        TaskInfo, WelcomePage,
+        EulaPage, EulaTxt, FailedPage, FailedTaskInfoFnArgs, FinishAction, FinishPage, InstallDirPage, OptionalTasksPage, StatusPage,
+        StatusTaskInfoFnArgs, TaskInfo, WelcomePage,
     };
 }
