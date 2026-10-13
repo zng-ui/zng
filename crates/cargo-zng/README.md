@@ -415,12 +415,17 @@ Options:
           [default: target/res.cache]
 
       --recursion-limit <RECURSION_LIMIT>
-          Number of build passes allowed before final
+          Max number of nested tools that can run from a single source tool
 
           [default: 32]
 
   -v, --verbose...
           Use verbose output (-vv very verbose)
+
+      --z-limit <Z_LIMIT>
+          Max number of 'z passes
+
+          [default: 32]
 
       --metadata <TOML_FILE>
           TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
