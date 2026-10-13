@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Replace YAML backend to fix [RUSTSEC-2024-0384](https://rustsec.org/advisories/RUSTSEC-2024-0384.html).
+    - **Breaking** The `WatchFile::yaml` error changes, the new error has the same API as the previous.
 * Add `zng::setup::page::OptionalTasksPage` and related types.
 * Add `zng::setup::task::RegisterFileTypes` and related types.
 * Fix `cargo-zng` glob patterns not matching empty braced alternate.
@@ -742,11 +744,6 @@ Changes that only affect custom view-process implementers.
 * **Breaking** Refactor clipboard API to support multi data.
 
 </details>
-
-## 0.20.4
-
-* Fix high CPU usage when idling in Ubuntu and macOS.
-* Fix memory pressure watcher not working in Ubuntu and macOS.
 
 ## 0.20.5
 

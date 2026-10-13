@@ -50,6 +50,7 @@ bitflags = { version = "2.5", default-features = false, features = ["serde", "by
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 pastey = { version = "0.2", default-features = false }
 num_enum = { version = "0.7", default-features = false, features = ["std"] }
+# TODO(breaking) replace with https://crates.io/crates/hypher
 hyphenation = { version = "0.8", default-features = false }
 unicode-bidi = { version = "0.3", default-features = false, features = ["hardcoded-data", "std"]}
 unicode-linebreak = { version = "0.1", default-features = false }
