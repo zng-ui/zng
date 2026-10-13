@@ -13,13 +13,13 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 # Enable JSON support.
-json = ["dep:serde_json", "zng-ext-fs-watcher/json"]
+json = ["zng-ext-fs-watcher/json"]
 # Enable YAML support.
-yaml = ["dep:serde_yaml", "zng-ext-fs-watcher/yaml"]
+yaml = ["zng-ext-fs-watcher/yaml"]
 # Enable TOML support.
-toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
+toml = ["zng-ext-fs-watcher/toml"]
 # Enable RON support.
-ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
+ron = ["zng-ext-fs-watcher/ron"]
 
 [dependencies]
 zng-app-context = { path = "../zng-app-context", version = "0.15.0", default-features = false }
@@ -38,10 +38,6 @@ bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 indexmap = { version = "2.2", default-features = false, features = ["serde", "std"] }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = { version = "1.0", optional = true, default-features = false, features = ["std", "preserve_order"] }
-toml = { version = "1.0", optional = true, default-features = false, features = ["preserve_order", "std", "serde"] }
-ron = { version = "0.12", optional = true, default-features = false, features = ["indexmap"] }
-serde_yaml = { version = "0.9", optional = true, default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

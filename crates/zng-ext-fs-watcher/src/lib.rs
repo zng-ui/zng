@@ -966,11 +966,11 @@ impl WatchFile {
 
     /// Deserialize the file content as YAML.
     #[cfg(feature = "yaml")]
-    pub fn yaml<O>(&mut self) -> serde_yaml::Result<O>
+    pub fn yaml<O>(&mut self) -> Result<O, serde_saphyr::Error>
     where
         O: serde::de::DeserializeOwned,
     {
-        serde_yaml::from_reader(io::BufReader::new(&mut self.0))
+        serde_saphyr::from_reader(io::BufReader::new(&mut self.0))
     }
 
     /// Read file and parse it.
@@ -1165,7 +1165,7 @@ impl WriteFile {
     #[cfg(feature = "yaml")]
     pub fn write_yaml<O: serde::Serialize>(&mut self, value: &O) -> io::Result<()> {
         let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
-        serde_yaml::to_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        serde_saphyr::to_io_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         buf.flush()
     }
 
