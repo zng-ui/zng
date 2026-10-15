@@ -118,7 +118,7 @@
 //! consideration needed. Async code needs a runtime to execute and some async functions from external crates expect their own runtime
 //! to work properly, as a rule of thumb if the crate starts their own *event reactor* you can just use then without worry.
 //!
-//! You can use the [`futures`], [`async-std`] and [`smol`] crates without worry, they integrate well and even use the same [`blocking`]
+//! You can use the [`futures`] and [`smol`] crates without worry, they integrate well and even use the same [`blocking`]
 //! thread-pool that is used in [`wait`]. Functions that require an *event reactor* start it automatically, usually at the cost of one extra
 //! thread only. Just `.await` futures from these crate.
 //!
@@ -133,7 +133,6 @@
 //! [`LocalContext`]: crate::app::LocalContext
 //! [`blocking`]: https://docs.rs/blocking
 //! [`futures`]: https://docs.rs/futures
-//! [`async-std`]: https://docs.rs/async-std
 //! [`smol`]: https://docs.rs/smol
 //! [`tokio`]: https://docs.rs/tokio
 //! [`futures-lite::io`]: https://docs.rs/futures-lite/*/futures_lite/io/index.html
@@ -177,8 +176,8 @@ pub use zng_task::{doc_test, spin_on};
 #[cfg(feature = "http")]
 pub mod http {
     pub use zng_task::http::{
-        CacheMode, Error, HttpError, Method, Request, Response, StatusCode, Uri, delete, get, get_bytes, get_json, get_txt, head, header,
-        method, post, put, send, set_request_default, uri,
+        CacheMode, Error, HttpError, Method, Request, Response, SseArgs, SseDisconnected, StatusCode, Uri, delete, get, get_bytes,
+        get_json, get_txt, head, header, method, post, put, send, set_request_default, uri,
     };
 
     /// Remove all cached entries, or just older ones if `prune` is enabled.

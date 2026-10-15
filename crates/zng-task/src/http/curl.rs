@@ -43,6 +43,8 @@ async fn run(request: Request) -> Result<Response, Error> {
 
     curl.arg("--http1.1");
 
+    curl.arg("-N"); // no internal buffering for pipes
+
     curl.arg("-X").arg(request.method.as_str());
 
     #[cfg(feature = "http_compression")]
