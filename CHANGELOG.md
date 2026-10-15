@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Implement Server-Sent Events (SSE) support for `zng::task::http`.
+    - Add `Request::sse`.
+    - Add `Response::on_sse`, `SseArgs` and `SseDisconnected`.
+* Implement direct streaming support for `zng::task::http`.
+    - Add `Response::{take_stream, stream_decode}`.
 
 ## 0.25.1
 

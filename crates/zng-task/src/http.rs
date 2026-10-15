@@ -10,6 +10,7 @@ mod cache;
 mod ctx;
 mod curl;
 mod file_cache;
+mod stream_decoder;
 mod util;
 
 pub use cache::{CacheKey, CacheMode, CachePolicy};
@@ -28,6 +29,7 @@ pub use file_cache::FileSystemCache;
 /// can downcast to get the HTTP error in those cases.
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
+use futures_lite::AsyncBufReadExt;
 pub use http::{
     StatusCode, header,
     method::{self, Method},
@@ -36,7 +38,7 @@ pub use http::{
 use serde::{Deserialize, Serialize};
 use zng_var::{Var, const_var};
 
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 use std::{fmt, mem};
 
 use crate::{channel::IpcBytes, http::ctx::REQUEST_DEFAULT, io::Metrics};
@@ -299,6 +301,29 @@ impl Request {
         Ok(self)
     }
 
+    /// Append Server-Sent Events (SSE) headers and disables cache.
+    ///
+    /// Set the `last_event_id` if this request is to reconnect a previous stream that tracks messages received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use zng_task::http;
+    ///
+    /// # fn try_example() -> Result<(), http::Error> {
+    /// let sse = http::Request::get("https://httpbun.com/sse")?.sse("")?;
+    /// # Ok(()) }
+    /// ```
+    pub fn sse(mut self, last_event_id: &str) -> Result<Self, Error> {
+        self.cache = CacheMode::NoCache;
+        let r = self.header("accept", "text/event-stream")?;
+        if last_event_id.is_empty() {
+            Ok(r)
+        } else {
+            r.header("Last-Event-ID", last_event_id)
+        }
+    }
+
     /// Set the [`timeout`].
     ///
     /// [`timeout`]: field@Request::timeout
@@ -547,7 +572,7 @@ impl Response {
         }
     }
 
-    /// Receive the entire body.
+    /// Receive the full body to memory.
     pub async fn download(&mut self) -> Result<(), Error> {
         if let ResponseBody::Done { .. } = &self.body {
             return Ok(());
@@ -570,7 +595,7 @@ impl Response {
         Ok(())
     }
 
-    /// Download the full body and returns a reference to it.
+    /// Download the full body memory cache and returns a reference to it.
     pub async fn body(&mut self) -> Result<IpcBytes, Error> {
         self.download().await?;
         match &self.body {
@@ -579,7 +604,10 @@ impl Response {
         }
     }
 
-    /// Download the full body and returns it decoded to text.
+    /// Download the full body to memory and decode a clone to text.
+    ///
+    /// The text encoding is guessed from header `"content-type"` and *BOM sniffing*, otherwise
+    /// utf-8 is assumed and the replacement character (U+FFFD) is used for invalid chars.
     pub async fn body_text(&mut self) -> Result<Txt, Error> {
         let content_type = self
             .headers
@@ -598,7 +626,7 @@ impl Response {
         Ok(Txt::from_str(&text))
     }
 
-    /// Download the full body and returns it decoded to JSON and deserialized to `O`.
+    /// Download the full body to memory and deserialize it from JSON.
     pub async fn body_json<O>(&mut self) -> Result<O, Error>
     where
         O: serde::de::DeserializeOwned + std::marker::Unpin,
@@ -606,6 +634,171 @@ impl Response {
         let bytes = self.body().await?;
         let r = serde_json::from_slice(&bytes)?;
         Ok(r)
+    }
+
+    /// Take the body stream.
+    ///
+    /// After this call the `body_*` methods will return empty.
+    ///
+    /// If the body was already downloaded reads that data from the start.
+    ///
+    /// Note that the [`metrics`] var will continue updating for the stream.
+    ///
+    /// [`metrics`]: Self::metrics
+    pub fn take_stream(&mut self) -> Box<dyn AsyncRead + Send> {
+        match mem::replace(
+            &mut self.body,
+            ResponseBody::Done {
+                bytes: IpcBytes::default(),
+            },
+        ) {
+            ResponseBody::Done { bytes } => Box::new(crate::io::Cursor::new(bytes)),
+            ResponseBody::Read { read } => read,
+        }
+    }
+
+    /// Take the body stream and decodes it to UTF-8.
+    ///
+    /// The text encoding is guessed from header `"content-type"` and *BOM sniffing*, otherwise
+    /// utf-8 is assumed and the replacement character (U+FFFD) is used for invalid chars.
+    pub fn stream_decode(&mut self) -> impl AsyncRead + Send + 'static {
+        let content_type = self
+            .headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<mime::Mime>().ok());
+        let encoding_name = content_type
+            .as_ref()
+            .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+            .unwrap_or("utf-8");
+        let encoding = encoding_rs::Encoding::for_label(encoding_name.as_bytes()).unwrap_or(encoding_rs::UTF_8);
+
+        stream_decoder::StreamDecoder::new(self.take_stream(), encoding.new_decoder())
+    }
+
+    /// Take the body stream and decode Server-Sent Events (SSE).
+    ///
+    /// The `handler` is called for each [`SseArgs`] and once at the end with [`SseDisconnected`].
+    /// The `handler` is dropped after disconnect, the caller must make a new request to retry if desired.
+    ///
+    /// If the `handler` returns `false` it is dropped and disconnected.
+    pub fn on_sse<F>(&mut self, mut handler: impl FnMut(Result<SseArgs, SseDisconnected>) -> F + Send + 'static)
+    where
+        F: Future<Output = bool> + Send,
+    {
+        // no need to decode, sse is always utf-8
+        let mut stream = crate::io::BufReader::new(Box::into_pin(self.take_stream()));
+        let mut first = true;
+
+        crate::spawn(async move {
+            let mut buf = vec![];
+            let mut last_event_id = String::new();
+            let mut last_retry = String::new();
+            let mut error = None;
+            loop {
+                // read_line has a bug https://github.com/smol-rs/futures-lite/issues/143
+                // it also allocates a second buf for some reason, read_until is more efficient
+                let mut result = stream.read_until(b'\n', &mut buf).await;
+                if let &Ok(n) = &result
+                    && n > 0
+                {
+                    // validate the line
+                    let start = buf.len() - n;
+                    if let Err(e) = str::from_utf8(&buf[start..]) {
+                        result = Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e));
+                    }
+                }
+                match result {
+                    Ok(n) => {
+                        // SAFETY: we validate by line as they are received
+                        let mut buf_str = unsafe { str::from_utf8_unchecked(&buf) };
+                        if mem::take(&mut first) {
+                            // strip utf-8 BOM
+                            buf_str = buf_str.strip_prefix('\u{FEFF}').unwrap_or(buf_str);
+                        }
+
+                        if matches!(buf_str.lines().next_back(), Some(l) if l.is_empty()) {
+                            // received empty line
+
+                            let mut id = None;
+                            let mut event = None;
+                            let mut retry = None;
+                            let mut data = None::<Cow<str>>;
+                            for line in buf_str.lines() {
+                                // spec says a line without : is a field with no value,
+                                // so "data\n\n" is the same as "data:\n\n"
+                                let (field, s) = line.split_once(':').unwrap_or((line, ""));
+                                let s = s.strip_prefix(' ').unwrap_or(s);
+                                match field {
+                                    "data" => {
+                                        if let Some(d) = &mut data {
+                                            let d = d.to_mut();
+                                            d.push('\n');
+                                            d.push_str(s);
+                                        } else {
+                                            data = Some(Cow::Borrowed(s));
+                                        }
+                                    }
+                                    "event" => event = Some(s),
+                                    "id" => {
+                                        if !s.contains('\0') {
+                                            id = Some(s)
+                                        }
+                                    }
+                                    "retry" if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()) => retry = Some(s),
+                                    _ => {}
+                                }
+                            }
+
+                            if let Some(id) = id {
+                                last_event_id.clear();
+                                last_event_id.push_str(id);
+                            }
+                            if let Some(ms) = retry {
+                                last_retry.clear();
+                                last_retry.push_str(ms);
+                            }
+                            if let Some(data) = data {
+                                let event = event.unwrap_or("");
+                                let continue_ = handler(Ok(SseArgs { event, data: &data, id })).await;
+                                if !continue_ {
+                                    // disconnect by user, skip `Disconnected` event
+                                    return;
+                                }
+                            }
+
+                            buf.clear();
+                        }
+
+                        if n == 0 {
+                            // disconnected by EOF, goto `Disconnected` event
+                            if !buf.is_empty() {
+                                // spec says last event is terminated by \n\n too
+                                error = Some(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "EOF before last \\n\\n"))
+                            }
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                        // disconnected by error, goto `Disconnected` event
+                        break;
+                    }
+                }
+            }
+            let mut retry_delay = Duration::ZERO;
+            if !last_retry.is_empty()
+                && let Ok(ms) = last_retry.parse()
+            {
+                retry_delay = Duration::from_millis(ms);
+            }
+            handler(Err(SseDisconnected {
+                last_event_id: &last_event_id,
+                retry_delay,
+                error,
+            }))
+            .await;
+        });
     }
 
     /// Metrics for the task transfer, if it was enabled in the request.
@@ -776,4 +969,53 @@ pub async fn send(request: Request) -> Result<Response, Error> {
             CacheMode::Permanent => cache::send_cache_perm(client, request).await,
         }
     }
+}
+
+/// Represents an update in a Server-Sent Events (SSE) stream.
+///
+/// See [`Response::on_sse`] for more details.
+#[derive(Debug)]
+pub struct SseArgs<'a> {
+    /// Id.
+    pub id: Option<&'a str>,
+    /// Event name.
+    ///
+    /// Empty means *message*.
+    pub event: &'a str,
+    /// Data.
+    pub data: &'a str,
+}
+impl<'a> SseArgs<'a> {
+    /// Gets if is not a custom event.
+    ///
+    /// Handling `data` only when this is `true` is the equivalent of
+    /// subscribing to `EventSource.onmessage` in Javascript.
+    pub fn is_message(&self) -> bool {
+        self.event.is_empty()
+    }
+
+    /// Gets if is custom event.
+    pub fn is_event(&self, name: &str) -> bool {
+        self.event == name
+    }
+
+    /// Try to deserialize `data` from JSON.
+    pub fn json<O: serde::Deserialize<'a>>(&self) -> Result<O, serde_json::Error> {
+        serde_json::from_str(self.data)
+    }
+}
+
+/// Represents the end of a Server-Sent Events (SSE) stream.
+///
+/// See [`Response::on_sse`] for more details.
+#[derive(Debug)]
+pub struct SseDisconnected<'a> {
+    /// Last event ID, use with [`Request::sse`] to reconnect at the same position.
+    pub last_event_id: &'a str,
+    /// Wait this delay before requesting a new connection.
+    pub retry_delay: Duration,
+    /// Error.
+    ///
+    /// This is `None` on EOF.
+    pub error: Option<std::io::Error>,
 }
