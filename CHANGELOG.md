@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Upgrade `zbus` to fix [RUSTSEC-2026-0371](https://rustsec.org/advisories/RUSTSEC-2026-0371.html).
 * Implement Server-Sent Events (SSE) support for `zng::task::http`.
     - Add `Request::sse`.
     - Add `Response::on_sse`, `SseArgs` and `SseDisconnected`.
@@ -12,7 +13,7 @@ All notable changes to this project are documented in this file.
 
 ## 0.25.1
 
-* Replace YAML backend to fix [RUSTSEC-2024-0384](https://rustsec.org/advisories/RUSTSEC-2024-0384.html).
+* Replace YAML backend to fix [RUSTSEC-2025-0068](https://rustsec.org/advisories/RUSTSEC-2025-0068.html).
     - **Breaking** The `WatchFile::yaml` error changes, the new error has the same API as the previous.
 * Add `zng::setup::page::OptionalTasksPage` and related types.
 * Add `zng::setup::task::RegisterFileTypes` and related types.

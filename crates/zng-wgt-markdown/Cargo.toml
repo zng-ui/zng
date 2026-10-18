@@ -52,4 +52,4 @@ open = { version = "5.1", default-features = false, features = ["shellexecute-on
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.4", default-features = false, features = ["Window"]  }
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus = { version = "5.16.0" , default-features = false, features = ["async-io"] }
+zbus = { version = "6.0" , default-features = false, features = ["proxy"] }
