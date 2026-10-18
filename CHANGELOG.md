@@ -4,7 +4,6 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
-* Upgrade `zbus` to fix [RUSTSEC-2026-0371](https://rustsec.org/advisories/RUSTSEC-2026-0371.html).
 * Implement Server-Sent Events (SSE) support for `zng::task::http`.
     - Add `Request::sse`.
     - Add `Response::on_sse`, `SseArgs` and `SseDisconnected`.
