@@ -26,4 +26,17 @@ ignore = [
     #
     # remove this ignore when all dependencies are fixed
     "RUSTSEC-2025-0141",
+
+    # zbus crates need upgrading
+    #
+    # already upgraded in project crates
+    #
+    # zvariant v5.15.1
+    # ├── accesskit_atspi_common v0.21.0
+    # │   └── accesskit_unix v0.24.0
+    # │       └── accesskit_winit v0.34.1
+    # │           └── zng-view v0.20.0
+    "RUSTSEC-2026-0371",
+    "RUSTSEC-2026-0370",
+    "RUSTSEC-2026-0372",
 ]
