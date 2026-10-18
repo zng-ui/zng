@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+
+## 0.25.2
+
 * Implement Server-Sent Events (SSE) support for `zng::task::http`.
     - Add `Request::sse`.
     - Add `Response::on_sse`, `SseArgs` and `SseDisconnected`.
