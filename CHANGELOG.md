@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Replace `append-only-vec` dependency to avoid [RUSTSEC-2026-0262](https://rustsec.org/advisories/RUSTSEC-2026-0262.html).
+
+If you compiled zng with feature `"multi_app"` or `"test_util"` enabled from 2026-08-20T07:37:49Z to 2026-08-20T09:25:24Z (107 minutes)
+follow [these instructions](https://blog.rust-lang.org/2026/08/20/supply-chain-attack-on-arrayref/#what-you-need-to-do).
+
+Note that these features are not enabled by default.
 
 ## 0.25.2
 
