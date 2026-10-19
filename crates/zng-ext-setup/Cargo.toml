@@ -16,6 +16,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # 
 # Config is saved as ZStd JSON.
 save = ["dep:serde_json", "dep:zstd"]
+# Enable `SfxClient::setup_test`.
+test_util = []
 
 [dependencies]
 zng-var = { path = "../zng-var", version = "0.16.0", default-features = false }

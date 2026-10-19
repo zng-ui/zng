@@ -20,6 +20,7 @@ pub use futures_lite::io::{
     AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BoxedReader, BoxedWriter,
     BufReader, BufWriter, Cursor, ReadHalf, WriteHalf, copy, empty, repeat, sink, split,
 };
+// TODO(breaking) add StreamExt to support lines().next()
 
 #[doc(no_inline)]
 pub use blocking::Unblock;

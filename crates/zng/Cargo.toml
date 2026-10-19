@@ -142,6 +142,7 @@ hot_reload = ["dep:zng-ext-hot-reload"]
 test_util = [
     "zng-app/test_util",
     "zng-ext-window?/test_util",
+    "zng-ext-setup?/test_util",
     "zng-task/test_util",
 ]
 

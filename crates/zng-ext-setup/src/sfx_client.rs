@@ -36,6 +36,14 @@ impl SfxClient {
             return Err(io::Error::new(io::ErrorKind::InvalidFilename, "SFX_ARGS is empty").into());
         }
 
+        #[cfg(feature = "test_util")]
+        if sfx_args[0] == "test:/fake-sfx" {
+            return Ok(Self {
+                sfx_args: sfx_args.into_boxed_slice(),
+                manifest: test_util::test_manifest(),
+            })
+        }
+
         // read manifest
         let out = std::process::Command::new(&sfx_args[0]).env("SFX_GET_MANIFEST", "").output()?;
         if !out.status.success() {
@@ -116,6 +124,7 @@ impl SfxClient {
     ///
     /// The sfx server will automatically decompress/decode data that was marked `compress` on build.
     pub fn read_blocking(&self, name: &str) -> Result<SfxReadBlocking, SfxError> {
+        // !!: TODO test_util
         if let Some(info) = self.info(name) {
             let mut r = std::process::Command::new(self.sfx_exe()).env("SFX_GET_DATA", name).spawn()?;
             r.stdin = None;
@@ -147,6 +156,43 @@ impl SfxClient {
             .await
         } else {
             Err(SfxError::NotFound(Txt::from_str(name)))
+        }
+    }
+}
+#[cfg(feature = "test_util")]
+mod test_util {
+    use super::*;
+    
+    impl SfxClient {
+        /// Call this function before [`SfxClient::connect_blocking`] to run
+        /// in setup mode with fake data.
+        /// 
+        /// The test [`SfxClient::sfx_exe`] is `"test:/fake-sfx"`, the [`SfxClient::sfx_args`] is
+        /// the test path with `test_args` appended.
+        /// 
+        /// The [`SfxClient::read`] will serve the `test_data`.
+        pub fn setup_test(test_args: Vec<Txt>, mut test_data: Vec<(Txt, Vec<u8>)>) {
+            let mut data = TEST_DATA.lock();
+            test_data.sort_by(|a, b| a.0.cmp(&b.0));
+            test_data.dedup_by(|a, b| a.0 == b.0);
+            *data = Some(test_data);
+
+            let mut args = test_args;
+            args.insert(0, "test:/fake-sfx".into());
+            unsafe {
+                std::env::set_var("SFX_ARGS", args.join("\n"));
+            }
+        }
+    }
+
+    type TestData = Vec<(Txt, Vec<u8>)>;
+    static TEST_DATA: zng_task::parking_lot::Mutex<Option<TestData>> = zng_task::parking_lot::Mutex::new(None);
+    
+    pub(super) fn test_manifest() -> Box<[SfxDataInfo]> {
+        if let Some(data) = &*TEST_DATA.lock() {
+            data.iter().map(|(n, b)| SfxDataInfo { name: n.clone(), exact_len: Some(b.len() as u64) }).collect()
+        } else {
+            Box::new([])
         }
     }
 }
