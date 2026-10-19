@@ -64,7 +64,7 @@ pub struct AppLocalVec<T: Send + Sync + 'static> {
     // we don't use a single RwLock here to avoid lock inversion deadlock between apps,
     // but data still needs to drop on app deinit so we use an Option.
     #[cfg(feature = "multi_app")]
-    value: append_only_vec::AppendOnlyVec<(AppId, RwLock<Option<T>>)>,
+    value: boxcar::Vec<(AppId, RwLock<Option<T>>)>,
     #[cfg(feature = "multi_app")]
     init: fn() -> T,
     #[cfg(not(feature = "multi_app"))]
@@ -74,7 +74,7 @@ pub struct AppLocalVec<T: Send + Sync + 'static> {
 impl<T: Send + Sync + 'static> AppLocalVec<T> {
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            value: append_only_vec::AppendOnlyVec::new(),
+            value: boxcar::Vec::new(),
             init,
         }
     }
@@ -83,7 +83,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         self.try_cleanup(id, 0);
     }
     fn try_cleanup(&'static self, id: AppId, tries: u8) {
-        for (app, data) in self.value.iter() {
+        for (_, (app, data)) in self.value.iter() {
             if *app == id {
                 let timeout = if tries == 0 {
                     std::time::Duration::from_millis(50)
@@ -109,14 +109,14 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
 
     fn app_lock(&'static self) -> &'static RwLock<Option<T>> {
         let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
-        for (app, lock) in self.value.iter() {
+        for (_, (app, lock)) in self.value.iter() {
             if *app == id {
                 return lock;
             }
         }
         self.value.push((id, RwLock::new(None)));
         // ensure we always ref the first entry, in case of a race condition inserting multiple
-        for (app, lock) in self.value.iter() {
+        for (_, (app, lock)) in self.value.iter() {
             if *app == id {
                 return lock;
             }

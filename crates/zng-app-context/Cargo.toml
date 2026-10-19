@@ -1,6 +1,6 @@
 [package]
 name = "zng-app-context"
-version = "0.15.0"
+version = "0.15.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -17,7 +17,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
 # what app is currently running in each thread and `app_local!` statics switch to the value of each app
 # depending on the current thread.
-multi_app = ["append-only-vec"]
+multi_app = ["boxcar"]
 
 [dependencies]
 zng-unique-id = { path = "../zng-unique-id", version = "0.12.1", default-features = false, features = ["named"] }
@@ -28,7 +28,7 @@ rustc-hash = { version = "2.0", default-features = false, features = ["std"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
-append-only-vec = { version = "0.1.8", default-features = false, optional = true }
+boxcar = { version = "0.2.14", default-features = false, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
