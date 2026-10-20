@@ -37,11 +37,11 @@ impl SfxClient {
         }
 
         #[cfg(feature = "test_util")]
-        if sfx_args[0] == "test:/fake-sfx" {
+        if sfx_args[0] == test_util::FAKE_EXE {
             return Ok(Self {
                 sfx_args: sfx_args.into_boxed_slice(),
                 manifest: test_util::test_manifest(),
-            })
+            });
         }
 
         // read manifest
@@ -124,14 +124,19 @@ impl SfxClient {
     ///
     /// The sfx server will automatically decompress/decode data that was marked `compress` on build.
     pub fn read_blocking(&self, name: &str) -> Result<SfxReadBlocking, SfxError> {
-        // !!: TODO test_util
         if let Some(info) = self.info(name) {
+            #[cfg(feature = "test_util")]
+            if self.sfx_args[0] == test_util::FAKE_EXE {
+                let data = test_util::req_data(name);
+                return Ok(SfxReadBlocking(SfxReadBlockingImpl::Test(std::io::Cursor::new(data))));
+            }
+
             let mut r = std::process::Command::new(self.sfx_exe()).env("SFX_GET_DATA", name).spawn()?;
             r.stdin = None;
-            Ok(SfxReadBlocking(DefaultSfxReadBlocking {
+            Ok(SfxReadBlocking(SfxReadBlockingImpl::Default(DefaultSfxReadBlocking {
                 server: r,
                 exact_len: info.exact_len,
-            }))
+            })))
         } else {
             Err(SfxError::NotFound(Txt::from_str(name)))
         }
@@ -142,13 +147,22 @@ impl SfxClient {
     /// The sfx server will automatically decompress/decode data that was marked `compress` on build.
     pub async fn read(&self, name: &str) -> Result<SfxRead, SfxError> {
         if let Some(info) = self.info(name) {
+            #[cfg(feature = "test_util")]
+            if self.sfx_args[0] == test_util::FAKE_EXE {
+                let data = test_util::req_data(name);
+                let inner = SfxReadBlocking(SfxReadBlockingImpl::Test(std::io::Cursor::new(data)));
+                return Ok(SfxRead {
+                    inner: zng_task::io::Unblock::new(inner),
+                });
+            }
+
             let mut cmd = std::process::Command::new(self.sfx_exe());
             cmd.env("SFX_GET_DATA", name);
             let exact_len = info.exact_len;
             zng_task::wait(move || {
                 let mut r = cmd.spawn()?;
                 r.stdin = None;
-                let inner = SfxReadBlocking(DefaultSfxReadBlocking { server: r, exact_len });
+                let inner = SfxReadBlocking(SfxReadBlockingImpl::Default(DefaultSfxReadBlocking { server: r, exact_len }));
                 Ok(SfxRead {
                     inner: zng_task::io::Unblock::new(inner),
                 })
@@ -162,23 +176,29 @@ impl SfxClient {
 #[cfg(feature = "test_util")]
 mod test_util {
     use super::*;
-    
+
+    pub const FAKE_EXE: &str = "test:/fake-sfx";
+
     impl SfxClient {
         /// Call this function before [`SfxClient::connect_blocking`] to run
         /// in setup mode with fake data.
-        /// 
+        ///
         /// The test [`SfxClient::sfx_exe`] is `"test:/fake-sfx"`, the [`SfxClient::sfx_args`] is
         /// the test path with `test_args` appended.
-        /// 
+        ///
         /// The [`SfxClient::read`] will serve the `test_data`.
+        ///
+        /// # Panics
+        ///
+        /// Panics if called after any `SfxClient` operation that uses data or if called twice.
         pub fn setup_test(test_args: Vec<Txt>, mut test_data: Vec<(Txt, Vec<u8>)>) {
-            let mut data = TEST_DATA.lock();
             test_data.sort_by(|a, b| a.0.cmp(&b.0));
             test_data.dedup_by(|a, b| a.0 == b.0);
-            *data = Some(test_data);
+
+            zng_unique_id::lazy_static_init(&TEST_DATA, Some(test_data)).unwrap_or_else(|_| panic!("SfxClient already used"));
 
             let mut args = test_args;
-            args.insert(0, "test:/fake-sfx".into());
+            args.insert(0, FAKE_EXE.into());
             unsafe {
                 std::env::set_var("SFX_ARGS", args.join("\n"));
             }
@@ -186,14 +206,32 @@ mod test_util {
     }
 
     type TestData = Vec<(Txt, Vec<u8>)>;
-    static TEST_DATA: zng_task::parking_lot::Mutex<Option<TestData>> = zng_task::parking_lot::Mutex::new(None);
-    
+    zng_unique_id::lazy_static! {
+        static ref TEST_DATA: Option<TestData> = None;
+    }
+
     pub(super) fn test_manifest() -> Box<[SfxDataInfo]> {
-        if let Some(data) = &*TEST_DATA.lock() {
-            data.iter().map(|(n, b)| SfxDataInfo { name: n.clone(), exact_len: Some(b.len() as u64) }).collect()
+        if let Some(data) = &*TEST_DATA {
+            data.iter()
+                .map(|(n, b)| SfxDataInfo {
+                    name: n.clone(),
+                    exact_len: Some(b.len() as u64),
+                })
+                .collect()
         } else {
             Box::new([])
         }
+    }
+
+    pub(super) fn req_data(name: &str) -> &'static [u8] {
+        if let Some(data) = &*TEST_DATA {
+            for (n, entry) in data {
+                if n == name {
+                    return entry;
+                }
+            }
+        }
+        panic!()
     }
 }
 
@@ -214,13 +252,22 @@ pub struct SfxDataInfo {
 /// Read requested data.
 ///
 /// See [`SfxClient::read_blocking`] for more details.
-pub struct SfxReadBlocking(DefaultSfxReadBlocking);
+pub struct SfxReadBlocking(SfxReadBlockingImpl);
+enum SfxReadBlockingImpl {
+    Default(DefaultSfxReadBlocking),
+    #[cfg(feature = "test_util")]
+    Test(std::io::Cursor<&'static [u8]>),
+}
 impl SfxReadBlocking {
     /// Length not yet read.
     ///
     /// Is `None` if the exact length is not known.
     pub fn exact_len(&self) -> Option<u64> {
-        self.0.exact_len
+        match &self.0 {
+            SfxReadBlockingImpl::Default(b) => b.exact_len,
+            #[cfg(feature = "test_util")]
+            SfxReadBlockingImpl::Test(c) => Some(c.get_ref().len() as u64 - c.position()),
+        }
     }
 }
 struct DefaultSfxReadBlocking {
@@ -269,28 +316,42 @@ impl io::Read for DefaultSfxReadBlocking {
 }
 impl io::Read for SfxReadBlocking {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
+        match &mut self.0 {
+            SfxReadBlockingImpl::Default(r) => r.read(buf),
+            #[cfg(feature = "test_util")]
+            SfxReadBlockingImpl::Test(c) => c.read(buf),
+        }
     }
 
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> io::Result<usize> {
-        if let Some(l) = self.0.exact_len {
+        if let Some(l) = self.exact_len() {
             let l = l.min(usize::MAX as u64) as usize;
             buf.try_reserve(l)?;
         }
-        self.0.read_to_end(buf)
+        match &mut self.0 {
+            SfxReadBlockingImpl::Default(r) => r.read_to_end(buf),
+            #[cfg(feature = "test_util")]
+            SfxReadBlockingImpl::Test(c) => c.read_to_end(buf),
+        }
     }
 
     fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
-        if let Some(l) = self.0.exact_len {
+        if let Some(l) = self.exact_len() {
             let l = l.min(usize::MAX as u64) as usize;
             buf.try_reserve(l)?;
         }
-        self.0.read_to_string(buf)
+        match &mut self.0 {
+            SfxReadBlockingImpl::Default(r) => r.read_to_string(buf),
+            #[cfg(feature = "test_util")]
+            SfxReadBlockingImpl::Test(c) => c.read_to_string(buf),
+        }
     }
 }
 impl Drop for SfxReadBlocking {
     fn drop(&mut self) {
-        if let Err(e) = self.0.server.kill() {
+        if let SfxReadBlockingImpl::Default(d) = &mut self.0
+            && let Err(e) = d.server.kill()
+        {
             tracing::error!("cannot kill server on drop, {e}");
         }
     }
@@ -307,7 +368,7 @@ impl SfxRead {
     ///
     /// Is `None` if the exact length is not known.
     pub async fn exact_len(&mut self) -> Option<u64> {
-        self.inner.get_mut().await.0.exact_len
+        self.inner.get_mut().await.exact_len()
     }
 
     /// Convert to [`SfxReadBlocking`] that reads the rest of the API.
