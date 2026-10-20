@@ -152,7 +152,8 @@ impl OptionalTasksPage {
             wgt_fn!(|_| {
                 let items = Stack! {
                     direction = StackDirection::top_to_bottom();
-                    spacing = 5;
+                    spacing = 8;
+                    zng_wgt_toggle::style_fn = zng_wgt_style::style_fn!(|_| zng_wgt_toggle::CheckStyle!());
                     children =
                         items
                             .iter()
@@ -176,17 +177,21 @@ impl OptionalTasksPage {
                     ;
                 };
                 Container! {
-                    child_top = Text!(message.clone());
-                    child_spacing = 10;
+                    child_top = Text! {
+                        txt = message.clone();
+                        margin = 10;
+                    };
                     child = Scroll! {
+                        padding = 10;
                         mode = ScrollMode::VERTICAL;
                         child = items;
+                        child_align = Align::FILL;
                     };
                 }
             }),
         );
         pg.content_fill = true;
-        todo!()
+        pg
     }
 }
 
