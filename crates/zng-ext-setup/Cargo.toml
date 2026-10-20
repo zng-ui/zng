@@ -16,6 +16,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # 
 # Config is saved as ZStd JSON.
 save = ["dep:serde_json", "dep:zstd"]
+# Enable `SfxClient::setup_test`.
+test_util = []
 
 [dependencies]
 zng-var = { path = "../zng-var", version = "0.16.1", default-features = false }
@@ -26,6 +28,7 @@ zng-unit = { path = "../zng-unit", version = "0.7.1", default-features = false }
 zng-app = { path = "../zng-app", version = "0.26.2", default-features = false }
 zng-clone-move = { path = "../zng-clone-move", version = "0.4.0", default-features = false }
 zng-env = { path = "../zng-env", version = "0.13.0", default-features = false }
+zng-unique-id = { path = "../zng-unique-id", version = "0.12.1", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 tar = { version = "0.4.45", default-features = false, features = ["xattr"] }
