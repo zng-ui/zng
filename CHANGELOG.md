@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix `TaskPanicError::panic_str` always returning `None`.
 
 ## 0.25.3
 
