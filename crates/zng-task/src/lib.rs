@@ -2195,7 +2195,7 @@ impl TaskPanicError {
 
     /// Get the panic string if the `payload` is string like.
     pub fn panic_str(&self) -> Option<&str> {
-        extract_panic_message(&self.payload)
+        extract_panic_message(&*self.payload)
     }
 }
 impl fmt::Debug for TaskPanicError {
