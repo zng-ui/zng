@@ -12,7 +12,7 @@ use unic_langid::LanguageIdentifier;
 
 use crate::util::{self, glob_walker};
 
-pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool) {
+pub fn translate(dir: &str, from: &str, to: &str, replace: bool, existing: bool, check: bool) {
     let dir_path = Path::new(dir);
     if !dir_path.exists() {
         fatal!("dir `{dir}` does not exist")
@@ -89,9 +89,11 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, check: bool) {
         }
         println!("translating to {to}-machine");
 
-        let non_machine_dir = dir_parent.join(to.to_string());
-        if non_machine_dir.exists() {
-            return;
+        if !existing {
+            let non_machine_dir = dir_parent.join(to.to_string());
+            if non_machine_dir.exists() {
+                return;
+            }
         }
 
         let dir_to = dir_parent.join(format!("{to}-machine"));

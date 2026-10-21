@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 * Add `SfxClient::setup_test` helper for testing setup apps.
     - Add `"test_util"` feature for `zng-ext-setup`. Main crate enables it when the general `"test_util"` is enabled.
 * Fix `TaskPanicError::panic_str` always returning `None`.
+* Implement `--translate-existing` in `cargo zng l10n`, generate machine translations when there is a manual translation too.
 * You can now name the model for `zng-l10n-translator-local`.
 
 ## 0.25.3
