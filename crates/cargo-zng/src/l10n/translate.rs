@@ -6,7 +6,6 @@ use std::{
 };
 
 use leaky_bucket_lite::sync_threadsafe::LeakyBucket;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use sha2::Digest;
 use unic_langid::LanguageIdentifier;
 
@@ -83,22 +82,22 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, existing: bool,
     let translator = Translator::default();
     println_v!("using `{}`, RPM: {}", translator.path.display(), translator.rpm);
 
-    to.into_par_iter().for_each(|to| {
+    for to in to {
         if to == from {
-            return;
+            continue;
         }
         println!("translating to {to}-machine");
 
         if !existing {
             let non_machine_dir = dir_parent.join(to.to_string());
             if non_machine_dir.exists() {
-                return;
+                continue;
             }
         }
 
         let dir_to = dir_parent.join(format!("{to}-machine"));
 
-        files.par_iter().for_each(|(relative_path, file, hash)| {
+        for (relative_path, file, hash) in &files {
             let file_to = dir_to.join(relative_path);
             println_v!("  {}", file_to.display());
 
@@ -146,8 +145,8 @@ pub fn translate(dir: &str, from: &str, to: &str, replace: bool, existing: bool,
                     fatal!("cannot write `{}`, {}", file_to.display(), e);
                 }
             }
-        });
-    });
+        }
+    }
 }
 
 struct Translator {
