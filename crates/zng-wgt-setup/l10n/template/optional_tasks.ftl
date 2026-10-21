@@ -2,28 +2,28 @@
 
 additional_shortcuts =
     .info = { $tasks ->
-                            [one] Create additional shortcut?
-                            *[other] Which additional shortcuts should be created? 
-                            }
-    .title = { $tasks -> 
-                            [one] Additional Shortcut
-                            *[other] Additional Shortcuts
-                            }
+        [one] Create additional shortcut?
+        *[other] Which additional shortcuts should be created?
+        }
+    .title = { $tasks ->
+        [one] Additional Shortcut
+        *[other] Additional Shortcuts
+        }
 
 # message:
 #     Message only shows for $tasks > 1
 associate_files =
     .info = { $tasks ->
-                            [one] Should this file type open with {$app} by default?
-                            *[other] Which file types should open with {$app} by default?
-                            }
-    .message = { $tasks -> 
-                                *[other] Select file types you would like associate with {$app}.
-                                }
-    .title = { $tasks -> 
-                            [one] Associate File Type
-                            *[other] Associate File Types 
-                            }
+        [one] Should this file type open with {$app} by default?
+        *[other] Which file types should open with {$app} by default?
+        }
+    .message = { $tasks ->
+        *[other] Select file types you would like associate with {$app}.
+        }
+    .title = { $tasks ->
+        [one] Associate File Type
+        *[other] Associate File Types
+        }
 
 generic =
     .info = Which additional tasks should be performed?
