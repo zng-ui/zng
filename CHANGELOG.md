@@ -4,9 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Localize `OptionalTasksPage` default pages.
+* Add `OptionalTasksPage::new_additional_shortcuts` default.
 * Fix `CreateShortcut` setup task.
 * Fix `OptionalTasksPage::build`.
-* Add `zng::setup::CreateShortcut` and related types.
 * Add `SfxClient::setup_test` helper for testing setup apps.
     - Add `"test_util"` feature for `zng-ext-setup`. Main crate enables it when the general `"test_util"` is enabled.
 * Fix `TaskPanicError::panic_str` always returning `None`.

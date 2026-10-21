@@ -41,16 +41,17 @@ pub struct OptionalTasksPage {
     /// items at the same time.
     pub groups: Vec<OptionalTaskGroup>,
 }
+/// Common task pages.
+///
+/// Note that to support pluralization based on `tasks` count the `title`, `info` and `message` vars are set
+/// to a marker on `new_*`, and are resolved only on `build`.
 impl OptionalTasksPage {
     /// New generic "Select Adicional Tasks" page.
     pub fn new_generic() -> Self {
         Self {
-            title: l10n!("optional_tasks/generic.title", "Select Additional Tasks"),
-            info: l10n!("optional_tasks/generic.info", "Which additional tasks should be performed?"),
-            message: l10n!(
-                "optional_tasks/generic.message",
-                "Select additional tasks you would like to setup to perform."
-            ),
+            title: const_var("generic".into()),
+            info: const_var("generic".into()),
+            message: const_var("generic".into()),
             tasks: vec![],
             groups: vec![],
         }
@@ -59,19 +60,102 @@ impl OptionalTasksPage {
     /// New "Associate File Types" page.
     pub fn new_associate_files() -> Self {
         Self {
-            title: l10n!("optional_tasks/associate_files.title", "Associate File Types"),
-            info: l10n!(
-                "optional_tasks/associate_files.info",
-                "Which file types should open with {$app} by default?",
-                app = APP_NAME_VAR
-            ),
-            message: l10n!(
-                "optional_tasks/associate_files.message",
-                "Select file types you would like associate with {$app}.",
-                app = APP_NAME_VAR
-            ),
+            title: const_var("associate_files".into()),
+            info: const_var("associate_files".into()),
+            message: const_var("associate_files".into()),
             tasks: vec![],
             groups: vec![],
+        }
+    }
+
+    /// New "Additional Shortcuts" page.
+    ///
+    /// Note that at least one shortcut should always be created. On Windows for example, an
+    /// app is not registered to show notifications if it does not have a start menu shortcut.
+    pub fn new_additional_shortcuts() -> Self {
+        Self {
+            title: const_var("additional_shortcuts".into()),
+            info: const_var("additional_shortcuts".into()),
+            message: const_var("".into()),
+            tasks: vec![],
+            groups: vec![],
+        }
+    }
+}
+impl OptionalTasksPage {
+    fn resolve_builtin(&mut self) {
+        fn marker(v: &Var<Txt>) -> Option<&'static str> {
+            if v.capabilities().is_const() {
+                v.get().as_static_str()
+            } else {
+                None
+            }
+        }
+
+        let tasks = self.tasks.len();
+        let app = APP_NAME_VAR;
+
+        match marker(&self.title) {
+            Some("generic") => self.title = l10n!("optional_tasks/generic.title", "Select Additional Tasks"),
+            Some("associate_files") => {
+                self.title = l10n!(
+                    "optional_tasks/associate_files.title",
+                    "{ $tasks -> 
+                    [one] Associate File Type
+                    *[other] Associate File Types 
+                    }"
+                )
+            }
+            Some("additional_shortcuts") => {
+                self.title = l10n!(
+                    "optional_tasks/additional_shortcuts.title",
+                    "{ $tasks -> 
+                    [one] Additional Shortcut
+                    *[other] Additional Shortcuts
+                    }"
+                )
+            }
+            _ => {}
+        }
+        match marker(&self.info) {
+            Some("generic") => self.info = l10n!("optional_tasks/generic.info", "Which additional tasks should be performed?"),
+            Some("associate_files") => {
+                self.info = l10n!(
+                    "optional_tasks/associate_files.info",
+                    "{ $tasks ->
+                    [one] Should this file type open with {$app} by default?
+                    *[other] Which file types should open with {$app} by default?
+                    }",
+                )
+            }
+            Some("additional_shortcuts") => {
+                self.info = l10n!(
+                    "optional_tasks/additional_shortcuts.info",
+                    "{ $tasks ->
+                    [one] Create additional shortcut?
+                    *[other] Which additional shortcuts should be created? 
+                    }",
+                )
+            }
+            _ => {}
+        }
+        match marker(&self.message) {
+            Some("generic") => {
+                self.message = l10n!(
+                    "optional_tasks/generic.message",
+                    "Select additional tasks you would like to setup to perform."
+                )
+            }
+            Some("associate_files") => {
+                // l10n-# Message only shows for $tasks > 1
+                self.message = l10n!(
+                    "optional_tasks/associate_files.message",
+                    "{ $tasks -> 
+                        *[other] Select file types you would like associate with {$app}.
+                        }",
+                )
+            }
+            _ => {}
         }
     }
 
@@ -80,8 +164,11 @@ impl OptionalTasksPage {
     /// # Panics
     ///
     /// Panics if no tasks are defined or if a task requests an undefined group.
-    pub fn build(self) -> Page {
+    pub fn build(mut self) -> Page {
         assert!(!self.tasks.is_empty());
+
+        self.resolve_builtin();
+
         // groups and items are displayed on the same list, with margin adjusted to define group children
         let mut items = Vec::with_capacity(self.tasks.len() + self.groups.len());
         enum Item {
