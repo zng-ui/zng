@@ -118,7 +118,7 @@ pub struct L10nArgs {
     translate_from: String,
 
     /// Target languages for --translate
-    /// 
+    ///
     /// The output folder for each is formatted $lang-machine
     #[arg(
         long,
@@ -134,9 +134,9 @@ pub struct L10nArgs {
     translate_replace: bool,
 
     /// If should not skip a --translate-to lang that matches a non-machine translation
-    /// 
+    ///
     /// By default only translates missing languages
-    /// 
+    ///
     /// Note that the non-machine translation is not touched, a "$lang-machine" is created beside it
     #[arg(long, action)]
     translate_existing: bool,

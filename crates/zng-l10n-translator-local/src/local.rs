@@ -36,6 +36,19 @@ pub async fn translate(
 ) -> Result<String, Box<dyn Error + Send + Sync>> {
     use zng_task::http::*;
 
+    let system_prompt = r#"You are a professional localization engineer and translator.
+
+CRITICAL SYNTAX RULES:
+1. Preserve ALL Fluent syntax structure exactly as-is:
+   - Message keys and nesting.
+   - Attribute names (e.g., `.label`, `.tooltip`).
+   - Variables and interpolations (e.g., `{{ $name }}`, `{{ $count }}`).
+   - Selectors and match arms (e.g., `->`, `[one]`, `*[other]`).
+   - Term definitions and references (e.g., `-brand`, `-app-name`).
+2. Only translate the human-readable text values and variant strings. Do not alter keys, variable identifiers, or syntax keywords.
+3. Maintain exact indentation, spacing, and line breaks.
+4. Output ONLY the translated Fluent file inside a markdown code block. No introductory text, no explanations."#;
+
     fn lang_name(l: Lang) -> String {
         let code = format!("{l:?}");
         if l.autonym().is_some() {
@@ -43,22 +56,9 @@ pub async fn translate(
         }
         code
     }
-    let system_prompt = format!(
-        r#"You are a professional localization engineer and translator. Translate the following Fluent (.ftl) file from `{from}` to `{to}`.
-
-CRITICAL SYNTAX RULES:
-1. Preserve ALL Fluent syntax structure exactly as-is:
-   - Message keys and nesting.
-   - Attribute names (e.g., `.label`, `.tooltip`, `.accesskey`).
-   - Variables and interpolations (e.g., `{{ $name }}`, `{{ $count }}`).
-   - Selectors and match arms (e.g., `->`, `[one]`, `[other]`).
-   - Term definitions and references (e.g., `-brand`, `-app-name`).
-2. Only translate the human-readable text values and variant strings. Do not alter keys, variable identifiers, or syntax keywords.
-3. Maintain exact indentation, spacing, and line breaks.
-4. Output ONLY the translated Fluent file inside a markdown code block. No introductory text, no explanations."#,
-        from = lang_name(from_lang),
-        to = lang_name(to_lang)
-    );
+    let from = lang_name(from_lang);
+    let to = lang_name(to_lang);
+    let user_prompt = format!("Translate the following Fluent (.ftl) file from `{from}` to `{to}`.\n\n```ftl\n{input}\n```");
 
     if std::env::var("LOCAL_TRANSLATOR_LLM_TEST").is_ok() {
         let mut test = "### LOCAL_TRANSLATOR_LLM_TEST enabled\n\n### <|system|>\n".to_owned();
@@ -68,7 +68,11 @@ CRITICAL SYNTAX RULES:
             test.push('\n');
         }
         test.push_str("\n### <|user|>\n");
-        test.push_str(&input);
+        for line in user_prompt.lines() {
+            test.push_str("### ");
+            test.push_str(line);
+            test.push('\n');
+        }
         return Ok(test);
     }
 
@@ -83,7 +87,7 @@ CRITICAL SYNTAX RULES:
             },
             Message {
                 role: "user".to_owned(),
-                content: input.to_owned(),
+                content: user_prompt,
             },
         ],
     })?;
