@@ -351,5 +351,6 @@ fn windows_install(d: PrepareInstallData) -> windows::core::Result<()> {
         let output = wide(Path::new(&d.link_file));
         persist.Save(PCWSTR(output.as_ptr()), true)?;
     }
-    todo!()
+
+    Ok(())
 }

@@ -315,6 +315,10 @@ impl IMAGES {
     }
 
     /// Image formats implemented by the current view-process and extensions.
+    ///
+    /// Note that if the view-process is not connected this returns empty. If
+    /// you need the formats on app startup await on `zng::APP.wait_view_process()`
+    /// before requesting the formats.
     pub fn available_formats(&self) -> Vec<ImageFormat> {
         let mut formats = VIEW_PROCESS.info().image.clone();
 
