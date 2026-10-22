@@ -6,7 +6,7 @@ BACK_CMD =
     .name = رجوع
 
 BEGIN_CMD =
-    .name = بدء
+    .name = ابدأ
 
 CANCEL_CMD =
     .name = إلغاء

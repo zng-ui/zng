@@ -27,8 +27,27 @@ struct OpenAiRequest {
     pub messages: Vec<Message>,
 }
 
-pub async fn translate(url: String, from_lang: Lang, to_lang: Lang, input: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+pub async fn translate(
+    url: String,
+    model: String,
+    from_lang: Lang,
+    to_lang: Lang,
+    input: String,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
     use zng_task::http::*;
+
+    let system_prompt = r#"You are a professional localization engineer and translator.
+
+CRITICAL SYNTAX RULES:
+1. Preserve ALL Fluent syntax structure exactly as-is:
+   - Message keys and nesting.
+   - Attribute names (e.g., `.label`, `.tooltip`).
+   - Variables and interpolations (e.g., `{{ $name }}`, `{{ $count }}`).
+   - Selectors and match arms (e.g., `->`, `[one]`, `*[other]`).
+   - Term definitions and references (e.g., `-brand`, `-app-name`).
+2. Only translate the human-readable text values and variant strings. Do not alter keys, variable identifiers, or syntax keywords.
+3. Maintain exact indentation, spacing, and line breaks.
+4. Output ONLY the translated Fluent file inside a markdown code block. No introductory text, no explanations."#;
 
     fn lang_name(l: Lang) -> String {
         let code = format!("{l:?}");
@@ -37,26 +56,30 @@ pub async fn translate(url: String, from_lang: Lang, to_lang: Lang, input: Strin
         }
         code
     }
-    let system_prompt = format!(
-        "You are a professional localization translator. Translate the following Fluent file from `{}` to `{}`. Preserve all Fluent syntax exactly as-is: message keys, attributes (`.label`, `.tooltip`), variables (`{{ $name }}`), selectors, and terms (`-brand`). Only translate the human-readable text values. Use natural, idiomatic language for the target locale. Output the translated Fluent file in a markdown code block.",
-        lang_name(from_lang),
-        lang_name(to_lang)
-    );
+    let from = lang_name(from_lang);
+    let to = lang_name(to_lang);
+    let user_prompt = format!("Translate the following Fluent (.ftl) file from `{from}` to `{to}`.\n\n```ftl\n{input}\n```");
 
     if std::env::var("LOCAL_TRANSLATOR_LLM_TEST").is_ok() {
-        return Ok(format!(
-            r"
-### LOCAL_TRANSLATOR_LLM_TEST enabled
-### prompt: {system_prompt}
-
-{input}"
-        ));
+        let mut test = "### LOCAL_TRANSLATOR_LLM_TEST enabled\n\n### <|system|>\n".to_owned();
+        for line in system_prompt.lines() {
+            test.push_str("### ");
+            test.push_str(line);
+            test.push('\n');
+        }
+        test.push_str("\n### <|user|>\n");
+        for line in user_prompt.lines() {
+            test.push_str("### ");
+            test.push_str(line);
+            test.push('\n');
+        }
+        return Ok(test);
     }
 
     let url = Uri::try_from(url)?;
 
     let request = Request::new(Method::POST, url.clone()).body_json(&OpenAiRequest {
-        model: "llama".to_owned(),
+        model,
         messages: vec![
             Message {
                 role: "system".to_owned(),
@@ -64,7 +87,7 @@ pub async fn translate(url: String, from_lang: Lang, to_lang: Lang, input: Strin
             },
             Message {
                 role: "user".to_owned(),
-                content: input.to_owned(),
+                content: user_prompt,
             },
         ],
     })?;

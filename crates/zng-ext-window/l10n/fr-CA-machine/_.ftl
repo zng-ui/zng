@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimiser
 
 RESTORE_CMD =
-    .info = Restaure la fenêtre à son état non minimisé précédent ou à son état normal
+    .info = Restaure la fenêtre à son état précédent non minimisé ou à son état normal
     .name = Restaurer

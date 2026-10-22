@@ -9,10 +9,10 @@ BEGIN_CMD =
     .name = Kezdés
 
 CANCEL_CMD =
-    .name = Mégse
+    .name = Munkán kívül
 
 FINISH_CMD =
     .name = Befejezés
 
 NEXT_CMD =
-    .name = Tovább
+    .name = Következő

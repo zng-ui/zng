@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - ऐप क्रैश हुआ
+    .title = {$app} - ऐप क्रैश हो गया
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = मिनीडंप खोलने में विफल।
+    .open-error = मिनीडंप खोलने में विफल रहा।
         {$error}
-    .remove-error = मिनीडंप हटाने में विफल।
+    .remove-error = मिनीडंप हटाने में विफल रहा।
         {$error}
     .save-copy-filter-name = मिनीडंप
     .save-copy-starting-name = minidump
     .save-copy-title = कॉपी सहेजें
-    .save-error = मिनीडंप की प्रति सहेजने में विफल रहा।
+    .save-error = मिनीडंप कॉपी सहेजने में विफल रहा।
         {$error}
     .title = मिनीडंप
 
@@ -27,22 +27,22 @@ panic =
     .title = पैनिक
 
 stderr =
-    .title = Stderr
+    .title = स्टेरेड
 
 stdout =
-    .title = Stdout
+    .title = स्टाउट
 
 summary =
-    .text = समय-मुद्रा: {$timestamp}
-        निकास कोड: {$exit_code}
+    .text = टाइमस्टैम्प: {$timestamp}
+        एग्जिट कोड: {$exit_code}
         सिग्नल: {$signal}
-        Stderr: {$stderr_len} बाइट्स
-        Stdout: {$stdout_len} बाइट्स
+        स्टेरेड: {$stderr_len} बाइट्स
+        स्टाउट: {$stdout_len} बाइट्स
         पैनिक: {$is_panic}
         मिनीडंप: {$minidump_path}
         
-        आर्गुमेंट: {$args}
-        OS: {$os}
+        आर्गुमेंट्स: {$args}
+        ओएस: {$os}
     .title = सारांश
 
 widget =

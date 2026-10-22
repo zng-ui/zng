@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = Peruuta
 
 FINISH_CMD =
-    .name = Valmis
+    .name = Lopeta
 
 NEXT_CMD =
     .name = Seuraava

@@ -118,6 +118,8 @@ pub struct L10nArgs {
     translate_from: String,
 
     /// Target languages for --translate
+    ///
+    /// The output folder for each is formatted $lang-machine
     #[arg(
         long,
         default_value = "ar,bg,ca,cs,da,de,el,en,es-419,es-ES,et,eu,fi,fr-CA,fr-FR,gl,he,hi,hr,hu,id,it,ja,ko,lt,lv,nb,nl,pl,pt-BR,pt-PT,ro,ru,sk,sl,sr-Latn,sv,th,tr,uk,vi,zh-Hans,zh-Hant",
@@ -130,6 +132,14 @@ pub struct L10nArgs {
     /// By default only replaces stale translations
     #[arg(long, action)]
     translate_replace: bool,
+
+    /// If should not skip a --translate-to lang that matches a non-machine translation
+    ///
+    /// By default only translates missing languages
+    ///
+    /// Note that the non-machine translation is not touched, a "$lang-machine" is created beside it
+    #[arg(long, action)]
+    translate_existing: bool,
 
     /// Verify that packages are scrapped and validate Fluent files
     #[arg(long, action)]
@@ -500,6 +510,7 @@ fn check_scrap_package(args: &L10nArgs, input: &str, output: &Path, template: &m
                     translate_from: String::new(),
                     translate_to: String::new(),
                     translate_replace: false,
+                    translate_existing: false,
                     check: args.check,
                     check_strict: args.check_strict,
                 },
@@ -531,6 +542,7 @@ fn run_others(args: &L10nArgs) {
             &args.translate_from,
             &args.translate_to,
             args.translate_replace,
+            args.translate_existing,
             args.check,
         );
     }

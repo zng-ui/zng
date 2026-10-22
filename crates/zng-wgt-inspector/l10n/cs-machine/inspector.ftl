@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Prozkoumat okno
-    .name = Debug Inspector
+    .name = Debugor prozkoumávač
 
 ## Inspector Window (always en-US)
 
-info-help = informace o sledovaném widgetu
+info-help = Informace o sledovaném widgetu
 
-intrinsic-help = intrinsický uzel
+intrinsic-help = Intenzivní uzel
 
-nest-group-help = seskupina (nest)
+nest-group-help = Hnízdná skupina
 
 screenshot =
     .copy-error = Chyba při kopírování snímku obrazovky. {$error}
     .error-dlg-title = Chyba snímku obrazovky
-    .save-dlg-filter = Soubory obrázků
+    .save-dlg-filter = Obrázky
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Uložit snímek obrazovky
     .save-error = Chyba při ukládání snímku obrazovky. {$error}
 
-select-widget = Vyberte widget pro inspekci
+select-widget = Vyberte widget pro prozkoumání
 
 window =
-    .title = {$inspected_window_title} - Inspector
+    .title = {$inspected_window_title} - Prozkoumávač

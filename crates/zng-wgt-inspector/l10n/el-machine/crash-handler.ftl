@@ -12,14 +12,14 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Αποτυχία άνοιγμα minidump.
+    .open-error = Σφάλμα κατά την ανοχή του minidump.
         {$error}
-    .remove-error = Αποτυχία αφαίρεση minidump.
+    .remove-error = Σφάλμα κατά την αφαίρεση του minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Αποθήκευση Αντιγράφου
-    .save-error = Αποτυχία αποθήκευσης αντιγράφου minidump.
+    .save-copy-title = Αποθήκευση αντίγραψ
+    .save-error = Σφάλμα κατά την αποθήκευση του αντίγραψης minidump.
         {$error}
     .title = Minidump
 
@@ -33,15 +33,15 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Χρονική Σήμανση: {$timestamp}
-        Κωδικός Εξόδου: {$exit_code}
+    .text = Χρονική σήμανση: {$timestamp}
+        Κωδικός εξόδου: {$exit_code}
         Σήμα: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
         Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
+        Παράμετροι: {$args}
         Λειτουργικό Σύστημα: {$os}
     .title = Σύνοψη
 

@@ -4,60 +4,60 @@
 
 PAGE_DOWN_CMD =
     .info = Rolar para baixo por uma unidade de página
-    .name = Página Abaixo
+    .name = Página para Baixo
 
 PAGE_LEFT_CMD =
-    .info = Rolar para a esquerda por uma unidade de página
-    .name = Página Esquerda
+    .info = Rolar para a Esquerda por uma unidade de página
+    .name = Página para a Esquerda
 
 PAGE_RIGHT_CMD =
-    .info = Rolar para a direita por uma unidade de página
-    .name = Página Direita
+    .info = Rolar para a Direita por uma unidade de página
+    .name = Página para a Direita
 
 PAGE_UP_CMD =
-    .info = Rolar para cima por uma unidade de página
-    .name = Página Acima
+    .info = Rolar para Cima por uma unidade de página
+    .name = Página para Cima
 
 SCROLL_DOWN_CMD =
-    .info = Rolar para baixo por uma unidade de rolagem
-    .name = Rolagem para Baixo
+    .info = Rolar para Baixo por uma unidade de rolagem
+    .name = Rolar para Baixo
 
 SCROLL_LEFT_CMD =
-    .info = Rolar para a esquerda por uma unidade de rolagem
-    .name = Rolagem para Esquerda
+    .info = Rolar para a Esquerda por uma unidade de rolagem
+    .name = Rolar para a Esquerda
 
 SCROLL_RIGHT_CMD =
-    .info = Rolar para a direita por uma unidade de rolagem
-    .name = Rolagem para Direita
+    .info = Rolar para a Direita por uma unidade de rolagem
+    .name = Rolar para a Direita
 
 SCROLL_TO_BOTTOM_CMD =
-    .info = Rolar para baixo até ao fundo do conteúdo.
-    .name = Rolar para o Fundo
+    .info = Rolar para baixo até ao final do conteúdo.
+    .name = Rolar até ao Fim
 
 SCROLL_TO_LEFTMOST_CMD =
-    .info = Rolar para a esquerda até à margem esquerda do conteúdo
-    .name = Rolar para a Esquerda Mais Distante
+    .info = Rolar para a esquerda até à borda esquerda do conteúdo
+    .name = Rolar até ao Extremo Esquerdo
 
 SCROLL_TO_RIGHTMOST_CMD =
-    .info = Rolar para a direita até à margem direita do conteúdo
-    .name = Rolar para a Direita Mais Distante
+    .info = Rolar para a direita até à borda direita do conteúdo
+    .name = Rolar até ao Extremo Direito
 
 SCROLL_TO_TOP_CMD =
     .info = Rolar para cima até ao topo do conteúdo
-    .name = Rolar para o Topo
+    .name = Rolar até ao Topo
 
 SCROLL_UP_CMD =
-    .info = Rolar para cima por uma unidade de rolagem
-    .name = Rolagem para Cima
+    .info = Rolar para Cima por uma unidade de rolagem
+    .name = Rolar para Cima
 
 ZOOM_IN_CMD =
     .name = Ampliar
 
 ZOOM_OUT_CMD =
-    .name = Reduzir Zoom
+    .name = Reduzir
 
 ZOOM_RESET_CMD =
-    .name = Resetar Zoom
+    .name = Redefinir Zoom
 
 ZOOM_TO_FIT_CMD =
-    .name = Ajustar ao Tamanho
+    .name = Ajustar Zoom

@@ -12,15 +12,15 @@ info-help = info widget yang dipantau
 
 intrinsic-help = node intrinsik
 
-nest-group-help = kelompok bersarang
+nest-group-help = grup sarang
 
 screenshot =
-    .copy-error = Kesalahan menyalin tangkapan layar. {$error}
-    .error-dlg-title = Kesalahan Tangkapan Layar
+    .copy-error = Error menyalin tangkapan layar. {$error}
+    .error-dlg-title = Error Tangkapan Layar
     .save-dlg-filter = File Gambar
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Simpan Tangkapan Layar
-    .save-error = Kesalahan menyimpan tangkapan layar. {$error}
+    .save-error = Error menyimpan tangkapan layar. {$error}
 
 select-widget = pilih widget untuk diperiksa
 

@@ -5,19 +5,22 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - แอปพลิเคชันล้มเหลว
+    .title = {$app} - แอปขัดข้อง
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = ไม่สามารถเปิด minidump ได้.\n\t{$error}
-        .remove-error = ไม่สามารถลบ minidump ได้.\n\t{$error}
+    .open-error = ไม่สามารถเปิด minidump ได้
+        {$error}
+    .remove-error = ไม่สามารถลบ minidump ได้
+        {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = บันทึกสำเนา
-    .save-error = ล้มเหลวในการบันทึกสำเนา minidump.\n\t{$error}
+    .save-error = ไม่สามารถบันทึกสำเนา minidump ได้
+        {$error}
     .title = Minidump
 
 panic =
@@ -30,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = เวลา: {$timestamp}
-        รหัสออก: {$exit_code}
-        สัญญาณ: {$signal}
-        Stderr: {$stderr_len} ไบต์
-        Stdout: {$stdout_len} ไบต์
+    .text = Timestamp: {$timestamp}
+        Exit Code: {$exit_code}
+        Signal: {$signal}
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
         Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        อาร์กิวเมนต์: {$args}
+        Args: {$args}
         OS: {$os}
     .title = สรุป
 
 widget =
-    .title = วิดเจ็ต
+    .title = Widget

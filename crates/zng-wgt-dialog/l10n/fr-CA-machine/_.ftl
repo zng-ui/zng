@@ -8,6 +8,6 @@ response-close = Fermer
 
 response-no = Non
 
-response-ok = OK
+response-ok = Oui
 
 response-yes = Oui

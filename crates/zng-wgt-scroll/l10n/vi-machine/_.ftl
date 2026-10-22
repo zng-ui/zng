@@ -7,57 +7,57 @@ PAGE_DOWN_CMD =
     .name = Trang Xuống
 
 PAGE_LEFT_CMD =
-    .info = Cuộn trái một đơn vị trang
+    .info = Cuộn Trái một đơn vị trang
     .name = Trang Trái
 
 PAGE_RIGHT_CMD =
-    .info = Cuộn phải một đơn vị trang
+    .info = Cuộn Phải một đơn vị trang
     .name = Trang Phải
 
 PAGE_UP_CMD =
-    .info = Cuộn lên một đơn vị trang
+    .info = Cuộn Lên một đơn vị trang
     .name = Trang Lên
 
 SCROLL_DOWN_CMD =
-    .info = Cuộn xuống một đơn vị cuộn
+    .info = Cuộn Xuống một đơn vị cuộn
     .name = Cuộn Xuống
 
 SCROLL_LEFT_CMD =
-    .info = Cuộn trái một đơn vị cuộn
+    .info = Cuộn Trái một đơn vị cuộn
     .name = Cuộn Trái
 
 SCROLL_RIGHT_CMD =
-    .info = Cuộn phải một đơn vị cuộn
+    .info = Cuộn Phải một đơn vị cuộn
     .name = Cuộn Phải
 
 SCROLL_TO_BOTTOM_CMD =
     .info = Cuộn xuống cuối nội dung.
-    .name = Cuộn Đến Dưới cùng
+    .name = Cuộn đến Cuối
 
 SCROLL_TO_LEFTMOST_CMD =
     .info = Cuộn trái đến mép trái của nội dung
-    .name = Cuộn Đến Cực Trái
+    .name = Cuộn đến Cực Trái
 
 SCROLL_TO_RIGHTMOST_CMD =
     .info = Cuộn phải đến mép phải của nội dung
-    .name = Cuộn Đến Cực Phải
+    .name = Cuộn đến Cực Phải
 
 SCROLL_TO_TOP_CMD =
     .info = Cuộn lên đầu nội dung
-    .name = Cuộn Lên Đầu
+    .name = Cuộn đến Đầu
 
 SCROLL_UP_CMD =
-    .info = Cuộn lên một đơn vị cuộn
+    .info = Cuộn Lên một đơn vị cuộn
     .name = Cuộn Lên
 
 ZOOM_IN_CMD =
-    .name = Phóng to
+    .name = Phóng To
 
 ZOOM_OUT_CMD =
-    .name = Thu nhỏ
+    .name = Thu Nhỏ
 
 ZOOM_RESET_CMD =
-    .name = Đặt lại Thu phóng
+    .name = Đặt lại Phóng to
 
 ZOOM_TO_FIT_CMD =
-    .name = Thu phóng vừa khít
+    .name = Phóng to vừa khung hình

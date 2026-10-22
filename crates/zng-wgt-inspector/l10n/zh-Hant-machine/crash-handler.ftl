@@ -27,22 +27,22 @@ panic =
     .title = 崩潰
 
 stderr =
-    .title = Stderr
+    .title = 標準錯誤輸出
 
 stdout =
-    .title = Stdout
+    .title = 標準輸出
 
 summary =
-    .text = 時間戳: {$timestamp}
-        退出碼: {$exit_code}
-        訊號: {$signal}
-        Stderr: {$stderr_len} bytes
-        Stdout: {$stdout_len} bytes
-        崩潰: {$is_panic}
-        Minidump: {$minidump_path}
+    .text = 時間戳記：{$timestamp}
+        退出代碼：{$exit_code}
+        信號：{$signal}
+        標準錯誤：{$stderr_len} bytes
+        標準輸出：{$stdout_len} bytes
+        崩潰：{$is_panic}
+        Minidump：{$minidump_path}
         
-        參數: {$args}
-        作業系統: {$os}
+        參數：{$args}
+        作業系統：{$os}
     .title = 摘要
 
 widget =

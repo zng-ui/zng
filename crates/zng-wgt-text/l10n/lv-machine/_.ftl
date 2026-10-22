@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Izvēlēties visu
 
 text-edit-op =
-    .clear = tīrīt
-    .generic = teksta rediģēšana
-    .replace = mainīt
-    .transform = transformēt
+    .clear = Tīrīt
+    .generic = Teksta rediģēšana
+    .replace = Aizstāt
+    .transform = Transformēt

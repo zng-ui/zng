@@ -27,22 +27,22 @@ panic =
     .title = Panique
 
 stderr =
-    .title = Stderr
+    .title = Erreur standard
 
 stdout =
-    .title = Stdout
+    .title = Sortie standard
 
 summary =
-    .text = Horodatage: {$timestamp}
-        Code de sortie: {$exit_code}
-        Signal: {$signal}
-        Stderr: {$stderr_len} octets
-        Stdout: {$stdout_len} octets
-        Panique: {$is_panic}
-        Minidump: {$minidump_path}
+    .text = Horodatage : {$timestamp}
+        Code de sortie : {$exit_code}
+        Signal : {$signal}
+        Erreur standard : {$stderr_len} octets
+        Sortie standard : {$stdout_len} octets
+        Panique : {$is_panic}
+        Minidump : {$minidump_path}
         
-        Arguments: {$args}
-        OS: {$os}
+        Arguments : {$args}
+        Système d'exploitation : {$os}
     .title = Résumé
 
 widget =

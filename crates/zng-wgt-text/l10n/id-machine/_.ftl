@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = hapus
-    .generic = sunting teks
+    .generic = edit teks
     .replace = ganti
-    .transform = transformasi
+    .transform = ubah bentuk

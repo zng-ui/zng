@@ -33,16 +33,16 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Marca de temps: {$timestamp}
+    .text = Data i hora: {$timestamp}
         Codi d'èxit: {$exit_code}
-        Signal: {$signal}
+        Senyal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
         Pànic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
-        SO: {$os}
+        Arguments: {$args}
+        Sistema operatiu: {$os}
     .title = Resum
 
 widget =

@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Fallo de la aplicación
+    .title = {$app} - La aplicación falló
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = No se pudo abrir el minidump.
+    .open-error = Falló abrir minidump.
         {$error}
-    .remove-error = No se pudo eliminar el minidump.
+    .remove-error = Falló eliminar minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Guardar Copia
-    .save-error = Falló al guardar la copia del minidump.
+    .save-error = Falló guardar copia de minidump.
         {$error}
     .title = Minidump
 
@@ -27,21 +27,21 @@ panic =
     .title = Pánico
 
 stderr =
-    .title = Stderr
+    .title = Error Estándar
 
 stdout =
-    .title = Stdout
+    .title = Salida Estándar
 
 summary =
     .text = Marca de tiempo: {$timestamp}
         Código de salida: {$exit_code}
         Señal: {$signal}
-        Stderr: {$stderr_len} bytes
-        Stdout: {$stdout_len} bytes
+        Error Estándar: {$stderr_len} bytes
+        Salida Estándar: {$stdout_len} bytes
         Pánico: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
+        Argumentos: {$args}
         SO: {$os}
     .title = Resumen
 

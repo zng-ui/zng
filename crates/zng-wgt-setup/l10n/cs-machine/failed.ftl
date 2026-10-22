@@ -7,14 +7,14 @@ info =
     .corrupted = Operace selhala, instalace je poškozená.
 
 message =
-    .install-clean = Instalace selhala, {$app} nebyla nainstalována.
-    .install-corrupted = Instalace selhala, {$app} byla nainstalována pouze částečně.
-    .repair-clean = Oprava selhala, instalace {$app} nebyla opravena.
-    .repair-corrupted = Oprava selhala, {$app} byla opravena pouze částečně.
-    .uninstall-clean = Odinstalace selhala, {$app} zůstává nainstalován.
+    .install-clean = Instalační operace selhala, {$app} nebyla nainstalována.
+    .install-corrupted = Instalační operace selhala, {$app} byla nainstalována pouze částečně.
+    .repair-clean = Opravní operace selhala, instalace {$app} nebyla opravena.
+    .repair-corrupted = Opravní operace selhala, {$app} byla opravena pouze částečně.
+    .uninstall-clean = Odinstalace selhala, {$app} zůstává nainstalována.
     .uninstall-corrupted = Odinstalace selhala, {$app} byla odinstalována pouze částečně.
-    .update-clean = Aktualizace selhala, {$app} nebyla aktualizována. Aktuální nainstalovaná verze {$current_version} zůstává a stále může být použita.
-    .update-corrupted = Aktualizace selhala, {$app} byla aktualizována pouze částečně.
+    .update-clean = Aktualizační operace selhala, {$app} nebyla aktualizována. Aktuální nainstalovaná verze {$current_version} zůstává a stále může být použita.
+    .update-corrupted = Aktualizační operace selhala, {$app} byla aktualizována pouze částečně.
 
 title =
     .install = Instalace selhala

@@ -6,13 +6,13 @@ action-run =
     .info = Spustit {$app}
 
 message =
-    .install = Asistent nainstaloval {$app} verze {$version} na vašem počítači.
-    .repair = Asistent opravil instalaci {$app} verze {$version} na vašem počítači.
-    .uninstall = Asistent odinstaloval {$app} verze {$version} z vašeho počítače.
-    .update = Asistent aktualizoval {$app} z verze {$current_version} na {$new_version} na vašem počítači.
+    .install = Magická instalace nainstalovala {$app} {$version} na vašem počítači.
+    .repair = Magická instalace opravila instalaci {$app} {$version} na vašem počítači.
+    .uninstall = Magická instalace odinstalovala {$app} {$version} z vašeho vašeho počítače.
+    .update = Magická instalace aktualizovala {$app} z verze {$current_version} na {$new_version} na vašem počítači.
 
 title =
-    .install = {$app} Nainstalován
-    .repair = {$app} Opraven
-    .uninstall = {$app} Odinstalován
-    .update = {$app} Aktualizován
+    .install = {$app} nainstalován
+    .repair = {$app} opraven
+    .uninstall = {$app} odinstalován
+    .update = {$app} aktualizován

@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Valitse kaikki
 
 text-edit-op =
-    .clear = Tyhjennä
-    .generic = Tekstin muokkaus
-    .replace = Korvaa
-    .transform = Muokkaa
+    .clear = tyhjennä
+    .generic = tekstimuokkaus
+    .replace = korvaa
+    .transform = muokkaus

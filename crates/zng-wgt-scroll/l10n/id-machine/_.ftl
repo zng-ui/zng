@@ -4,22 +4,22 @@
 
 PAGE_DOWN_CMD =
     .info = Gulir ke bawah satu unit halaman
-    .name = Bawah Halaman
+    .name = Bawah
 
 PAGE_LEFT_CMD =
     .info = Gulir Kiri satu unit halaman
-    .name = Kiri Halaman
+    .name = Kiri
 
 PAGE_RIGHT_CMD =
     .info = Gulir Kanan satu unit halaman
-    .name = Kanan Halaman
+    .name = Kanan
 
 PAGE_UP_CMD =
     .info = Gulir Atas satu unit halaman
-    .name = Atas Halaman
+    .name = Atas
 
 SCROLL_DOWN_CMD =
-    .info = Gulir ke bawah satu unit gulir
+    .info = Gulir Bawah satu unit gulir
     .name = Gulir Bawah
 
 SCROLL_LEFT_CMD =
@@ -31,19 +31,19 @@ SCROLL_RIGHT_CMD =
     .name = Gulir Kanan
 
 SCROLL_TO_BOTTOM_CMD =
-    .info = Gulir ke bawah ke bagian bawah konten.
+    .info = Gulir ke bagian bawah konten.
     .name = Gulir ke Bawah
 
 SCROLL_TO_LEFTMOST_CMD =
-    .info = Gulir kiri ke tepi kiri konten
+    .info = Gulir ke tepi kiri konten
     .name = Gulir ke Paling Kiri
 
 SCROLL_TO_RIGHTMOST_CMD =
-    .info = Gulir kanan ke tepi kanan konten
+    .info = Gulir ke tepi kanan konten
     .name = Gulir ke Paling Kanan
 
 SCROLL_TO_TOP_CMD =
-    .info = Gulir ke atas ke bagian atas konten
+    .info = Gulir ke bagian atas konten
     .name = Gulir ke Atas
 
 SCROLL_UP_CMD =

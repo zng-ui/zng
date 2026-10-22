@@ -6,13 +6,13 @@ action-run =
     .info = Εκτέλεση του {$app}
 
 message =
-    .install = Ο Μάγος εγκατέστησε το {$app} {$version} στον υπολογιστή σας.
-    .repair = Ο Μάγος επισκεύασε την εγκατάσταση {$app} {$version} στον υπολογιστή σας.
-    .uninstall = Ο Μάγος απεγκατέστησε το {$app} {$version} από τον υπολογιστή σας.
-    .update = Ο Μάγος ενημέρωσε το {$app} από το {$current_version} στο {$new_version} στον υπολογιστή σας.
+    .install = Ο Μάγιστρο έχει εγκαταστήσει το {$app} {$version} στον υπολογιστή σας.
+    .repair = Ο Μάγιστρο έχει επιδιορθώσει την εγκατάσταση του {$app} {$version} στον υπολογιστή σας.
+    .uninstall = Ο Μάγιστρο έχει αποεγκαταστήσει το {$app} {$version} από τον υπολογιστή σας.
+    .update = Ο Μάγιστρο έχει ενημερώσει το {$app} από την {$current_version} στην {$new_version} στον υπολογιστή σας.
 
 title =
     .install = {$app} Εγκατεστημένο
-    .repair = {$app} Επισκεúστηκε
-    .uninstall = {$app} Απεγκατεστημένο
-    .update = {$app} Ενημερωμένο
+    .repair = {$app} Επισκευασμένο
+    .uninstall = {$app} Αποεγκατεστημένο
+    .update = {$app} Ανανεωμένο

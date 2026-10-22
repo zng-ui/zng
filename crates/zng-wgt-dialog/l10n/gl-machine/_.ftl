@@ -4,10 +4,10 @@
 
 response-cancel = Cancelar
 
-response-close = Fechar
+response-close = Cerrar
 
 response-no = Non
 
-response-ok = Si
+response-ok = Ok
 
-response-yes = Sí
+response-yes = Si

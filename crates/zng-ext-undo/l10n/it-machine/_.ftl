@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Cancella cronologia
 
 REDO_CMD =
-    .name = Ripeti
+    .name = Riprova
 
 UNDO_CMD =
-    .name = Annulla
+    .name = Annullare

@@ -10,15 +10,32 @@
 ### [1]: https://zng-ui.github.io/doc/zng/keyboard/enum.Key.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html
 
+ArrowDown = ↓
+
+ArrowLeft = ←
+
+ArrowRight = →
+
+ArrowUp = ↑
+
+Backspace = ←Backspace
+    .macos = Delete
+
 Close = Fechar
 
-ContextMenu = ≣Menu Contextual
+ContextMenu = ≣Menu de Contexto
 
 Copy = Copiar
 
 Cut = Recortar
 
+Delete = Excluir
+    .macos = Forward Delete
+
 Eject = ⏏Ejetar
+
+Enter = ↵Enter
+    .macos = ↵Return
 
 Escape = Esc
 
@@ -30,16 +47,24 @@ New = Novo
 
 Open = Abrir
 
-Print = Imprimir
+PageDown = PgDn
+
+PageUp = PgUp
 
 Paste = Colar
+
+Print = Imprimir
+
+PrintScreen = PrtSc
 
 Redo = Refazer
 
 Save = Salvar
 
+Tab = ⭾Tab
+
 Undo = Desfazer
 
-ZoomIn = +Aumentar Zoom
+ZoomIn = +Zoom In
 
-ZoomOut = -Diminuir Zoom
+ZoomOut = -Zoom Out

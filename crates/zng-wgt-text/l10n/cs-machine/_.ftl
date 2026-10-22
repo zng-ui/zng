@@ -6,7 +6,7 @@ SELECT_ALL_CMD =
     .name = Vybrat vše
 
 text-edit-op =
-    .clear = Vyčistit
-    .generic = Textová editace
-    .replace = Nahradit
-    .transform = Transformovat
+    .clear = vymazat
+    .generic = textová edita
+    .replace = nahrazovat
+    .transform = transformovat

@@ -10,21 +10,21 @@ window =
 ## Panels
 
 # save-copy-starting-name:
-#     default file name
+#     standard filnamn
 minidump =
-    .open-error = Misslyckades att öppna minidump.
+    .open-error = Kunde inte öppna minidump.
         {$error}
-    .remove-error = Misslyckades att ta bort minidump.
+    .remove-error = Kunde inte ta bort minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Spara kopia
-    .save-error = Misslyckades med att spara minidumpkopia.
+    .save-error = Misslyckades med att spara minidump-kopia.
         {$error}
     .title = Minidump
 
 panic =
-    .title = Panik
+    .title = Panic
 
 stderr =
     .title = Stderr
@@ -34,11 +34,11 @@ stdout =
 
 summary =
     .text = Tidsstämpel: {$timestamp}
-        Avslutningskod: {$exit_code}
+        Exit-kod: {$exit_code}
         Signal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
-        Panik: {$is_panic}
+        Panic: {$is_panic}
         Minidump: {$minidump_path}
         
         Argument: {$args}

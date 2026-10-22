@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopiraj
 
 CUT_CMD =
-    .name = Rezaj
+    .name = Rezuj
 
 PASTE_CMD =
-    .name = Lepaj
+    .name = Vpsti

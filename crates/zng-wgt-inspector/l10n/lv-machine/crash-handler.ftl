@@ -5,20 +5,23 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Programu krāsjot
+    .title = {$app} - Program krasēja
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Neizdevēja atvērt minidumpu.\n        {$error}
-    .remove-error = Neizdevēja dzēst minidumpu.\n        {$error}
-    .save-copy-filter-name = Minidumps
-    .save-copy-starting-name = minidumps
-    .save-copy-title = Iesniegt kopiju
-    .save-error = Nepailstīja iesniegt minidumpu kopiju.\n        {$error}
-    .title = Minidumps
+    .open-error = Minidump atvēršana neizdevās.
+        {$error}
+    .remove-error = Minidump noņemšana neizdevās.
+        {$error}
+    .save-copy-filter-name = Minidump
+    .save-copy-starting-name = minidump
+    .save-copy-title = Saglabāt kopiju
+    .save-error = Minidump kopijas saglabāšana neizdevās.
+        {$error}
+    .title = Minidump
 
 panic =
     .title = Panika
@@ -30,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Laiks: {$timestamp}
-        Izietošais kods: {$exit_code}
+    .text = Laika zīme: {$timestamp}
+        Iziet koda: {$exit_code}
         Signāls: {$signal}
-        Stderr: {$stderr_len} baiti
-        Stdout: {$stdout_len} baiti
+        Stderr: {$stderr_len} baitus
+        Stdout: {$stdout_len} baitus
         Panika: {$is_panic}
-        Minidumps: {$minidump_path}
+        Minidump: {$minidump_path}
         
-        Parametri: {$args}
+        Argumentu: {$args}
         OS: {$os}
     .title = Kopsavilkums
 
 widget =
-    .title = Widgeti
+    .title = Vidu

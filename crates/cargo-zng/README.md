@@ -343,12 +343,21 @@ Options:
       --translate-to <LANGS>
           Target languages for --translate
 
+          The output folder for each is formatted $lang-machine
+
           [default: ar,bg,ca,cs,da,de,el,en,es-419,es-ES,et,eu,fi,fr-CA,fr-FR,gl,he,hi,hr,hu,id,it,ja,ko,lt,lv,nb,nl,pl,pt-BR,pt-PT,ro,ru,sk,sl,sr-Latn,sv,th,tr,uk,vi,zh-Hans,zh-Hant]
 
       --translate-replace
           Replace all existing machine translations with --translate
 
           By default only replaces stale translations
+
+      --translate-existing
+          If should not skip a --translate-to lang that matches a non-machine translation
+
+          By default only translates missing languages
+
+          Note that the non-machine translation is not touched, a "$lang-machine" is created beside it
 
       --check
           Verify that packages are scrapped and validate Fluent files

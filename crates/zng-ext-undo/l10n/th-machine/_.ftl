@@ -9,4 +9,4 @@ REDO_CMD =
     .name = ทำซ้ำ
 
 UNDO_CMD =
-    .name = เลิกทำ
+    .name = ยกเลิก

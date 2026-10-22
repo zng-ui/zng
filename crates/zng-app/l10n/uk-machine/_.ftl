@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Вихід
 
 OPEN_LICENSES_CMD =
-    .name = Ліцензії третіх сторін
+    .name = Сторонні ліцензії

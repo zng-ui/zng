@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Tyhjennä historia
 
 REDO_CMD =
-    .name = Tee uudelleen
+    .name = Toista
 
 UNDO_CMD =
     .name = Peruuta

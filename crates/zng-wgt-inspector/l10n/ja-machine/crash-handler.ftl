@@ -5,42 +5,45 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - アプリケーションクラッシュ
+    .title = {$app} - アプリがクラッシュしました
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = ミニダンプを開けませんでした。\n        {$error}
-    .remove-error = ミニダンプを削除できませんでした。\n        {$error}
+    .open-error = ミニダンプを開けませんでした。
+        {$error}
+    .remove-error = ミニダンプを削除できませんでした。
+        {$error}
     .save-copy-filter-name = ミニダンプ
     .save-copy-starting-name = minidump
     .save-copy-title = コピーを保存
-    .save-error = ミニダンプのコピーを保存できませんでした。\n        {$error}
+    .save-error = ミニダンプのコピーを保存できませんでした。
+        {$error}
     .title = ミニダンプ
 
 panic =
     .title = パニック
 
 stderr =
-    .title = Stderr
+    .title = 標準エラー出力
 
 stdout =
-    .title = Stdout
+    .title = 標準出力
 
 summary =
     .text = タイムスタンプ: {$timestamp}
-        終了コード: {$exit_code}
+        エグジットコード: {$exit_code}
         シグナル: {$signal}
-        stderr: {$stderr_len} バイト
-        stdout: {$stdout_len} バイト
+        標準エラー出力: {$stderr_len} バイト
+        標準出力: {$stdout_len} バイト
         パニック: {$is_panic}
         ミニダンプ: {$minidump_path}
         
         引数: {$args}
         OS: {$os}
-    .title = まとめ
+    .title = サマリー
 
 widget =
     .title = ウィジェット

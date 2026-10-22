@@ -7,12 +7,12 @@ info =
     .update-repair-uninstall = Къде е инсталиран {$app}.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Изисква се поне {$bytes} свободен дисковият простор.
+min-required-space = Потреби се поне {$bytes} свободен дисков простор.
 
-reset-label = Първоначална локация
+reset-label = По подразбиране местоположение
 
-select-label = Изберете локация
+select-label = Изберете местоположение
 
 title =
-    .install = Избор на място за инсталиране
-    .uninstall = Локация на инсталиране
+    .install = Изберете място за инсталиране
+    .uninstall = Место за инсталиране

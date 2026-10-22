@@ -6,7 +6,7 @@
 reset = डिफ़ॉल्ट पर रीसेट करें
 
 search =
-    .no_results = कोई सेटिंग्स नहीं मिलीं
+    .no_results = कोई सेटिंग नहीं मिली
     .placeholder = सेटिंग्स खोजें ({$shortcut})
 
 window =

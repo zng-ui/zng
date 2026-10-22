@@ -4,7 +4,7 @@
 
 EXIT_CMD =
     .info = Sluit alle vensters en verlaat
-    .name = Afsluiten
+    .name = Verlaten
 
 OPEN_LICENSES_CMD =
-    .name = Derdenlicenties
+    .name = Licenties van Derden

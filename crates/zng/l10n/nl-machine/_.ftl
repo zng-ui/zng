@@ -6,4 +6,4 @@ search =
     .placeholder = zoek licenties ({$shortcut})
 
 window =
-    .title = {$app} - Derdelands Licenties
+    .title = {$app} - Licenties van Derden

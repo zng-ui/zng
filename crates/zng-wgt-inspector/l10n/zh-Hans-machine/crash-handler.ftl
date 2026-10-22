@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - 应用程序崩溃
+    .title = {$app} - 应用崩溃
 
 ## Panels
 
@@ -14,7 +14,7 @@ window =
 minidump =
     .open-error = 无法打开 minidump。
         {$error}
-    .remove-error = 无法删除 minidump。
+    .remove-error = 无法移除 minidump。
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
@@ -27,17 +27,17 @@ panic =
     .title = 崩溃
 
 stderr =
-    .title = 标准错误输出 (Stderr)
+    .title = Stderr
 
 stdout =
-    .title = 标准输出 (Stdout)
+    .title = Stdout
 
 summary =
     .text = 时间戳: {$timestamp}
         退出代码: {$exit_code}
         信号: {$signal}
-        标准错误: {$stderr_len} 字节
-        标准输出: {$stdout_len} 字节
+        Stderr: {$stderr_len} 字节
+        Stdout: {$stdout_len} 字节
         崩溃: {$is_panic}
         Minidump: {$minidump_path}
         

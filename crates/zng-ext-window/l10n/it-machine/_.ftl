@@ -7,12 +7,12 @@ CLOSE_CMD =
     .name = Chiudi
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Attiva/disattiva la modalità a schermo intero esclusiva della finestra
-    .name = Schermo Intero Esclusivo
+    .info = Attiva/disattiva la modalità a schermo intero esclusivo sulla finestra
+    .name = Schermo intero esclusivo
 
 FULLSCREEN_CMD =
-    .info = Attiva/disattiva la modalità schermo intero sulla finestra
-    .name = Schermo Intero
+    .info = Attiva/disattiva la modalità a schermo intero sulla finestra
+    .name = Schermo intero
 
 MAXIMIZE_CMD =
     .info = Massimizza la finestra
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimizza
 
 RESTORE_CMD =
-    .info = Ripristina la finestra al suo stato precedente non minimizzato o normale
+    .info = Ripristina la finestra al suo stato precedente non minimizzato o allo stato normale
     .name = Ripristina

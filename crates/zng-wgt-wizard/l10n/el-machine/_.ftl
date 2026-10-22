@@ -6,13 +6,13 @@ BACK_CMD =
     .name = Πίσω
 
 BEGIN_CMD =
-    .name = Ξεκίνησε
+    .name = Ξεκινήστε
 
 CANCEL_CMD =
     .name = Ακύρωση
 
 FINISH_CMD =
-    .name = Ολοκλήρωση
+    .name = Τερματίστε
 
 NEXT_CMD =
     .name = Επόμενο

@@ -9,4 +9,4 @@ REDO_CMD =
     .name = Ponovi
 
 UNDO_CMD =
-    .name = Otkaži
+    .name = Poništi

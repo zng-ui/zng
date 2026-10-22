@@ -8,4 +8,4 @@ try_open_link =
     .open-url = Åbn i browser
     .reveal-path = Vis i filhåndtering
     .reveal-path-macos = Vis i Finder
-    .reveal-path-windows = Vis i Filudforsker
+    .reveal-path-windows = Vis i Filhåndtering

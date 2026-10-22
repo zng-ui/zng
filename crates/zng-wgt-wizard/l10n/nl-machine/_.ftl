@@ -6,7 +6,7 @@ BACK_CMD =
     .name = Terug
 
 BEGIN_CMD =
-    .name = Beginnen
+    .name = Begin
 
 CANCEL_CMD =
     .name = Annuleren

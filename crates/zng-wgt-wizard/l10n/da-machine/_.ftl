@@ -9,7 +9,7 @@ BEGIN_CMD =
     .name = Start
 
 CANCEL_CMD =
-    .name = Annuller
+    .name = Annullér
 
 FINISH_CMD =
     .name = Afslut

@@ -23,7 +23,7 @@ ArrowRight = →
 ArrowUp = ↑
 
 Backspace = ←Backspace
-    .macos = Supprimer
+    .macos = Delete
 
 Close = Fermer
 
@@ -34,14 +34,14 @@ Copy = Copier
 Cut = Couper
 
 Delete = Supprimer
-    .macos = Suppr avant
+    .macos = Forward Delete
 
-Eject = ⏏Éjecter
+Eject = ⏏Éject
 
-Enter = ↵Entrée
-    .macos = ↵Retour
+Enter = ↵Enter
+    .macos = ↵Return
 
-Escape = Échap
+Escape = Esc
 
 Find = Rechercher
 
@@ -61,7 +61,7 @@ Print = Imprimer
 
 PrintScreen = PrtSc
 
-Redo = Refaire
+Redo = Rétablir
 
 Save = Enregistrer
 

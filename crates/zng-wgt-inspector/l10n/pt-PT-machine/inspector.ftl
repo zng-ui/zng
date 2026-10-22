@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Inspecionar a janela
-    .name = Inspetor de Debug
+    .name = Inspecionador de Debug
 
 ## Inspector Window (always en-US)
 
-info-help = informações do widget observado
+info-help = Informação do widget observado
 
-intrinsic-help = nó intrínseco
+intrinsic-help = Nó intrínseco
 
-nest-group-help = grupo aninhado
+nest-group-help = Grupo de aninhamento
 
 screenshot =
-    .copy-error = Erro ao copiar screenshot. {$error}
+    .copy-error = Erro ao copiar o screenshot. {$error}
     .error-dlg-title = Erro no Screenshot
     .save-dlg-filter = Ficheiros de Imagem
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Guardar Screenshot
     .save-error = Erro ao guardar o screenshot. {$error}
 
-select-widget = selecione um widget para inspecionar
+select-widget = Selecionar um widget para inspecionar
 
 window =
-    .title = {$inspected_window_title} - Inspetor
+    .title = {$inspected_window_title} - Inspecionador

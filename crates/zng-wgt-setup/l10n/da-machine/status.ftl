@@ -5,10 +5,10 @@
 default-info =
     .create-shortcut = Opret genvej
     .extract-files = Udtræk filer
-    .register-uninstaller = Registrer afinstallator
+    .register-uninstaller = Registrer afinstaller
     .remove-files = Fjern filer
     .remove-shortcut = Fjern genvej
-    .unregister-uninstaller = Afregistrer afinstallator
+    .unregister-uninstaller = Afregistrer afinstaller
 
 info =
     .install = Vent venligst, mens {$app} installeres på din computer.
@@ -18,6 +18,6 @@ info =
 
 title =
     .install = Installerer
-    .repair = Reparerer
-    .uninstall = Afinstaller
+    .repair = Reparere
+    .uninstall = Afinstallerer
     .update = Opdaterer

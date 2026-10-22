@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Ryd Historik
 
 REDO_CMD =
-    .name = Gendan
+    .name = Gør igen
 
 UNDO_CMD =
-    .name = Fortryd
+    .name = Angre

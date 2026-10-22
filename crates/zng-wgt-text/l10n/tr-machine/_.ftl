@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = Temizle
-    .generic = Metin Düzenle
-    .replace = Değiştir
-    .transform = Dönüştür
+    .generic = metin düzenleme
+    .replace = değiştir
+    .transform = dönüştür

@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = इतिहास साफ़ करें
 
 REDO_CMD =
-    .name = फिर से करें
+    .name = पुनः करें
 
 UNDO_CMD =
     .name = पूर्ववत करें

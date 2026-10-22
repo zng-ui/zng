@@ -9,10 +9,10 @@ OPEN_CMD =
     .name = Atvērt…
 
 SAVE_AS_CMD =
-    .name = Saglabāt kā…
+    .name = Saglabot kā…
 
 SAVE_CMD =
-    .name = Saglabāt
+    .name = Saglabot
 
 SETTINGS_CMD =
     .name = Iestatījumi

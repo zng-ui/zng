@@ -6,4 +6,4 @@ search =
     .placeholder = søk etter lisenser ({$shortcut})
 
 window =
-    .title = {$app} - Tredjepartslisenser
+    .title = {$app} - Tredjeparts lisenser

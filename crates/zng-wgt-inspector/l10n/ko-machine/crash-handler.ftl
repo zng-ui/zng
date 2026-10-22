@@ -18,8 +18,8 @@ minidump =
         {$error}
     .save-copy-filter-name = 미니덤프
     .save-copy-starting-name = minidump
-    .save-copy-title = 복사본 저장
-    .save-error = 미니덤프 복사에 실패했습니다.
+    .save-copy-title = 복사 저장
+    .save-error = 미니덤프 복사 저장이 실패했습니다.
         {$error}
     .title = 미니덤프
 
@@ -27,19 +27,19 @@ panic =
     .title = 패닉
 
 stderr =
-    .title = Stderr
+    .title = 표준 에러
 
 stdout =
-    .title = Stdout
+    .title = 표준 출력
 
 summary =
     .text = 타임스탬프: {$timestamp}
         종료 코드: {$exit_code}
         시그널: {$signal}
-        Stderr: {$stderr_len} 바이트
-        Stdout: {$stdout_len} 바이트
+        표준 에러: {$stderr_len} bytes
+        표준 출력: {$stdout_len} bytes
         패닉: {$is_panic}
-        Minidump: {$minidump_path}
+        미니덤프: {$minidump_path}
         
         인수: {$args}
         OS: {$os}

@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = Slēgt
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Atbildīt ekskluzīvo pilna ekrāna režīmu logā
+    .info = Pārsaukt ekskluzīvo pilnējā ekrāna režīmu uz logu
     .name = Ekskluzīvs pilns ekrāns
 
 FULLSCREEN_CMD =
-    .info = Atbildīt pilna ekrāna režīmu logā
+    .info = Pārsaukt pilnējā ekrāna režīmu uz logu
     .name = Pilns ekrāns
 
 MAXIMIZE_CMD =
-    .info = Maksimizēt logu
-    .name = Maksimizēt
+    .info = Maksimēt logu
+    .name = Maksimēt
 
 MINIMIZE_CMD =
-    .info = Minimizēt logu
-    .name = Minimizēt
+    .info = Minimēt logu
+    .name = Minimēt
 
 RESTORE_CMD =
-    .info = Atgriež logu pie iepriekšējā nensetMinizēta vai normālās stāvokļa
-    .name = Atgriezt
+    .info = Atjauno logu uz iepriekšējā neminimētā vai normāla stāvokļa
+    .name = Atjaunot

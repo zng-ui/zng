@@ -10,7 +10,7 @@ info =
     .install = Bitte lesen Sie die Lizenzbedingungen, bevor Sie {$app} installieren
     .update = Bitte lesen Sie die Lizenzbedingungen, bevor Sie {$app} aktualisieren
 
-message = Sie müssen die Bedingungen dieser Vereinbarung akzeptieren, bevor Sie fortfahren können.
-    .requires_scroll = Sie müssen die Bedingungen dieser Vereinbarung lesen und akzeptieren, bevor Sie fortfahren können.
+message = Sie müssen die Bedingungen dieser Vereinbarung akzeptieren, bevor Sie fortfahren.
+    .requires_scroll = Sie müssen die Bedingungen dieser Vereinbarung lesen und akzeptieren, bevor Sie fortfahren.
 
 title = Lizenzvereinbarung

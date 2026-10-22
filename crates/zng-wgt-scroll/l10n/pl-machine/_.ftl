@@ -4,51 +4,51 @@
 
 PAGE_DOWN_CMD =
     .info = Przewiń w dół o jedną jednostkę strony
-    .name = Strona w dół
+    .name = Dół strony
 
 PAGE_LEFT_CMD =
     .info = Przewiń w lewo o jedną jednostkę strony
-    .name = Strona w lewo
+    .name = Lewo strony
 
 PAGE_RIGHT_CMD =
     .info = Przewiń w prawo o jedną jednostkę strony
-    .name = Strona w prawo
+    .name = Prawo strony
 
 PAGE_UP_CMD =
     .info = Przewiń w górę o jedną jednostkę strony
-    .name = Strona w górę
+    .name = Góra strony
 
 SCROLL_DOWN_CMD =
     .info = Przewiń w dół o jedną jednostkę przewijania
-    .name = Przewiń w dół
+    .name = Dół przewijania
 
 SCROLL_LEFT_CMD =
     .info = Przewiń w lewo o jedną jednostkę przewijania
-    .name = Przewiń w lewo
+    .name = Lewo przewijania
 
 SCROLL_RIGHT_CMD =
     .info = Przewiń w prawo o jedną jednostkę przewijania
-    .name = Przewiń w prawo
+    .name = Prawo przewijania
 
 SCROLL_TO_BOTTOM_CMD =
     .info = Przewiń w dół do końca treści.
-    .name = Przewiń na dół
+    .name = Do dołu
 
 SCROLL_TO_LEFTMOST_CMD =
     .info = Przewiń w lewo do lewej krawędzi treści
-    .name = Przewiń do lewej
+    .name = Do lewej
 
 SCROLL_TO_RIGHTMOST_CMD =
     .info = Przewiń w prawo do prawej krawędzi treści
-    .name = Przewiń do prawej
+    .name = Do prawej
 
 SCROLL_TO_TOP_CMD =
-    .info = Przewiń w górę do początku treści
-    .name = Przewiń na górę
+    .info = Przewiń w górę do górnej krawędzi treści
+    .name = Do góry
 
 SCROLL_UP_CMD =
     .info = Przewiń w górę o jedną jednostkę przewijania
-    .name = Przewiń w górę
+    .name = Góra przewijania
 
 ZOOM_IN_CMD =
     .name = Przybliżenie
@@ -57,7 +57,7 @@ ZOOM_OUT_CMD =
     .name = Oddalenie
 
 ZOOM_RESET_CMD =
-    .name = Przywróć powiększenie
+    .name = Reset powiększenia
 
 ZOOM_TO_FIT_CMD =
     .name = Dopasuj do ekranu

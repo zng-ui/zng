@@ -3,7 +3,7 @@ CLOSE_CMD =
     .name = Fechar
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Alternar o modo de tela cheia exclusivo na janela
+    .info = Alternar o modo de tela cheia exclusiva na janela
     .name = Tela Cheia Exclusiva
 
 FULLSCREEN_CMD =

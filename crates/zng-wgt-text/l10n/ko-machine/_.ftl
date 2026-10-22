@@ -8,5 +8,5 @@ SELECT_ALL_CMD =
 text-edit-op =
     .clear = 지우기
     .generic = 텍스트 편집
-    .replace = 바꾸기
+    .replace = 교체
     .transform = 변환

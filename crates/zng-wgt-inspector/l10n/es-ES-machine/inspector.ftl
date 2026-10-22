@@ -22,7 +22,7 @@ screenshot =
     .save-dlg-title = Guardar captura de pantalla
     .save-error = Error al guardar la captura de pantalla. {$error}
 
-select-widget = Selecciona un widget para inspeccionar
+select-widget = Seleccionar un widget para inspeccionar
 
 window =
     .title = {$inspected_window_title} - Inspector

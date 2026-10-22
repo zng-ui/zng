@@ -6,4 +6,4 @@ search =
     .placeholder = tìm kiếm giấy phép ({$shortcut})
 
 window =
-    .title = {$app} - Giấy phép Bên Thứ Ba
+    .title = {$app} - Giấy phép của bên thứ ba

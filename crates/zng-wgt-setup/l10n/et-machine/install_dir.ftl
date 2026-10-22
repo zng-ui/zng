@@ -7,12 +7,12 @@ info =
     .update-repair-uninstall = Kuda {$app} on installitud.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Vaastab vähemalt {$bytes} vaba diskiruumi.
+min-required-space = Vajatakse vähemalt {$bytes} vaba diskruumi.
 
-reset-label = Väljakohane asukoht
+reset-label = Väike asukoht
 
-select-label = Valige asukoht
+select-label = Vali asukoht
 
 title =
-    .install = Valige installimise asukoht
+    .install = Vali installimise asukoht
     .uninstall = Installimise asukoht

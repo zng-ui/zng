@@ -8,6 +8,6 @@ response-close = Tancar
 
 response-no = No
 
-response-ok = OK
+response-ok = D'acord
 
 response-yes = Sí

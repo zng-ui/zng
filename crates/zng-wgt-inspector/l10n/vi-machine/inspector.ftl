@@ -8,11 +8,11 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = thông tin widget đang theo dõi
+info-help = thông tin widget được theo dõi
 
 intrinsic-help = nút nội tại
 
-nest-group-help = nhóm lồng nhau
+nest-group-help = nhóm lồng
 
 screenshot =
     .copy-error = Lỗi sao chép ảnh chụp màn hình. {$error}
@@ -22,7 +22,7 @@ screenshot =
     .save-dlg-title = Lưu ảnh chụp màn hình
     .save-error = Lỗi lưu ảnh chụp màn hình. {$error}
 
-select-widget = Chọn một widget để kiểm tra
+select-widget = chọn một widget để kiểm tra
 
 window =
     .title = {$inspected_window_title} - Trình kiểm tra

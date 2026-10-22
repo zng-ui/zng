@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplikacija je pala
+    .title = {$app} - Aplikacija je padla
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nije uspeo da otvori minidump.
+    .open-error = Nije moguće otvoriti minidump.
         {$error}
-    .remove-error = Nije uspeo da ukloni minidump.
+    .remove-error = Nije moguće ukloniti minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Sačuvaj kopiju
-    .save-error = Nije uspeo da sačuva kopiju minidump-a.
+    .save-error = Nije moguće sačuvati kopiju minidump-a.
         {$error}
     .title = Minidump
 
@@ -33,7 +33,7 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Vremenska oznaka: {$timestamp}
+    .text = Vreme: {$timestamp}
         Kod izlaza: {$exit_code}
         Signal: {$signal}
         Stderr: {$stderr_len} bajtova
@@ -41,7 +41,7 @@ summary =
         Panika: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
+        Argument: {$args}
         OS: {$os}
     .title = Sažetak
 

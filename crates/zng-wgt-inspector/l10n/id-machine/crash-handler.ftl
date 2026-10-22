@@ -5,12 +5,12 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplikasi Gagal
-    
+    .title = {$app} - Aplikasi Crash
+
 ## Panels
 
 # save-copy-starting-name:
-#     nama file default
+#     default file name
 minidump =
     .open-error = Gagal membuka minidump.
         {$error}
@@ -33,7 +33,7 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Stempel Waktu: {$timestamp}
+    .text = Timestamp: {$timestamp}
         Kode Keluar: {$exit_code}
         Sinyal: {$signal}
         Stderr: {$stderr_len} bytes

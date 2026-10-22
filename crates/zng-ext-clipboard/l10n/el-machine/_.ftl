@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Αντιγραφή
 
 CUT_CMD =
-    .name = Κοπή
+    .name = Αποκοπή
 
 PASTE_CMD =
     .name = Επικόλληση

@@ -6,13 +6,13 @@ NEW_CMD =
     .name = Berri
 
 OPEN_CMD =
-    .name = Irten…
+    .name = Ireki…
 
 SAVE_AS_CMD =
-    .name = Ahorra Le…
+    .name = Ahorratu gisa…
 
 SAVE_CMD =
-    .name = Ahorra
+    .name = Ahorratu
 
 SETTINGS_CMD =
-    .name = Ezaugarriak
+    .name = Iturak

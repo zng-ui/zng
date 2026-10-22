@@ -697,7 +697,7 @@ impl FluentTemplate {
                         prefix = "    ";
                     }
                     for line in entry.comments.lines() {
-                        writeln!(&mut output, "# {prefix}{line}").unwrap();
+                        writeln!(&mut output, "# {prefix}{}", line.trim()).unwrap();
                     }
                 }
 
@@ -706,7 +706,7 @@ impl FluentTemplate {
                     let mut prefix = " ";
 
                     for line in entry.message.lines() {
-                        writeln!(&mut output, "{prefix}{line}").unwrap();
+                        writeln!(&mut output, "{prefix}{}", line.trim()).unwrap();
                         prefix = "    ";
                     }
                 } else {
@@ -717,7 +717,7 @@ impl FluentTemplate {
                 write!(&mut output, "    .{} = ", entry.attribute).unwrap();
                 let mut prefix = "";
                 for line in entry.message.lines() {
-                    writeln!(&mut output, "{prefix}{line}").unwrap();
+                    writeln!(&mut output, "{prefix}{}", line.trim()).unwrap();
                     prefix = "        ";
                 }
             }

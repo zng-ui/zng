@@ -15,4 +15,4 @@ FINISH_CMD =
     .name = Finalizează
 
 NEXT_CMD =
-    .name = Următor
+    .name = Următorul

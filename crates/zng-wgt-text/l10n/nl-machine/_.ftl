@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = wissen
-    .generic = tekstbewerking
+    .generic = tekst bewerken
     .replace = vervangen
     .transform = transformeren

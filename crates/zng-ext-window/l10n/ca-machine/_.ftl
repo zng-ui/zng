@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = Tancar
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Activar/desactivar el mode de pantalla completa exclusiu a la finestra
-    .name = Pantalla completa exclusiu
+    .info = Activar/desactivar el mode de pantalla completa exclusiu de la finestra
+    .name = Pantalla completa exclusiva
 
 FULLSCREEN_CMD =
-    .info = Activar/desactivar el mode de pantalla completa a la finestra
+    .info = Activar/desactivar el mode de pantalla completa de la finestra
     .name = Pantalla completa
 
 MAXIMIZE_CMD =
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimitzar
 
 RESTORE_CMD =
-    .info = Restaura la finestra al seu estat anterior no minimitzat o normal
+    .info = Restaura la finestra al seu estat anterior no minimitzat o a l'estat normal
     .name = Restaurar

@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = изчисти
-    .generic = редакция на текста
+    .generic = редактиране на текст
     .replace = замени
-    .transform = преобразуй
+    .transform = трансформирай

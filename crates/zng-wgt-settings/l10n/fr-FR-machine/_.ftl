@@ -7,7 +7,7 @@ reset = Réinitialiser aux paramètres par défaut
 
 search =
     .no_results = Aucun paramètre trouvé
-    .placeholder = Rechercher des paramètres ({$shortcut})
+    .placeholder = rechercher des paramètres ({$shortcut})
 
 window =
     .title = {$app} - Paramètres

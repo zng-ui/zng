@@ -6,15 +6,15 @@ default-info =
     .create-shortcut = Vytvořit zkratku
     .extract-files = Extrahovat soubory
     .register-uninstaller = Registrovat odinstalátor
-    .remove-files = Odebrat soubory
-    .remove-shortcut = Odebrat zkratku
-    .unregister-uninstaller = Deregistrovat odinstalátor
+    .remove-files = Odstranit soubory
+    .remove-shortcut = Odstranit zkratku
+    .unregister-uninstaller = Odregistrovat odinstalátor
 
 info =
-    .install = Prosím, počkejte, dokud se {$app} nainstaluje na vašem počítači.
-    .repair = Prosím, počkejte, dokud se {$app} opraví na vašem počítači.
-    .uninstall = Prosím, počkejte, dokud se {$app} odinstaluje z vašeho počítače.
-    .update = Prosím, počkejte, dokud se {$app} aktualizuje na vašem počítači.
+    .install = Prosím, počkejte, dokud {$app} není nainstalován na vašem počítači.
+    .repair = Prosím, počkejte, dokud {$app} není opraven na vašem počítači.
+    .uninstall = Prosím, počkejte, dokud {$app} není odinstalován z vašeho počítače.
+    .update = Prosím, počkejte, dokud {$app} není aktualizován na vašem počítači.
 
 title =
     .install = Instalace

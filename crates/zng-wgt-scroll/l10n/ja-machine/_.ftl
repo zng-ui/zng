@@ -4,51 +4,51 @@
 
 PAGE_DOWN_CMD =
     .info = 1ページ単位で下にスクロール
-    .name = Page Down
+    .name = ページ下へ
 
 PAGE_LEFT_CMD =
     .info = 1ページ単位で左にスクロール
-    .name = Page Left
+    .name = ページ左へ
 
 PAGE_RIGHT_CMD =
     .info = 1ページ単位で右にスクロール
-    .name = Page Right
+    .name = ページ右へ
 
 PAGE_UP_CMD =
     .info = 1ページ単位で上にスクロール
-    .name = Page Up
+    .name = ページ上へ
 
 SCROLL_DOWN_CMD =
     .info = 1スクロール単位で下にスクロール
-    .name = Scroll Down
+    .name = 下へスクロール
 
 SCROLL_LEFT_CMD =
     .info = 1スクロール単位で左にスクロール
-    .name = Scroll Left
+    .name = 左へスクロール
 
 SCROLL_RIGHT_CMD =
     .info = 1スクロール単位で右にスクロール
-    .name = Scroll Right
+    .name = 右へスクロール
 
 SCROLL_TO_BOTTOM_CMD =
-    .info = コンテンツの最下部にスクロールします。
+    .info = コンテンツの最下部までスクロールします。
     .name = 最下部へスクロール
 
 SCROLL_TO_LEFTMOST_CMD =
-    .info = コンテンツの左端にスクロールします。
+    .info = コンテンツの左端までスクロールします
     .name = 最左端へスクロール
 
 SCROLL_TO_RIGHTMOST_CMD =
-    .info = コンテンツの右端にスクロールします。
+    .info = コンテンツの右端までスクロールします
     .name = 最右端へスクロール
 
 SCROLL_TO_TOP_CMD =
-    .info = コンテンツの最上部にスクロールします。
+    .info = コンテンツの最上部までスクロールします
     .name = 最上部へスクロール
 
 SCROLL_UP_CMD =
     .info = 1スクロール単位で上にスクロール
-    .name = Scroll Up
+    .name = 上へスクロール
 
 ZOOM_IN_CMD =
     .name = 拡大

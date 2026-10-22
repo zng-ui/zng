@@ -4,7 +4,7 @@
 
 response-cancel = Tühista
 
-response-close = Loo
+response-close = Lõpeta
 
 response-no = Ei
 

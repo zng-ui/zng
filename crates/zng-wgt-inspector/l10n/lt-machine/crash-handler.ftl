@@ -12,14 +12,14 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nepavyko atsidaryti minidump.
+    .open-error = Negalima atidaryti minidump failio.
         {$error}
-    .remove-error = Nepavyko pašalinti minidump.
+    .remove-error = Negalima ištrinti minidump failį.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Išsaugoti kopiją
-    .save-error = Nepavyko išsaugoti minidump kopiją.
+    .save-error = Negalima išsaugoti minidump kopiją.
         {$error}
     .title = Minidump
 
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Timestamp: {$timestamp}
-        Exit Code: {$exit_code}
+    .text = Laikas: {$timestamp}
+        Išėjimo kodas: {$exit_code}
         Signal: {$signal}
-        Stderr: {$stderr_len} bytes
-        Stdout: {$stdout_len} bytes
-        Panic: {$is_panic}
+        Stderr: {$stderr_len} baitų
+        Stdout: {$stdout_len} baitų
+        Panika: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
+        Argumentai: {$args}
         OS: {$os}
     .title = Santrauka
 
 widget =
-    .title = Vidžetas
+    .title = Widget

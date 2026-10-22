@@ -551,7 +551,7 @@ fn check_all_features(mut args: Vec<&str>) {
 
 // do l10n [-p, --package <pkg>] [--check]
 //         [--all]
-//         [--translate, --translate-replace]
+//         [--translate, --translate-replace, --translate-existing]
 //
 //    Scrap localization files for publishing. Localization filers are placed in
 //    crate-dir/l0n/ for each crate. The l10n/ dir is cleared before scrapping.
@@ -572,6 +572,7 @@ fn l10n(mut args: Vec<&str>) {
     };
 
     let translate_replace = take_flag(&mut args, &["--translate-replace"]);
+    let translate_existing = take_flag(&mut args, &["--translate-existing"]);
     let translate = take_flag(&mut args, &["--translate"]) || translate_replace;
 
     let check = args.iter().any(|a| *a == "--check" || *a == "--check-strict");
@@ -609,6 +610,7 @@ fn l10n(mut args: Vec<&str>) {
                     "--translate",
                     template.as_str(),
                     if translate_replace { "--translate-replace" } else { "" },
+                    if translate_existing { "--translate-existing" } else { "" },
                 ],
                 &args,
                 &[

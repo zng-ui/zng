@@ -9,10 +9,10 @@ OPEN_CMD =
     .name = Ava…
 
 SAVE_AS_CMD =
-    .name = Salvesta kui…
+    .name = Salvestage kui…
 
 SAVE_CMD =
-    .name = Salvesta
+    .name = Salvestage
 
 SETTINGS_CMD =
     .name = Seaded

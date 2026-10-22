@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Pencereyi incele
-    .name = Hata Ayıklama Denetçisi
+    .name = Hata Ayıklama Denetleyicisi
 
 ## Inspector Window (always en-US)
 
-info-help = izlenen bileşen bilgisi
+info-help = İzlenen widget bilgisi
 
-intrinsic-help = içsel düğüm
+intrinsic-help = İçsel düğüm
 
-nest-group-help = iç içe grup
+nest-group-help = İç içe grup
 
 screenshot =
     .copy-error = Ekran görüntüsü kopyalama hatası. {$error}
     .error-dlg-title = Ekran Görüntüsü Hatası
-    .save-dlg-filter = Resim Dosyaları
+    .save-dlg-filter = Görüntü Dosyaları
     .save-dlg-starting-name = screenshot.png
-    .save-dlg-title = Ekran Görüntüsü Kaydet
+    .save-dlg-title = Ekran Görüntüsünü Kaydet
     .save-error = Ekran görüntüsü kaydetme hatası. {$error}
 
-select-widget = incelemek için bir bileşen seçin
+select-widget = İncelemek için bir widget seçin
 
 window =
-    .title = {$inspected_window_title} - Denetçi
+    .title = {$inspected_window_title} - Denetleyici

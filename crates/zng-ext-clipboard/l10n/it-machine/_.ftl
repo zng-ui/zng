@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Copia
 
 CUT_CMD =
-    .name = Taglia
+    .name = Ritaglia
 
 PASTE_CMD =
     .name = Incolla

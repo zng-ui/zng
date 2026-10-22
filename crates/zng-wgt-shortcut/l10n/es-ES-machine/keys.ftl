@@ -55,6 +55,6 @@ Tab = ⭾Tab
 
 Undo = Deshacer
 
-ZoomIn = +Acercar
+ZoomIn = +Zoom In
 
-ZoomOut = -Alejar
+ZoomOut = -Zoom Out
