@@ -6,4 +6,4 @@ search =
     .placeholder = लाइसेंस खोजें ({$shortcut})
 
 window =
-    .title = {$app} - तृतीय पक्ष लाइसेंस
+    .title = {$app} - तीसरे पक्ष के लाइसेंस

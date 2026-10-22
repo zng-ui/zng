@@ -7,12 +7,12 @@ CLOSE_CMD =
     .name = Închide
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Activează/dezactivează modul fullscreen exclusiv pe fereastră
-    .name = Fullscreen Exclusiv
+    .info = Comută modul exclusiv full screen pe fereastră
+    .name = Full Screen Exclusiv
 
 FULLSCREEN_CMD =
-    .info = Activează/dezactivează modul fullscreen pe fereastră
-    .name = Fullscreen
+    .info = Comută modul full screen pe fereastră
+    .name = Full Screen
 
 MAXIMIZE_CMD =
     .info = Maximizează fereastra
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimizează
 
 RESTORE_CMD =
-    .info = Restabilește fereastra la starea sa anterioară ne-minimizată sau la starea normală
+    .info = Restabilește fereastra la starea sa anterioară ne-minimă sau la starea normală
     .name = Restabilește

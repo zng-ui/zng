@@ -10,17 +10,17 @@ INSPECT_CMD =
 
 info-help = Informasjon om overvåket widget
 
-intrinsic-help = Intrinsikk node
+intrinsic-help = Intrinsisk node
 
-nest-group-help = Nestet gruppe
+nest-group-help = Nestgruppe
 
 screenshot =
-    .copy-error = Skjermdump kopieringsfeil. {$error}
-    .error-dlg-title = Skjermdumpfeil
-    .save-dlg-filter = Bildedatafiler
-    .save-dlg-starting-name = screenshot.png
-    .save-dlg-title = Lagre skjermdump
-    .save-error = Skjermdump lagringsfeil. {$error}
+    .copy-error = Feil ved kopiering av skjermbilde. {$error}
+    .error-dlg-title = Feil med skjermbilde
+    .save-dlg-filter = Bilde-filer
+    .save-dlg-starting-name = skjermbilde.png
+    .save-dlg-title = Lagre skjermbilde
+    .save-error = Feil ved lagring av skjermbilde. {$error}
 
 select-widget = Velg en widget for å inspisere
 

@@ -4,12 +4,12 @@
 
 message =
     .install = Dies wird {$app} {$version} auf Ihrem Computer installieren.
-    .repair = Dies wird die {$app} {$version} Installation auf Ihrem Computer reparieren.
+    .repair = Dies wird die Installation von {$app} {$version} auf Ihrem Computer reparieren.
     .uninstall = Dies wird {$app} {$version} von Ihrem Computer deinstallieren.
     .update = Dies wird {$app} auf Ihrem Computer von {$current_version} auf {$new_version} aktualisieren.
 
 title =
-    .install = Willkommen beim {$app} Installationsassistenten
-    .repair = Willkommen beim {$app} Reparaturassistenten
-    .uninstall = Willkommen beim {$app} Deinstallationsassistenten
-    .update = Willkommen beim {$app} Update-Assistenten
+    .install = Willkommen beim {$app} Installationsassistent
+    .repair = Willkommen beim {$app} Reparaturassistent
+    .uninstall = Willkommen beim {$app} Deinstallationsassistent
+    .update = Willkommen beim {$app} Update-Assistent

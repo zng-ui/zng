@@ -4,6 +4,6 @@
 
 BEGIN_CMD =
     .name-install = Installer
-    .name-repair = Reparer
-    .name-uninstall = Afinstallere
-    .name-update = Opdatere
+    .name-repair = Reparér
+    .name-uninstall = Afinstallér
+    .name-update = Opdater

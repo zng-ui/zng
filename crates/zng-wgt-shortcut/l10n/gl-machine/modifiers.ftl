@@ -4,9 +4,9 @@
 
 ### Nomes das teclas modificadoras
 ### 
-### * O ID é o nome da variante ModifierGesture. [1]
-### * Deben proporcionar un texto OS xérico; é posible definir texto específico de OS como atributos.
-### * O atributo OS é un valor de std::env::consts::OS. [2]
+### * O ID é o nome da variante `ModifierGesture`. [1]
+### * Deben proporcionarse un texto genérico do sistema operativo; o texto específico do sistema operativo opcional pode establecerse como atributos.
+### * O atributo do sistema operativo é un valor `std::env::consts::OS`. [2]
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/gesture/enum.ModifierGesture.html
 ### [2]: https://doc.rust-lang.org/std/env/consts/constant.OS.html

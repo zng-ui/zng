@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Inspicer vinduet
-    .name = Debug Inspektor
+    .name = Debug Inspector
 
 ## Inspector Window (always en-US)
 
-info-help = Oplysninger om overvåget widget
+info-help = Info om overvåget widget
 
-intrinsic-help = Intrinsisk knude
+intrinsic-help = Intrinsisk node
 
-nest-group-help = Nesting gruppe
+nest-group-help = Neste gruppe
 
 screenshot =
-    .copy-error = Screenshot kopieringsfejl. {$error}
-    .error-dlg-title = Screenshot Fejl
+    .copy-error = Fejl ved kopiering af skærmbillede. {$error}
+    .error-dlg-title = Fejl ved skærmbillede
     .save-dlg-filter = Billedfiler
     .save-dlg-starting-name = screenshot.png
-    .save-dlg-title = Gem Screenshot
-    .save-error = Screenshot gemmefejl. {$error}
+    .save-dlg-title = Gem skærmbillede
+    .save-error = Fejl ved gemning af skærmbillede. {$error}
 
-select-widget = Vælg en widget til inspektion
+select-widget = Vælg et widget til inspektion
 
 window =
-    .title = {$inspected_window_title} - Inspektor
+    .title = {$inspected_window_title} - Inspector

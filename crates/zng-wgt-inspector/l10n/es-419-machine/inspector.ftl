@@ -4,15 +4,15 @@
 
 INSPECT_CMD =
     .info = Inspeccionar la ventana
-    .name = Inspector de Depuración
+    .name = Inspector de depuración
 
 ## Inspector Window (always en-US)
 
-info-help = Información del widget observado
+info-help = información del widget observado
 
-intrinsic-help = Nodo intrínseco
+intrinsic-help = nodo intrínseco
 
-nest-group-help = Grupo anidado
+nest-group-help = grupo anidado
 
 screenshot =
     .copy-error = Error al copiar la captura de pantalla. {$error}
@@ -22,7 +22,7 @@ screenshot =
     .save-dlg-title = Guardar captura de pantalla
     .save-error = Error al guardar la captura de pantalla. {$error}
 
-select-widget = Seleccionar un widget para inspeccionar
+select-widget = seleccionar un widget para inspeccionar
 
 window =
     .title = {$inspected_window_title} - Inspector

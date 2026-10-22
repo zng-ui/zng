@@ -16,11 +16,11 @@ FULLSCREEN_CMD =
 
 MAXIMIZE_CMD =
     .info = ขยายหน้าต่างให้เต็ม
-    .name = ขยายหน้าต่าง
+    .name = ขยาย
 
 MINIMIZE_CMD =
     .info = ย่อหน้าต่าง
-    .name = ย่อหน้าต่าง
+    .name = ย่อ
 
 RESTORE_CMD =
     .info = กู้คืนหน้าต่างไปยังสถานะก่อนหน้าที่ไม่ถูกย่อหรือสถานะปกติ

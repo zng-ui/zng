@@ -14,8 +14,8 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Salvar Copia
-    .save-error = Falha ao salvar copia do minidump.
+    .save-copy-title = Salvar Cópia
+    .save-error = Falha ao salvar cópia do minidump.
         {$error}
     .title = Minidump
 

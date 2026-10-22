@@ -12,14 +12,14 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Selhalo otevření minidumpu.
+    .open-error = Selhání při otevření minidumpu.
         {$error}
-    .remove-error = Selhalo odstranění minidumpu.
+    .remove-error = Selhání při odstranění minidumpu.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Uložit kopii
-    .save-error = Selhalo uložení kopie minidumpu.
+    .save-error = Selhání při uložení kopie minidumpu.
         {$error}
     .title = Minidump
 
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Čas: {$timestamp}
+    .text = Časová razítka: {$timestamp}
         Výstupní kód: {$exit_code}
         Signál: {$signal}
         Stderr: {$stderr_len} bajtů
         Stdout: {$stdout_len} bajtů
         Panika: {$is_panic}
         Minidump: {$minidump_path}
-
+        
         Argumenty: {$args}
         OS: {$os}
-    .title = Souhrn
+    .title = Shrnutí
 
 widget =
     .title = Widget

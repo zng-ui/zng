@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - קריסה של האפליקציה
+    .title = {$app} - התוכנה קרסה
 
 ## Panels
 
@@ -17,28 +17,28 @@ minidump =
     .remove-error = נכשל בהסרת מינידאמפ.
         {$error}
     .save-copy-filter-name = מינידאמפ
-    .save-copy-starting-name = minidump
-    .save-copy-title = שמירת עותק
+    .save-copy-starting-name = מינידאמפ
+    .save-copy-title = שמור עותק
     .save-error = נכשל בשמירת עותק מינידאמפ.
         {$error}
     .title = מינידאמפ
 
 panic =
-    .title = פאניק
+    .title = פאניקה
 
 stderr =
-    .title = שגיאות תקן
+    .title = stderr
 
 stdout =
-    .title = פלט תקן
+    .title = stdout
 
 summary =
-    .text = חותמת זמן: {$timestamp}
+    .text = חות מועד: {$timestamp}
         קוד יציאה: {$exit_code}
         אות: {$signal}
-        שגיאות תקן: {$stderr_len} בתים
-        פלט תקן: {$stdout_len} בתים
-        פאניק: {$is_panic}
+        stderr: {$stderr_len} bytes
+        stdout: {$stdout_len} bytes
+        פאניקה: {$is_panic}
         מינידאמפ: {$minidump_path}
         
         ארגומנטים: {$args}

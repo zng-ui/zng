@@ -4,12 +4,12 @@
 
 message =
     .install = See installib {$app} {$version} teie arvutisse.
-    .repair = See parandab {$app} {$version} installatsiooni teie arvutisse.
+    .repair = See parandab {$app} {$version} installimist teie arvutisse.
     .uninstall = See eemaldab {$app} {$version} teie arvutist.
-    .update = See värskendab {$app} teie arvutisse {$current_version}st {$new_version}ni.
+    .update = See uuendab {$app} {$current_version}ist {$new_version}i teie arvutisse.
 
 title =
-    .install = Tere {$app} installimisviisnar
-    .repair = Tere {$app} parandimisviisnar
-    .uninstall = Tere {$app} eemaldimisviisnar
-    .update = Tere {$app} värskendusviisnar
+    .install = Tere {$app} installimisviisikus
+    .repair = Tere {$app} parandimisviisikus
+    .uninstall = Tere {$app} eemaldimisviisikus
+    .update = Tere {$app} uuendimisviisikus

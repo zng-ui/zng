@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = خروج
 
 OPEN_LICENSES_CMD =
-    .name = تراخيص الأطراف الثالثة
+    .name = تراخيص الطرف الثالث

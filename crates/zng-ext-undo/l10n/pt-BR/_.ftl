@@ -1,5 +1,5 @@
 CLEAR_HISTORY_CMD =
-    .name = Apagar o Histórico
+    .name = Limpar Histórico
 
 REDO_CMD =
     .name = Refazer

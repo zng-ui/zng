@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Beenden
 
 OPEN_LICENSES_CMD =
-    .name = Drittanbieterlizenzen
+    .name = Drittanbieter-Lizenzen

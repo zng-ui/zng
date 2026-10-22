@@ -12,9 +12,9 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Minidumpia ei voitu avata.
+    .open-error = Minidumpia ei onnistuttu avaamaan.
         {$error}
-    .remove-error = Minidumpia ei voitu poistaa.
+    .remove-error = Minidumpia ei onnistuttu poistamaan.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
@@ -24,25 +24,25 @@ minidump =
     .title = Minidump
 
 panic =
-    .title = Paniikki
+    .title = Panikki
 
 stderr =
-    .title = Stderr
+    .title = Virhetiedosto
 
 stdout =
-    .title = Stdout
+    .title = Standardulostulo
 
 summary =
     .text = Aikaleima: {$timestamp}
         Poistumiskoodi: {$exit_code}
-        Signaali: {$signal}
+        Signaal: {$signal}
         Stderr: {$stderr_len} tavua
         Stdout: {$stdout_len} tavua
-        Paniikki: {$is_panic}
+        Panikki: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumentit: {$args}
-        Käyttöjärjestelmä: {$os}
+        OS: {$os}
     .title = Yhteenveto
 
 widget =

@@ -8,7 +8,7 @@ CLOSE_CMD =
 
 EXCLUSIVE_FULLSCREEN_CMD =
     .info = Schaltet den exklusiven Vollbildmodus des Fensters ein/aus
-    .name = Exklusiver Vollbildmodus
+    .name = Exklusiver Vollbild
 
 FULLSCREEN_CMD =
     .info = Schaltet den Vollbildmodus des Fensters ein/aus
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimieren
 
 RESTORE_CMD =
-    .info = Stellt das Fenster auf seinen vorherigen nicht minimierten oder normalen Zustand wieder her
+    .info = Stellt das Fenster in seinen vorherigen nicht minimierten oder normalen Zustand wieder her
     .name = Wiederherstellen

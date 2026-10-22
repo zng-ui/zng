@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Geçmişi Temizle
 
 REDO_CMD =
-    .name = Yinele
+    .name = Yine Yap
 
 UNDO_CMD =
     .name = Geri Al

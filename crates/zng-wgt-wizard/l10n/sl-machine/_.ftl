@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = Prekliči
 
 FINISH_CMD =
-    .name = Završi
+    .name = Končni
 
 NEXT_CMD =
     .name = Naslednji

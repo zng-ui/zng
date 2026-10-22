@@ -9,7 +9,7 @@ BEGIN_CMD =
     .name = Başla
 
 CANCEL_CMD =
-    .name = İptal
+    .name = İptal Et
 
 FINISH_CMD =
     .name = Bitir

@@ -8,6 +8,6 @@ response-close = Stäng
 
 response-no = Nej
 
-response-ok = OK
+response-ok = Okej
 
 response-yes = Ja

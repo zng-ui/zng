@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopioi
 
 CUT_CMD =
-    .name = Leikkaa
+    .name = Leikkaus
 
 PASTE_CMD =
     .name = Liitä

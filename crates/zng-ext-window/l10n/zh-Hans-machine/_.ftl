@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = 最小化
 
 RESTORE_CMD =
-    .info = 将窗口恢复到其之前的非最小化或正常状态
+    .info = 将窗口恢复到之前的非最小化状态或正常状态
     .name = 恢复

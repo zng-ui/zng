@@ -7,12 +7,12 @@ CLOSE_CMD =
     .name = Sluiten
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Schakel exclusieve volledig schermmodus op het venster in/uit
-    .name = Exclusief volledig scherm
+    .info = Schakel exclusieve volledig scherm modus op het venster
+    .name = Exclusief Volledig Scherm
 
 FULLSCREEN_CMD =
-    .info = Schakel volledig scherm op het venster in/uit
-    .name = Volledig scherm
+    .info = Schakel volledig scherm modus op het venster
+    .name = Volledig Scherm
 
 MAXIMIZE_CMD =
     .info = Maximaliseer het venster
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Minimaliseren
 
 RESTORE_CMD =
-    .info = Stelt het venster her in op de vorige niet-geminimaliseerde staat of de normale staat
+    .info = Herstelt het venster naar zijn vorige niet-geminimaliseerde of normale staat
     .name = Herstellen

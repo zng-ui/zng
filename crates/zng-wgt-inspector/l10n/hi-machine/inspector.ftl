@@ -15,7 +15,7 @@ intrinsic-help = आंतरिक नोड
 nest-group-help = नेस्ट समूह
 
 screenshot =
-    .copy-error = स्क्रीनशॉट कॉपी त्रुटि। {$error}
+    .copy-error = स्क्रीनशॉट कॉपी करने में त्रुटि। {$error}
     .error-dlg-title = स्क्रीनशॉट त्रुटि
     .save-dlg-filter = छवि फ़ाइलें
     .save-dlg-starting-name = screenshot.png

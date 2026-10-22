@@ -24,7 +24,7 @@ minidump =
     .title = Minidump
 
 panic =
-    .title = Panic
+    .title = Paniek
 
 stderr =
     .title = Stderr
@@ -34,15 +34,15 @@ stdout =
 
 summary =
     .text = Tijdstempel: {$timestamp}
-        Uitgangscode: {$exit_code}
+        Exit Code: {$exit_code}
         Signaal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes
-        Panic: {$is_panic}
+        Paniek: {$is_panic}
         Minidump: {$minidump_path}
         
         Argumenten: {$args}
-        OS: {$os}
+        Besturingssysteem: {$os}
     .title = Samenvatting
 
 widget =

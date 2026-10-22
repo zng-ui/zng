@@ -4,11 +4,11 @@
 
 INSPECT_CMD =
     .info = Ispeziona la finestra
-    .name = Ispettore di debug
+    .name = Ispezione Debug
 
 ## Inspector Window (always en-US)
 
-info-help = informazioni sull'oggetto monitorato
+info-help = informazioni sul widget monitorato
 
 intrinsic-help = nodo intrinseco
 
@@ -22,7 +22,7 @@ screenshot =
     .save-dlg-title = Salva screenshot
     .save-error = Errore di salvataggio screenshot. {$error}
 
-select-widget = Seleziona un widget da ispezionare
+select-widget = seleziona un widget da ispezionare
 
 window =
-    .title = {$inspected_window_title} - Ispettore
+    .title = {$inspected_window_title} - Ispezione

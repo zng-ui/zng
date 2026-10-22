@@ -9,39 +9,41 @@ window =
 
 ## Panels
 
+# save-copy-starting-name:
+#     default file name
 minidump =
-    .open-error = فشل فتح ملف التصحيح المصغر.
+    .open-error = فشل فتح ملف المينيدامب.
         {$error}
-    .remove-error = فشل إزالة ملف التصحيح المصغر.
+    .remove-error = فشل حذف ملف المينيدامب.
         {$error}
-    .save-copy-filter-name = التصحيح المصغر
+    .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = حفظ نسخة
-    .save-error = فشل حفظ نسخة التصحيح المصغر.
+    .save-error = فشل حفظ نسخة من المينيدامب.
         {$error}
-    .title = التصحيح المصغر
+    .title = Minidump
 
 panic =
-    .title = انهيار
+    .title = ذروة
 
 stderr =
     .title = الخطأ القياسي
 
 stdout =
-    .title = المخرج القياسي
+    .title = الإخراج القياسي
 
 summary =
     .text = الطابع الزمني: {$timestamp}
         رمز الخروج: {$exit_code}
         الإشارة: {$signal}
         الخطأ القياسي: {$stderr_len} بايت
-        المخرج القياسي: {$stdout_len} بايت
-        الانهيار: {$is_panic}
-        التصحيح المصغر: {$minidump_path}
+        الإخراج القياسي: {$stdout_len} بايت
+        الذروة: {$is_panic}
+        المينيدامب: {$minidump_path}
         
         الوسائط: {$args}
         نظام التشغيل: {$os}
     .title = ملخص
 
 widget =
-    .title = أداة مصغرة
+    .title = أداة

@@ -6,8 +6,8 @@ default-info =
     .create-shortcut = إنشاء اختصار
     .extract-files = استخراج الملفات
     .register-uninstaller = تسجيل إلغاء التثبيت
-    .remove-files = حذف الملفات
-    .remove-shortcut = حذف الاختصار
+    .remove-files = إزالة الملفات
+    .remove-shortcut = إزالة الاختصار
     .unregister-uninstaller = إلغاء تسجيل إلغاء التثبيت
 
 info =

@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Appen krasjet
+    .title = {$app} - App krasjet
 
 ## Panels
 
@@ -18,8 +18,8 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Lagre kopi
-    .save-error = Kunne ikke lagre minidump-kopi.
+    .save-copy-title = Lag kopi
+    .save-error = Kunne ikke lagre kopi av minidump.
         {$error}
     .title = Minidump
 
@@ -33,8 +33,8 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Tidsstempel: {$timestamp}
-        Avgangskode: {$exit_code}
+    .text = Tidspunkt: {$timestamp}
+        Avslutningskode: {$exit_code}
         Signal: {$signal}
         Stderr: {$stderr_len} bytes
         Stdout: {$stdout_len} bytes

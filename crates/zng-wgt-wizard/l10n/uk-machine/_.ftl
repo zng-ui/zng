@@ -15,4 +15,4 @@ FINISH_CMD =
     .name = Завершити
 
 NEXT_CMD =
-    .name = Далі
+    .name = Наступний

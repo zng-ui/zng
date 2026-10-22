@@ -7,9 +7,9 @@ info =
     .update-repair-uninstall = Hvor {$app} er installeret.
 
 # $bytes is already formatted e.g.: 900kB or 50MB.
-min-required-space = Mindst {$bytes} ledig diskplads er påkrævet.
+min-required-space = Der kræves mindst {$bytes} ledig diskplads.
 
-reset-label = Standardplacering
+reset-label = Standard placering
 
 select-label = Vælg placering
 

@@ -6,7 +6,7 @@ CLEAR_HISTORY_CMD =
     .name = Vymazat historii
 
 REDO_CMD =
-    .name = Opakovat
+    .name = Znovu
 
 UNDO_CMD =
     .name = Zrušit

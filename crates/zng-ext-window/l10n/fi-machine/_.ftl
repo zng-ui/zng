@@ -7,21 +7,21 @@ CLOSE_CMD =
     .name = Sulje
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Vaihda ikkunan yksinoikeus koko näytön tilaan
-    .name = Eksklusiivinen koko näyttö
+    .info = Vaihda ikkunan yksinoikeinen koko näytön tila
+    .name = Yksinoikeinen koko näyttö
 
 FULLSCREEN_CMD =
-    .info = Vaihda koko näytön tila ikkunassa
+    .info = Vaihda ikkunan koko näytön tila
     .name = Koko näyttö
 
 MAXIMIZE_CMD =
-    .info = Maksimoi ikkunan
+    .info = Maksimoi ikkuna
     .name = Maksimoi
 
 MINIMIZE_CMD =
-    .info = Minimoi ikkunan
+    .info = Minimoi ikkuna
     .name = Minimoi
 
 RESTORE_CMD =
-    .info = Palauttaa ikkunan edelliseen ei-minimoituneeseen tilaan tai normaaliin tilaan
+    .info = Palauttaa ikkunan edelliseen ei-minimoidun tilaan tai normaaliin tilaan
     .name = Palauta

@@ -6,7 +6,7 @@ COPY_CMD =
     .name = Kopiatu
 
 CUT_CMD =
-    .name = Zanpatu
+    .name = Zabatu
 
 PASTE_CMD =
-    .name = Onartu
+    .name = Kopiatatu

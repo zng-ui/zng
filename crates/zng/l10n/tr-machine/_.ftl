@@ -6,4 +6,4 @@ search =
     .placeholder = lisansları ara ({$shortcut})
 
 window =
-    .title = {$app} - Üçüncü Taraf Lisanslar
+    .title = {$app} - Üçüncü Taraf Lisansları

@@ -2,10 +2,10 @@
 
 ### Generat automat de `cargo zng l10n`
 
-### Numele cheilor de modificare
+### Numele cheilor de modificator
 ### 
-### * ID-ul este numele variantului `ModifierGesture`. [1]
-### * Trebuie furnizat un text generic de sistem de operare, textul specific OS poate fi setat ca atribut.
+### * ID-ul este numele variantii `ModifierGesture`. [1]
+### * Trebuie furnizat un text generic pentru sistemul de operare, iar textul specific OS poate fi setat ca atribut.
 ### * Atributul OS este o valoare `std::env::consts::OS`. [2]
 ### 
 ### [1]: https://zng-ui.github.io/doc/zng/gesture/enum.ModifierGesture.html

@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = Ryd
-    .generic = tekstredigering
+    .generic = tekstediter
     .replace = Erstat
     .transform = Transformér

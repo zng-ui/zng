@@ -5,21 +5,21 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - La aplicación se ha bloqueado
+    .title = {$app} - La aplicación ha fallado
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = No se pudo abrir minidump.
+    .open-error = No se pudo abrir el minidump.
         {$error}
-    .remove-error = No se pudo eliminar minidump.
+    .remove-error = No se pudo eliminar el minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Guardar Copia
-    .save-error = Falló al guardar la copia de minidump.
+    .save-copy-title = Guardar copia
+    .save-error = No se pudo guardar la copia del minidump.
         {$error}
     .title = Minidump
 

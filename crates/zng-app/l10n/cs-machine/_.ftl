@@ -4,7 +4,7 @@
 
 EXIT_CMD =
     .info = Zavřít všechna okna a ukončit
-    .name = Ukončit
+    .name = Ukázat
 
 OPEN_LICENSES_CMD =
     .name = Licence třetích stran

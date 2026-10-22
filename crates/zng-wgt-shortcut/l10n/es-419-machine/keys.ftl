@@ -22,7 +22,7 @@ ArrowRight = →
 
 ArrowUp = ↑
 
-Backspace = ←Retroceso
+Backspace = ←Backspace
     .macos = Delete
 
 Close = Cerrar
@@ -34,11 +34,11 @@ Copy = Copiar
 Cut = Cortar
 
 Delete = Eliminar
-    .macos = Supr
+    .macos = Borrar hacia adelante
 
 Eject = ⏏Expulsar
 
-Enter = ↵Intro
+Enter = ↵Enter
     .macos = ↵Retorno
 
 Escape = Esc
@@ -69,5 +69,6 @@ Tab = ⭾Tab
 
 Undo = Deshacer
 
-ZoomIn = +Acercar
-ZoomOut = -Alejar
+ZoomIn = +Zoom In
+
+ZoomOut = -Zoom Out

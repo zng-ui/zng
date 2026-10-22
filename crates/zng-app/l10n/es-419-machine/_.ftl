@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Salir
 
 OPEN_LICENSES_CMD =
-    .name = Licencias de Terceros
+    .name = Licencias de terceros

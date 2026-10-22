@@ -4,25 +4,25 @@
 
 INSPECT_CMD =
     .info = Ελέγξτε το παράθυρο
-    .name = Αναλυτής Debug
+    .name = Διαγνωστικός Ελεγκτής
 
 ## Inspector Window (always en-US)
 
 info-help = Πληροφορίες παρακολουθούμενου widget
 
-intrinsic-help = Ενδογενής κόμβος
+intrinsic-help = Εγγενής κόμβος
 
 nest-group-help = Ομάδα εστίασης
 
 screenshot =
     .copy-error = Σφάλμα αντιγραφής στιγμιότυπου οθόνης. {$error}
-    .error-dlg-title = Σφάλμα στιγμιότυπου οθόνης
-    .save-dlg-filter = Αρχεία Εικόνας
+    .error-dlg-title = Σφάλμα Στιγμιότυπου Οθόνης
+    .save-dlg-filter = Εικόνες
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Αποθήκευση Στιγμιότυπου Οθόνης
     .save-error = Σφάλμα αποθήκευσης στιγμιότυπου οθόνης. {$error}
 
-select-widget = Επιλέξτε ένα widget για έλεγχο
+select-widget = Επιλέξτε ένα widget για εξέταση
 
 window =
-    .title = {$inspected_window_title} - Αναλυτής
+    .title = {$inspected_window_title} - Ελεγκτής

@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - App è andato in crash
+    .title = {$app} - L'app è fallita
 
 ## Panels
 
@@ -18,7 +18,7 @@ minidump =
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
-    .save-copy-title = Salva Copia
+    .save-copy-title = Salva copia
     .save-error = Impossibile salvare la copia del minidump.
         {$error}
     .title = Minidump
@@ -36,8 +36,8 @@ summary =
     .text = Timestamp: {$timestamp}
         Codice di uscita: {$exit_code}
         Segnale: {$signal}
-        Stderr: {$stderr_len} byte
-        Stdout: {$stdout_len} byte
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
         Panic: {$is_panic}
         Minidump: {$minidump_path}
         

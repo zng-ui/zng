@@ -33,7 +33,7 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Время: {$timestamp}
+    .text = Временная метка: {$timestamp}
         Код выхода: {$exit_code}
         Сигнал: {$signal}
         Stderr: {$stderr_len} байт

@@ -4,36 +4,36 @@
 
 FOCUS_ALT_CMD =
     .info = Fokus na alternativni opseg
-    .name = Alt Fokus
+    .name = Fokus Alt
 
 FOCUS_DOWN_CMD =
-    .info = Fokus na najbliži fokusabilni dole
-    .name = Fokus Dole
+    .info = Fokus na najbliži fokusabilni element dole
+    .name = Fokus Dolje
 
 FOCUS_ENTER_CMD =
-    .info = Fokus na fokusabilnog deteta
-    .name = Fokus Ulaz
+    .info = Fokus na fokusabilni dete
+    .name = Fokus Enter
 
 FOCUS_EXIT_CMD =
-    .info = Fokus na fokusabilnog roditelja, ili povratak fokusa
+    .info = Fokus na fokusabilni roditelj, ili povrat fokusa
     .name = Fokus Izlaz
 
 FOCUS_LEFT_CMD =
-    .info = Fokus na najbliži fokusabilni levo
+    .info = Fokus na najbliži fokusabilni element levo
     .name = Fokus Levo
 
 FOCUS_NEXT_CMD =
-    .info = Fokus na sledeći fokusabilni
+    .info = Fokus na sledeći fokusabilni element
     .name = Fokus Sledeći
 
 FOCUS_PREV_CMD =
-    .info = Fokus na prethodni fokusabilni
+    .info = Fokus na prethodni fokusabilni element
     .name = Fokus Prethodni
 
 FOCUS_RIGHT_CMD =
-    .info = Fokus na najbliži fokusabilni desno
+    .info = Fokus na najbliži fokusabilni element desno
     .name = Fokus Desno
 
 FOCUS_UP_CMD =
-    .info = Fokus na najbliži fokusabilni gore
+    .info = Fokus na najbliži fokusabilni element gore
     .name = Fokus Gore

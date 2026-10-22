@@ -6,7 +6,7 @@ BACK_CMD =
     .name = Atrás
 
 BEGIN_CMD =
-    .name = Comenzar
+    .name = Empezar
 
 CANCEL_CMD =
     .name = Cancelar

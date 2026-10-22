@@ -8,21 +8,21 @@ INSPECT_CMD =
 
 ## Inspector Window (always en-US)
 
-info-help = Info des überwachten Widgets
+info-help = Informationen zum beobachteten Widget
 
-intrinsic-help = Intrinsischer Knoten
+intrinsic-help = intrinsischer Knoten
 
 nest-group-help = Nestgruppe
 
 screenshot =
-    .copy-error = Screenshot-Kopierfehler. {$error}
+    .copy-error = Fehler beim Kopieren des Screenshots. {$error}
     .error-dlg-title = Screenshot-Fehler
     .save-dlg-filter = Bilddateien
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Screenshot speichern
-    .save-error = Screenshot-Speicherfehler. {$error}
+    .save-error = Fehler beim Speichern des Screenshots. {$error}
 
-select-widget = Wählen Sie ein Widget zum Inspizieren
+select-widget = Wählen Sie ein Widget zum Inspizieren aus
 
 window =
     .title = {$inspected_window_title} - Inspektor

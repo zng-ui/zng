@@ -12,14 +12,14 @@ window =
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Nie udało się otworzyć minidumpa.
+    .open-error = Nie udało się otworzyć minidump.
         {$error}
-    .remove-error = Nie udało się usunąć minidumpa.
+    .remove-error = Nie udało się usunąć minidump.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Zapisz kopię
-    .save-error = Nie udało się zapisać kopii minidumpa.
+    .save-error = Nie udało się zapisać kopii minidump.
         {$error}
     .title = Minidump
 
@@ -35,7 +35,7 @@ stdout =
 summary =
     .text = Czas: {$timestamp}
         Kod wyjścia: {$exit_code}
-        Sygnatura: {$signal}
+        Sygnał: {$signal}
         Stderr: {$stderr_len} bajtów
         Stdout: {$stdout_len} bajtów
         Awaria: {$is_panic}

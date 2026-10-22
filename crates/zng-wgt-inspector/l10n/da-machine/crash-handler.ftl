@@ -5,19 +5,22 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - App crashede
+    .title = {$app} - App er kraschet
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Fejl ved åbning af minidump.\n        {$error}
-    .remove-error = Fejl ved fjernelse af minidump.\n        {$error}
+    .open-error = Kunne ikke åbne minidump.
+        {$error}
+    .remove-error = Kunne ikke fjerne minidump.
+        {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Gem kopi
-    .save-error = Kunne ikke gemme minidump-kopi.\n        {$error}
+    .save-error = Kunne ikke gemme minidump kopi.
+        {$error}
     .title = Minidump
 
 panic =

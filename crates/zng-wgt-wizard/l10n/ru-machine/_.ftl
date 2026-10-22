@@ -12,7 +12,7 @@ CANCEL_CMD =
     .name = Отмена
 
 FINISH_CMD =
-    .name = Закончить
+    .name = Завершить
 
 NEXT_CMD =
     .name = Далее

@@ -4,10 +4,10 @@
 
 response-cancel = Atšaukti
 
-response-close = Uždaryti
+response-close = Užrakinti
 
 response-no = Ne
 
-response-ok = Gerai
+response-ok = OK
 
 response-yes = Taip

@@ -5,23 +5,23 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Збій програми
+    .title = {$app} - Додаток збіг
 
 ## Panels
 
 # save-copy-starting-name:
 #     default file name
 minidump =
-    .open-error = Не вдалося відкрити мінідамп.
+    .open-error = Не вдалося відкрити minidump.
         {$error}
-    .remove-error = Не вдалося видалити мінідамп.
+    .remove-error = Не вдалося видалити minidump.
         {$error}
-    .save-copy-filter-name = Мінідамп
+    .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Зберегти копію
-    .save-error = Не вдалося зберегти копію мінідампу.
+    .save-error = Не вдалося зберегти копію minidump.
         {$error}
-    .title = Мінідамп
+    .title = Minidump
 
 panic =
     .title = Паніка
@@ -33,17 +33,17 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Timestamp: {$timestamp}
-        Exit Code: {$exit_code}
-        Signal: {$signal}
-        Stderr: {$stderr_len} bytes
-        Stdout: {$stdout_len} bytes
-        Panic: {$is_panic}
+    .text = Часова мітка: {$timestamp}
+        Код виходу: {$exit_code}
+        Сигнал: {$signal}
+        Stderr: {$stderr_len} байт
+        Stdout: {$stdout_len} байт
+        Паніка: {$is_panic}
         Minidump: {$minidump_path}
         
-        Args: {$args}
-        OS: {$os}
+        Аргументи: {$args}
+        ОС: {$os}
     .title = Підсумок
 
 widget =
-    .title = Віджет
+    .title = Віжет

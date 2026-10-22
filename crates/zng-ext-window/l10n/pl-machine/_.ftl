@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = Zamknij
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = Przełącz tryb pełnoekranowy wyłączny w oknie
-    .name = Wyłączny pełny ekran
+    .info = Przełącz tryb pełnoekranowy wyłączony na oknie
+    .name = Pełny ekran wyłączony
 
 FULLSCREEN_CMD =
-    .info = Przełącz tryb pełnoekranowy w oknie
+    .info = Przełącz tryb pełnoekranowy na oknie
     .name = Pełny ekran
 
 MAXIMIZE_CMD =
@@ -19,9 +19,9 @@ MAXIMIZE_CMD =
     .name = Maksymalizuj
 
 MINIMIZE_CMD =
-    .info = Minimalizuj okno
-    .name = Minimalizuj
+    .info = Zminimalizuj okno
+    .name = Zminimalizuj
 
 RESTORE_CMD =
-    .info = Przywraca okno do poprzedniego stanu nie-zminimalizowanego lub normalnego
+    .info = Przywraca okno do poprzedniego stanu nie zminimalizowanego lub stanu normalnego
     .name = Przywróć

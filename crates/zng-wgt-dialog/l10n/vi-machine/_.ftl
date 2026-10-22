@@ -8,6 +8,6 @@ response-close = Đóng
 
 response-no = Không
 
-response-ok = Đồng ý
+response-ok = Được
 
 response-yes = Có

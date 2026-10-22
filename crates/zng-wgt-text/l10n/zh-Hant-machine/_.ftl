@@ -7,6 +7,6 @@ SELECT_ALL_CMD =
 
 text-edit-op =
     .clear = 清除
-    .generic = 文本編輯
-    .replace = 取代
+    .generic = 文字編輯
+    .replace = 替換
     .transform = 轉換

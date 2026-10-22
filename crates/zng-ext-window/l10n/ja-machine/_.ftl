@@ -7,11 +7,11 @@ CLOSE_CMD =
     .name = 閉じる
 
 EXCLUSIVE_FULLSCREEN_CMD =
-    .info = ウィンドウで排他的フルスクリーンモードを切り替える
-    .name = 排他フルスクリーン
+    .info = ウィンドウの排他的フルスクリーンモードを切り替える
+    .name = 排他的フルスクリーン
 
 FULLSCREEN_CMD =
-    .info = ウィンドウでフルスクリーンモードを切り替える
+    .info = ウィンドウのフルスクリーンモードを切り替える
     .name = フルスクリーン
 
 MAXIMIZE_CMD =
@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = 最小化
 
 RESTORE_CMD =
-    .info = ウィンドウを以前の非最小化状態または通常状態に戻します
-    .name = 復元
+    .info = ウィンドウを以前の非最小化状態または通常の状態に戻します
+    .name = 元に戻す

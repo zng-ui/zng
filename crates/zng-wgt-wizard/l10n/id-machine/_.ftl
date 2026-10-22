@@ -9,7 +9,7 @@ BEGIN_CMD =
     .name = Mulai
 
 CANCEL_CMD =
-    .name = Batal
+    .name = Batalkan
 
 FINISH_CMD =
     .name = Selesai

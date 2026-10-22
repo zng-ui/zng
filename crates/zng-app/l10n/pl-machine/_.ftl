@@ -4,7 +4,7 @@
 
 EXIT_CMD =
     .info = Zamknij wszystkie okna i wyjdź
-    .name = Wyjdź
+    .name = Wyjście
 
 OPEN_LICENSES_CMD =
     .name = Licencje stron trzecich

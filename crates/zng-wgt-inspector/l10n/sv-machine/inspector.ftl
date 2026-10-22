@@ -10,19 +10,19 @@ INSPECT_CMD =
 
 info-help = Info om övervakad widget
 
-intrinsic-help = Intrinsisk nod
+intrinsic-help = Intrinsic nod
 
 nest-group-help = Nestgrupp
 
 screenshot =
-    .copy-error = Skärmdump kopieringsfel. {$error}
+    .copy-error = Fel vid kopiering av skärmdump. {$error}
     .error-dlg-title = Skärmdumpfel
     .save-dlg-filter = Bildfiler
     .save-dlg-starting-name = screenshot.png
     .save-dlg-title = Spara skärmdump
-    .save-error = Skärmdump sparingsfel. {$error}
+    .save-error = Fel vid sparande av skärmdump. {$error}
 
 select-widget = Välj en widget att inspektera
 
 window =
-    .title = {$inspected_window_title} - Inspektör
+    .title = {$inspected_window_title} - Inspektor

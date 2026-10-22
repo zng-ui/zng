@@ -4,7 +4,7 @@
 
 INSPECT_CMD =
     .info = Оглянути вікно
-    .name = Інспектор відладки
+    .name = Відладчик інспектора
 
 ## Inspector Window (always en-US)
 
@@ -15,14 +15,14 @@ intrinsic-help = Внутрішній вузол
 nest-group-help = Група вкладень
 
 screenshot =
-    .copy-error = Помилка копіювання знімка екрана. {$error}
-    .error-dlg-title = Помилка знімка екрана
+    .copy-error = Помилка копіювання скріншоту. {$error}
+    .error-dlg-title = Помилка скріншоту
     .save-dlg-filter = Файли зображень
     .save-dlg-starting-name = screenshot.png
-    .save-dlg-title = Зберегти знімок екрана
-    .save-error = Помилка збереження знімка екрана. {$error}
+    .save-dlg-title = Зберегти скріншот
+    .save-error = Помилка збереження скріншоту. {$error}
 
-select-widget = Виберіть віджет для інспектування
+select-widget = Вибрати віджет для перегляду
 
 window =
     .title = {$inspected_window_title} - Інспектор

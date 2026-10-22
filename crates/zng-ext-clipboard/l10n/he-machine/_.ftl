@@ -6,7 +6,7 @@ COPY_CMD =
     .name = העתק
 
 CUT_CMD =
-    .name = גזור
+    .name = חתוך
 
 PASTE_CMD =
     .name = הדבק

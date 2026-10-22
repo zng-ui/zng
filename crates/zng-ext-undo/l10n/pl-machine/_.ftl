@@ -9,4 +9,4 @@ REDO_CMD =
     .name = Ponów
 
 UNDO_CMD =
-    .name = Cofnij
+    .name = Przywróć

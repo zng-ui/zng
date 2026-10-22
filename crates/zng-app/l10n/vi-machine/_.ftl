@@ -7,4 +7,4 @@ EXIT_CMD =
     .name = Thoát
 
 OPEN_LICENSES_CMD =
-    .name = Giấy phép bên thứ ba
+    .name = Giấy phép của bên thứ ba

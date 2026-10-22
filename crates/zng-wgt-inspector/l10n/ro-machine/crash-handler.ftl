@@ -5,7 +5,7 @@
 ## Debug Crash Handler
 
 window =
-    .title = {$app} - Aplicația a eșuat
+    .title = {$app} - A e prăbușit aplicația
 
 ## Panels
 
@@ -14,12 +14,12 @@ window =
 minidump =
     .open-error = Eșec la deschiderea minidump-ului.
         {$error}
-    .remove-error = Eșec la ștergerea minidump-ului.
+    .remove-error = Eșec la eliminarea minidump-ului.
         {$error}
     .save-copy-filter-name = Minidump
     .save-copy-starting-name = minidump
     .save-copy-title = Salvează Copie
-    .save-error = Nu a reușit să salveze copia minidump-ului.
+    .save-error = Eșec la salvarea copieului minidump.
         {$error}
     .title = Minidump
 
@@ -33,15 +33,15 @@ stdout =
     .title = Stdout
 
 summary =
-    .text = Timp de rulare: {$timestamp}
+    .text = Timestamp: {$timestamp}
         Cod de ieșire: {$exit_code}
         Semnal: {$signal}
-        Stderr: {$stderr_len} octeți
-        Stdout: {$stdout_len} octeți
+        Stderr: {$stderr_len} bytes
+        Stdout: {$stdout_len} bytes
         Panic: {$is_panic}
         Minidump: {$minidump_path}
         
-        Arg-uri: {$args}
+        Argumentele: {$args}
         Sistem de operare: {$os}
     .title = Rezumat
 

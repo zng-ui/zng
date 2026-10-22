@@ -23,5 +23,5 @@ MINIMIZE_CMD =
     .name = Thu nhỏ
 
 RESTORE_CMD =
-    .info = Khôi phục cửa sổ về trạng thái không thu nhỏ hoặc trạng thái bình thường trước đó
+    .info = Khôi phục cửa sổ về trạng thái không bị thu nhỏ trước đó hoặc trạng thái bình thường
     .name = Khôi phục

@@ -6,4 +6,4 @@ search =
     .placeholder = 라이선스 검색 ({$shortcut})
 
 window =
-    .title = {$app} - 서드파티 라이선스
+    .title = {$app} - 제3자 라이선스
