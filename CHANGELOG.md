@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+
+## 0.25.4
+
 * Fix `l10n!` scrapper formatting for multi-line messages.
 * Localize `OptionalTasksPage` default pages.
 * Add `OptionalTasksPage::new_additional_shortcuts` default.
