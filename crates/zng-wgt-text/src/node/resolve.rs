@@ -16,7 +16,7 @@ use zng_app::{
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_ext_font::{CaretIndex, FONT_CHANGED_EVENT, FONTS, FontFaceList, SegmentedText};
 use zng_ext_input::{
-    focus::{FOCUS, FOCUS_CHANGED_EVENT, FocusInfoBuilder, WidgetInfoFocusExt as _},
+    focus::{FOCUS, FOCUS_CHANGED_EVENT, FocusInfoBuilder, TabIndex, WidgetInfoFocusExt as _},
     keyboard::{KEY_INPUT_EVENT, KEYBOARD},
 };
 use zng_ext_l10n::LANG_VAR;
@@ -193,7 +193,12 @@ fn resolve_text_access(child: impl IntoUiNode) -> UiNode {
         UiNodeOp::Info { info } => {
             let editable = TEXT_EDITABLE_VAR.get();
             if editable || TEXT_SELECTABLE_VAR.get() {
-                FocusInfoBuilder::new(info).focusable_passive(true);
+                let mut info = FocusInfoBuilder::new(info);
+                info.focusable_passive(true);
+
+                if TEXT.try_rich().is_some() {
+                    info.skip_directional(true).tab_index(TabIndex::SKIP);
+                }
             }
 
             child.info(info);

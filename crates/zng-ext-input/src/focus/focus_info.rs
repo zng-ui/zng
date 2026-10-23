@@ -2081,6 +2081,13 @@ impl<'a> FocusInfoBuilder<'a> {
         self
     }
 
+    /// Get the current [`focusable`] value.
+    ///
+    /// [`focusable`]: Self::focusable
+    pub fn current_focusable(&mut self) -> Option<bool> {
+        self.with_data(|d| d.focusable)
+    }
+
     /// Sets [`focusable`], only if it was not already set.
     ///
     /// [`focusable`]: Self::focusable

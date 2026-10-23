@@ -20,6 +20,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    // zng::app::print_tracing(tracing::Level::TRACE, true, |t| t.target().contains("focus"));
 
     APP.defaults().run_window("main", async {
         Window! {

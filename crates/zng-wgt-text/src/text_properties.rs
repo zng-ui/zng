@@ -1377,6 +1377,8 @@ pub fn txt_editable(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiNo
 /// Note that if the text widget subscribes to mouse or touch events the selection gestures will interfere with those events,
 /// you can enable [`txt_selectable_alt_only`] so that pointer selection gestures only start when the Alt keyboard modifier is pressed.
 ///
+/// If the widget is inside a rich text context it is focusable on click only, it skips tab and directional navigation.
+///
 /// Sets the [`TEXT_SELECTABLE_VAR`].
 ///
 /// [`txt_selectable_alt_only`]: fn@txt_selectable_alt_only

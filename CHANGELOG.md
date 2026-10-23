@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix tab navigation in `Markdown!` with `txt_selectable` enabled.
+    - Selectable texts in rich text contexts now are only focusable on direct request.
+    - Add `FocusInfoBuilder::current_focusable`.
 
 ## 0.25.4
 
