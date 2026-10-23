@@ -10,7 +10,7 @@ use zng::{
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
-    // zng::app::print_tracing(tracing::Level::TRACE, true, |_| true);
+    // zng::app::print_tracing(tracing::Level::TRACE, true, |t| t.target().contains("focus"));
     run_app();
 }
 fn run_app() {
