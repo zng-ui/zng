@@ -1,12 +1,12 @@
 accept =
-    .false = Não aceito o contrato
-    .true = Aceito o contrato
+    .false = Eu não aceito o acordo
+    .true = Eu aceito o acordo
 
 info =
-    .install = Por favor, revise os termos de licença antes de instalar o {$app}
-    .update = Por favor, revise os termos de licença antes de atualizar o {$app}
+    .install = Por favor, revise os termos da licença antes de instalar {$app}
+    .update = Por favor, revise os termos da licença antes de atualizar {$app}
 
-message = Você deve aceitar os termos deste contrato antes de continuar.
-    .requires_scroll = Você deve ler e aceitar os termos deste contrato antes de continuar.
+message = Você deve aceitar os termos deste acordo antes de continuar.
+    .requires_scroll = Você deve ler e aceitar os termos deste acordo antes de continuar.
 
-title = Contrato de Licença
+title = Acordo de Licença

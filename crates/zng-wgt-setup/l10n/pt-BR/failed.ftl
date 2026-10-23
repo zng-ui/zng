@@ -1,19 +1,19 @@
 info =
-    .clean = A operação falhou, todas as alterações foram revertidas.
-    .corrupted = A operação falhou, a instalação está corrompida.
+    .clean = Operação falhou, todas as alterações foram desfeitas.
+    .corrupted = Operação falhou, instalação corrompida.
 
 message =
-    .install-clean = A operação de instalação falhou, o {$app} não foi instalado.
-    .install-corrupted = A operação de instalação falhou, o {$app} foi apenas parcialmente instalado.
-    .repair-clean = A operação de reparação falhou, a instalação do {$app} não foi reparada.
-    .repair-corrupted = A operação de reparação falhou, o {$app} foi apenas parcialmente reparado.
-    .uninstall-clean = A operação de desinstalação falhou, o {$app} permanece instalado.
-    .uninstall-corrupted = A operação de desinstalação falhou, o {$app} foi apenas parcialmente desinstalado.
-    .update-clean = A operação de atualização falhou, o {$app} não foi atualizado. A versão instalada atual {$current_version} permanece e pode continuar a ser utilizada.
-    .update-corrupted = A operação de atualização falhou, o {$app} foi apenas parcialmente atualizado.
+    .install-clean = Operação de instalação falhou, {$app} não foi instalado.
+    .install-corrupted = Operação de instalação falhou, {$app} foi instalado apenas parcialmente.
+    .repair-clean = Operação de reparo falhou, a instalação de {$app} não foi reparada.
+    .repair-corrupted = Operação de reparo falhou, {$app} foi reparado apenas parcialmente.
+    .uninstall-clean = Operação de desinstalação falhou, {$app} permanece instalado.
+    .uninstall-corrupted = Operação de desinstalação falhou, {$app} foi desinstalado apenas parcialmente.
+    .update-clean = Operação de atualização falhou, {$app} não foi atualizado. A versão instalada atual {$current_version} permanece e ainda pode ser usada.
+    .update-corrupted = Operação de atualização falhou, {$app} foi atualizado apenas parcialmente.
 
 title =
-    .install = Falha na Instalação
-    .repair = Falha na Reparação
-    .uninstall = Falha na Desinstalação
-    .update = Falha na Atualização
+    .install = Instalação Falhou
+    .repair = Reparo Falhou
+    .uninstall = Desinstalação Falhou
+    .update = Atualização Falhou

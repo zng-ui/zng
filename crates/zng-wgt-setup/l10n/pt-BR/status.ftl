@@ -7,10 +7,10 @@ default-info =
     .unregister-uninstaller = Desregistrar desinstalador
 
 info =
-    .install = Por favor, aguarde enquanto o {$app} é instalado em seu computador.
-    .repair = Por favor, aguarde enquanto o {$app} é reparado em seu computador.
-    .uninstall = Por favor, aguarde enquanto o {$app} é desinstalado de seu computador.
-    .update = Por favor, aguarde enquanto o {$app} é atualizado em seu computador.
+    .install = Por favor, aguarde enquanto {$app} é instalado em seu computador.
+    .repair = Por favor, aguarde enquanto {$app} é reparado em seu computador.
+    .uninstall = Por favor, aguarde enquanto {$app} é desinstalado de seu computador.
+    .update = Por favor, aguarde enquanto {$app} é atualizado em seu computador.
 
 title =
     .install = Instalando

@@ -1,2 +1,2 @@
 title =
-    .update-repair = Alterar Local de Instalação
+    .update-repair = Mudar Local de Instalação
