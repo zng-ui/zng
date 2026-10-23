@@ -29,3 +29,5 @@ generic =
     .info = Which additional tasks should be performed?
     .message = Select additional tasks you would like to setup to perform.
     .title = Select Additional Tasks
+
+task-create-desktop-shortcut = Create desktop shortcut

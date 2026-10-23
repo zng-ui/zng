@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix `cargo zng l10n` not detecting outdated files, add missing translations.
+* Add `OptionalTask::new_create_desktop_shortcut`.
 * Fix tab navigation in `Markdown!` with `txt_selectable` enabled.
     - Selectable texts in rich text contexts now are only focusable on direct request.
     - Add `FocusInfoBuilder::current_focusable`.

@@ -72,6 +72,7 @@ impl OptionalTasksPage {
     ///
     /// Note that at least one shortcut should always be created. On Windows for example, an
     /// app is not registered to show notifications if it does not have a start menu shortcut.
+    /// This page is for extra shortcuts, like [`OptionalTask::new_create_desktop_shortcut`].
     pub fn new_additional_shortcuts() -> Self {
         Self {
             title: const_var("additional_shortcuts".into()),
@@ -327,5 +328,10 @@ impl OptionalTask {
             name,
             enabled: var(true),
         }
+    }
+
+    /// New "Create desktop shortcut"
+    pub fn new_create_desktop_shortcut() -> Self {
+        Self::new(l10n!("optional_tasks/task-create-desktop-shortcut", "Create desktop shortcut"))
     }
 }
