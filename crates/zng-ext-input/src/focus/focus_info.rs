@@ -1748,6 +1748,8 @@ pub enum FocusScopeOnFocus {
     /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
     /// by the scope inner-bounds.
     ///
+    /// Does nothing if focus is already inside the scope.
+    ///
     /// [`Widget`]: Self::Widget
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
@@ -1759,6 +1761,8 @@ pub enum FocusScopeOnFocus {
     /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
     /// by the scope inner-bounds.
     ///
+    /// Does nothing if focus is already inside the scope.
+    ///
     /// [`Widget`]: Self::Widget
     /// [`FirstDescendant`]: Self::FirstDescendant
     LastFocused,
@@ -1769,6 +1773,8 @@ pub enum FocusScopeOnFocus {
     /// The expectation is that the descendant is already visible or will be made visible when
     /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
     ///
+    /// Does nothing if focus is already inside the scope.
+    ///
     /// [`FirstDescendant`]: Self::FirstDescendant
     FirstDescendantIgnoreBounds,
 
@@ -1777,6 +1783,8 @@ pub enum FocusScopeOnFocus {
     ///
     /// The expectation is that the descendant is already visible or will be made visible when
     /// it receives focus, a scroll scope will scroll to make the descendant visible for example.
+    ///
+    /// Does nothing if focus is already inside the scope.
     ///
     /// [`LastFocused`]: Self::LastFocused
     LastFocusedIgnoreBounds,
