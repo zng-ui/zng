@@ -1065,6 +1065,18 @@ impl FocusService {
             },
         }
 
+        if let Some(prev_info) = &current_info
+            && let Some(new_info) = &mut new_info
+            && new_info.info().is_ancestor(prev_info.info())
+            && let FocusInfo::FocusScope { on_focus, .. } = new_info.focus_info()
+            && !matches!(on_focus, FocusScopeOnFocus::Widget)
+            && prev_info.is_focusable()
+        {
+            // focus to scope that already contains focus does not need to reenter
+            // go direct to previous, will only notify if highlight changed
+            *new_info = prev_info.clone();
+        }
+
         let new_info = match new_info {
             Some(i) => i, // new_info was selected
             None => match current_info.clone() {
@@ -1090,31 +1102,31 @@ impl FocusService {
         }
 
         if let Some(prev_info) = &current_info {
-            // update return focus
-            let mut update_return = |scope_path: InteractionPath| -> bool {
-                match self.return_focused.entry(scope_path.widget_id()) {
-                    IdEntry::Occupied(e) => {
-                        let e = e.get();
-                        if e.with(|p| *p != prev_focus) {
-                            e.set(prev_focus.clone());
-                            RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
-                            return true;
-                        }
-                    }
-                    IdEntry::Vacant(e) => {
-                        e.insert(var(prev_focus.clone()));
-                        RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
-                        return true;
-                    }
-                }
-                false
-            };
-
             let prev_scope = prev_info.self_and_ancestors().find(|w| w.is_scope());
             let new_scope = new_info.self_and_ancestors().find(|w| w.is_scope());
 
             if prev_scope != new_scope {
                 debug_assert_eq!(prev_focus.as_ref().unwrap().widget_id(), prev_info.info().id());
+
+                // update return focus
+                let mut update_return = |scope_path: InteractionPath| -> bool {
+                    match self.return_focused.entry(scope_path.widget_id()) {
+                        IdEntry::Occupied(e) => {
+                            let e = e.get();
+                            if e.with(|p| *p != prev_focus) {
+                                e.set(prev_focus.clone());
+                                RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, e.get(), prev_focus.clone()));
+                                return true;
+                            }
+                        }
+                        IdEntry::Vacant(e) => {
+                            e.insert(var(prev_focus.clone()));
+                            RETURN_FOCUS_CHANGED_EVENT.notify(ReturnFocusChangedArgs::now(scope_path, None, prev_focus.clone()));
+                            return true;
+                        }
+                    }
+                    false
+                };
 
                 if let Some(new_scope) = new_scope
                     && new_scope.is_alt_scope()
@@ -1339,6 +1351,7 @@ fn hooks() {
     MOUSE_INPUT_EVENT
         .hook(|args| {
             if args.is_mouse_down() {
+                // already contains current focus
                 tracing::trace!("mouse press focus request {}", args.target.widget_id());
                 FOCUS.focus(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
             }

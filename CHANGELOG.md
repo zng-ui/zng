@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Change how `FocusScopeOnFocus` operates. Does not move focus if it is already inside the scope.
 * Optimization. Fix `Text!` reshaping lines every layout. 
 * Fix `Text!` auto scrolling to caret without caret changing index.
 * Fix `cargo zng l10n` not detecting outdated files, add missing translations.
