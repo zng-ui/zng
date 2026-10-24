@@ -795,6 +795,8 @@ impl FocusService {
             .map(|i| i.into_focus_info(focus_disabled, focus_hidden))
             .or_else(|| current_info.clone());
 
+        let direct_or_direct_or_exit = matches!(&request.target, FocusTarget::Direct { .. } | FocusTarget::DirectOrExit { .. });
+
         // resolve the new focus
         let mut new_info = None;
         let mut new_origin = None;
@@ -1065,11 +1067,13 @@ impl FocusService {
             },
         }
 
-        if let Some(prev_info) = &current_info
+        if direct_or_direct_or_exit
+            && let Some(prev_info) = &current_info
             && let Some(new_info) = &mut new_info
             && new_info.info().is_ancestor(prev_info.info())
-            && let FocusInfo::FocusScope { on_focus, .. } = new_info.focus_info()
+            && let FocusInfo::FocusScope { on_focus, alt, .. } = new_info.focus_info()
             && !matches!(on_focus, FocusScopeOnFocus::Widget)
+            && !alt
             && prev_info.is_focusable()
         {
             // focus to scope that already contains focus does not need to reenter
