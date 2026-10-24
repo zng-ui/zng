@@ -810,6 +810,7 @@ impl LayoutTextFinal {
                     if !caret.used_retained_x {
                         ctx.caret_retained_x = p.x;
                     }
+                    let caret_origin_changed = ctx.caret_origin != Some(p);
                     ctx.caret_origin = Some(p);
 
                     // update caret_selection_origin
@@ -822,7 +823,7 @@ impl LayoutTextFinal {
                     }
 
                     // auto scroll
-                    if !mem::take(&mut caret.skip_next_scroll) && SCROLL.try_id().is_some() {
+                    if !mem::take(&mut caret.skip_next_scroll) && caret_origin_changed && SCROLL.try_id().is_some() {
                         let is_focused_caret_wgt = FOCUS.focused().with(|f| {
                             if let Some(focused) = f {
                                 match TEXT.try_rich() {
@@ -833,30 +834,28 @@ impl LayoutTextFinal {
                                 false
                             }
                         });
-                        if is_focused_caret_wgt {
-                            // not rich text and is in focus
-                            if let Some(p) = ctx.render_info.transform.transform_point(p) {
-                                // caret_origin in window space
-                                let mut p = p.to_vector();
+                        if is_focused_caret_wgt && let Some(p) = ctx.render_info.transform.transform_point(p) {
+                            // if is in scroll viewport bounds (extends a bit out of view too)
 
-                                // to text space
-                                p -= WIDGET.info().inner_bounds().origin.to_vector();
+                            // caret_origin in window space
+                            let mut p = p.to_vector();
 
-                                let line_height = ctx
-                                    .shaped_text
-                                    .line(index.line)
-                                    .map(|l| l.rect().height())
-                                    .unwrap_or_else(|| ctx.shaped_text.line_height());
+                            // to text space
+                            p -= WIDGET.info().inner_bounds().origin.to_vector();
 
-                                let horizontal_margin = Dip::new(4).to_px(metrics.scale_factor());
-                                let vertical_margin = ctx.shaped_text.line_spacing() + line_height / Px(2);
+                            let line_height = ctx
+                                .shaped_text
+                                .line(index.line)
+                                .map(|l| l.rect().height())
+                                .unwrap_or_else(|| ctx.shaped_text.line_height());
 
-                                // minimal_rect for caret
-                                let p =
-                                    PxRect::new(p.to_point(), PxSize::new(Px(1), line_height)).inflate(horizontal_margin, vertical_margin);
+                            let horizontal_margin = Dip::new(4).to_px(metrics.scale_factor());
+                            let vertical_margin = ctx.shaped_text.line_spacing() + line_height / Px(2);
 
-                                SCROLL.scroll_to(ScrollToMode::minimal_rect(p));
-                            }
+                            // minimal_rect for caret
+                            let p = PxRect::new(p.to_point(), PxSize::new(Px(1), line_height)).inflate(horizontal_margin, vertical_margin);
+
+                            SCROLL.scroll_to(ScrollToMode::minimal_rect(p));
                         }
                     }
                 }

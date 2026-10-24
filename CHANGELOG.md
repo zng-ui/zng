@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Optimization. Fix `Text!` reshaping lines every layout. 
+* Fix `Text!` auto scrolling to caret without caret changing index.
 * Fix `cargo zng l10n` not detecting outdated files, add missing translations.
 * Add `OptionalTask::new_create_desktop_shortcut`.
 * Fix tab navigation in `Markdown!` with `txt_selectable` enabled.

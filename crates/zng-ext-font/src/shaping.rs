@@ -963,6 +963,7 @@ impl ShapedText {
         self.align = args.align;
         self.direction = args.direction;
         self.is_inlined = is_inlined;
+        self.overflow_align = args.overflow_align;
 
         self.debug_assert_ranges();
     }
