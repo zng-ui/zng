@@ -590,6 +590,7 @@ impl LayoutTextFinal {
 
         if self.pending.contains(PendingLayout::RESHAPE) {
             ctx.shaped_text = ctx.fonts.shape_text(&resolved.segmented_text, &self.shaping_args);
+            ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
             self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
         }
 
@@ -619,6 +620,7 @@ impl LayoutTextFinal {
             args.paragraph_indent = paragraph_indent;
             args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
             ctx.shaped_text.reshape_lines(&args);
+            ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
         }
 
         if !is_measure {
@@ -639,10 +641,10 @@ impl LayoutTextFinal {
                     args.paragraph_indent = paragraph_indent;
                     args.paragraph_break = PARAGRAPH_BREAK_VAR.get();
                     ctx.shaped_text.reshape_lines(&args);
+                    ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 }
                 ctx.shaped_text.reshape_lines_justify(justify, &self.shaping_args.lang);
 
-                ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 drop(resolved);
                 self.baseline = ctx.shaped_text.baseline();
                 resolved = TEXT.resolved();
