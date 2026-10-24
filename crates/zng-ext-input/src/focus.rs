@@ -1070,6 +1070,7 @@ impl FocusService {
             && new_info.info().is_ancestor(prev_info.info())
             && let FocusInfo::FocusScope { on_focus, .. } = new_info.focus_info()
             && !matches!(on_focus, FocusScopeOnFocus::Widget)
+            && prev_info.is_focusable()
         {
             // focus to scope that already contains focus does not need to reenter
             // go direct to previous, will only notify if highlight changed

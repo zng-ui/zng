@@ -274,6 +274,10 @@ pub fn render_text() -> UiNode {
 
             let lh = t.shaped_text.line_height();
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
+            if clip.size.is_empty() {
+                return;
+            }
+
             let color = FONT_COLOR_VAR.get();
             let color_value = if let Some(key) = color_key {
                 key.bind(color, FONT_COLOR_VAR.is_animating())
