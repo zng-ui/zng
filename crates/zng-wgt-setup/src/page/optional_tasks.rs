@@ -267,10 +267,10 @@ impl OptionalTasksPage {
                 Container! {
                     child_top = Text! {
                         txt = message.clone();
-                        margin = 10;
+                        margin = 15;
                     };
                     child = Scroll! {
-                        padding = 10;
+                        padding = 15;
                         mode = ScrollMode::VERTICAL;
                         child = items;
                         child_align = Align::FILL;
@@ -279,6 +279,7 @@ impl OptionalTasksPage {
             }),
         );
         pg.content_fill = true;
+        pg.side = WidgetFn::nil();
         pg
     }
 }
