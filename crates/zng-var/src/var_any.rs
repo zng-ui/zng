@@ -380,16 +380,18 @@ impl AnyVar {
             let me = self.clone();
             let map = Arc::new(Mutex::new(map));
             // clone again inside the context to get a new clear (me as contextual_var)
-            return any_contextual_var(
-                move || me.clone().map_any_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()),
-                value_type,
-            );
+            return any_contextual_var(move || me.clone().map_any_tail(clmv!(map, |v| map.lock()(v)), None), value_type);
         }
-        self.map_any_tail(map, caps)
+        self.map_any_tail(map, Some(caps))
     }
     // to avoid infinite closure type (contextual case)
-    fn map_any_tail(&self, mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static, caps: VarCapability) -> AnyVar {
+    fn map_any_tail(
+        &self,
+        mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
+        caps: Option<VarCapability>,
+    ) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
@@ -451,25 +453,27 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, fallback_init)));
+            // clone again inside the context to get a new clear (me as contextual_var)
             return any_contextual_var(
                 move || {
                     me.clone()
-                        .filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), me.capabilities())
+                        .filter_map_any_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, || fns.lock().1()), None)
                 },
                 value_type,
             );
         }
 
-        self.filter_map_any_tail(map, fallback_init, caps)
+        self.filter_map_any_tail(map, fallback_init, Some(caps))
     }
     // to avoid infinite closure type (contextual case)
     fn filter_map_any_tail(
         &self,
         mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
-        caps: VarCapability,
+        caps: Option<VarCapability>,
     ) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
@@ -549,24 +553,26 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back)));
+            // clone again inside the context to get a new clear (me as contextual_var)
             return any_contextual_var(
                 move || {
                     me.clone()
-                        .map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), caps)
+                        .map_bidi_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v| fns.lock().1(v)), None)
                 },
                 value_type,
             );
         }
 
-        self.map_bidi_tail(map, map_back, caps)
+        self.map_bidi_tail(map, map_back, Some(caps))
     }
     fn map_bidi_tail(
         &self,
         mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
-        caps: VarCapability,
+        caps: Option<VarCapability>,
     ) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
@@ -605,23 +611,25 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, modify_back)));
+            // clone again inside the context to get a new clear (me as contextual_var)
             return any_contextual_var(
                 move || {
                     me.clone()
-                        .map_bidi_modify_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v, m| fns.lock().1(v, m)), caps)
+                        .map_bidi_modify_tail(clmv!(fns, |v| fns.lock().0(v)), clmv!(fns, |v, m| fns.lock().1(v, m)), None)
                 },
                 value_type,
             );
         }
-        self.map_bidi_modify_tail(map, modify_back, caps)
+        self.map_bidi_modify_tail(map, modify_back, Some(caps))
     }
     fn map_bidi_modify_tail(
         &self,
         mut map: impl FnMut(&dyn AnyVarValue) -> BoxAnyVarValue + Send + 'static,
         modify_back: impl FnMut(&dyn AnyVarValue, &mut AnyVarModify) + Send + 'static,
-        caps: VarCapability,
+        caps: Option<VarCapability>,
     ) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = Some(map(v)));
@@ -661,29 +669,31 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let fns = Arc::new(Mutex::new((map, map_back, fallback_init)));
+            // clone again inside the context to get a new clear (me as contextual_var)
             return any_contextual_var(
                 move || {
                     me.clone().filter_map_bidi_tail(
                         clmv!(fns, |v| fns.lock().0(v)),
                         clmv!(fns, |v| fns.lock().1(v)),
                         clmv!(fns, || fns.lock().2()),
-                        caps,
+                        None,
                     )
                 },
                 value_type,
             );
         }
 
-        self.filter_map_bidi_tail(map, map_back, fallback_init, caps)
+        self.filter_map_bidi_tail(map, map_back, fallback_init, Some(caps))
     }
     fn filter_map_bidi_tail(
         &self,
         mut map: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         map_back: impl FnMut(&dyn AnyVarValue) -> Option<BoxAnyVarValue> + Send + 'static,
         fallback_init: impl Fn() -> BoxAnyVarValue + Send + 'static,
-        caps: VarCapability,
+        caps: Option<VarCapability>,
     ) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = map(v));
@@ -712,19 +722,18 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             let map = Arc::new(Mutex::new(map));
-            return any_contextual_var(
-                move || me.clone().flat_map_tail(clmv!(map, |v| map.lock()(v)), me.capabilities()),
-                value_type,
-            );
+            // clone again inside the context to get a new clear (me as contextual_var)
+            return any_contextual_var(move || me.clone().flat_map_tail(clmv!(map, |v| map.lock()(v)), None), value_type);
         }
 
-        self.flat_map_tail(map, caps)
+        self.flat_map_tail(map, Some(caps))
     }
-    fn flat_map_tail(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, caps: VarCapability) -> AnyVar {
-        if caps.is_const() {
-            return self.with(map);
-        }
+    fn flat_map_tail(&self, map: impl FnMut(&dyn AnyVarValue) -> AnyVar + Send + 'static, caps: Option<VarCapability>) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
+        if caps.is_const() {
+            return me.with(map);
+        }
         let mapping = crate::var_impl::flat_map_var::FlatMapVar::new(me, smallbox!(map));
         AnyVar(crate::DynAnyVar::FlatMap(mapping))
     }
@@ -1405,13 +1414,14 @@ impl AnyVar {
         if caps.is_contextual() {
             let me = self.clone();
             // clone again inside the context to get a new clear (me as contextual_var)
-            return any_contextual_var(move || me.clone().cow_tail(me.capabilities()), self.value_type());
+            return any_contextual_var(move || me.clone().cow_tail(None), self.value_type());
         }
-        self.cow_tail(caps)
+        self.cow_tail(Some(caps))
     }
     // to avoid infinite closure type (contextual case)
-    fn cow_tail(&self, caps: VarCapability) -> AnyVar {
+    fn cow_tail(&self, caps: Option<VarCapability>) -> AnyVar {
         let me = self.current_context();
+        let caps = caps.unwrap_or_else(|| me.capabilities());
 
         let mut init_value = None;
         me.with(&mut |v: &dyn AnyVarValue| init_value = Some(v.clone_boxed()));
