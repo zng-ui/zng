@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix contextual var maps sometimes not updating.
 
 ## 0.25.5
 
