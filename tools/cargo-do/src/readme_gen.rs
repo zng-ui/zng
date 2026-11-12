@@ -211,8 +211,8 @@ const FEATURES_HEADER: &str = "## Cargo Features";
 const SECTION_END: &str = "<!--do doc --readme #SECTION-END-->";
 
 /*
-*  EXAMPLES README
-*/
+ *  EXAMPLES README
+ */
 
 pub fn generate_examples(_args: Vec<&str>) {
     use std::fmt::*;

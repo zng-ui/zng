@@ -358,11 +358,7 @@ fn rounded_rect_contains(rect: &PxBox, radii: &PxCornerRadius, point: PxPoint) -
 
     let bottom_left = PxPoint::new(rect.min.x, rect.max.y);
     let bottom_left_center = bottom_left + PxVector::new(radii.bottom_left.width, -radii.bottom_left.height);
-    if bottom_left_center.x > point.x && bottom_left_center.y < point.y && !ellipse_contains(radii.bottom_left, bottom_left_center, point) {
-        return false;
-    }
-
-    true
+    !(bottom_left_center.x > point.x && bottom_left_center.y < point.y && !ellipse_contains(radii.bottom_left, bottom_left_center, point))
 }
 
 fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
@@ -380,7 +376,7 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
     p <= 1.0
 }
 
-// matches webrender's implementation of the CSS spec:
+// matches Webrender's implementation of the CSS spec:
 // https://github.com/servo/webrender/blob/b198248e2c836ec61c4dfdf443f97684bc281a0c/webrender/src/border.rs#L168
 pub fn ensure_no_corner_overlap(radii: &mut PxCornerRadius, size: PxSize) {
     let mut ratio = 1.0;

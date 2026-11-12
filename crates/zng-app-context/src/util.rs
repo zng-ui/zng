@@ -237,6 +237,7 @@ impl<T> ReadOnlyRwLock<T> {
     }
 }
 
+// TODO(breaking) replace with https://doc.rust-lang.org/stable/core/mem/struct.DropGuard.html?
 /// Helper, runs a cleanup action once on drop.
 #[must_use = "cleanup runs on drop"]
 pub struct RunOnDrop<F: FnOnce()>(Option<F>);
