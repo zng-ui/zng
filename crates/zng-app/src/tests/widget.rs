@@ -919,8 +919,8 @@ pub fn when_reuse() {
 }
 
 /*
-* Property Default Value
-*/
+ * Property Default Value
+ */
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign1() {
@@ -970,8 +970,8 @@ pub fn allowed_in_when_without_wgt_assign2() {
 }
 
 /*
-* Generated Names Don't Shadow Each Other
-*/
+ * Generated Names Don't Shadow Each Other
+ */
 #[property(CONTEXT)]
 pub fn util_live_trace(
     child: impl crate::widget::node::IntoUiNode,
@@ -1082,8 +1082,8 @@ pub fn name_collision_wgt_when() {
 }
 
 /*
-* macro_rules! generated widget
-*/
+ * macro_rules! generated widget
+ */
 
 #[allow(dead_code)]
 mod macro_rules_generated {

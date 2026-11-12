@@ -8,13 +8,13 @@ error[E0425]: cannot find function `layout` in module `zng::layout`
  --> cases/widget_new/malformed_property_path3.rs:7:14
   |
 7 |         zng::layout:margin = 0;
-  |              ^^^^^^
+  |              ^^^^^^ not found in `zng::layout`
   |
- ::: $WORKSPACE/crates/zng-layout/src/context.rs
+note: similarly named unit struct `LAYOUT` defined here
+ --> $WORKSPACE/crates/zng-layout/src/context.rs
   |
   | pub struct LAYOUT;
-  | ----------------- similarly named unit struct `LAYOUT` defined here
-  |
+  | ^^^^^^^^^^^^^^^^^
 help: a unit struct with a similar name exists
   |
 7 -         zng::layout:margin = 0;

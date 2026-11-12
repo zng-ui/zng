@@ -12,6 +12,8 @@ error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
             <implementers-list>
 note: required by a bound in `zng::widget::background_gradient::background_gradient`  --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
+   | ...
+...
    | ...ode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> UiNode {
    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `background_gradient::background_gradient`
 

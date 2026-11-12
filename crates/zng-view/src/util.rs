@@ -1313,10 +1313,7 @@ fn wr_shader_cache_dir_init(driver_dir: &Path) -> bool {
         }
     }
     // new cache
-    if std::fs::create_dir_all(driver_dir).is_ok() {
-        return true;
-    }
-    false
+    std::fs::create_dir_all(driver_dir).is_ok()
 }
 
 #[cfg(not(any(windows, target_os = "android")))]

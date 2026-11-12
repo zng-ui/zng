@@ -331,16 +331,16 @@ pub fn node(
                     let cell_offset = PxVector::new(grid.columns[cell_info.column].x, grid.rows[cell_info.row].y);
                     let mut cell_size = PxSize::zero();
 
-                    for col in cell_info.column..(cell_info.column + cell_info.column_span).min(grid.columns.len()) {
-                        if grid.columns[col].width != Px(0) {
-                            cell_size.width += grid.columns[col].width + spacing.column;
+                    for col in grid.columns.iter().skip(cell_info.column).take(cell_info.column_span) {
+                        if col.width != Px(0) {
+                            cell_size.width += col.width + spacing.column;
                         }
                     }
                     cell_size.width -= spacing.column;
 
-                    for row in cell_info.row..(cell_info.row + cell_info.row_span).min(grid.rows.len()) {
-                        if grid.rows[row].height != Px(0) {
-                            cell_size.height += grid.rows[row].height + spacing.row;
+                    for row in grid.rows.iter().skip(cell_info.row).take(cell_info.row_span) {
+                        if row.height != Px(0) {
+                            cell_size.height += row.height + spacing.row;
                         }
                     }
                     cell_size.height -= spacing.row;
