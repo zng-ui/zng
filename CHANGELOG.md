@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file.
 
 * Fix contextual var maps sometimes not updating.
 * Add thread pool API to `zng::task::rayon` reexport.
+* Changes to `zng::task::set_spawn_panic_handler`.
+    - Does not panic on multiple calls, subsequent calls override the handler.
+    - `APP` builder noes sets a handler that resumes panic in the app thread by default.
 
 ## 0.25.5
 
