@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+
+## 0.25.6
+
 * Fix contextual var maps sometimes not updating.
 * Add thread pool API to `zng::task::rayon` reexport.
 * Changes to `zng::task::set_spawn_panic_handler`.
