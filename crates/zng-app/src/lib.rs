@@ -509,6 +509,15 @@ impl APP {
 
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
+
+        zng_task::set_spawn_panic_handler(|p| {
+            UPDATES
+                .run_hn_once(hn_once!(|_| {
+                    std::panic::resume_unwind(p.payload);
+                }))
+                .perm();
+        });
+
         AppBuilder {
             view_process_exe: None,
             view_process_env: HashMap::new(),

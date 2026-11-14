@@ -2224,10 +2224,10 @@ pub(crate) fn extract_panic_message(p: &dyn Any) -> Option<&str> {
 
 app_local! {
     // Mutex for Sync only
-    static SPAWN_PANIC_HANDLERS: Option<Mutex<SpawnPanicHandler>> = None;
+    static SPAWN_PANIC_HANDLERS: Mutex<SpawnPanicHandler> = Mutex::new(Box::new(|_| {}) as SpawnPanicHandler);
 }
 
-/// Set a `handler` that is called when spawn tasks panic.
+/// Set a `handler` that is called when spawn tasks panic, replacing previous.
 ///
 /// On panic the tasks [`spawn`], [`poll_spawn`] and [`spawn_wait`] log an error, notifies the `handler` and otherwise ignores the panic.
 ///
@@ -2237,6 +2237,12 @@ app_local! {
 /// ```
 /// # macro_rules! example { () => {
 /// task::set_spawn_panic_handler(|p| {
+///     if cfg!(debug_assertions) {
+///         inspect_spawn_panic(p);
+///         return;
+///     }
+///
+///     // APP sets a handler that resumes panic in app thread
 ///     UPDATES
 ///         .run_hn_once(hn_once!(|_| {
 ///             std::panic::resume_unwind(p.payload);
@@ -2246,22 +2252,16 @@ app_local! {
 /// # }}
 /// ```
 ///
-/// The example above shows how to set a handler that propagates the panic to the app main thread.
+/// The example above shows how to set a handler intercept the panic, it also shows what the `APP` default handler does.
 ///
-/// # Panics
+/// # Default
 ///
-/// Panics if another handler is already set in the same app.
-///
-/// Panics if no app is running in the caller thread.
-// !!: TODO don't panic on change, set APP.default automatically
+/// Default handler outside apps does nothing. The `APP` builder sets a handler that resumes panic in
+/// the app thread, you can override this on app init, or any time after it is build.
 pub fn set_spawn_panic_handler(handler: impl FnMut(TaskPanicError) + Send + 'static) {
-    let mut h = SPAWN_PANIC_HANDLERS.try_write().expect("a spawn panic handler is already set");
-    assert!(h.is_none(), "a spawn panic handler is already set");
-    *h = Some(Mutex::new(Box::new(handler)));
+    *SPAWN_PANIC_HANDLERS.write().get_mut() = Box::new(handler);
 }
 
 fn on_spawn_panic(p: TaskPanicError) {
-    if let Some(f) = &mut *SPAWN_PANIC_HANDLERS.write() {
-        f.get_mut()(p)
-    }
+    SPAWN_PANIC_HANDLERS.write().get_mut()(p)
 }
