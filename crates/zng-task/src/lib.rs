@@ -2231,7 +2231,7 @@ app_local! {
 ///
 /// On panic the tasks [`spawn`], [`poll_spawn`] and [`spawn_wait`] log an error, notifies the `handler` and otherwise ignores the panic.
 ///
-/// The handler is set for the process lifetime, only handler can be set per app. The handler is called inside the same [`LocalContext`]
+/// The handler is set for the process lifetime, only one handler can be set per app. The handler is called inside the same [`LocalContext`]
 /// and thread the task that panicked was called in.
 ///
 /// ```
@@ -2253,6 +2253,7 @@ app_local! {
 /// Panics if another handler is already set in the same app.
 ///
 /// Panics if no app is running in the caller thread.
+// !!: TODO don't panic on change, set APP.default automatically
 pub fn set_spawn_panic_handler(handler: impl FnMut(TaskPanicError) + Send + 'static) {
     let mut h = SPAWN_PANIC_HANDLERS.try_write().expect("a spawn panic handler is already set");
     assert!(h.is_none(), "a spawn panic handler is already set");

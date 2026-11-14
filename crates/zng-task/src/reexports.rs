@@ -32,7 +32,10 @@ pub mod parking_lot {
 /// [`ParallelIteratorWithCtx`]: crate::rayon::ParallelIteratorWithCtx
 pub mod rayon {
     #[doc(no_inline)]
-    pub use ::rayon::{iter, slice, str};
+    pub use ::rayon::{
+        ThreadBuilder, ThreadPool, ThreadPoolBuildError, ThreadPoolBuilder, current_num_threads, current_thread_index, iter,
+        max_num_threads, slice, str,
+    };
 
     pub use crate::rayon_ctx::*;
 

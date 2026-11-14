@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 * Fix contextual var maps sometimes not updating.
+* Add thread pool API to `zng::task::rayon` reexport.
 
 ## 0.25.5
 
