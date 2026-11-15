@@ -298,6 +298,10 @@ impl WATCHER {
             .perm();
     }
 
+    // TODO(breaking) rename to `walk_dir`, implement `read_dir` to use the std implementation as it
+    // avoids allocating paths in non-recursive searches.
+    // Or custom WalkDir API that provides the root path?
+
     /// Read a directory into a variable, the `init` value will start the variable and the `read` closure will be called
     /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
