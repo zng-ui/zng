@@ -2439,6 +2439,7 @@ impl<D: VarValue> VarPresentList<D> for Var<ObservableVec<D>> {
         list_presenter(self.clone(), wgt_fn)
     }
 }
+// TODO(breaking) args type with index
 
 /// Extension method fo *convert* a variable to a node list.
 pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarValue> {

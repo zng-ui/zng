@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix `AnyVar::var_eq` comparing contexts for `contextual_var`.
 
 ## 0.25.6
 

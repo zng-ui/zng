@@ -116,11 +116,9 @@ impl fmt::Debug for ContextualVar {
 }
 impl PartialEq for ContextualVar {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0.init, &other.0.init) && {
-            let a = self.0.ctx.read_recursive();
-            let b = other.0.ctx.read_recursive();
-            a.1 == b.1 && a.0.var_eq(&b.0)
-        }
+        // AnyVar::var_eq docs says "Contextual variables are equal if they are the same context variable."
+        // ContextVarImpl is like this too
+        Arc::ptr_eq(&self.0.init, &other.0.init)
     }
 }
 impl ContextualVar {
