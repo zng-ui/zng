@@ -64,6 +64,9 @@ jobs:
       CXX: 'clang-cl'
     steps:
       - uses: actions/checkout@v4
+      - uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 22
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
