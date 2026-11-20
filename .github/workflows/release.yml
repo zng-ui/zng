@@ -81,6 +81,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - uses: ZhongRuoyu/setup-llvm@v0
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        with:
+          llvm-version: 22
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -282,6 +286,10 @@ jobs:
 
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+      - uses: ZhongRuoyu/setup-llvm@v0
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        with:
+          llvm-version: 22
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         with:
@@ -526,6 +534,10 @@ jobs:
           tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - uses: ZhongRuoyu/setup-llvm@v0
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          llvm-version: 22
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
