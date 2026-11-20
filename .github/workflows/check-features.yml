@@ -28,7 +28,7 @@ jobs:
           profile: ["", --release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -51,7 +51,7 @@ jobs:
           profile: ["", --release]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -71,7 +71,7 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ZhongRuoyu/setup-llvm@v0
         with:
           llvm-version: 22
