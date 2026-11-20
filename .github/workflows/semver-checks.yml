@@ -22,7 +22,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-semver-checks
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         timeout-minutes: 5
         run: |

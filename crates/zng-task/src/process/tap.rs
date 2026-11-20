@@ -306,6 +306,20 @@ impl fmt::Display for PanicInfo {
     }
 }
 impl PanicInfo {
+    /// New test info.
+    #[cfg(feature = "test_util")]
+    pub fn new_test(thread: Txt, message: Txt, file: Txt, line: u32, column: u32, widget_path: Txt, backtrace: Txt) -> Self {
+        Self {
+            thread,
+            message,
+            file,
+            line,
+            column,
+            widget_path,
+            backtrace,
+        }
+    }
+
     /// Returns an object that implements [`fmt::Display`] to write only the thread name, location, message and widget path.
     pub fn display_no_backtrace(&self) -> impl fmt::Display {
         struct D<'a>(&'a PanicInfo);
