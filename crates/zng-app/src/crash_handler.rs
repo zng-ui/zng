@@ -20,7 +20,7 @@ use zng_task::{
     process::tap::{self, PanicInfo},
 };
 
-use zng_txt::{ToTxt, Txt};
+use zng_txt::Txt;
 
 /// Environment variable that causes the crash handler to not start if set.
 ///
@@ -332,6 +332,7 @@ impl CrashError {
     /// New test data from panic info.
     #[cfg(feature = "test_util")]
     pub fn new_test_panic(info: PanicInfo) -> Self {
+        use zng_txt::ToTxt;
         Self::new_test(
             SystemTime::now(),
             Some(101),
