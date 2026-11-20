@@ -20,7 +20,7 @@ use zng_task::{
     process::tap::{self, PanicInfo},
 };
 
-use zng_txt::Txt;
+use zng_txt::{ToTxt, Txt};
 
 /// Environment variable that causes the crash handler to not start if set.
 ///
@@ -247,6 +247,12 @@ impl CrashArgs {
         println!("{RESPONSE_PREFIX}exit {code}");
         zng_env::exit(0)
     }
+
+    /// New crash with test data.
+    #[cfg(feature = "test_util")]
+    pub fn new_test(app_crashes: Vec<CrashError>, dialog_crash: Option<CrashError>) -> Self {
+        Self { app_crashes, dialog_crash }
+    }
 }
 impl fmt::Display for CrashArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -309,6 +315,34 @@ impl fmt::Display for CrashError {
     }
 }
 impl CrashError {
+    /// New with custom test data.
+    #[cfg(feature = "test_util")]
+    pub fn new_test(
+        timestamp: SystemTime,
+        code: Option<i32>,
+        signal: Option<i32>,
+        stdout: Txt,
+        stderr: Txt,
+        minidump: Option<PathBuf>,
+        args: Box<[Txt]>,
+    ) -> Self {
+        Self::new(timestamp, code, signal, stdout, stderr, minidump, args)
+    }
+
+    /// New test data from panic info.
+    #[cfg(feature = "test_util")]
+    pub fn new_test_panic(info: PanicInfo) -> Self {
+        Self::new_test(
+            SystemTime::now(),
+            Some(101),
+            None,
+            Txt::default(),
+            info.to_txt(),
+            None,
+            Box::new([]),
+        )
+    }
+
     fn new(
         timestamp: SystemTime,
         code: Option<i32>,
