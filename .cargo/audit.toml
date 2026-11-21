@@ -1,5 +1,17 @@
 [advisories]
 ignore = [
+    # `paste` is unmaintained
+    #
+    # already replaced in project crates, `image` dependency still use it:
+    #
+    # └── pulp 0.22.3
+    #     └── exr 1.74 (Ubuntu only)
+    #         ├── zng-view
+    #            ├── zng-view
+    #
+    # remove this ignore when all dependencies are fixed
+    "RUSTSEC-2024-0436",
+
     # `bincode` is unmaintained
     # 
     # already replaced in project crates
