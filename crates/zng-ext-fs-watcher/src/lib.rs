@@ -29,7 +29,10 @@ use std::{
     io::{self, Write as _},
     ops,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -131,7 +134,11 @@ impl WATCHER {
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
     ///
+    /// The `read` closure coalesces to one read at a time, [`debounce`] controls the overall interval, but events
+    /// while it is still running trigger only a single `read` after the current one.
+    ///
     /// [`task::wait`]: zng_task::wait
+    /// [`debounce`]: Self::debounce
     pub fn read<O: VarValue>(
         &self,
         file: impl Into<PathBuf>,
@@ -156,21 +163,26 @@ impl WATCHER {
         struct Data {
             file: PathBuf,
             read: Mutex<Box<dyn FnMut(io::Result<WatchFile>) -> Option<BoxAnyVarValue> + Send + 'static>>,
+            requested: AtomicBool,
         }
         let data = Arc::new(Data {
             file,
             read: Mutex::new(read),
+            requested: AtomicBool::new(true), // initial request
         });
         fn spawn_read(data: &Arc<Data>, out: AnyVar) {
             zng_task::spawn_wait(clmv!(data, || {
-                if let Some(r) = data.read.lock()(WatchFile::open(&data.file)) {
-                    // did read update, set output
-                    out.modify(clmv!(data, |o| {
-                        if o.set(r) {
-                            // tag to avoid write back when `read_impl` is used in `write_impl`
-                            o.push_tag(WatcherSyncWriteNote(data.file.clone()));
-                        }
-                    }));
+                let mut read = data.read.lock();
+                while data.requested.swap(false, Ordering::Relaxed) {
+                    if let Some(r) = read(WatchFile::open(&data.file)) {
+                        // did read update, set output
+                        out.modify(clmv!(data, |o| {
+                            if o.set(r) {
+                                // tag to avoid write back when `read_impl` is used in `write_impl`
+                                o.push_tag(WatcherSyncWriteNote(data.file.clone()));
+                            }
+                        }));
+                    }
                 }
             }));
         }
@@ -185,7 +197,11 @@ impl WATCHER {
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.file) {
                         // has changes, spawn read
-                        spawn_read(&data, out);
+                        data.requested.store(true, Ordering::Relaxed);
+                        if let Some(_l) = data.read.try_lock() {
+                            // no read is running, spawn
+                            spawn_read(&data, out);
+                        }
                     }
                     true
                 } else {
@@ -241,38 +257,39 @@ impl WATCHER {
         struct Data {
             file: PathBuf,
             read: Mutex<Box<dyn FnMut(io::Result<WatchFile>) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>>,
+            requested: AtomicBool,
             status: AnyVar,
             status_mtds: AnyWatcherReadStatus,
         }
         let data = Arc::new(Data {
             file,
             read: Mutex::new(read),
+            requested: AtomicBool::new(true),
             status,
             status_mtds,
         });
         fn spawn_read(data: &Arc<Data>, out: AnyVar) {
-            data.status.set((data.status_mtds.reading)());
             zng_task::spawn_wait(clmv!(data, || {
-                let mut read = match data.read.try_lock() {
-                    Some(l) => l,
-                    None => return, // another spawn either already has read lock on the file or will acquire it
-                };
-                match read(WatchFile::open(&data.file)) {
-                    Ok(u) => {
-                        if let Some(r) = u {
-                            // did read update, set output
-                            out.modify(clmv!(data, |o| {
-                                if o.set(r) {
-                                    // tag to avoid write back when `read_status_impl` is used in `sync_status_impl`
-                                    o.push_tag(WatcherSyncWriteNote(data.file.clone()));
-                                }
-                            }));
+                let mut read = data.read.lock();
+                while data.requested.swap(false, Ordering::Relaxed) {
+                    data.status.set((data.status_mtds.reading)());
+                    match read(WatchFile::open(&data.file)) {
+                        Ok(u) => {
+                            if let Some(r) = u {
+                                // did read update, set output
+                                out.modify(clmv!(data, |o| {
+                                    if o.set(r) {
+                                        // tag to avoid write back when `read_status_impl` is used in `sync_status_impl`
+                                        o.push_tag(WatcherSyncWriteNote(data.file.clone()));
+                                    }
+                                }));
+                            }
+                            data.status.set((data.status_mtds.idle)());
                         }
-                        data.status.set((data.status_mtds.idle)());
-                    }
-                    Err(e) => {
-                        // read error
-                        data.status.set((data.status_mtds.read_error)(e));
+                        Err(e) => {
+                            // read error
+                            data.status.set((data.status_mtds.read_error)(e));
+                        }
                     }
                 }
             }));
@@ -287,7 +304,10 @@ impl WATCHER {
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.file) {
                         // has changes, spawn read
-                        spawn_read(&data, out);
+                        data.requested.store(true, Ordering::Relaxed);
+                        if let Some(_l) = data.read.try_lock() {
+                            spawn_read(&data, out);
+                        }
                     }
                     true
                 } else {
@@ -312,7 +332,11 @@ impl WATCHER {
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
     ///
+    /// The `read` closure coalesces to one read at a time, [`debounce`] controls the overall interval, but events
+    /// while it is still running trigger only a single `read` after the current one.
+    ///
     /// [`task::wait`]: zng_task::wait
+    /// [`debounce`]: Self::debounce
     pub fn read_dir<O: VarValue>(
         &self,
         dir: impl Into<PathBuf>,
@@ -340,26 +364,31 @@ impl WATCHER {
         struct Data {
             dir: PathBuf,
             read: Mutex<Box<dyn FnMut(walkdir::WalkDir) -> Option<BoxAnyVarValue> + Send + 'static>>,
+            requested: AtomicBool,
         }
         let data = Arc::new(Data {
             dir,
             read: Mutex::new(read),
+            requested: AtomicBool::new(true),
         });
         fn spawn_read(data: &Arc<Data>, recursive: bool, out: AnyVar) {
             zng_task::spawn_wait(clmv!(data, || {
-                let dir = if recursive {
-                    walkdir::WalkDir::new(&data.dir).min_depth(1)
-                } else {
-                    walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
-                };
-                if let Some(r) = data.read.lock()(dir) {
-                    // did read update, set output
-                    out.modify(clmv!(data, |o| {
-                        if o.set(r) {
-                            // tag just for parity with `read`
-                            o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
-                        }
-                    }));
+                let mut read = data.read.lock();
+                while data.requested.swap(false, Ordering::Relaxed) {
+                    let dir = if recursive {
+                        walkdir::WalkDir::new(&data.dir).min_depth(1)
+                    } else {
+                        walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                    };
+                    if let Some(r) = read(dir) {
+                        // did read update, set output
+                        out.modify(clmv!(data, |o| {
+                            if o.set(r) {
+                                // tag just for parity with `read`
+                                o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                            }
+                        }));
+                    }
                 }
             }));
         }
@@ -373,7 +402,10 @@ impl WATCHER {
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.dir) {
                         // has changes, spawn read
-                        spawn_read(&data, recursive, out);
+                        data.requested.store(true, Ordering::Relaxed);
+                        if let Some(_l) = data.read.try_lock() {
+                            spawn_read(&data, recursive, out);
+                        }
                     }
                     true
                 } else {
@@ -433,38 +465,43 @@ impl WATCHER {
         struct Data {
             dir: PathBuf,
             read: Mutex<Box<dyn FnMut(walkdir::WalkDir) -> Result<Option<BoxAnyVarValue>, Box<dyn Any>> + Send + 'static>>,
+            requested: AtomicBool,
             status: AnyVar,
             status_mtds: AnyWatcherReadStatus,
         }
         let data = Arc::new(Data {
             dir,
             read: Mutex::new(read),
+            requested: AtomicBool::new(true),
             status,
             status_mtds,
         });
         fn spawn_read(data: &Arc<Data>, recursive: bool, out: AnyVar) {
-            data.status.set((data.status_mtds.reading)());
             zng_task::spawn_wait(clmv!(data, || {
-                let dir = if recursive {
-                    walkdir::WalkDir::new(&data.dir).min_depth(1)
-                } else {
-                    walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
-                };
-                match data.read.lock()(dir) {
-                    Ok(u) => {
-                        if let Some(r) = u {
-                            // did read update, set output
-                            out.modify(clmv!(data, |o| {
-                                if o.set(r) {
-                                    // tag just for parity with `read_status`
-                                    o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
-                                }
-                            }));
+                let mut read = data.read.lock();
+                while data.requested.swap(false, Ordering::Relaxed) {
+                    data.status.set((data.status_mtds.reading)());
+                    let dir = if recursive {
+                        walkdir::WalkDir::new(&data.dir).min_depth(1)
+                    } else {
+                        walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                    };
+                    match read(dir) {
+                        Ok(u) => {
+                            if let Some(r) = u {
+                                // did read update, set output
+                                out.modify(clmv!(data, |o| {
+                                    if o.set(r) {
+                                        // tag just for parity with `read_status`
+                                        o.push_tag(WatcherSyncWriteNote(data.dir.clone()));
+                                    }
+                                }));
+                            }
+                            data.status.set((data.status_mtds.idle)());
                         }
-                        data.status.set((data.status_mtds.idle)());
-                    }
-                    Err(e) => {
-                        data.status.set((data.status_mtds.read_error)(e));
+                        Err(e) => {
+                            data.status.set((data.status_mtds.read_error)(e));
+                        }
                     }
                 }
             }));
@@ -478,7 +515,10 @@ impl WATCHER {
                 if let Some(out) = out.upgrade() {
                     if has_sync_changes(args, &data.dir) {
                         // has changes, spawn read
-                        spawn_read(&data, recursive, out);
+                        data.requested.store(true, Ordering::Relaxed);
+                        if let Some(_l) = data.read.try_lock() {
+                            spawn_read(&data, recursive, out);
+                        }
                     }
                     true
                 } else {

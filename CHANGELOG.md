@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* `WATCHER.read*` methods now coalesces slow reads.
+    - Fixes `read_dir` overwhelming the UI with updates when a large amount of files changes.
 * Add test constructors for `CrashArgs`, `CrashError` and `PanicInfo`.
 * Fix `AnyVar::var_eq` comparing contexts for `contextual_var`.
 
