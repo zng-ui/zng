@@ -269,26 +269,38 @@ impl WATCHER {
             status_mtds,
         });
         fn spawn_read(data: &Arc<Data>, out: AnyVar) {
+            // set reading immediately, otherwise app threads may still observe
+            // idle while `spawn_wait` starts
+            data.status.set((data.status_mtds.reading)());
+
             zng_task::spawn_wait(clmv!(data, || {
                 let mut read = data.read.lock();
-                while data.requested.swap(false, Ordering::Relaxed) {
-                    data.status.set((data.status_mtds.reading)());
+                let mut req = data.requested.swap(false, Ordering::Relaxed);
+                while req {
                     match read(WatchFile::open(&data.file)) {
                         Ok(u) => {
                             if let Some(r) = u {
                                 // did read update, set output
                                 out.modify(clmv!(data, |o| {
-                                    if o.set(r) {
+                                    if o.set(r.clone()) {
                                         // tag to avoid write back when `read_status_impl` is used in `sync_status_impl`
                                         o.push_tag(WatcherSyncWriteNote(data.file.clone()));
                                     }
                                 }));
                             }
-                            data.status.set((data.status_mtds.idle)());
+                            req = data.requested.swap(false, Ordering::Relaxed);
+                            if !req {
+                                return data.status.set((data.status_mtds.idle)());
+                            }
                         }
                         Err(e) => {
-                            // read error
                             data.status.set((data.status_mtds.read_error)(e));
+                            req = data.requested.swap(false, Ordering::Relaxed);
+                            if req {
+                                // status var will likely update directly to reading, but
+                                // hooks will observe the error
+                                data.status.set((data.status_mtds.reading)());
+                            }
                         }
                     }
                 }
@@ -477,10 +489,11 @@ impl WATCHER {
             status_mtds,
         });
         fn spawn_read(data: &Arc<Data>, recursive: bool, out: AnyVar) {
+            data.status.set((data.status_mtds.reading)());
             zng_task::spawn_wait(clmv!(data, || {
                 let mut read = data.read.lock();
-                while data.requested.swap(false, Ordering::Relaxed) {
-                    data.status.set((data.status_mtds.reading)());
+                let mut req = data.requested.swap(false, Ordering::Relaxed);
+                while req {
                     let dir = if recursive {
                         walkdir::WalkDir::new(&data.dir).min_depth(1)
                     } else {
@@ -497,10 +510,17 @@ impl WATCHER {
                                     }
                                 }));
                             }
-                            data.status.set((data.status_mtds.idle)());
+                            req = data.requested.swap(false, Ordering::Relaxed);
+                            if !req {
+                                data.status.set((data.status_mtds.idle)());
+                            }
                         }
                         Err(e) => {
                             data.status.set((data.status_mtds.read_error)(e));
+                            let req = data.requested.swap(false, Ordering::Relaxed);
+                            if req {
+                                data.status.set((data.status_mtds.reading)());
+                            }
                         }
                     }
                 }
@@ -775,6 +795,7 @@ impl WATCHER {
                 let _tag = WATCHER.annotate(data.note.clone());
 
                 while let Some(value) = data.write_value.lock().take() {
+                    println!("!!: WRITE {value:?}");
                     match (write.f)(value, WriteFile::open(data.note.0.clone())) {
                         Ok(()) => data.status.set((data.status_w_mtds.idle)()),
                         Err(e) => data.status.set((data.status_w_mtds.write_error)(e)),
