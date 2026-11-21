@@ -55,15 +55,6 @@ android_game_activity = ["winit/android-game-activity"]
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
 android_native_activity = ["winit/android-native-activity"]
 
-# Enable AVIF image decoder and encoder.
-#
-# Note that this enables the `dav1d` dependency that is not trivial to build.
-#
-# Removed for now because there is no way to exclude this feature from test runs that use --all-features
-#
-# Also see `docs/avif-setup.md` for a guide on how to depend on zng-view with avif.
-# image_avif = ["image/avif", "image/avif-native"]
-
 # Enable BMP image decoder and encoder.
 image_bmp = ["_image_any", "image/bmp"]
 # Enable DDS image decoder.
@@ -94,6 +85,8 @@ image_tga = ["_image_any", "image/tga"]
 image_tiff = ["_image_any", "image/tiff", "dep:tiff"]
 # Enable WEBP image decoder.
 image_webp = ["_image_any", "image/webp"]
+# Enable AVIF image decoder and encoder.
+image_avif = ["_image_any", "dep:oxideav-avif"]
 
 # Internal feature. If any image format feature is enabled.
 _image_any = ["dep:kamadak-exif", "dep:lcms2"]
@@ -115,6 +108,7 @@ image_all = [
     "image_tga",
     "image_tiff",
     "image_webp",
+    "image_avif",
 ]
 
 # Enable EXIF metadata copy in images.
@@ -203,6 +197,8 @@ lcms2 = { version = "6.1.1", default-features = false, features = ["static"], op
 # matches `image` dependency version
 png = { version = "0.18.0", default-features = false, optional = true }
 tiff = { version = "0.11.3", default-features = false, optional = true, features = ["lzw"] }
+
+oxideav-avif = { version = "0.0.18", default-features = false, features = ["registry"], optional = true }
 
 rodio = { version = "0.22", default-features = false, features = ["playback", "tracing"], optional = true }
 # matches `rodio` dependency version
@@ -304,12 +300,6 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.11.0", default-fea
     "build",
 ] }
 cfg_aliases = { version = "0.2", default-features = false }
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("image_avif"))',
-    'cfg(zng_view_image_has_avif)',
-] }
 
 [package.metadata.docs.rs]
 all-features = true

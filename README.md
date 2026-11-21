@@ -143,14 +143,6 @@ See [Android Setup] for more help on how to setup the crate and build script.
 [cargo-ndk]: https://crates.io/crates/cargo-ndk
 [Android Setup]: docs/android-setup.md
 
-##### For Avif Support:
-
-Avif image format support is tricky to build, if you need AVIF and are building with `"view"` feature see [Avif Setup].
-
-Avif support is already included in the prebuilt view-process.
-
-[Avif Setup]: docs/avif-setup.md
-
 ## Examples
 
 Clone this repository and call `cargo do run <example>` to run an example. The `release` branch is recommended for running examples.
