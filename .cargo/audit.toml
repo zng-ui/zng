@@ -1,19 +1,5 @@
 [advisories]
 ignore = [
-    # `paste` is unmaintained
-    #
-    # already replaced in project crates, `image` dependency still use it:
-    #
-    # ├── rav1e 0.8.1 - already fixed but not released
-    # └── ravif 0.13.0 - already updated
-    #     └── image 0.25.5 - pending
-    #         ├── zng-view 0.8.0
-    #         └── arboard 3.4.1
-    #             └── zng-view 0.8.0
-    #
-    # remove this ignore when all dependencies are fixed
-    "RUSTSEC-2024-0436",
-
     # `bincode` is unmaintained
     # 
     # already replaced in project crates

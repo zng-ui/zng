@@ -466,6 +466,8 @@ image_tga = ["zng-view?/image_tga"]
 image_tiff = ["zng-view?/image_tiff"]
 # Enable WEBP image format with "view" feature.
 image_webp = ["zng-view?/image_webp"]
+# Enable AVIF image decoder and encoder.
+image_avif = ["zng-view?/image_avif"]
 
 # Enable all image fomats with "view" feature.
 image_all = ["zng-view?/image_all"]

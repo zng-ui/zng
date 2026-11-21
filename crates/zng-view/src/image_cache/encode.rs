@@ -527,6 +527,18 @@ impl Image {
                 )?;
                 Ok(())
             }
+            #[cfg(feature = "image_avif")]
+            image::ImageFormat::Avif => {
+                let width = size.width.0 as u32;
+                let height = size.height.0 as u32;
+                if self.0.is_opaque() {
+                    oxideav_avif::api_codec::encode_rgb8(width, height, &buf, &oxideav_avif::EncodeOptions::default())
+                } else {
+                    oxideav_avif::api_codec::encode_rgba8(width, height, &buf, &oxideav_avif::EncodeOptions::default())
+                }
+                .map_err(|e| image::ImageError::Encoding(image::error::EncodingError::new(image::ImageFormat::Avif.into(), e)))?;
+                Ok(())
+            }
             f => {
                 let _ = density;
                 let _ = buffer;

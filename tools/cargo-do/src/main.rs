@@ -31,7 +31,6 @@ fn main() {
         "publish" => publish(args),
         "semver_check" => semver_check(args),
         "publish_version_tag" => publish_version_tag(args),
-        "comment_feature" => comment_feature(args),
         "latest_release_changes" => latest_release_changes(args),
         "mono-stats" => mono_stats(args),
         "just" => just(args),
@@ -1809,53 +1808,6 @@ fn publish_version_tag(mut args: Vec<&str>) {
         cmd_req("git", &["push", "origin", &tag], &[]);
     }
     print(f!("tag={tag}\n"));
-}
-
-// used by `workflows/release.yml`
-fn comment_feature(mut args: Vec<&str>) {
-    use std::fmt::*;
-
-    let uncomment = take_flag(&mut args, &["-u", "--uncomment"]);
-    let cargo = args[0];
-    let feature = args[1];
-    let feature_co = format!("# {feature}");
-
-    let (find, replace) = if uncomment {
-        (feature_co.as_str(), feature)
-    } else {
-        (feature, feature_co.as_str())
-    };
-
-    match std::fs::read_to_string(cargo) {
-        Ok(file) => {
-            let mut out = String::new();
-            let mut in_features = false;
-            let mut replaced = false;
-
-            for line in file.lines() {
-                if line == "[features]" {
-                    in_features = true;
-                } else if line.starts_with('[') && line.ends_with(']') {
-                    in_features = false;
-                } else if in_features && line.starts_with(find) {
-                    writeln!(&mut out, "{replace}{}", &line[find.len()..]).unwrap();
-                    replaced = true;
-                    continue;
-                }
-
-                writeln!(&mut out, "{line}").unwrap();
-            }
-
-            if !replaced {
-                fatal(f!("did not find `{find}` in `{cargo}`\n"));
-            }
-
-            std::fs::write(cargo, out.as_bytes()).unwrap();
-        }
-        Err(e) => {
-            error(e);
-        }
-    }
 }
 
 // used by `workflows/release.yml`

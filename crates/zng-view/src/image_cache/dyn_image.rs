@@ -105,6 +105,8 @@ impl IpcDynamicImage {
                 ImageFormat::Ico => return Self::decode_ico(buf, entry),
                 #[cfg(feature = "image_tiff")]
                 ImageFormat::Tiff => return Self::decode_tiff(buf, entry),
+                #[cfg(feature = "image_avif")]
+                ImageFormat::Avif => return Self::decode_avif(buf, entry),
                 f => f,
             },
             #[cfg(feature = "image_cur")]
@@ -154,6 +156,19 @@ impl IpcDynamicImage {
         tiff.read_image_bytes(&mut buf[..]).map_err(tiff_error)?;
 
         Self::from_decoded(buf, color_type, w, h)
+    }
+
+    #[cfg(feature = "image_avif")]
+    fn decode_avif(buf: &mut IpcReadBlocking, _entry: usize) -> image::ImageResult<Self> {
+        let buf = buf.read_to_bytes()?;
+        let avif = oxideav_avif::api_codec::decode(&buf)
+            .map_err(|e| image::ImageError::Decoding(image::error::DecodingError::new(image::ImageFormat::Avif.into(), e)))?;
+        let (data, ct) = if avif.has_alpha() {
+            (avif.to_rgba8(), image::ColorType::Rgba8)
+        } else {
+            (avif.to_rgb8(), image::ColorType::Rgb8)
+        };
+        Self::from_decoded(IpcBytesMut::from_vec_blocking(data)?, ct, avif.width, avif.height)
     }
 
     fn from_decoded(buf: IpcBytesMut, color_type: image::ColorType, w: u32, h: u32) -> image::ImageResult<Self> {

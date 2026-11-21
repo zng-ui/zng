@@ -234,6 +234,8 @@ impl ImageCache {
             ContainerFormat::Cur => return Self::decode_metadata_ico(data, entry),
             #[cfg(feature = "image_tiff")]
             ContainerFormat::Image(image::ImageFormat::Tiff) => return Self::decode_metadata_tiff(data, entry),
+            #[cfg(feature = "image_avif")]
+            ContainerFormat::Image(image::ImageFormat::Avif) => return Self::decode_metadata_avif(data, entry),
             _ => {
                 debug_assert_eq!(entry, 0);
                 let _ = entry;
@@ -397,6 +399,79 @@ impl ImageCache {
             #[cfg(feature = "image_cur")]
             cur_hotspot: None,
             format_name: Txt::from_static("TIFF"),
+        })
+    }
+
+    #[cfg(feature = "image_tiff")]
+    fn decode_metadata_avif(data: &mut IpcReadBlocking, _entry: usize) -> Result<ImageHeader, Txt> {
+        use image::ExtendedColorType;
+        use oxideav_avif::AvifPixelFormat;
+        use std::io;
+
+        let full_data = data.read_to_bytes().map_err(|e| e.to_txt())?;
+        let avif = oxideav_avif::info(&full_data).map_err(|e| e.to_txt())?;
+        let inspect = oxideav_avif::inspect(&full_data);
+
+        let exif = if avif.has_exif
+            && let Ok(info) = &inspect
+            && let Some(id) = info.exif_item_id
+        {
+            oxideav_avif::inspect::item_payload_bytes(&full_data, id).ok()
+        } else {
+            None
+        };
+        let mut orientation = image::metadata::Orientation::NoTransforms;
+        let mut density = None;
+        if let Some(exif) = exif.clone() {
+            Self::decode_exif_metadata(exif, &mut orientation, &mut density);
+        }
+
+        let icc_profile = if avif.has_icc
+            && let Ok(info) = inspect
+            && let Some(c) = info.colour
+            && let oxideav_avif::Colr::Icc(icc) = c
+        {
+            Self::parse_icc(icc)
+        } else {
+            None
+        };
+        *data = IpcReadBlocking::Bytes(io::Cursor::new(full_data));
+        Ok(ImageHeader {
+            size: PxSize::new(Px(avif.width as _), Px(avif.height as _)),
+            orientation: image::metadata::Orientation::NoTransforms,
+            density: None,
+            icc_profile,
+            og_color_type: match &avif.format {
+                AvifPixelFormat::Gray8 => ExtendedColorType::L8,
+                AvifPixelFormat::Ya8 => ExtendedColorType::La8,
+
+                AvifPixelFormat::Yuv420P | AvifPixelFormat::Yuv422P | AvifPixelFormat::Yuv444P => ExtendedColorType::Rgb8,
+
+                AvifPixelFormat::Yuva420P | AvifPixelFormat::Yuva422P | AvifPixelFormat::Yuva444P => ExtendedColorType::Rgba8,
+
+                AvifPixelFormat::Gray10Le | AvifPixelFormat::Gray12Le => ExtendedColorType::L16,
+                AvifPixelFormat::Ya16Le => ExtendedColorType::La16,
+
+                AvifPixelFormat::Yuv420P10Le
+                | AvifPixelFormat::Yuv422P10Le
+                | AvifPixelFormat::Yuv444P10Le
+                | AvifPixelFormat::Yuv420P12Le
+                | AvifPixelFormat::Yuv422P12Le
+                | AvifPixelFormat::Yuv444P12Le => ExtendedColorType::Rgb16,
+
+                AvifPixelFormat::Yuva420P10Le
+                | AvifPixelFormat::Yuva422P10Le
+                | AvifPixelFormat::Yuva444P10Le
+                | AvifPixelFormat::Yuva420P12Le
+                | AvifPixelFormat::Yuva422P12Le
+                | AvifPixelFormat::Yuva444P12Le => ExtendedColorType::Rgba16,
+                _ => ExtendedColorType::Unknown(avif.bit_depth),
+            },
+            #[cfg(feature = "image_meta_exif")]
+            exif,
+            #[cfg(feature = "image_cur")]
+            cur_hotspot: None,
+            format_name: Txt::from_static("AVIF"),
         })
     }
 
