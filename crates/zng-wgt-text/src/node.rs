@@ -4,7 +4,7 @@ use std::{fmt, num::Wrapping, ops, sync::Arc};
 
 use super::text_properties::*;
 use atomic::{Atomic, Ordering};
-use parking_lot::RwLock;
+use parking_lot::RecursiveRwLock;
 use zng_app::render::FontSynthesis;
 use zng_app_context::{MappedRwLockWriteGuardOwned, RwLockReadGuardOwned, RwLockWriteGuardOwned};
 use zng_ext_font::{CaretIndex, FontFaceList, FontList, SegmentedText, ShapedLine, ShapedText, TextOverflowInfo};
@@ -201,11 +201,7 @@ pub struct TEXT;
 impl TEXT {
     /// Read lock the current rich text context if any parent widget defines it.
     pub fn try_rich(&self) -> Option<RwLockReadGuardOwned<RichText>> {
-        if RICH_TEXT.is_default() {
-            None
-        } else {
-            Some(RICH_TEXT.read_recursive())
-        }
+        if RICH_TEXT.is_default() { None } else { Some(RICH_TEXT.read()) }
     }
 
     /// Read lock the current contextual resolved text if called in a node inside [`resolve_text`].
@@ -215,7 +211,7 @@ impl TEXT {
         if RESOLVED_TEXT.is_default() {
             None
         } else {
-            Some(RESOLVED_TEXT.read_recursive())
+            Some(RESOLVED_TEXT.read())
         }
     }
 
@@ -227,7 +223,7 @@ impl TEXT {
     ///
     /// [`rich_text`]: fn@crate::rich_text
     pub fn rich(&self) -> RwLockReadGuardOwned<RichText> {
-        RICH_TEXT.read_recursive()
+        RICH_TEXT.read()
     }
 
     /// Read lock the current contextual resolved text.
@@ -236,7 +232,7 @@ impl TEXT {
     ///
     /// Panics if requested in a node outside [`resolve_text`].
     pub fn resolved(&self) -> RwLockReadGuardOwned<ResolvedText> {
-        RESOLVED_TEXT.read_recursive()
+        RESOLVED_TEXT.read()
     }
 
     /// Read lock the current contextual laidout text if called in a node inside [`layout_text`].
@@ -246,7 +242,7 @@ impl TEXT {
         if LAIDOUT_TEXT.is_default() {
             None
         } else {
-            Some(LAIDOUT_TEXT.read_recursive())
+            Some(LAIDOUT_TEXT.read())
         }
     }
 
@@ -256,7 +252,7 @@ impl TEXT {
     ///
     /// Panics if not available in context. Is only available inside [`layout_text`] after the first layout.
     pub fn laidout(&self) -> RwLockReadGuardOwned<LaidoutText> {
-        LAIDOUT_TEXT.read_recursive()
+        LAIDOUT_TEXT.read()
     }
 
     /// Write lock the current contextual resolved text to edit the caret.
@@ -524,11 +520,11 @@ impl RichText {
 
 context_local! {
     /// Represents the contextual [`RichText`] setup by the [`rich_text`] property.
-    static RICH_TEXT: RwLock<RichText> = RwLock::new(RichText::no_context());
+    static RICH_TEXT: RecursiveRwLock<RichText> = RecursiveRwLock::new(RichText::no_context());
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
-    static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
+    static RESOLVED_TEXT: RecursiveRwLock<ResolvedText> = RecursiveRwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
-    static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
+    static LAIDOUT_TEXT: RecursiveRwLock<LaidoutText> = RecursiveRwLock::new(LaidoutText::no_context());
 }
 
 bitflags! {

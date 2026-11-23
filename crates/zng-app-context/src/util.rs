@@ -1,32 +1,23 @@
 use std::{mem, ops, sync::Arc};
 
-use parking_lot::RwLock;
+use parking_lot::RecursiveRwLock;
 
-/// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+/// Represents a read guard for an `Arc<RecursiveRwLock<T>>` that owns a reference to it.
 pub struct RwLockReadGuardOwned<T: 'static> {
-    lock: parking_lot::RwLockReadGuard<'static, T>,
-    _owned: Arc<RwLock<T>>,
+    lock: parking_lot::RecursiveRwLockReadGuard<'static, T>,
+    _owned: Arc<RecursiveRwLock<T>>,
 }
 impl<T> RwLockReadGuardOwned<T> {
-    /// Lock owned.    
+    /// Locks this `RecursiveRwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See `parking_lot::RwLock::read` for more details.
-    pub fn lock(own: Arc<RwLock<T>>) -> Self {
-        Self {
-            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(own.read()) },
-            _owned: own,
-        }
-    }
-
-    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
-    ///
-    /// See `parking_lot::RwLock::read_recursive` for more details.
-    pub fn lock_recursive(own: Arc<RwLock<T>>) -> Self {
+    /// See `parking_lot::RecursiveRwLock::read_recursive` for more details.
+    pub fn lock(own: Arc<RecursiveRwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
             lock: unsafe {
-                mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(own.read_recursive())
+                mem::transmute::<parking_lot::RecursiveRwLockReadGuard<'_, T>, parking_lot::RecursiveRwLockReadGuard<'static, T>>(
+                    own.read(),
+                )
             },
             _owned: own,
         }
@@ -34,24 +25,14 @@ impl<T> RwLockReadGuardOwned<T> {
 
     /// Try lock owned.
     ///
-    /// See `parking_lot::RwLock::try_read` for more details.
-    pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
+    /// See `parking_lot::RecursiveRwLock::try_read` for more details.
+    pub fn try_lock(own: Arc<RecursiveRwLock<T>>) -> Option<Self> {
         let lock = own.try_read()?;
         Some(Self {
             // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(lock) },
-            _owned: own,
-        })
-    }
-
-    /// Try lock owned.
-    ///
-    /// See `parking_lot::RwLock::try_read` for more details.
-    pub fn try_lock_recursive(own: Arc<RwLock<T>>) -> Option<Self> {
-        let lock = own.try_read_recursive()?;
-        Some(Self {
-            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(lock) },
+            lock: unsafe {
+                mem::transmute::<parking_lot::RecursiveRwLockReadGuard<'_, T>, parking_lot::RecursiveRwLockReadGuard<'static, T>>(lock)
+            },
             _owned: own,
         })
     }
@@ -63,7 +44,7 @@ impl<T> RwLockReadGuardOwned<T> {
     /// the same name on the contents of the locked data.
     pub fn map<O>(guard: Self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuardOwned<T, O> {
         MappedRwLockReadGuardOwned {
-            lock: parking_lot::RwLockReadGuard::map(guard.lock, map),
+            lock: parking_lot::RecursiveRwLockReadGuard::map(guard.lock, map),
             _owned: guard._owned,
         }
     }
@@ -78,8 +59,8 @@ impl<T> ops::Deref for RwLockReadGuardOwned<T> {
 
 /// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it, mapped from another read guard.
 pub struct MappedRwLockReadGuardOwned<T: 'static, O: 'static> {
-    lock: parking_lot::MappedRwLockReadGuard<'static, O>,
-    _owned: Arc<RwLock<T>>,
+    lock: parking_lot::MappedRecursiveRwLockReadGuard<'static, O>,
+    _owned: Arc<RecursiveRwLock<T>>,
 }
 impl<T, O> MappedRwLockReadGuardOwned<T, O> {
     /// Make a new `MappedRwLockReadGuardOwned` for a component of the locked data.
@@ -89,7 +70,7 @@ impl<T, O> MappedRwLockReadGuardOwned<T, O> {
     /// the same name on the contents of the locked data.
     pub fn map<O2>(guard: Self, map: impl FnOnce(&O) -> &O2) -> MappedRwLockReadGuardOwned<T, O2> {
         MappedRwLockReadGuardOwned {
-            lock: parking_lot::MappedRwLockReadGuard::map(guard.lock, map),
+            lock: parking_lot::MappedRecursiveRwLockReadGuard::map(guard.lock, map),
             _owned: guard._owned,
         }
     }
@@ -102,19 +83,23 @@ impl<T, O> ops::Deref for MappedRwLockReadGuardOwned<T, O> {
     }
 }
 
-/// Represents a read guard for an `Arc<RwLock<T>>` that owns a reference to it.
+/// Represents a read guard for an `Arc<RecursiveRwLock<T>>` that owns a reference to it.
 pub struct RwLockWriteGuardOwned<T: 'static> {
-    lock: parking_lot::RwLockWriteGuard<'static, T>,
-    _owned: Arc<RwLock<T>>,
+    lock: parking_lot::RecursiveRwLockWriteGuard<'static, T>,
+    _owned: Arc<RecursiveRwLock<T>>,
 }
 impl<T> RwLockWriteGuardOwned<T> {
     /// Lock owned.
     ///
     /// See `parking_lot::RwLock::write` for more details.
-    pub fn lock(own: Arc<RwLock<T>>) -> Self {
+    pub fn lock(own: Arc<RecursiveRwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute::<parking_lot::RwLockWriteGuard<'_, T>, parking_lot::RwLockWriteGuard<'static, T>>(own.write()) },
+            lock: unsafe {
+                mem::transmute::<parking_lot::RecursiveRwLockWriteGuard<'_, T>, parking_lot::RecursiveRwLockWriteGuard<'static, T>>(
+                    own.write(),
+                )
+            },
             _owned: own,
         }
     }
@@ -122,11 +107,13 @@ impl<T> RwLockWriteGuardOwned<T> {
     /// Lock owned.
     ///
     /// See `parking_lot::RwLock::try_write` for more details.
-    pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
+    pub fn try_lock(own: Arc<RecursiveRwLock<T>>) -> Option<Self> {
         let lock = own.try_write()?;
         Some(Self {
             // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute::<parking_lot::RwLockWriteGuard<'_, T>, parking_lot::RwLockWriteGuard<'static, T>>(lock) },
+            lock: unsafe {
+                mem::transmute::<parking_lot::RecursiveRwLockWriteGuard<'_, T>, parking_lot::RecursiveRwLockWriteGuard<'static, T>>(lock)
+            },
             _owned: own,
         })
     }
@@ -138,7 +125,7 @@ impl<T> RwLockWriteGuardOwned<T> {
     /// the same name on the contents of the locked data.
     pub fn map<O>(guard: Self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuardOwned<T, O> {
         MappedRwLockWriteGuardOwned {
-            lock: parking_lot::RwLockWriteGuard::map(guard.lock, map),
+            lock: parking_lot::RecursiveRwLockWriteGuard::map(guard.lock, map),
             _owned: guard._owned,
         }
     }
@@ -156,10 +143,10 @@ impl<T> ops::DerefMut for RwLockWriteGuardOwned<T> {
     }
 }
 
-/// Represents a write guard for an `Arc<RwLock<T>>` that owns a reference to it, mapped from another read guard.
+/// Represents a write guard for an `Arc<RecursiveRwLock<T>>` that owns a reference to it, mapped from another read guard.
 pub struct MappedRwLockWriteGuardOwned<T: 'static, O: 'static> {
-    lock: parking_lot::MappedRwLockWriteGuard<'static, O>,
-    _owned: Arc<RwLock<T>>,
+    lock: parking_lot::MappedRecursiveRwLockWriteGuard<'static, O>,
+    _owned: Arc<RecursiveRwLock<T>>,
 }
 impl<T, O> MappedRwLockWriteGuardOwned<T, O> {
     /// Make a new `MappedRwLockWriteGuardOwned` for a component of the locked data.
@@ -169,7 +156,7 @@ impl<T, O> MappedRwLockWriteGuardOwned<T, O> {
     /// the same name on the contents of the locked data.
     pub fn map<O2>(guard: Self, map: impl FnOnce(&mut O) -> &mut O2) -> MappedRwLockWriteGuardOwned<T, O2> {
         MappedRwLockWriteGuardOwned {
-            lock: parking_lot::MappedRwLockWriteGuard::map(guard.lock, map),
+            lock: parking_lot::MappedRecursiveRwLockWriteGuard::map(guard.lock, map),
             _owned: guard._owned,
         }
     }
@@ -187,8 +174,8 @@ impl<T, O> ops::DerefMut for MappedRwLockWriteGuardOwned<T, O> {
     }
 }
 
-/// Read-only wrapper on an `Arc<RwLock<T>>` contextual value.
-pub struct ReadOnlyRwLock<T>(Arc<RwLock<T>>);
+/// Read-only wrapper on an `Arc<RecursiveRwLock<T>>` contextual value.
+pub struct ReadOnlyRwLock<T>(Arc<RecursiveRwLock<T>>);
 impl<T> Clone for ReadOnlyRwLock<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -196,15 +183,8 @@ impl<T> Clone for ReadOnlyRwLock<T> {
 }
 impl<T> ReadOnlyRwLock<T> {
     /// New.
-    pub fn new(l: Arc<RwLock<T>>) -> Self {
+    pub fn new(l: Arc<RecursiveRwLock<T>>) -> Self {
         Self(l)
-    }
-
-    /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
-    ///
-    /// See `parking_lot::RwLock::read` for more details.
-    pub fn read(&self) -> parking_lot::RwLockReadGuard<'_, T> {
-        self.0.read()
     }
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
@@ -212,23 +192,16 @@ impl<T> ReadOnlyRwLock<T> {
     /// Unlike `read`, this method is guaranteed to succeed without blocking if
     /// another read lock is held at the time of the call.
     ///
-    /// See `parking_lot::RwLock::read_recursive` for more details.
-    pub fn read_recursive(&self) -> parking_lot::RwLockReadGuard<'_, T> {
-        self.0.read_recursive()
+    /// See `parking_lot::RecursiveRwLock::read` for more details.
+    pub fn read(&self) -> parking_lot::RecursiveRwLockReadGuard<'_, T> {
+        self.0.read()
     }
 
     /// Attempts to acquire this `RwLock` with shared read access.
     ///
-    /// See `parking_lot::RwLock::try_read` for more details.
-    pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<'_, T>> {
+    /// See `parking_lot::RecursiveRwLock::try_read` for more details.
+    pub fn try_read(&self) -> Option<parking_lot::RecursiveRwLockReadGuard<'_, T>> {
         self.0.try_read()
-    }
-
-    /// Attempts to acquire this `RwLock` with shared read access.
-    ///
-    /// See `parking_lot::RwLock::try_read_recursive` for more details.
-    pub fn try_read_recursive(&self) -> Option<parking_lot::RwLockReadGuard<'_, T>> {
-        self.0.try_read_recursive()
     }
 
     /// Gets if the read-only shared reference is to the same lock as `other`.

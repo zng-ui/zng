@@ -60,7 +60,7 @@ zng-color = { path = "../zng-color", version = "0.16.5", default-features = fals
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 tracing = { version = "0.1", default-features = false }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 open = { version = "5.1", default-features = false, features = ["shellexecute-on-windows"], optional = true }

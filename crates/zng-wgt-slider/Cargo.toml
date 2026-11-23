@@ -22,5 +22,5 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.15.6", def
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.15.6", default-features = false }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.15.6", default-features = false }
 
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false }

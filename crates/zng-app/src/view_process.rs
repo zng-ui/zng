@@ -15,10 +15,10 @@ use crate::{
     window::{MonitorId, WindowId},
 };
 
+use parking_lot::{MappedRecursiveRwLockReadGuard, MappedRecursiveRwLockWriteGuard};
 use zng_app_context::app_local;
 use zng_layout::unit::{DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Frequency, Px, PxPoint, PxRect};
 use zng_task::channel::{self, ChannelError, IpcBytes, IpcReadHandle, IpcReceiver, Receiver};
-use zng_task::parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{ArcEq, ResponderVar, Var, VarHandle, WeakEq};
@@ -86,20 +86,20 @@ impl VIEW_PROCESS {
         APP.is_running() && VIEW_PROCESS_SV.read().is_some()
     }
 
-    fn read(&self) -> MappedRwLockReadGuard<'_, ViewProcessService> {
+    fn read(&self) -> MappedRecursiveRwLockReadGuard<'_, ViewProcessService> {
         VIEW_PROCESS_SV.read_map(|e| e.as_ref().expect("VIEW_PROCESS not available"))
     }
 
-    fn write(&self) -> MappedRwLockWriteGuard<'_, ViewProcessService> {
+    fn write(&self) -> MappedRecursiveRwLockWriteGuard<'_, ViewProcessService> {
         VIEW_PROCESS_SV.write_map(|e| e.as_mut().expect("VIEW_PROCESS not available"))
     }
 
-    fn try_write(&self) -> Result<MappedRwLockWriteGuard<'_, ViewProcessService>> {
+    fn try_write(&self) -> Result<MappedRecursiveRwLockWriteGuard<'_, ViewProcessService>> {
         let vp = VIEW_PROCESS_SV.write();
         if let Some(w) = &*vp
             && w.process.is_connected()
         {
-            return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
+            return Ok(MappedRecursiveRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
         }
         Err(ChannelError::disconnected())
     }
@@ -111,7 +111,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    fn handle_write(&self, id: AppId) -> MappedRwLockWriteGuard<'_, ViewProcessService> {
+    fn handle_write(&self, id: AppId) -> MappedRecursiveRwLockWriteGuard<'_, ViewProcessService> {
         self.check_app(id);
         self.write()
     }
@@ -134,7 +134,7 @@ impl VIEW_PROCESS {
     /// Read lock view-process and reference current generation info.
     ///
     /// Strongly recommend to clone/copy the info required, as the lock prevents info update on respawn.
-    pub fn info(&self) -> MappedRwLockReadGuard<'static, ViewProcessInfo> {
+    pub fn info(&self) -> MappedRecursiveRwLockReadGuard<'static, ViewProcessInfo> {
         VIEW_PROCESS_INFO.read()
     }
 

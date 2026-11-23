@@ -1,4 +1,6 @@
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{
+    MappedRecursiveRwLockReadGuard, MappedRecursiveRwLockWriteGuard, RecursiveRwLock, RecursiveRwLockReadGuard, RecursiveRwLockWriteGuard,
+};
 
 #[cfg(feature = "multi_app")]
 use crate::{AppId, LocalContext};
@@ -7,29 +9,31 @@ use std::fmt;
 
 #[doc(hidden)]
 pub struct AppLocalConst<T: Send + Sync + 'static> {
-    value: RwLock<T>,
+    value: RecursiveRwLock<T>,
 }
 impl<T: Send + Sync + 'static> AppLocalConst<T> {
     pub const fn new(init: T) -> Self {
-        Self { value: RwLock::new(init) }
+        Self {
+            value: RecursiveRwLock::new(init),
+        }
     }
 }
 #[doc(hidden)]
 pub struct AppLocalOption<T: Send + Sync + 'static> {
-    value: RwLock<Option<T>>,
+    value: RecursiveRwLock<Option<T>>,
     init: fn() -> T,
 }
 impl<T: Send + Sync + 'static> AppLocalOption<T> {
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            value: RwLock::new(None),
+            value: RecursiveRwLock::new(None),
             init,
         }
     }
 
-    fn read_impl(&'static self, read: RwLockReadGuard<'static, Option<T>>) -> MappedRwLockReadGuard<'static, T> {
+    fn read_impl(&'static self, read: RecursiveRwLockReadGuard<'static, Option<T>>) -> MappedRecursiveRwLockReadGuard<'static, T> {
         if read.is_some() {
-            return RwLockReadGuard::map(read, |v| v.as_ref().unwrap());
+            return RecursiveRwLockReadGuard::map(read, |v| v.as_ref().unwrap());
         }
         drop(read);
 
@@ -42,20 +46,20 @@ impl<T: Send + Sync + 'static> AppLocalOption<T> {
         let value = (self.init)();
         *write = Some(value);
 
-        let read = RwLockWriteGuard::downgrade(write);
+        let read = RecursiveRwLockWriteGuard::downgrade(write);
 
-        RwLockReadGuard::map(read, |v| v.as_ref().unwrap())
+        RecursiveRwLockReadGuard::map(read, |v| v.as_ref().unwrap())
     }
 
-    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Option<T>>) -> MappedRwLockWriteGuard<'static, T> {
+    fn write_impl(&'static self, mut write: RecursiveRwLockWriteGuard<'static, Option<T>>) -> MappedRecursiveRwLockWriteGuard<'static, T> {
         if write.is_some() {
-            return RwLockWriteGuard::map(write, |v| v.as_mut().unwrap());
+            return RecursiveRwLockWriteGuard::map(write, |v| v.as_mut().unwrap());
         }
 
         let value = (self.init)();
         *write = Some(value);
 
-        RwLockWriteGuard::map(write, |v| v.as_mut().unwrap())
+        RecursiveRwLockWriteGuard::map(write, |v| v.as_mut().unwrap())
     }
 }
 
@@ -64,7 +68,7 @@ pub struct AppLocalVec<T: Send + Sync + 'static> {
     // we don't use a single RwLock here to avoid lock inversion deadlock between apps,
     // but data still needs to drop on app deinit so we use an Option.
     #[cfg(feature = "multi_app")]
-    value: boxcar::Vec<(AppId, RwLock<Option<T>>)>,
+    value: boxcar::Vec<(AppId, RecursiveRwLock<Option<T>>)>,
     #[cfg(feature = "multi_app")]
     init: fn() -> T,
     #[cfg(not(feature = "multi_app"))]
@@ -107,14 +111,14 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         }
     }
 
-    fn app_lock(&'static self) -> &'static RwLock<Option<T>> {
+    fn app_lock(&'static self) -> &'static RecursiveRwLock<Option<T>> {
         let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
         for (_, (app, lock)) in self.value.iter() {
             if *app == id {
                 return lock;
             }
         }
-        self.value.push((id, RwLock::new(None)));
+        self.value.push((id, RecursiveRwLock::new(None)));
         // ensure we always ref the first entry, in case of a race condition inserting multiple
         for (_, (app, lock)) in self.value.iter() {
             if *app == id {
@@ -126,20 +130,20 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
 }
 #[doc(hidden)]
 pub trait AppLocalImpl<T: Send + Sync + 'static>: Send + Sync + 'static {
-    fn read(&'static self) -> MappedRwLockReadGuard<'static, T>;
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>>;
-    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T>;
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>>;
+    fn read(&'static self) -> MappedRecursiveRwLockReadGuard<'static, T>;
+    fn try_read(&'static self) -> Option<MappedRecursiveRwLockReadGuard<'static, T>>;
+    fn write(&'static self) -> MappedRecursiveRwLockWriteGuard<'static, T>;
+    fn try_write(&'static self) -> Option<MappedRecursiveRwLockWriteGuard<'static, T>>;
 }
 
 #[cfg(feature = "multi_app")]
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
+    fn read(&'static self) -> MappedRecursiveRwLockReadGuard<'static, T> {
         let lock = self.app_lock();
         let mut read = lock.read();
         loop {
             if read.is_some() {
-                return RwLockReadGuard::map(read, |o| o.as_ref().unwrap());
+                return RecursiveRwLockReadGuard::map(read, |o| o.as_ref().unwrap());
             }
             drop(read);
             let mut write = lock.write();
@@ -152,12 +156,12 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
         }
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
+    fn try_read(&'static self) -> Option<MappedRecursiveRwLockReadGuard<'static, T>> {
         let lock = self.app_lock();
         let mut read = lock.try_read()?;
         loop {
             if read.is_some() {
-                return Some(RwLockReadGuard::map(read, |o| o.as_ref().unwrap()));
+                return Some(RecursiveRwLockReadGuard::map(read, |o| o.as_ref().unwrap()));
             }
             drop(read);
             let mut write = lock.try_write()?;
@@ -170,58 +174,58 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
         }
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
+    fn write(&'static self) -> MappedRecursiveRwLockWriteGuard<'static, T> {
         let lock = self.app_lock();
         let mut write = lock.write();
         if write.is_none() {
             *write = Some((self.init)());
             LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
         }
-        RwLockWriteGuard::map(write, |o| o.as_mut().unwrap())
+        RecursiveRwLockWriteGuard::map(write, |o| o.as_mut().unwrap())
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
+    fn try_write(&'static self) -> Option<MappedRecursiveRwLockWriteGuard<'static, T>> {
         let lock = self.app_lock();
         let mut write = lock.try_write()?;
         if write.is_none() {
             *write = Some((self.init)());
             LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
         }
-        Some(RwLockWriteGuard::map(write, |o| o.as_mut().unwrap()))
+        Some(RecursiveRwLockWriteGuard::map(write, |o| o.as_mut().unwrap()))
     }
 }
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalOption<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
-        self.read_impl(self.value.read_recursive())
+    fn read(&'static self) -> MappedRecursiveRwLockReadGuard<'static, T> {
+        self.read_impl(self.value.read())
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
-        Some(self.read_impl(self.value.try_read_recursive()?))
+    fn try_read(&'static self) -> Option<MappedRecursiveRwLockReadGuard<'static, T>> {
+        Some(self.read_impl(self.value.try_read()?))
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
+    fn write(&'static self) -> MappedRecursiveRwLockWriteGuard<'static, T> {
         self.write_impl(self.value.write())
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
+    fn try_write(&'static self) -> Option<MappedRecursiveRwLockWriteGuard<'static, T>> {
         Some(self.write_impl(self.value.try_write()?))
     }
 }
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
-        RwLockReadGuard::map(self.value.read(), |l| l)
+    fn read(&'static self) -> MappedRecursiveRwLockReadGuard<'static, T> {
+        RecursiveRwLockReadGuard::map(self.value.read(), |l| l)
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
-        Some(RwLockReadGuard::map(self.value.try_read()?, |l| l))
+    fn try_read(&'static self) -> Option<MappedRecursiveRwLockReadGuard<'static, T>> {
+        Some(RecursiveRwLockReadGuard::map(self.value.try_read()?, |l| l))
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
-        RwLockWriteGuard::map(self.value.write(), |l| l)
+    fn write(&'static self) -> MappedRecursiveRwLockWriteGuard<'static, T> {
+        RecursiveRwLockWriteGuard::map(self.value.write(), |l| l)
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
-        Some(RwLockWriteGuard::map(self.value.try_write()?, |l| l))
+    fn try_write(&'static self) -> Option<MappedRecursiveRwLockWriteGuard<'static, T>> {
+        Some(RecursiveRwLockWriteGuard::map(self.value.try_write()?, |l| l))
     }
 }
 
@@ -252,7 +256,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
+    pub fn read(&'static self) -> MappedRecursiveRwLockReadGuard<'static, T> {
         (self.inner)().read()
     }
 
@@ -266,7 +270,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
+    pub fn try_read(&'static self) -> Option<MappedRecursiveRwLockReadGuard<'static, T>> {
         (self.inner)().try_read()
     }
 
@@ -278,7 +282,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
+    pub fn write(&'static self) -> MappedRecursiveRwLockWriteGuard<'static, T> {
         (self.inner)().write()
     }
 
@@ -291,7 +295,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// # Panics
     ///
     /// Panics if no app is running in `"multi_app"` builds.
-    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
+    pub fn try_write(&'static self) -> Option<MappedRecursiveRwLockWriteGuard<'static, T>> {
         (self.inner)().try_write()
     }
 
@@ -337,28 +341,28 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Create a read lock and `map` it to a sub-value.
     #[inline]
-    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<'static, O> {
-        MappedRwLockReadGuard::map(self.read(), map)
+    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRecursiveRwLockReadGuard<'static, O> {
+        MappedRecursiveRwLockReadGuard::map(self.read(), map)
     }
 
     /// Try to create a read lock and `map` it to a sub-value.
     #[inline]
-    pub fn try_read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<'static, O>> {
+    pub fn try_read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRecursiveRwLockReadGuard<'static, O>> {
         let lock = self.try_read()?;
-        Some(MappedRwLockReadGuard::map(lock, map))
+        Some(MappedRecursiveRwLockReadGuard::map(lock, map))
     }
 
     /// Create a write lock and `map` it to a sub-value.
     #[inline]
-    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<'static, O> {
-        MappedRwLockWriteGuard::map(self.write(), map)
+    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRecursiveRwLockWriteGuard<'static, O> {
+        MappedRecursiveRwLockWriteGuard::map(self.write(), map)
     }
 
     /// Try to create a write lock and `map` it to a sub-value.
     #[inline]
-    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<'static, O>> {
+    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRecursiveRwLockWriteGuard<'static, O>> {
         let lock = self.try_write()?;
-        Some(MappedRwLockWriteGuard::map(lock, map))
+        Some(MappedRecursiveRwLockWriteGuard::map(lock, map))
     }
 
     /// Gets an ID for this local instance that is valid for the lifetime of the process.

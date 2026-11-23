@@ -1,7 +1,7 @@
 use std::{mem, sync::Arc};
 
 use atomic::Atomic;
-use parking_lot::RwLock;
+use parking_lot::RecursiveRwLock;
 use zng_app::{
     DInstant,
     event::CommandHandle,
@@ -65,7 +65,7 @@ fn layout_text_context(child: impl IntoUiNode) -> UiNode {
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             let fonts = FontFaceList::empty().sized(Px(10), vec![]);
-            laidout = Some(Arc::new(RwLock::new(LaidoutText {
+            laidout = Some(Arc::new(RecursiveRwLock::new(LaidoutText {
                 shaped_text: ShapedText::new(fonts.best()),
                 fonts,
                 overflow: None,
