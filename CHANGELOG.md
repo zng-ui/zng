@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix `Markdown!` parser issues.
+    - Fix converting strikethrough to bold.
+    - Fix images not inlining.
+    - Fix nested list items out of order.
 
 ## 0.25.7
 
