@@ -296,7 +296,7 @@ mod android {
         })
     }
 
-    fn cached_system_all() -> zng_task::parking_lot::MappedRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
+    fn cached_system_all() -> zng_task::parking_lot::MappedRecursiveRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
         let lock = SYSTEM_ALL.read();
         if !lock.is_empty() {
             return lock;
