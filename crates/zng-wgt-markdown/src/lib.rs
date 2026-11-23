@@ -309,9 +309,9 @@ fn markdown_parser<'a>(md: &'a str, mut next_event: impl FnMut(pulldown_cmark::E
             // handled early
             Event::HardBreak | Event::SoftBreak => unreachable!(),
         }
-        if let Some(txt) = pending_txt.take() {
-            next_event(Event::Text(txt.md()));
-        }
+    }
+    if let Some(txt) = pending_txt.take() {
+        next_event(Event::Text(txt.md()));
     }
 }
 
@@ -414,6 +414,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
                     item_num: n,
                     item_checked: None,
                 });
+                list_items.push(UiVec::new());
             }
             Tag::DefinitionList => {
                 txt_style = StyleBuilder::default();
@@ -424,6 +425,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
                     item_num: None,
                     item_checked: None,
                 });
+                list_items.push(UiVec::new());
             }
             Tag::Item | Tag::DefinitionListTitle | Tag::DefinitionListDefinition => {
                 txt_style = StyleBuilder::default();
@@ -466,7 +468,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
                 txt_style.strong += 1;
             }
             Tag::Strikethrough => {
-                txt_style.strong += 1;
+                txt_style.strikethrough += 1;
             }
             Tag::Superscript => {
                 txt_style.superscript += 1;
@@ -483,7 +485,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
                 link = Some((inlines.len(), link_type, dest_url, title, id));
             }
             Tag::Image { dest_url, title, .. } => {
-                image = Some((String::new(), dest_url, title));
+                image = Some((String::new(), inlines.len(), dest_url, title));
             }
             Tag::MetadataBlock(_) => unreachable!(), // not enabled
         },
@@ -537,14 +539,14 @@ fn markdown_view_fn(md: &str) -> UiNode {
                     blocks.push(list_view(ListFnArgs {
                         depth: list_info.len() as u32,
                         first_num: list.first_num,
-                        items: mem::take(&mut list_items).into(),
+                        items: list_items.pop().unwrap_or_default(),
                     }));
                 }
             }
             TagEnd::DefinitionList => {
                 if list_info.pop().is_some() {
                     blocks.push(definition_list_view(DefListArgs {
-                        items: mem::take(&mut list_items).into(),
+                        items: list_items.pop().unwrap_or_default(),
                     }));
                 }
             }
@@ -565,24 +567,30 @@ fn markdown_view_fn(md: &str) -> UiNode {
                         num,
                         checked: list.item_checked.take(),
                     };
-                    list_items.push(list_item_bullet_view(bullet_args));
-                    list_items.push(list_item_view(ListItemFnArgs {
-                        bullet: bullet_args,
-                        items: inlines.drain(list.inline_start..).collect(),
-                        blocks: blocks.drain(list.block_start..).collect(),
-                    }));
+                    if let Some(items) = list_items.last_mut() {
+                        items.push(list_item_bullet_view(bullet_args));
+                        items.push(list_item_view(ListItemFnArgs {
+                            bullet: bullet_args,
+                            items: inlines.drain(list.inline_start..).collect(),
+                            blocks: blocks.drain(list.block_start..).collect(),
+                        }));
+                    }
                 }
             }
             TagEnd::DefinitionListTitle => {
-                if let Some(list) = list_info.last_mut() {
-                    list_items.push(def_list_item_title_view(DefListItemTitleArgs {
+                if let Some(list) = list_info.last_mut()
+                    && let Some(items) = list_items.last_mut()
+                {
+                    items.push(def_list_item_title_view(DefListItemTitleArgs {
                         items: inlines.drain(list.inline_start..).collect(),
                     }));
                 }
             }
             TagEnd::DefinitionListDefinition => {
-                if let Some(list) = list_info.last_mut() {
-                    list_items.push(def_list_item_definition_view(DefListItemDefinitionArgs {
+                if let Some(list) = list_info.last_mut()
+                    && let Some(items) = list_items.last_mut()
+                {
+                    items.push(def_list_item_definition_view(DefListItemDefinitionArgs {
                         items: inlines.drain(list.inline_start..).collect(),
                     }));
                 }
@@ -667,13 +675,15 @@ fn markdown_view_fn(md: &str) -> UiNode {
                 }
             }
             TagEnd::Image => {
-                let (alt_txt, url, title) = image.take().unwrap();
+                let (alt_txt, inlines_start, url, title) = image.take().unwrap();
+                let alt_txt = Txt::from(alt_txt);
+                let alt_items = inlines.drain(inlines_start..).collect();
                 let title = html_escape::decode_html_entities(title.as_ref());
-                blocks.push(image_view(ImageFnArgs {
+                inlines.push(image_view(ImageFnArgs {
                     source: image_resolver.resolve(&url),
                     title: title.to_txt(),
-                    alt_items: mem::take(&mut inlines).into(),
-                    alt_txt: alt_txt.into(),
+                    alt_items,
+                    alt_txt,
                 }));
             }
             TagEnd::MetadataBlock(_) => unreachable!(),
@@ -689,7 +699,7 @@ fn markdown_view_fn(md: &str) -> UiNode {
                     if let Some(anchor_txt) = &mut heading_anchor_txt {
                         anchor_txt.push_str(&txt);
                     }
-                    if let Some((alt_txt, _, _)) = &mut image {
+                    if let Some((alt_txt, _, _, _)) = &mut image {
                         alt_txt.push_str(&txt);
                     }
                     if let Some(txt) = text_view.call_checked(TextFnArgs {
