@@ -186,7 +186,9 @@ impl Watchers {
                         return Err(notify::ErrorKind::PathNotFound);
                     }
                 }
-                e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch | e @ notify::ErrorKind::WatchStartFailed => return Err(e),
+                e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch | e @ notify::ErrorKind::WatchStartFailed => {
+                    return Err(e);
+                }
                 notify::ErrorKind::InvalidConfig(e) => unreachable!("{e:?}"),
                 notify::ErrorKind::WatchNotFound => unreachable!(),
                 _ => todo!(),
@@ -215,8 +217,8 @@ impl Watchers {
                 notify::ErrorKind::Io(e) => {
                     tracing::error!("cannot unwatch dir `{}`, {e}", dir.display());
                 }
-                notify::ErrorKind::PathNotFound => {}  // ok?
-                notify::ErrorKind::WatchNotFound => {} // ok
+                notify::ErrorKind::PathNotFound => {}     // ok?
+                notify::ErrorKind::WatchNotFound => {}    // ok
                 notify::ErrorKind::WatchStartFailed => {} // ok
                 notify::ErrorKind::InvalidConfig(_) => unreachable!(),
                 notify::ErrorKind::MaxFilesWatch => unreachable!(),
