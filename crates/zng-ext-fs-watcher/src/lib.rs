@@ -795,7 +795,6 @@ impl WATCHER {
                 let _tag = WATCHER.annotate(data.note.clone());
 
                 while let Some(value) = data.write_value.lock().take() {
-                    println!("!!: WRITE {value:?}");
                     match (write.f)(value, WriteFile::open(data.note.0.clone())) {
                         Ok(()) => data.status.set((data.status_w_mtds.idle)()),
                         Err(e) => data.status.set((data.status_w_mtds.write_error)(e)),
