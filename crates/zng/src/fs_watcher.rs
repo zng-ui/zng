@@ -59,8 +59,8 @@
 //! See [`zng_ext_fs_watcher`] for the full watcher API.
 
 pub use zng_ext_fs_watcher::{
-    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
-    WatcherSyncStatus, WriteFile, fs_event,
+    FS_CHANGES_EVENT, FileNameSortKey, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchDir, WatchFile,
+    WatcherHandle, WatcherReadStatus, WatcherSyncStatus, WriteFile, fs_event, glob, glob_build,
 };
 
 #[cfg(feature = "image")]
