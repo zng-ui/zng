@@ -569,6 +569,8 @@ mod __prelude {
         AsyncBufRead as _, AsyncRead as _, AsyncReadExt as _, AsyncSeek as _, AsyncSeekExt as _, AsyncWrite as _, AsyncWriteExt as _,
     };
 
+    pub use zng_task::StreamExt as _;
+
     pub use zng_app::{
         APP, INSTANT,
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
