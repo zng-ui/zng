@@ -1,4 +1,4 @@
-use notify::Watcher as _;
+use notify::{Error, Watcher as _};
 use std::{
     collections::{HashMap, hash_map},
     io, mem,
@@ -186,9 +186,12 @@ impl Watchers {
                         return Err(notify::ErrorKind::PathNotFound);
                     }
                 }
-                e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch => return Err(e),
+                e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch | e @ notify::ErrorKind::WatchStartFailed => {
+                    return Err(e);
+                }
                 notify::ErrorKind::InvalidConfig(e) => unreachable!("{e:?}"),
                 notify::ErrorKind::WatchNotFound => unreachable!(),
+                _ => todo!(),
             }
         }
         Ok(())
@@ -214,10 +217,12 @@ impl Watchers {
                 notify::ErrorKind::Io(e) => {
                     tracing::error!("cannot unwatch dir `{}`, {e}", dir.display());
                 }
-                notify::ErrorKind::PathNotFound => {}  // ok?
-                notify::ErrorKind::WatchNotFound => {} // ok
+                notify::ErrorKind::PathNotFound => {}     // ok?
+                notify::ErrorKind::WatchNotFound => {}    // ok
+                notify::ErrorKind::WatchStartFailed => {} // ok
                 notify::ErrorKind::InvalidConfig(_) => unreachable!(),
                 notify::ErrorKind::MaxFilesWatch => unreachable!(),
+                _ => unreachable!(),
             }
         }
     }
@@ -355,10 +360,9 @@ impl notify::Watcher for PollWatcher {
                             }
                             PollMsg::Unwatch(d) => {
                                 if dirs.remove(&d).is_none() {
-                                    event_handler.handle_event(Err(notify::Error {
-                                        kind: notify::ErrorKind::WatchNotFound,
-                                        paths: vec![d],
-                                    }))
+                                    let mut e = Error::watch_not_found();
+                                    e.paths.push(d);
+                                    event_handler.handle_event(Err(e))
                                 }
                             }
                             PollMsg::SetConfig(c) => config = c,

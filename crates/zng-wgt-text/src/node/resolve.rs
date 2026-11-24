@@ -1,6 +1,6 @@
 use std::{borrow::Cow, num::Wrapping, sync::Arc};
 
-use parking_lot::RwLock;
+use parking_lot::RecursiveRwLock;
 use zng_app::{
     access::{ACCESS_SELECTION_EVENT, ACCESS_TEXT_EVENT},
     event::CommandHandle,
@@ -55,7 +55,7 @@ fn resolve_text_context(child: impl IntoUiNode, text: Var<Txt>) -> UiNode {
     let mut resolved = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            resolved = Some(Arc::new(RwLock::new(ResolvedText {
+            resolved = Some(Arc::new(RecursiveRwLock::new(ResolvedText {
                 txt: text.clone(),
                 ime_preview: None,
                 synthesis: FontSynthesis::empty(),

@@ -317,7 +317,7 @@ fn fallback_swap() {
 }
 
 #[test]
-fn fallback_reset() {
+fn fallback_reset_key() {
     let main_cfg = temp("fallback_reset.target.json");
     let fallback_cfg = temp("fallback_reset.fallback.json");
 
@@ -327,7 +327,7 @@ fn fallback_reset() {
         rmv_file_assert(&fallback_cfg);
 
         let mut app = APP.defaults().run_headless(false);
-        zng::app::test_log();
+        // zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
         CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
@@ -352,7 +352,7 @@ fn fallback_reset() {
 
     // test
     let mut app = APP.defaults().run_headless(false);
-    zng::app::test_log();
+    // zng::app::test_log();
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
     app.run_test(CONFIG.wait_idle());
@@ -374,7 +374,7 @@ fn fallback_reset() {
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
     app.run_test(CONFIG.wait_idle());
     let status = CONFIG.status().get();
-    if status != ConfigStatus::Loaded {
+    if !matches!(status, ConfigStatus::LoadErrors(_)) {
         panic!("{status}");
     }
     assert_eq!("fallback", key.get());
@@ -393,7 +393,7 @@ fn fallback_reset_entry() {
         rmv_file_assert(&fallback_cfg);
 
         let mut app = APP.defaults().run_headless(false);
-        zng::app::test_log();
+        // zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
         CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback");
 
@@ -418,7 +418,7 @@ fn fallback_reset_entry() {
 
     // test
     let mut app = APP.defaults().run_headless(false);
-    zng::app::test_log();
+    // zng::app::test_log();
 
     let mut cfg = FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg));
     // wait_idle

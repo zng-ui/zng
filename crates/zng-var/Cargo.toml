@@ -27,7 +27,7 @@ zng-handle = { path = "../zng-handle", version = "0.4.1", default-features = fal
 
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false }
 smallbox = { version = "0.8", default-features = false }
 smallvec = { version = "1.13", default-features = false, features = ["const_new"] }

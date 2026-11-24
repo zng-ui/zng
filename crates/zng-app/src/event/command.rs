@@ -433,7 +433,7 @@ impl Command {
     /// [`is_enabled`]: Self::is_enabled
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
         // code that runs before  calling `visit`, removed from the generics function
-        fn init_meta(self_: &Command) -> parking_lot::MappedRwLockReadGuard<'static, CommandData> {
+        fn init_meta(self_: &Command) -> parking_lot::MappedRecursiveRwLockReadGuard<'static, CommandData> {
             {
                 let mut write = self_.local.write();
                 match write.meta_init.clone() {

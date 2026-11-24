@@ -22,7 +22,7 @@ zng-state-map = { path = "../zng-state-map", version = "0.11.1", default-feature
 zng-ext-input = { path = "../zng-ext-input", version = "0.18.7", default-features = false }
 
 atomic = { version =  "0.6", default-features = false, features = ["fallback"] }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]

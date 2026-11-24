@@ -130,7 +130,7 @@ where
     I: Copy + PartialEq + Eq + Hash + fmt::Debug,
 {
     pub const fn new() -> Self {
-        Self(parking_lot::const_rwlock(NameIdMap::new()))
+        Self(parking_lot::RwLock::new(NameIdMap::new()))
     }
 
     pub fn named(&self, name: impl Into<Txt>, new_unique: impl FnOnce() -> I) -> I {

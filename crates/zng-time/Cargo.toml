@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-app-context = { path = "../zng-app-context", version = "0.15.2", default-features = false }
 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = { version = "0.3", default-features = false }

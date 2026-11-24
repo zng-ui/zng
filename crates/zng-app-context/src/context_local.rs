@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::RwLock;
+use parking_lot::RecursiveRwLock;
 
 use crate::{
     AppLocal, AppLocalId, AppLocalImpl, LocalContext, LocalValueKind, ReadOnlyRwLock, RwLockReadGuardOwned, RwLockWriteGuardOwned,
@@ -147,7 +147,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 }
 
-impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
+impl<T: Send + Sync + 'static> ContextLocal<RecursiveRwLock<T>> {
     /// Gets a read-only shared reference to the current context value.
     pub fn read_only(&'static self) -> ReadOnlyRwLock<T> {
         ReadOnlyRwLock::new(self.get())
@@ -167,7 +167,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     ///
     /// See `parking_lot::RwLock::read` for more details.
     pub fn read_recursive(&'static self) -> RwLockReadGuardOwned<T> {
-        RwLockReadGuardOwned::lock_recursive(self.get())
+        RwLockReadGuardOwned::lock(self.get())
     }
 
     /// Locks this `RwLock` with exclusive write access, blocking the current
@@ -189,7 +189,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     ///
     /// See `parking_lot::RwLock::try_read_recursive` for more details.
     pub fn try_read_recursive(&'static self) -> Option<RwLockReadGuardOwned<T>> {
-        RwLockReadGuardOwned::try_lock_recursive(self.get())
+        RwLockReadGuardOwned::try_lock(self.get())
     }
 
     /// Locks this `RwLock` with exclusive write access, blocking the current

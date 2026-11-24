@@ -7,9 +7,9 @@ use crate::{
     update::UPDATES,
     widget::{AnyVarSubscribe, OnVarArgs},
 };
+use parking_lot::MappedRecursiveRwLockReadGuard;
 use zng_app_context::AppLocal;
 use zng_task::channel;
-use zng_task::parking_lot::MappedRwLockReadGuard;
 use zng_var::{AnyVar, VARS, Var, VarHandle, VarUpdateId, VarValue};
 
 use crate::{
@@ -152,7 +152,7 @@ impl fmt::Debug for AnyEvent {
     }
 }
 impl AnyEvent {
-    fn read_var(&self) -> MappedRwLockReadGuard<'_, AnyVar> {
+    fn read_var(&self) -> MappedRecursiveRwLockReadGuard<'_, AnyVar> {
         self.0.read_map(|v| &v.var)
     }
 

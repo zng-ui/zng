@@ -94,7 +94,7 @@ zng-color = { path = "../zng-color", version = "0.16.5", default-features = fals
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "ansi", "smallvec", "tracing-log", "env-filter"] }
 pretty-type-name = { version = "1.0", default-features = false }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 bytemuck = { version = "1.15", default-features = false, features = ["derive"] }
 atomic = { version = "0.6", default-features = false, features = ["fallback"] }

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt, sync::Arc};
 
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RecursiveRwLock};
 use zng_app::{event::CommandScope, widget::node::Z_INDEX};
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
 use zng_ext_font::CaretIndex;
@@ -30,7 +30,7 @@ pub(crate) fn rich_text_node(child: impl IntoUiNode, enabled: impl IntoVar<bool>
         UiNodeOp::Init => {
             WIDGET.sub_var(&enabled);
             if enabled.get() && TEXT.try_rich().is_none() {
-                ctx = Some(Arc::new(RwLock::new(RichText {
+                ctx = Some(Arc::new(RecursiveRwLock::new(RichText {
                     root_id: WIDGET.id(),
                     caret: RichCaretInfo {
                         index: None,

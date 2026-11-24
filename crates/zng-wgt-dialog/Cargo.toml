@@ -33,6 +33,6 @@ zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.15.6", default
 zng-view-api = { path = "../zng-view-api", version = "0.23.5", default-features = false }
 
 tracing = { version = "0.1", default-features = false }
-parking_lot = { version = "0.12", default-features = false }
+parking_lot = { version = "0.13", default-features = false }
 bitflags = { version = "2.5", default-features = false, features = ["serde"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
