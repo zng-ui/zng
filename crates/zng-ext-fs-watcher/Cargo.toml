@@ -49,7 +49,8 @@ serde-saphyr = { version = "2.2", optional = true, default-features = false, fea
 version = "0.58"
 features = ["Win32_UI_Shell"]
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.2", features = ["NSString", "NSObjCRuntime"] }
+objc2-foundation = { version = "0.2", default-features = false, features = ["NSString", "NSObjCRuntime"] }
+objc2 = { version = "0.5.3", default-features = false }
 [target.'cfg(target_os = "linux")'.dependencies]
 natord = "1.0"
 
