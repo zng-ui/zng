@@ -41,6 +41,8 @@ type GlobItem = Result<walkdir::DirEntry, walkdir::Error>;
 /// * Metacharacters such as `*` and `?` can be escaped with character class
 ///   notation. e.g., `[*]` matches `*`. Backslash does not escape, it matches path separators on all platforms.
 /// * `/` and `\\` matches path separators.
+/// 
+/// [`globset`]: https://docs.rs/globset/latest/globset/
 ///
 /// ## Performance
 ///
@@ -51,6 +53,10 @@ type GlobItem = Result<walkdir::DirEntry, walkdir::Error>;
 /// ## Configuration
 ///
 /// Use [`glob_build`] to modify the [`walkdir::WalkDir`] and [`globset::GlobBuilder`] before iteration starts.
+/// 
+/// [`walkdir`]: https://docs.rs/walkdir/latest/walkdir/
+/// [`walkdir::WalkDir`]: https://docs.rs/walkdir/latest/walkdir/struct.WalkDir.html
+/// [`globset::GlobBuilder`]: https://docs.rs/globset/latest/globset/struct.GlobBuilder.html
 pub fn glob(pattern: impl AsRef<Path>, case_insensitive: bool) -> Result<impl Iterator<Item = GlobItem> + Send + Sync, globset::Error> {
     glob_build_impl(
         pattern.as_ref(),

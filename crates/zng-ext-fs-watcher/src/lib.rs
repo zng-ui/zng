@@ -362,6 +362,8 @@ impl WATCHER {
     ///
     /// [`task::wait`]: zng_task::wait
     /// [`debounce`]: Self::debounce
+    /// 
+    /// [`walkdir`]: https://docs.rs/walkdir/latest/walkdir/
     pub fn read_dir<O: VarValue>(
         &self,
         dir: impl Into<PathBuf>,
@@ -1024,6 +1026,8 @@ impl WatchDir {
     ///
     /// [`path`]: Self::path
     /// [`recursive`]: Self::recursive
+    /// 
+    /// [`walkdir`]: https://docs.rs/walkdir/latest/walkdir/
     pub fn walk(self) -> walkdir::WalkDir {
         let mut w = walkdir::WalkDir::new(self.path).min_depth(1);
         if !self.recursive {
