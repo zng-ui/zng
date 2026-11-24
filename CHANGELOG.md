@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* `WATCHER.debounce` and `sync_debounce` are now awaited by `read_status` and `sync_status` before returning to idle status.
 * **Breaking** upgrade `parking_lot`.
     - Breaks `zng::task::parking_lot` reexport.
     - Breaks all APIs that return a lock guard, like `AppLocal` and other app context types.

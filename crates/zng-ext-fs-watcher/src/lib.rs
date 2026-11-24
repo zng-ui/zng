@@ -66,7 +66,12 @@ impl WATCHER {
     ///
     /// Note that the first event notifies immediately, only subsequent events within this interval are debounced.
     ///
+    /// This duration is also awaited by [`read_status`] and [`sync_status`] before entering *idle* status after reading.
+    ///
     /// Is `100.ms()` by default.
+    ///
+    /// [`read_status`]: WATCHER::read_status
+    /// [`sync_status`]: WATCHER::sync_status
     pub fn debounce(&self) -> Var<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
@@ -77,7 +82,10 @@ impl WATCHER {
     ///
     /// Note that each [`sync`] is debounced in isolation and the first write happens immediately.
     ///
+    /// This duration is also awaited by [`sync_status`] before entering *idle* status after writing.
+    ///
     /// [`sync`]: WATCHER::sync
+    /// [`sync_status`]: WATCHER::sync_status
     pub fn sync_debounce(&self) -> Var<Duration> {
         WATCHER_SV.read().sync_debounce.clone()
     }
@@ -290,7 +298,11 @@ impl WATCHER {
                             }
                             req = data.requested.swap(false, Ordering::Relaxed);
                             if !req {
-                                return data.status.set((data.status_mtds.idle)());
+                                std::thread::sleep(WATCHER.debounce().get());
+                                req = data.requested.swap(false, Ordering::Relaxed);
+                                if !req {
+                                    return data.status.set((data.status_mtds.idle)());
+                                }
                             }
                         }
                         Err(e) => {
@@ -785,23 +797,34 @@ impl WATCHER {
             }
             data.status.set((data.status_w_mtds.writing)());
             zng_task::spawn_wait(clmv!(data, || {
-                // wait other write tasks
                 let mut write = data.write.lock();
-                // wait debounce of APP.on_deinit signal, holds _guard to block on_deinit so the process is not killed while writing
-                let debounce = WATCHER_SV.read().sync_debounce.get().saturating_sub(write.last.elapsed());
-                let _guard = data.debounce_flush.begin_write(debounce);
+                let mut idle_debounce = false;
+                loop {
+                    // wait debounce or APP.on_deinit signal, holds _guard to block on_deinit so the process is not killed while writing
+                    let debounce = WATCHER_SV.read().sync_debounce.get().saturating_sub(write.last.elapsed());
+                    let _guard = data.debounce_flush.begin_write(debounce);
 
-                // tag events during write so that `read_impl` can avoid reading this change back
-                let _tag = WATCHER.annotate(data.note.clone());
+                    if idle_debounce && data.write_value.lock().is_none() {
+                        // after write stopped, wait debounce before entering idle status
+                        data.status.set((data.status_w_mtds.idle)());
+                        return;
+                    }
 
-                while let Some(value) = data.write_value.lock().take() {
-                    match (write.f)(value, WriteFile::open(data.note.0.clone())) {
-                        Ok(()) => data.status.set((data.status_w_mtds.idle)()),
-                        Err(e) => data.status.set((data.status_w_mtds.write_error)(e)),
+                    // tag events during write so that `read_impl` can avoid reading this change back
+                    let _tag = WATCHER.annotate(data.note.clone());
+                    while let Some(value) = data.write_value.lock().take() {
+                        idle_debounce = false;
+                        match (write.f)(value, WriteFile::open(data.note.0.clone())) {
+                            Ok(()) => idle_debounce = true,
+                            Err(e) => data.status.set((data.status_w_mtds.write_error)(e)),
+                        }
+                    }
+                    write.last = INSTANT.now();
+
+                    if !idle_debounce {
+                        return;
                     }
                 }
-
-                write.last = INSTANT.now();
             }));
 
             true
