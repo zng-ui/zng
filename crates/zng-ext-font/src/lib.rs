@@ -8,7 +8,7 @@
 //! Services this extension provides:
 //!
 //! * [`FONTS`] - Service that finds and loads fonts.
-//! * [`HYPHENATION`] - Service that loads and applies hyphenation dictionaries.
+//! * [`HYPHENATION`] - Service that applies embedded hyphenation rules.
 //!
 //! # Events
 //!

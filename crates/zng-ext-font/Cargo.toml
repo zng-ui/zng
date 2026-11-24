@@ -12,16 +12,23 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-# Embed hyphenation dictionaries.
-#
-# See the `hyphenation` crate for more details.
-hyphenation_embed_all = ["hyphenation/embed_all"]
-
 # Enable support for SVG image glyphs.
 #
 # This feature signals that the `IMAGES` service supports SVG. The app must ensure that this is so by
 # using `zng-ext-svg` or another SVG extension.
 svg = []
+
+# Embed hyphenation data for all supported languages.
+# 
+# If enabled some 1.1 MiB of data is embedded. Instead of enabling this feature you can select 
+# specific languages to support by adding a `hypher` dependency:
+# 
+# ```toml
+# [dependencies]
+# # only embed English hyphenation data.
+# hypher = { version = "0.1", default-features = false, features = ["english"] }
+# ```
+hypher_full = ["hypher/full"]
 
 # Enables memory mapped font files.
 ipc = ["zng-task/ipc", "zng-view-api/ipc"]
@@ -50,8 +57,6 @@ bitflags = { version = "2.5", default-features = false, features = ["serde", "by
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 pastey = { version = "0.2", default-features = false }
 num_enum = { version = "0.7", default-features = false, features = ["std"] }
-# TODO(breaking) replace with https://crates.io/crates/hypher
-hyphenation = { version = "0.8", default-features = false }
 unicode-bidi = { version = "0.3", default-features = false, features = ["hardcoded-data", "std"]}
 unicode-linebreak = { version = "0.1", default-features = false }
 unicode-segmentation = { version = "1.11", default-features = false }
@@ -60,6 +65,9 @@ smallvec = { version = "1.13", default-features = false, features = ["const_new"
 hashbrown = { version = "0.17", default-features = false, features = ["allocator-api2", "default-hasher", "equivalent", "inline-more", "raw-entry" ]}
 pathfinder_geometry = { version = "0.5", default-features = false }
 dunce = { version = "1.0", default-features = false }
+
+# "hypher_full" feature docs mentions this version, on upgrade manually update it here and in zng/Cargo.toml and in HYPHENATION service docs
+hypher = { version = "0.1", default-features = false, features = ["alloc"] }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 font-kit = { version = "0.14", default-features = false, features = ["source"] }

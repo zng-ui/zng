@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 100 feature flags, 1 enabled by default.
+This crate provides 101 feature flags, 1 enabled by default.
 
 #### `"dev"`
 Defaults recommended for the dev profile (debug builds).
@@ -189,11 +189,17 @@ Note that this replaces the `#[global_allocator]` and has an impact in performan
 
 See `zng::app::memory_profiler` for more details.
 
-#### `"hyphenation_embed_all"`
-Embed hyphenation dictionaries for all supported languages.
+#### `"hypher_full"`
+Embed hyphenation data for all supported languages.
 
-If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the
-`HYPHENATION::init_data_source` method.
+If enabled some 1.1 MiB of data is embedded. Instead of enabling this feature you can select
+specific languages to support by adding a `hypher` dependency:
+
+```toml
+[dependencies]
+# only embed English hyphenation data.
+hypher = { version = "0.1", default-features = false, features = ["english"] }
+```
 
 #### `"lang_autonym"`
 Embed language and region names for `Lang::autonym`.
@@ -434,6 +440,9 @@ Enable TIFF image format with "view" feature.
 
 #### `"image_webp"`
 Enable WEBP image format with "view" feature.
+
+#### `"image_avif"`
+Enable AVIF image decoder and encoder.
 
 #### `"image_all"`
 Enable all image fomats with "view" feature.
