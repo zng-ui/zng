@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* **Breaking** Replaces hyphenation backend.
+    - Removed `hyphenation_embed_all` Cargo feature.
+    - Added `hypher_full` Cargo feature.
+    - Removed `HYPHENATION.init_data_source` and related types.
+    - Renamed `HYPHENATION` methods that reference the backend language.
 * **Breaking** Remove `zng::app::RunOnDrop`.
     - Use the new `std::mem::DropGuard`.
 * `WATCHER.debounce` and `sync_debounce` are now awaited by `read_status` and `sync_status` before returning to idle status.

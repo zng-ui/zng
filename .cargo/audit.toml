@@ -12,19 +12,6 @@ ignore = [
     # remove this ignore when all dependencies are fixed
     "RUSTSEC-2024-0436",
 
-    # `bincode` is unmaintained
-    # 
-    # already replaced in project crates
-    # 
-    # bincode v1.3.3
-    # ├── hyphenation v0.8.4
-    # │   └── zng-ext-font v0.15.2
-    # └── zng-webrender v0.68.4
-    #     └── zng-view v0.18.2
-    #
-    # remove this ignore when all dependencies are fixed
-    "RUSTSEC-2025-0141",
-
     # zbus crates need upgrading
     #
     # already upgraded in project crates

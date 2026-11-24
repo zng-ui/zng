@@ -204,11 +204,17 @@ deadlock_detection = ["zng-app/deadlock_detection"]
 # See `zng::app::memory_profiler` for more details.
 memory_profiler = ["zng-app/memory_profiler"]
 
-# Embed hyphenation dictionaries for all supported languages.
-#
-# If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
-# `HYPHENATION::init_data_source` method.
-hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
+# Embed hyphenation data for all supported languages.
+# 
+# If enabled some 1.1 MiB of data is embedded. Instead of enabling this feature you can select 
+# specific languages to support by adding a `hypher` dependency:
+# 
+# ```toml
+# [dependencies]
+# # only embed English hyphenation data.
+# hypher = { version = "0.1", default-features = false, features = ["english"] }
+# ```
+hypher_full = ["zng-ext-font/hypher_full"]
 
 # Embed language and region names for `Lang::autonym`.
 lang_autonym = ["zng-ext-l10n/lang_autonym"]
