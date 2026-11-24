@@ -340,7 +340,7 @@ impl<'de> Deserialize<'de> for IpcFileHandle {
                 socket_tmp = Some(socket);
                 r
             };
-            let _cleanup = zng_app_context::RunOnDrop::new(move || {
+            let _cleanup = std::mem::DropGuard::new((), move |_| {
                 if let Some(socket) = socket_tmp {
                     let _ = std::fs::remove_file(socket);
                 }

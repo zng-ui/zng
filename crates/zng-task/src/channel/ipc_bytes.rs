@@ -1,5 +1,7 @@
 #![cfg_attr(not(ipc), allow(unused))]
 
+#[cfg(ipc)]
+use std::mem::DropGuard;
 use std::{
     cell::Cell,
     fmt, fs,
@@ -15,7 +17,6 @@ use futures_lite::{AsyncReadExt as _, AsyncWriteExt as _};
 #[cfg(ipc)]
 use ipc_channel::ipc::IpcSharedMemory;
 use serde::{Deserialize, Serialize};
-use zng_app_context::RunOnDrop;
 
 #[cfg(ipc)]
 use crate::channel::ipc_bytes_memmap::Memmap;
@@ -545,7 +546,7 @@ impl Eq for IpcBytes {}
 #[cfg(ipc)]
 pub fn with_ipc_serialization<R>(serialize: impl FnOnce() -> R) -> R {
     let parent = IPC_SERIALIZATION.replace(true);
-    let _clean = RunOnDrop::new(|| IPC_SERIALIZATION.set(parent));
+    let _clean = DropGuard::new((), |_| IPC_SERIALIZATION.set(parent));
     serialize()
 }
 

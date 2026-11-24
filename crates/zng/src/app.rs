@@ -341,7 +341,7 @@ pub use zng_app::test_log;
 
 pub use zng_app_context::{
     AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, MappedRwLockReadGuardOwned,
-    MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned, app_local, context_local,
+    MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RwLockReadGuardOwned, RwLockWriteGuardOwned, app_local, context_local,
 };
 pub use zng_wgt_input::cmd::{
     NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD, can_new, can_open, can_save, can_save_as, on_new, on_open, on_pre_new, on_pre_open,
