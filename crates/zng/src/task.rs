@@ -255,8 +255,10 @@ pub mod parking_lot {
     // no_inline is not imported from zng_task
     #[doc(no_inline)]
     pub use parking_lot::{
-        ArcMutexGuard, ArcRwLockReadGuard, ArcRwLockWriteGuard, Condvar, MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard,
-        Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockUpgradableReadGuard, RwLockWriteGuard,
+        ArcMutexGuard, ArcRwLockReadGuard, ArcRwLockWriteGuard, Condvar, MappedMutexGuard, MappedRecursiveRwLockReadGuard,
+        MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RecursiveRwLock, RecursiveRwLockReadGuard,
+        RecursiveRwLockUpgradableReadGuard, RecursiveRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockUpgradableReadGuard,
+        RwLockWriteGuard,
     };
 }
 
