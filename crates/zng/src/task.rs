@@ -150,6 +150,9 @@ pub use zng_task::{
     spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
 
+#[doc(no_inline)]
+pub use zng_task::{Stream, StreamExt};
+
 #[cfg(any(doc, feature = "test_util"))]
 pub use zng_task::{doc_test, spin_on};
 

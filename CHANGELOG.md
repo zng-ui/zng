@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Add `zng::task::{Stream, StreamExt}` traits.
 * **Breaking** Replaces hyphenation backend.
     - Removed `hyphenation_embed_all` Cargo feature.
     - Added `hypher_full` Cargo feature.

@@ -54,3 +54,6 @@ pub mod rayon {
         pub use super::ParallelIteratorExt as _;
     }
 }
+
+#[doc(no_inline)]
+pub use futures_lite::stream::{Stream, StreamExt};
