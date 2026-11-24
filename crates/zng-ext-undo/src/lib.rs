@@ -20,7 +20,8 @@
 
 use std::{
     any::Any,
-    fmt, mem,
+    fmt,
+    mem::{self, DropGuard},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -40,7 +41,7 @@ use zng_app::{
         info::{WidgetInfo, WidgetInfoBuilder},
     },
 };
-use zng_app_context::{RunOnDrop, app_local, context_local};
+use zng_app_context::{app_local, context_local};
 use zng_clone_move::clmv;
 use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
 use zng_state_map::{StateId, StateMapRef, static_id};
@@ -230,11 +231,14 @@ impl UNDO {
         *scope.id.get_mut() = parent_scope.id.load(Ordering::Relaxed);
 
         let t_scope = Arc::new(scope);
-        let _panic_undo = RunOnDrop::new(clmv!(t_scope, || {
-            for undo in mem::take(&mut *t_scope.undo.lock()).into_iter().rev() {
-                let _ = undo.action.undo();
-            }
-        }));
+        let _panic_undo = DropGuard::new(
+            (),
+            clmv!(t_scope, |_| {
+                for undo in mem::take(&mut *t_scope.undo.lock()).into_iter().rev() {
+                    let _ = undo.action.undo();
+                }
+            }),
+        );
 
         let mut scope = Some(t_scope);
         UNDO_SCOPE_CTX.with_context(&mut scope, actions);

@@ -210,24 +210,6 @@ impl<T> ReadOnlyRwLock<T> {
     }
 }
 
-// TODO(breaking) replace with https://doc.rust-lang.org/stable/core/mem/struct.DropGuard.html?
-/// Helper, runs a cleanup action once on drop.
-#[must_use = "cleanup runs on drop"]
-pub struct RunOnDrop<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> RunOnDrop<F> {
-    /// New with closure that will run once on drop.
-    pub fn new(clean: F) -> Self {
-        RunOnDrop(Some(clean))
-    }
-}
-impl<F: FnOnce()> Drop for RunOnDrop<F> {
-    fn drop(&mut self) {
-        if let Some(clean) = self.0.take() {
-            clean();
-        }
-    }
-}
-
 pub(crate) fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
     if let Some(s) = payload.downcast_ref::<&str>() {
         s

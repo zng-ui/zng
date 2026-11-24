@@ -215,12 +215,12 @@ impl LocalContext {
     /// Register to run when the app deinits and all clones of the app context are dropped.
     pub fn register_cleanup(cleanup: impl FnOnce(AppId) + Send + 'static) {
         let id = Self::current_app().expect("no app in context");
-        Self::register_cleanup_dyn(Box::new(move || cleanup(id)));
+        Self::register_cleanup_dyn(Box::new(move |_| cleanup(id)));
     }
-    fn register_cleanup_dyn(cleanup: Box<dyn FnOnce() + Send>) {
-        let cleanup = RunOnDrop::new(cleanup);
+    fn register_cleanup_dyn(cleanup: Box<dyn FnOnce(()) + Send>) {
+        let cleanup = std::mem::DropGuard::new((), cleanup);
 
-        type CleanupList = Vec<RunOnDrop<Box<dyn FnOnce() + Send>>>;
+        type CleanupList = Vec<std::mem::DropGuard<(), Box<dyn FnOnce(()) + Send>>>;
         LOCAL.with_borrow_mut_dyn(|c| {
             let c = c
                 .entry(cleanup_list_id())

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hasher;
 use std::marker::PhantomData;
+use std::mem::DropGuard;
 use std::ops;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -1047,27 +1048,13 @@ pub(crate) fn set_suppressed_panic(panic: TaskPanicError) {
 /// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
 pub(crate) fn catch_suppress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, TaskPanicError> {
     SUPPRESS.set(true);
-    let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
+    let _cleanup = DropGuard::new((), |_| SUPPRESS.set(false));
     std::panic::catch_unwind(f).map_err(|e| {
         SUPPRESSED_PANIC.with_borrow_mut(|p| match p.take() {
             Some(p) => p,
             None => TaskPanicError::new(e),
         })
     })
-}
-
-struct RunOnDrop<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> RunOnDrop<F> {
-    pub fn new(clean: F) -> Self {
-        RunOnDrop(Some(clean))
-    }
-}
-impl<F: FnOnce()> Drop for RunOnDrop<F> {
-    fn drop(&mut self) {
-        if let Some(clean) = self.0.take() {
-            clean();
-        }
-    }
 }
 
 #[cfg(windows)]

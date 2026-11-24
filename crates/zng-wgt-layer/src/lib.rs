@@ -21,6 +21,7 @@ use zng_var::{ContextInitHandle, animation};
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
+use std::mem::DropGuard;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem, ops};
@@ -256,7 +257,7 @@ impl LAYERS {
                             if querying.swap(true, Ordering::Relaxed) {
                                 return Interactivity::ENABLED; // avoid recursion.
                             }
-                            let _q = RunOnDrop::new(|| querying.store(false, Ordering::Relaxed));
+                            let _q = DropGuard::new((), |_| querying.store(false, Ordering::Relaxed));
                             args.info
                                 .tree()
                                 .get(anchor)

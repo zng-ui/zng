@@ -4,8 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* **Breaking** Remove `zng::app::RunOnDrop`.
+    - Use the new `std::mem::DropGuard`.
 * `WATCHER.debounce` and `sync_debounce` are now awaited by `read_status` and `sync_status` before returning to idle status.
-* **Breaking** upgrade `parking_lot`.
+* **Breaking** Upgrade `parking_lot`.
     - Breaks `zng::task::parking_lot` reexport.
     - Breaks all APIs that return a lock guard, like `AppLocal` and other app context types.
 * Fix `Markdown!` parser issues.

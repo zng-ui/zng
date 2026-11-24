@@ -1,4 +1,9 @@
-use std::{any::Any, mem, pin::Pin, sync::Arc};
+use std::{
+    any::Any,
+    mem::{self, DropGuard},
+    pin::Pin,
+    sync::Arc,
+};
 
 use zng_app::{
     APP, Deadline, hn_once,
@@ -14,7 +19,7 @@ use zng_app::{
     },
     window::{WINDOW, WINDOWS_APP, WindowId, WindowMode},
 };
-use zng_app_context::{RunOnDrop, app_local};
+use zng_app_context::app_local;
 use zng_layout::unit::FrequencyUnits;
 use zng_task::parking_lot::Mutex;
 use zng_task::rayon::prelude::*;
@@ -365,7 +370,7 @@ impl WINDOWS {
         let h = if let Some(h) = window.pending_loading.upgrade() {
             h
         } else {
-            let h: Arc<dyn Any + Send + Sync> = Arc::new(RunOnDrop::new(move || {
+            let h: Arc<dyn Any + Send + Sync> = Arc::new(DropGuard::new((), move |_| {
                 if let Some(vars) = WINDOWS.vars(window_id) {
                     vars.0.instance_state.modify(move |a| {
                         if matches!(a.value(), WindowInstanceState::Loading) {
