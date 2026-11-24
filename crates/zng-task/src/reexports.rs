@@ -55,4 +55,5 @@ pub mod rayon {
     }
 }
 
+#[doc(no_inline)]
 pub use futures_lite::stream::{Stream, StreamExt};

@@ -145,10 +145,13 @@
 //! See [`zng_task`] for the full API.
 
 pub use zng_task::{
-    DeadlineError, McWaker, Progress, ScopeCtx, SignalOnce, Stream, StreamExt, TaskPanicError, UiTask, all, all_ok, all_some, any, any_ok,
-    any_some, block_on, deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond, run, run_catch, scope,
-    set_spawn_panic_handler, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
+    DeadlineError, McWaker, Progress, ScopeCtx, SignalOnce, TaskPanicError, UiTask, all, all_ok, all_some, any, any_ok, any_some, block_on,
+    deadline, fs, future_fn, io, join, join_context, poll_respond, poll_spawn, respond, run, run_catch, scope, set_spawn_panic_handler,
+    spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now,
 };
+
+#[doc(no_inline)]
+pub use zng_task::{Stream, StreamExt};
 
 #[cfg(any(doc, feature = "test_util"))]
 pub use zng_task::{doc_test, spin_on};
