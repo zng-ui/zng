@@ -1,558 +1,125 @@
-#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-pub use desktop::*;
+use zng_app_context::app_local;
+use zng_task::{channel::IpcBytes, parking_lot::MappedRecursiveRwLockWriteGuard};
+use zng_txt::Txt;
+use zng_var::ResponseVar;
 
-#[cfg(target_arch = "wasm32")]
-pub use wasm::*;
+use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, WeakFontBytes};
 
-#[cfg(target_os = "android")]
-pub use android::*;
+struct FontiqueCache {
+    collection: fontique::Collection,
+    source_cache: fontique::SourceCache,
+    ipc_cache: Vec<(fontique::FamilyId, usize, WeakFontBytes)>,
+}
 
-#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-mod desktop {
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
+app_local! {
+    static FONTIQUE_CACHE: Option<FontiqueCache> = const { None };
+}
+
+pub fn invalidate_fontique_cache() {
+    *FONTIQUE_CACHE.write() = None;
+}
+
+fn fontique_cache() -> MappedRecursiveRwLockWriteGuard<'static, FontiqueCache> {
+    let mut c = FONTIQUE_CACHE.write();
+    if c.is_none() {
+        let collection = fontique::Collection::new(fontique::CollectionOptions {
+            shared: false,
+            system_fonts: true,
+        });
+        let source_cache = fontique::SourceCache::new(fontique::SourceCacheOptions { shared: false });
+        *c = Some(FontiqueCache {
+            collection,
+            source_cache,
+            ipc_cache: vec![],
+        });
+    }
+    MappedRecursiveRwLockWriteGuard::map(c, |c| c.as_mut().unwrap())
+}
+
+pub fn system_all() -> ResponseVar<Vec<FontName>> {
+    zng_task::wait_respond(|| {
+        fontique_cache()
+            .collection
+            .family_names()
+            .map(|n| Txt::from_str(n).into())
+            .collect()
+    })
+}
+
+pub fn best(
+    font_name: &FontName,
+    style: FontStyle,
+    weight: FontWeight,
+    stretch: FontStretch,
+) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
+    use fontique::QueryFamily;
+
+    // fontique does basic replacement for QueryFamily::Generic,
+    // but generic names only appear here if they where not resolved by FONTS
+    // where we already define replacements
+    let family = if cfg!(target_os = "macos") && font_name == "system-ui" {
+        // macOS has a special function to get the UI font
+        QueryFamily::Generic(fontique::GenericFamily::SystemUi)
+    } else {
+        // on Linux fontconfig handles generic names so we can just pass the name
+        // other systems will just not match
+        QueryFamily::Named(font_name.name())
     };
 
-    use zng_task::parking_lot::Mutex;
-    use zng_var::ResponseVar;
+    let attributes = fontique::Attributes {
+        width: fontique::FontWidth::from_ratio(stretch.0),
+        weight: fontique::FontWeight::new(weight.0),
+        style: match style {
+            FontStyle::Normal => fontique::FontStyle::Normal,
+            FontStyle::Italic => fontique::FontStyle::Italic,
+            FontStyle::Oblique => fontique::FontStyle::Oblique(None),
+        },
+    };
 
-    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError, WeakFontBytes};
+    let mut c = fontique_cache();
+    let c = &mut *c;
 
-    static DATA_CACHE: Mutex<Vec<(PathBuf, WeakFontBytes)>> = Mutex::new(vec![]);
-
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_task::wait_respond(|| {
-            font_kit::source::SystemSource::new()
-                .all_families()
-                .unwrap_or_default()
-                .into_iter()
-                .map(FontName::from)
-                .collect()
-        })
+    let mut matched = None;
+    {
+        let mut q = c.collection.query(&mut c.source_cache);
+        q.set_families([family]);
+        q.set_attributes(attributes);
+        q.matches_with(|f| {
+            matched = Some((f.family, f.index));
+            fontique::QueryStatus::Stop
+        });
     }
-
-    pub fn best(
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
-        if font_name == "Ubuntu"
-            && let Ok(Some(h)) = workaround_ubuntu(style, weight, stretch)
-        {
-            return Ok(Some(h));
-        }
-
-        let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
-        match font_kit::source::SystemSource::new().select_best_match(
-            &[family_name],
-            &font_kit::properties::Properties {
-                style: style.into(),
-                weight: weight.into(),
-                stretch: stretch.into(),
-            },
-        ) {
-            Ok(handle) => {
-                let r = load_handle(&handle)?;
-                Ok(Some(r))
-            }
-            Err(font_kit::error::SelectionError::NotFound) => {
-                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
-                Ok(None)
-            }
-            Err(font_kit::error::SelectionError::CannotAccessSource { reason }) => {
-                Err(FontLoadingError::Io(Arc::new(std::io::Error::other(reason.unwrap_or_default()))))
-            }
-        }
+    if matched.is_none() {
+        tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
+        return Ok(None);
     }
+    let ((family_id, font_file_idx), font_collection_idx) = matched.unwrap();
 
-    // see https://github.com/servo/font-kit/issues/245
-    fn workaround_ubuntu(style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
-        let source = font_kit::source::SystemSource::new();
-        let ubuntu = match source.select_family_by_name("Ubuntu") {
-            Ok(u) => u,
-            Err(e) => {
-                return match e {
-                    font_kit::error::SelectionError::NotFound => Ok(None),
-                    font_kit::error::SelectionError::CannotAccessSource { reason } => {
-                        Err(FontLoadingError::Io(Arc::new(std::io::Error::other(reason.unwrap_or_default()))))
-                    }
-                };
-            }
-        };
-        for handle in ubuntu.fonts() {
-            let font = handle.load()?;
-            let name = match font.postscript_name() {
-                Some(n) => n,
-                None => continue,
-            };
-
-            // Ubuntu-ExtraBold
-            // Ubuntu-Condensed
-            // Ubuntu-CondensedLight
-            // Ubuntu-CondensedBold
-            // Ubuntu-CondensedMedium
-            // Ubuntu-CondensedExtraBold
-            // UbuntuItalic-CondensedLightItalic
-            // UbuntuItalic-CondensedItalic
-            // UbuntuItalic-CondensedMediumItalic
-            // UbuntuItalic-CondensedBoldItalic
-            // UbuntuItalic-CondensedExtraBoldItalic
-            // Ubuntu-Italic
-            // UbuntuItalic-ThinItalic
-            // UbuntuItalic-LightItalic
-            // UbuntuItalic-Italic
-            // UbuntuItalic-MediumItalic
-            // UbuntuItalic-BoldItalic
-            // UbuntuItalic-ExtraBoldItalic
-            // UbuntuItalic-CondensedThinItalic
-            // Ubuntu-Thin
-            // Ubuntu-Regular
-            // Ubuntu-Light
-            // Ubuntu-Bold
-            // Ubuntu-Medium
-            // Ubuntu-CondensedThin
-
-            if (style == FontStyle::Italic) != name.contains("Italic") {
-                continue;
-            }
-
-            if (FontWeight::MEDIUM..FontWeight::SEMIBOLD).contains(&weight) != name.contains("Medium") {
-                continue;
-            }
-            if (weight >= FontWeight::EXTRA_BOLD) != name.contains("ExtraBold") {
-                continue;
-            }
-            if (FontWeight::SEMIBOLD..FontWeight::EXTRA_BOLD).contains(&weight) != name.contains("Bold") {
-                continue;
-            }
-
-            if (FontWeight::EXTRA_LIGHT..FontWeight::LIGHT).contains(&weight) != name.contains("Light") {
-                continue;
-            }
-            if (weight < FontWeight::EXTRA_LIGHT) != name.contains("Thin") {
-                continue;
-            }
-
-            if (stretch <= FontStretch::CONDENSED) != name.contains("Condensed") {
-                continue;
-            }
-
-            return Ok(Some(load_handle(handle)?));
-        }
-        Ok(None)
-    }
-
-    fn load_handle(handle: &font_kit::handle::Handle) -> Result<(FontBytes, u32), FontLoadingError> {
-        match handle {
-            font_kit::handle::Handle::Path { path, font_index } => {
-                let mut path = path.clone();
-                // try replacing type1 fonts with OpenType
-                // RustyBuzz does not support type1 (neither does Harfbuzz, it is obsolete)
-                //
-                // Example case from default Ubuntu fonts:
-                // /usr/share/fonts/type1/urw-base35/Z003-MediumItalic.t1
-                // /usr/share/fonts/opentype/urw-base35/Z003-MediumItalic.otf
-                if let Ok(base) = path.strip_prefix("/usr/share/fonts/type1/")
-                    && let Some(name) = base.file_name()
-                    && let Some(name) = name.to_str()
-                    && name.ends_with(".t1")
-                {
-                    let rep = Path::new("/usr/share/fonts/opentype/").join(base.with_extension("otf"));
-                    if rep.exists() {
-                        tracing::debug!("replaced `{name}` with .otf of same name");
-                        path = rep;
-                    }
-                }
-
-                for (k, data) in DATA_CACHE.lock().iter() {
-                    if *k == *path
-                        && let Some(data) = data.upgrade()
-                    {
-                        return Ok((data, *font_index));
-                    }
-                }
-
-                let data = FontBytes::from_file(path.clone())?;
-
-                let mut cache = DATA_CACHE.lock();
-                cache.retain(|(_, v)| v.strong_count() > 0);
-                cache.push((path.clone(), data.downgrade()));
-
-                Ok((data, *font_index))
-            }
-            font_kit::handle::Handle::Memory { bytes, font_index } => Ok((FontBytes::from_arc(bytes.clone()), *font_index)),
-        }
-    }
-
-    impl From<font_kit::error::FontLoadingError> for FontLoadingError {
-        fn from(ve: font_kit::error::FontLoadingError) -> Self {
-            match ve {
-                font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
-                font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
-                font_kit::error::FontLoadingError::Parse => Self::Parse(read_fonts::ReadError::MalformedData("")),
-                font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
-                font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
-            }
-        }
-    }
-
-    impl From<FontName> for font_kit::family_name::FamilyName {
-        fn from(font_name: FontName) -> Self {
-            use font_kit::family_name::FamilyName::*;
-            match font_name.name() {
-                "serif" => Serif,
-                "sans-serif" => SansSerif,
-                "monospace" => Monospace,
-                "cursive" => Cursive,
-                "fantasy" => Fantasy,
-                _ => Title(font_name.txt.into()),
-            }
-        }
-    }
-
-    impl From<FontStretch> for font_kit::properties::Stretch {
-        fn from(value: FontStretch) -> Self {
-            font_kit::properties::Stretch(value.0)
-        }
-    }
-
-    impl From<FontStyle> for font_kit::properties::Style {
-        fn from(value: FontStyle) -> Self {
-            use font_kit::properties::Style::*;
-            match value {
-                FontStyle::Normal => Normal,
-                FontStyle::Italic => Italic,
-                FontStyle::Oblique => Oblique,
-            }
-        }
-    }
-
-    impl From<FontWeight> for font_kit::properties::Weight {
-        fn from(value: FontWeight) -> Self {
-            font_kit::properties::Weight(value.0)
-        }
-    }
-
-    impl From<font_kit::error::GlyphLoadingError> for GlyphLoadingError {
-        fn from(value: font_kit::error::GlyphLoadingError) -> Self {
-            use GlyphLoadingError::*;
-            match value {
-                font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
-                font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
-            }
-        }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod wasm {
-    use zng_var::ResponseVar;
-
-    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
-
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_var::response_done_var(vec![])
-    }
-
-    pub fn best(
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
-        let _ = (font_name, style, weight, stretch);
-        Err(FontLoadingError::NoFilesystem)
-    }
-}
-
-#[cfg(target_os = "android")]
-mod android {
-    // font-kit does not cross compile for Android because of a dependency,
-    // so we reimplement/copy some of their code here.
-
-    use std::{borrow::Cow, path::PathBuf, sync::Arc};
-
-    use zng_var::ResponseVar;
-
-    use crate::{FontBytes, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
-
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_task::wait_respond(|| {
-            let mut prev = None;
-            cached_system_all()
-                .iter()
-                .flat_map(|(k, _)| {
-                    if prev == Some(k) {
-                        None
-                    } else {
-                        prev = Some(k);
-                        Some(k)
-                    }
-                })
-                .cloned()
-                .collect()
-        })
-    }
-
-    fn cached_system_all() -> zng_task::parking_lot::MappedRecursiveRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
-        let lock = SYSTEM_ALL.read();
-        if !lock.is_empty() {
-            return lock;
-        }
-
-        drop(lock);
-        let mut lock = SYSTEM_ALL.write();
-        if lock.is_empty() {
-            for entry in ["/system/fonts/", "/system/font/", "/data/fonts/", "/system/product/fonts/"]
-                .iter()
-                .flat_map(std::fs::read_dir)
-                .flatten()
-                .flatten()
-            {
-                let entry = entry.path();
-                let ext = entry.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
-                if ["ttf", "otf"].contains(&ext.as_str()) && entry.is_file() {
-                    if let Ok(bytes) = FontBytes::from_file(entry.clone()) {
-                        match crate::FontFace::load(bytes, 0) {
-                            Ok(f) => {
-                                lock.push((f.family_name().clone(), entry));
-                            }
-                            Err(e) => tracing::error!("error parsing '{}', {e}", entry.display()),
-                        }
-                    }
-                }
-            }
-            lock.sort_by(|a, b| a.0.cmp(&b.0));
-        }
-        drop(lock);
-        SYSTEM_ALL.read()
-    }
-
-    pub fn best(
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
-        let lock = cached_system_all();
-        let lock = &*lock;
-
-        // special names
-        // source: https://android.googlesource.com/platform/frameworks/base/+/master/data/fonts/fonts.xml
-        let font_name = match font_name.name() {
-            "sans-serif" => Cow::Owned(FontName::new("Roboto")),
-            "serif" | "fantasy" => Cow::Owned(FontName::new("Noto Serif")),
-            "cursive" => Cow::Owned(FontName::new("Dancing Script")),
-            "monospace" => Cow::Owned(FontName::new("Droid Sans Mono")),
-            _ => Cow::Borrowed(font_name),
-        };
-        let font_name = &*font_name;
-
-        let mut start_i = match lock.binary_search_by(|a| a.0.cmp(font_name)) {
-            Ok(i) => i,
-            Err(_) => {
-                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
-                return Ok(None);
-            }
-        };
-        while start_i > 0 && &lock[start_i - 1].0 == font_name {
-            start_i -= 1
-        }
-        let mut end_i = start_i;
-        while end_i + 1 < lock.len() && &lock[end_i + 1].0 == font_name {
-            end_i += 1
-        }
-
-        let family_len = end_i - start_i;
-        let mut options = Vec::with_capacity(family_len);
-        let mut candidates = Vec::with_capacity(family_len);
-
-        for (_, path) in &lock[start_i..=end_i] {
-            if let Ok(bytes) = FontBytes::from_file(path.clone()) {
-                if let Ok(f) = skrifa::FontRef::from_index(&bytes, 0) {
-                    use skrifa::MetadataProvider as _;
-                    let a = f.attributes();
-                    candidates.push(matching::Properties {
-                        style: a.style,
-                        weight: a.weight,
-                        stretch: a.stretch,
-                    });
-                    options.push(bytes);
-                }
-            }
-        }
-
-        match matching::find_best_match(
-            &candidates,
-            &matching::Properties {
-                style: style.into(),
-                weight: weight.into(),
-                stretch: stretch.into(),
-            },
-        ) {
-            Ok(i) => {
-                let bytes = options.swap_remove(i);
-                Ok(Some((bytes, 0)))
-            }
-            Err(FontLoadingError::NoSuchFontInCollection) => {
-                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
-                Ok(None)
-            }
-            Err(e) => Err(FontLoadingError::Io(Arc::new(std::io::Error::other(e)))),
-        }
-    }
-
-    zng_app_context::app_local! {
-        static SYSTEM_ALL: Vec<(FontName, PathBuf)> = vec![];
-    }
-
-    mod matching {
-        // font-kit/src/matching.rs
-        //
-        // Copyright © 2018 The Pathfinder Project Developers.
-        //
-        // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-        // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-        // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-        // option. This file may not be copied, modified, or distributed
-        // except according to those terms.
-
-        //! Determines the closest font matching a description per the CSS Fonts Level 3 specification.
-
-        use skrifa::attribute::{Stretch, Style, Weight};
-
-        use crate::FontLoadingError;
-
-        pub struct Properties {
-            pub style: Style,
-            pub weight: Weight,
-            pub stretch: Stretch,
-        }
-
-        /// This follows CSS Fonts Level 3 § 5.2 [1].
-        ///
-        /// https://drafts.csswg.org/css-fonts-3/#font-style-matching
-        pub fn find_best_match(candidates: &[Properties], query: &Properties) -> Result<usize, FontLoadingError> {
-            // Step 4.
-            let mut matching_set: Vec<usize> = (0..candidates.len()).collect();
-            if matching_set.is_empty() {
-                return Err(FontLoadingError::NoSuchFontInCollection);
-            }
-
-            fn k(f: f32) -> i32 {
-                (f * 64.0) as i32
-            }
-
-            // Step 4a (`font-stretch`).
-            let matching_stretch = if matching_set.iter().any(|&index| candidates[index].stretch == query.stretch) {
-                // Exact match.
-                query.stretch
-            } else if query.stretch <= Stretch::NORMAL {
-                // Closest width, first checking narrower values and then wider values.
-                match matching_set
-                    .iter()
-                    .filter(|&&index| candidates[index].stretch < query.stretch)
-                    .min_by_key(|&&index| k(query.stretch.ratio() - candidates[index].stretch.ratio()))
-                {
-                    Some(&matching_index) => candidates[matching_index].stretch,
-                    None => {
-                        let matching_index = *matching_set
-                            .iter()
-                            .min_by_key(|&&index| k(candidates[index].stretch.ratio() - query.stretch.ratio()))
-                            .unwrap();
-                        candidates[matching_index].stretch
-                    }
-                }
+    let mut active_ipc = None;
+    c.ipc_cache.retain(|(f, i, b)| {
+        if f == &family_id && *i == font_file_idx {
+            if let Some(b) = b.upgrade() {
+                active_ipc = Some(b);
+                true
             } else {
-                // Closest width, first checking wider values and then narrower values.
-                match matching_set
-                    .iter()
-                    .filter(|&&index| candidates[index].stretch > query.stretch)
-                    .min_by_key(|&&index| k(candidates[index].stretch.ratio() - query.stretch.ratio()))
-                {
-                    Some(&matching_index) => candidates[matching_index].stretch,
-                    None => {
-                        let matching_index = *matching_set
-                            .iter()
-                            .min_by_key(|&&index| k(query.stretch.ratio() - candidates[index].stretch.ratio()))
-                            .unwrap();
-                        candidates[matching_index].stretch
-                    }
-                }
-            };
-            matching_set.retain(|&index| candidates[index].stretch == matching_stretch);
-
-            // Step 4b (`font-style`).
-            let style_preference = match query.style {
-                Style::Italic => [Style::Italic, Style::Oblique(None), Style::Normal],
-                Style::Oblique(_) => [Style::Oblique(None), Style::Italic, Style::Normal],
-                Style::Normal => [Style::Normal, Style::Oblique(None), Style::Italic],
-            };
-            let matching_style = *style_preference
-                .iter()
-                .find(|&query_style| matching_set.iter().any(|&index| candidates[index].style == *query_style))
-                .unwrap();
-            matching_set.retain(|&index| candidates[index].style == matching_style);
-
-            // Step 4c (`font-weight`).
-            //
-            // The spec doesn't say what to do if the weight is between 400 and 500 exclusive, so we
-            // just use 450 as the cutoff.
-            let matching_weight = if matching_set.iter().any(|&index| candidates[index].weight == query.weight) {
-                query.weight
-            } else if query.weight.value() >= 400.0
-                && query.weight.value() < 450.0
-                && matching_set.iter().any(|&index| candidates[index].weight == Weight::new(500.0))
-            {
-                // Check 500 first.
-                Weight::new(500.0)
-            } else if query.weight.value() >= 450.0
-                && query.weight.value() <= 500.0
-                && matching_set.iter().any(|&index| candidates[index].weight.value() == 400.0)
-            {
-                // Check 400 first.
-                Weight::new(400.0)
-            } else if query.weight.value() <= 500.0 {
-                // Closest weight, first checking thinner values and then fatter ones.
-                match matching_set
-                    .iter()
-                    .filter(|&&index| candidates[index].weight.value() <= query.weight.value())
-                    .min_by_key(|&&index| k(query.weight.value() - candidates[index].weight.value()))
-                {
-                    Some(&matching_index) => candidates[matching_index].weight,
-                    None => {
-                        let matching_index = *matching_set
-                            .iter()
-                            .min_by_key(|&&index| k(candidates[index].weight.value() - query.weight.value()))
-                            .unwrap();
-                        candidates[matching_index].weight
-                    }
-                }
-            } else {
-                // Closest weight, first checking fatter values and then thinner ones.
-                match matching_set
-                    .iter()
-                    .filter(|&&index| candidates[index].weight.value() >= query.weight.value())
-                    .min_by_key(|&&index| k(candidates[index].weight.value() - query.weight.value()))
-                {
-                    Some(&matching_index) => candidates[matching_index].weight,
-                    None => {
-                        let matching_index = *matching_set
-                            .iter()
-                            .min_by_key(|&&index| k(query.weight.value() - candidates[index].weight.value()))
-                            .unwrap();
-                        candidates[matching_index].weight
-                    }
-                }
-            };
-            matching_set.retain(|&index| candidates[index].weight == matching_weight);
-
-            // Step 4d concerns `font-size`, but fonts in `font-kit` are unsized, so we ignore that.
-
-            // Return the result.
-            matching_set.into_iter().next().ok_or(FontLoadingError::NoSuchFontInCollection)
+                false
+            }
+        } else {
+            b.strong_count() > 0
         }
+    });
+    if let Some((_, _, b)) = c.ipc_cache.iter().find(|(f, i, _)| f == &family_id && *i == font_file_idx)
+        && let Some(b) = b.upgrade()
+    {
+        return Ok(Some((b, font_collection_idx)));
     }
+
+    let family_info = c.collection.family(family_id).unwrap();
+    let bytes = match &family_info.fonts()[font_file_idx].source().kind {
+        fontique::SourceKind::Memory(b) => FontBytes::from_ipc(IpcBytes::from_slice_blocking(b.as_ref())?),
+        fontique::SourceKind::Path(p) => FontBytes::from_file(p.to_path_buf())?,
+    };
+    c.ipc_cache.push((family_id, font_file_idx, bytes.downgrade()));
+
+    Ok(Some((bytes, font_collection_idx)))
 }

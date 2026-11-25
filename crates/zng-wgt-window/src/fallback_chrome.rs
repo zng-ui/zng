@@ -46,7 +46,8 @@ pub fn fallback_chrome() -> UiNode {
                                         unreachable!("{cmd:?} what")
                                     };
                                     Text! {
-                                        font_family = "Noto Sans Symbols 2";
+                                        // Ubuntu has a type on the name "Symbols2"
+                                        font_family = ["Noto Sans Symbols 2", "Noto Sans Symbols2", "Noto Sans Symbols"];
                                         font_size = size.pt();
                                         padding = (padding_top, 0, 0, 0);
                                         txt = symbol;

@@ -69,8 +69,9 @@ dunce = { version = "1.0", default-features = false }
 # "hypher_full" feature docs mentions this version, on upgrade manually update it here and in zng/Cargo.toml and in HYPHENATION service docs
 hypher = { version = "0.1", default-features = false, features = ["alloc"] }
 
-[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
-font-kit = { version = "0.14", default-features = false, features = ["source"] }
+fontique = { version = "0.13", default-features = false, features = ["std"] }
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+fontique = { version = "0.13", features = ["system"] }
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62.2"
