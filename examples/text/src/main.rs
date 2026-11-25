@@ -104,7 +104,7 @@ fn font_size_example(font_size: Var<Length>) -> UiNode {
 
 fn basic() -> UiNode {
     section(
-        "basic",
+        "Basic",
         ui_vec![
             Text!("Basic Text"),
             text::Strong!("Strong Text"),
@@ -288,7 +288,7 @@ fn defaults() -> UiNode {
     }
 
     section(
-        "defaults",
+        "Defaults",
         ui_vec![
             // Generic
             demo("", FontName::serif()),

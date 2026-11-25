@@ -770,6 +770,7 @@ struct LoadedFontFace {
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     harfrust_font: Option<harfrust::Font>,
+    variable_cfg: RFontVariations,
     m: Mutex<FontFaceMut>,
 }
 bitflags! {
@@ -825,6 +826,7 @@ impl FontFace {
             stretch: FontStretch::NORMAL,
             lig_carets: LigatureCaretList::empty(),
             harfrust_font: None,
+            variable_cfg: vec![],
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
                 render_ids: vec![],
@@ -867,6 +869,7 @@ impl FontFace {
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
                         harfrust_font: other_font.0.harfrust_font.clone(),
+                        variable_cfg: other_font.0.variable_cfg.clone(),
                         m: Mutex::new(FontFaceMut {
                             instances: Default::default(),
                             render_ids: Default::default(),
@@ -918,9 +921,9 @@ impl FontFace {
 
         let mut harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
 
+        let mut variable_cfg = vec![];
         if let Some(f) = &mut harfrust_font {
             use harfrust::{Tag, font::Variation};
-            let mut variable_cfg = vec![];
 
             let axes = f.axes();
 
@@ -964,7 +967,7 @@ impl FontFace {
             }
 
             if !variable_cfg.is_empty() {
-                *f = f.instance_builder().variations(variable_cfg).build();
+                *f = f.instance_builder().variations(variable_cfg.iter().copied()).build();
             }
         }
 
@@ -978,6 +981,7 @@ impl FontFace {
             stretch: custom_font.stretch,
             lig_carets,
             harfrust_font,
+            variable_cfg,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -988,7 +992,7 @@ impl FontFace {
         })))
     }
 
-    fn load(bytes: FontBytes, mut face_index: u32, variable_cfg: Vec<harfrust::font::Variation>) -> Result<Self, FontLoadingError> {
+    fn load(bytes: FontBytes, mut face_index: u32, variable_cfg: RFontVariations) -> Result<Self, FontLoadingError> {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
         let ttf_face = match skrifa::FontRef::from_index(&bytes, face_index) {
@@ -1070,7 +1074,7 @@ impl FontFace {
         if !variable_cfg.is_empty()
             && let Some(f) = &mut harfrust_font
         {
-            *f = f.instance_builder().variations(variable_cfg).build();
+            *f = f.instance_builder().variations(variable_cfg.iter().copied()).build();
         }
 
         Ok(FontFace(Arc::new(LoadedFontFace {
@@ -1083,6 +1087,7 @@ impl FontFace {
             stretch: attr.stretch.into(),
             lig_carets,
             harfrust_font,
+            variable_cfg,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -1179,6 +1184,15 @@ impl FontFace {
         self.0.stretch
     }
 
+    /// Font variations that configure the variable font to apply the [`style`], [`weight`] or [`stretch`] values.
+    ///
+    /// [`style`]: Self::style
+    /// [`weight`]: Self::weight
+    /// [`stretch`]: Self::stretch
+    pub fn variable_cfgs(&self) -> &RFontVariations {
+        &self.0.variable_cfg
+    }
+
     /// Font is monospace (fixed-width).
     pub fn is_monospace(&self) -> bool {
         self.0.flags.contains(FontFaceFlags::IS_MONOSPACE)
@@ -1189,9 +1203,10 @@ impl FontFace {
     /// The `font_size` is the size of `1 font EM` in pixels.
     ///
     /// The `variations` are custom [font variations] that will be used
-    /// during shaping and rendering.
+    /// during shaping and rendering, they are applied after/over the [`variable_cfgs`].
     ///
     /// [font variations]: crate::font_features::FontVariations::finalize
+    /// [`variable_cfgs`]: Self::variable_cfgs
     pub fn sized(&self, font_size: Px, variations: RFontVariations) -> Font {
         let key = FontInstanceKey::new(font_size, &variations);
         let mut m = self.0.m.lock();
@@ -1353,7 +1368,15 @@ impl Font {
         let mut opt = zng_view_api::font::FontOptions::default();
         opt.synthetic_oblique = synthesis.contains(FontSynthesis::OBLIQUE);
         opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
-        let variations = self.0.variations.iter().map(|v| (v.tag.to_be_bytes(), v.value)).collect();
+        let variations = self
+            .0
+            .face
+            .0
+            .variable_cfg
+            .iter()
+            .chain(self.0.variations.iter())
+            .map(|v| (v.tag.to_be_bytes(), v.value))
+            .collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
@@ -1381,6 +1404,8 @@ impl Font {
     }
 
     /// Custom font variations.
+    ///
+    /// These variables are applied after [`FontFace::variable_cfgs`].
     pub fn variations(&self) -> &RFontVariations {
         &self.0.variations
     }
