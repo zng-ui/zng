@@ -1677,6 +1677,7 @@ impl FontFaceLoader {
     }
 
     fn on_refresh(&mut self) {
+        crate::query_util::invalidate_fontique_cache();
         for (_, sys_family) in self.system_fonts_cache.drain() {
             for sys_font in sys_family {
                 sys_font.result.with(|r| {
@@ -2779,13 +2780,15 @@ impl FontBytes {
 
         #[cfg(windows)]
         {
+            use std::path::Path;
+
             use windows::Win32::{Foundation::MAX_PATH, System::SystemInformation::GetSystemWindowsDirectoryW};
             let mut buffer = [0u16; MAX_PATH as usize];
             // SAFETY: Buffer allocated to max possible
             let len = unsafe { GetSystemWindowsDirectoryW(Some(&mut buffer)) };
-            let fonts_dir = String::from_utf16_lossy(&buffer[..len as usize]);
-            // usually this is: r"C:\Windows\Fonts"
-            if path.starts_with(fonts_dir) {
+            let windows_dir = String::from_utf16_lossy(&buffer[..len as usize]);
+            // usually this is: r"C:\Windows\"
+            if path.starts_with(Path::new(&windows_dir).join("Fonts")) {
                 // SAFETY: Windows restricts write access to files in this directory.
                 return unsafe { load_from_system(path) };
             }

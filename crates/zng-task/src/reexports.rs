@@ -13,9 +13,9 @@ pub mod parking_lot {
     #[doc(no_inline)]
     pub use ::parking_lot::{
         ArcMutexGuard, ArcRwLockReadGuard, ArcRwLockWriteGuard, Condvar, MappedMutexGuard, MappedRecursiveRwLockReadGuard,
-        MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RecursiveRwLock, RecursiveRwLockReadGuard,
-        RecursiveRwLockUpgradableReadGuard, RecursiveRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockUpgradableReadGuard,
-        RwLockWriteGuard,
+        MappedRecursiveRwLockWriteGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, RecursiveRwLock,
+        RecursiveRwLockReadGuard, RecursiveRwLockUpgradableReadGuard, RecursiveRwLockWriteGuard, RwLock, RwLockReadGuard,
+        RwLockUpgradableReadGuard, RwLockWriteGuard,
     };
 }
 
