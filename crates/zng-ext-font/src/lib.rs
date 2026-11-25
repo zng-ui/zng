@@ -770,7 +770,7 @@ struct LoadedFontFace {
     lig_carets: LigatureCaretList,
     flags: FontFaceFlags,
     harfrust_font: Option<harfrust::Font>,
-    variable_cfg: RFontVariations,
+    variations: RFontVariations,
     m: Mutex<FontFaceMut>,
 }
 bitflags! {
@@ -826,7 +826,7 @@ impl FontFace {
             stretch: FontStretch::NORMAL,
             lig_carets: LigatureCaretList::empty(),
             harfrust_font: None,
-            variable_cfg: vec![],
+            variations: vec![],
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
                 render_ids: vec![],
@@ -869,7 +869,7 @@ impl FontFace {
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
                         harfrust_font: other_font.0.harfrust_font.clone(),
-                        variable_cfg: other_font.0.variable_cfg.clone(),
+                        variations: other_font.0.variations.clone(),
                         m: Mutex::new(FontFaceMut {
                             instances: Default::default(),
                             render_ids: Default::default(),
@@ -981,7 +981,7 @@ impl FontFace {
             stretch: custom_font.stretch,
             lig_carets,
             harfrust_font,
-            variable_cfg,
+            variations: variable_cfg,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -1087,7 +1087,7 @@ impl FontFace {
             stretch: attr.stretch.into(),
             lig_carets,
             harfrust_font,
-            variable_cfg,
+            variations: variable_cfg,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
                 render_ids: Default::default(),
@@ -1189,8 +1189,8 @@ impl FontFace {
     /// [`style`]: Self::style
     /// [`weight`]: Self::weight
     /// [`stretch`]: Self::stretch
-    pub fn variable_cfgs(&self) -> &RFontVariations {
-        &self.0.variable_cfg
+    pub fn variations(&self) -> &RFontVariations {
+        &self.0.variations
     }
 
     /// Font is monospace (fixed-width).
@@ -1203,10 +1203,9 @@ impl FontFace {
     /// The `font_size` is the size of `1 font EM` in pixels.
     ///
     /// The `variations` are custom [font variations] that will be used
-    /// during shaping and rendering, they are applied after/over the [`variable_cfgs`].
+    /// during shaping and rendering, they are applied after/over the [`FontFace::variations`].
     ///
     /// [font variations]: crate::font_features::FontVariations::finalize
-    /// [`variable_cfgs`]: Self::variable_cfgs
     pub fn sized(&self, font_size: Px, variations: RFontVariations) -> Font {
         let key = FontInstanceKey::new(font_size, &variations);
         let mut m = self.0.m.lock();
@@ -1372,7 +1371,7 @@ impl Font {
             .0
             .face
             .0
-            .variable_cfg
+            .variations
             .iter()
             .chain(self.0.variations.iter())
             .map(|v| (v.tag.to_be_bytes(), v.value))
@@ -1405,7 +1404,7 @@ impl Font {
 
     /// Custom font variations.
     ///
-    /// These variables are applied after [`FontFace::variable_cfgs`].
+    /// These variables are applied after [`FontFace::variations`].
     pub fn variations(&self) -> &RFontVariations {
         &self.0.variations
     }
