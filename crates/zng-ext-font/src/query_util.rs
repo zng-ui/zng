@@ -52,17 +52,13 @@ pub fn best(
     weight: FontWeight,
     stretch: FontStretch,
 ) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
-    use fontique::{GenericFamily, QueryFamily};
+    use fontique::QueryFamily;
 
-    let family = match font_name.name() {
-        "serif" => QueryFamily::Generic(GenericFamily::Serif),
-        "sans-serif" => QueryFamily::Generic(GenericFamily::SansSerif),
-        "monospace" => QueryFamily::Generic(GenericFamily::Monospace),
-        "cursive" => QueryFamily::Generic(GenericFamily::Cursive),
-        "fantasy" => QueryFamily::Generic(GenericFamily::Fantasy),
-        "system-ui" => QueryFamily::Generic(GenericFamily::SystemUi),
-        name => QueryFamily::Named(name),
-    };
+    // fontique does basic replacement for QueryFamily::Generic,
+    // but generic names only appear here if they where not resolved by FONTS
+    // and we want the system replacement
+    let family = QueryFamily::Named(font_name.name());
+
     let attributes = fontique::Attributes {
         width: fontique::FontWidth::from_ratio(stretch.0),
         weight: fontique::FontWeight::new(weight.0),

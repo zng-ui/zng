@@ -701,15 +701,21 @@ impl FONTS {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<Option<FontFace>> {
-        let resolved = GenericFonts {}.resolve(family, lang);
-        let family = resolved.as_ref().unwrap_or(family);
+        if family == "system-ui" {
+            // system-ui resolves to a list
+            self.list(std::slice::from_ref(family), style, weight, stretch, lang)
+                .map_response(|l| l.into_iter().next().cloned())
+        } else {
+            let resolved = GenericFonts {}.resolve(family, lang);
+            let family = resolved.as_ref().unwrap_or(family);
 
-        // try with shared lock
-        if let Some(cached) = FONTS_SV.read().loader.try_resolved(family, style, weight, stretch) {
-            return cached;
+            // try with shared lock
+            if let Some(cached) = FONTS_SV.read().loader.try_resolved(family, style, weight, stretch) {
+                return cached;
+            }
+            // begin load with exclusive lock (cache is tried again in `load`)
+            FONTS_SV.write().loader.load_resolved(family, style, weight, stretch)
         }
-        // begin load with exclusive lock (cache is tried again in `load`)
-        FONTS_SV.write().loader.load_resolved(family, style, weight, stretch)
     }
 
     /// Find a single font face with all normal properties.

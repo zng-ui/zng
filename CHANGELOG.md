@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix `FONTS.find`, now also resolves `"system-ui"`.
 * Add `zng::fs_watcher::WatchDir`.
     - **Breaking** `WATCHER.read_dir` closure now uses this type.
     - Gives access to the path and multiple ways of iterating the entries.
