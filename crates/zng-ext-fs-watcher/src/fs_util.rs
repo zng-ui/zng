@@ -430,7 +430,6 @@ struct NativeFileNameSortKey {
     stem_str: Box<str>,
     ext_str: Box<str>,
 }
-
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 impl NativeFileNameSortKey {
     fn new(file_name: &OsStr) -> Self {

@@ -51,7 +51,7 @@ features = ["Win32_UI_Shell"]
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation = { version = "0.2", default-features = false, features = ["NSString", "NSObjCRuntime"] }
 objc2 = { version = "0.5.3", default-features = false }
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(not(any(target_os = "windows", target_os = "macos")))'.dependencies]
 natord = "1.0"
 
 [package.metadata.docs.rs]
