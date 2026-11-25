@@ -336,17 +336,26 @@ struct NativeFileNameSortKey {
 #[cfg(target_os = "macos")]
 impl NativeFileNameSortKey {
     fn new(file_name: &OsStr) -> Self {
-        use objc2::AnyThread;
+        use objc2::ClassType;
         use objc2_foundation::{NSString, NSUTF8StringEncoding};
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
+        use std::ptr::NonNull;
 
         let path = Path::new(file_name);
 
         fn to_ns_string(s: Option<&OsStr>) -> objc2::rc::Retained<NSString> {
-            let bytes = s.map(|os| os.as_bytes()).unwrap_or(&[]);
-            unsafe { NSString::initWithBytes_length_encoding(NSString::alloc(), bytes.as_ptr().cast(), bytes.len(), NSUTF8StringEncoding) }
-                .unwrap_or_else(|| NSString::from_str(&s.unwrap_or_default().to_string_lossy()))
+            let bytes = s.map(OsStr::as_bytes).unwrap_or(&[]);
+            if !bytes.is_empty() {
+                // SAFETY: `bytes` is valid for `bytes.len()` and `NonNull` is non-null.
+                let ptr = unsafe { NonNull::new_unchecked(bytes.as_ptr() as *mut std::ffi::c_void) };
+                if let Some(ns) =
+                    unsafe { NSString::initWithBytes_length_encoding(NSString::alloc(), ptr, bytes.len(), NSUTF8StringEncoding) }
+                {
+                    return ns;
+                }
+            }
+            NSString::from_str(&s.unwrap_or_default().to_string_lossy())
         }
 
         Self {
@@ -358,14 +367,16 @@ impl NativeFileNameSortKey {
     fn cmp(&self, other: &Self) -> Ordering {
         use objc2_foundation::NSComparisonResult;
 
-        let stem_ord = match self.stem_ns.localizedStandardCompare(&other.stem_ns) {
+        // SAFETY: Both `NSString` instances are valid Objective-C strings.
+        let stem_ord = match unsafe { self.stem_ns.localizedStandardCompare(&other.stem_ns) } {
             NSComparisonResult::Ascending => Ordering::Less,
             NSComparisonResult::Same => Ordering::Equal,
             NSComparisonResult::Descending => Ordering::Greater,
         };
 
         match stem_ord {
-            Ordering::Equal => match self.ext_ns.localizedStandardCompare(&other.ext_ns) {
+            // SAFETY: Both `NSString` instances are valid Objective-C strings.
+            Ordering::Equal => match unsafe { self.ext_ns.localizedStandardCompare(&other.ext_ns) } {
                 NSComparisonResult::Ascending => Ordering::Less,
                 NSComparisonResult::Same => Ordering::Equal,
                 NSComparisonResult::Descending => Ordering::Greater,
@@ -375,32 +386,33 @@ impl NativeFileNameSortKey {
     }
 
     fn cmp_ref(a: &OsStr, b: &OsStr) -> Ordering {
-        use objc2::AnyThread;
+        use objc2::ClassType;
         use objc2_foundation::{NSComparisonResult, NSString, NSUTF8StringEncoding};
         use std::borrow::Cow;
         use std::os::unix::ffi::OsStrExt;
+        use std::ptr::NonNull;
 
         fn with_ns_string<R>(s: Option<&OsStr>, f: impl FnOnce(&NSString) -> R) -> R {
             let bytes = s.map(OsStr::as_bytes).unwrap_or(&[]);
-            // SAFETY: `ns` does not outlive `bytes`, and `freeWhenDone` is false.
-            let ns = unsafe {
-                NSString::initWithBytesNoCopy_length_encoding_freeWhenDone(
-                    NSString::alloc(),
-                    bytes.as_ptr() as *mut _,
-                    bytes.len(),
-                    NSUTF8StringEncoding,
-                    false,
-                )
-            };
-
-            if let Some(ns) = ns {
-                f(&ns)
-            } else {
-                // Fallback only if filename contains invalid UTF-8
-                let lossy: Cow<'_, str> = s.unwrap_or_default().to_string_lossy();
-                let ns = NSString::from_str(&lossy);
-                f(&ns)
+            if !bytes.is_empty() {
+                // SAFETY: `ns` does not outlive `bytes`, `freeWhenDone` is `false`, and `ptr` is non-null.
+                let ptr = unsafe { NonNull::new_unchecked(bytes.as_ptr() as *mut std::ffi::c_void) };
+                if let Some(ns) = unsafe {
+                    NSString::initWithBytesNoCopy_length_encoding_freeWhenDone(
+                        NSString::alloc(),
+                        ptr,
+                        bytes.len(),
+                        NSUTF8StringEncoding,
+                        false,
+                    )
+                } {
+                    return f(&ns);
+                }
             }
+
+            let lossy: Cow<'_, str> = s.unwrap_or_default().to_string_lossy();
+            let ns = NSString::from_str(&lossy);
+            f(&ns)
         }
 
         let cmp_part = |part_a: Option<&OsStr>, part_b: Option<&OsStr>| -> Ordering {
@@ -408,10 +420,13 @@ impl NativeFileNameSortKey {
                 return Ordering::Equal;
             }
             with_ns_string(part_a, |ns_a| {
-                with_ns_string(part_b, |ns_b| match ns_a.localizedStandardCompare(ns_b) {
-                    NSComparisonResult::Ascending => Ordering::Less,
-                    NSComparisonResult::Same => Ordering::Equal,
-                    NSComparisonResult::Descending => Ordering::Greater,
+                with_ns_string(part_b, |ns_b| {
+                    // SAFETY: Both `NSString` instances are valid for the duration of the closure.
+                    match unsafe { ns_a.localizedStandardCompare(ns_b) } {
+                        NSComparisonResult::Ascending => Ordering::Less,
+                        NSComparisonResult::Same => Ordering::Equal,
+                        NSComparisonResult::Descending => Ordering::Greater,
+                    }
                 })
             })
         };
