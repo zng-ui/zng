@@ -701,21 +701,8 @@ impl FONTS {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<Option<FontFace>> {
-        if family == "system-ui" {
-            // system-ui resolves to a list
-            self.list(std::slice::from_ref(family), style, weight, stretch, lang)
-                .map_response(|l| l.into_iter().next().cloned())
-        } else {
-            let resolved = GenericFonts {}.resolve(family, lang);
-            let family = resolved.as_ref().unwrap_or(family);
-
-            // try with shared lock
-            if let Some(cached) = FONTS_SV.read().loader.try_resolved(family, style, weight, stretch) {
-                return cached;
-            }
-            // begin load with exclusive lock (cache is tried again in `load`)
-            FONTS_SV.write().loader.load_resolved(family, style, weight, stretch)
-        }
+        self.list(std::slice::from_ref(family), style, weight, stretch, lang)
+            .map_response(|l| l.into_iter().next().cloned())
     }
 
     /// Find a single font face with all normal properties.
@@ -1751,9 +1738,9 @@ impl FontFaceLoader {
         let mut pending = vec![];
 
         {
-            let fallback = [GenericFonts {}.fallback(lang)];
+            let fallback = GenericFonts {}.fallback(lang);
             let mut used = HashSet::with_capacity(families.len());
-            for name in families.iter().chain(&fallback) {
+            for name in families.iter().chain(fallback.iter()) {
                 if !used.insert(name) {
                     continue;
                 }
@@ -2546,11 +2533,11 @@ macro_rules! impl_fallback_accessors {
     ($($name:ident=$name_str:tt),+ $(,)?) => {$($crate::paste! {
     #[doc = "Gets the *"$name_str "* font for the given language."]
     ///
-    /// Returns a font name for the best `lang` match.
+    /// Returns a font name list for the best `lang` match.
     ///
     #[doc = "Note that the returned name can still be the generic `\""$name_str "\"`, this delegates the resolution to the operating system."]
 
-    pub fn $name(&self, lang: &Lang) -> FontName {
+    pub fn $name(&self, lang: &Lang) -> FontNames {
         GENERIC_FONTS_SV.read().$name.get(lang).unwrap().clone()
     }
 
@@ -2559,12 +2546,12 @@ macro_rules! impl_fallback_accessors {
     /// The change is applied for the next update.
     ///
     /// Use `lang!(und)` to set name used when no language matches.
-    pub fn [<set_ $name>]<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
-        self.[<set_ $name _impl>](lang, font_name.into());
+    pub fn [<set_ $name>]<F: Into<FontNames>>(&self, lang: Lang, font_names: F) {
+        self.[<set_ $name _impl>](lang, font_names.into());
     }
-    fn [<set_ $name _impl>](&self, lang: Lang, font_name: FontName) {
+    fn [<set_ $name _impl>](&self, lang: Lang, font_names: FontNames) {
         UPDATES.once_update("GenericFonts.set", move || {
-            GENERIC_FONTS_SV.write().$name.insert(lang.clone(), font_name);
+            GENERIC_FONTS_SV.write().$name.insert(lang.clone(), font_names);
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::GenericFont(FontName::$name(), lang)));
         });
     }
@@ -2573,69 +2560,42 @@ macro_rules! impl_fallback_accessors {
 impl GenericFonts {
     #[rustfmt::skip] // for zng fmt
     impl_fallback_accessors! {
-        serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy"
+        serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy", system_ui="system-ui"
     }
 
-    /// Gets the *"system-ui"* font for the given language.
-    ///
-    /// Returns a font name list for the best `lang` match.
-    ///
-    /// Note that the returned names can still contain the generic `"system-ui"`, this delegates the resolution to the operating system.
-    pub fn system_ui(&self, lang: &Lang) -> FontNames {
-        GENERIC_FONTS_SV.read().system_ui.get(lang).unwrap().clone()
-    }
-
-    /// Sets the *"system-ui"* fonts for a the given language.
-    ///
-    /// The change is applied for the next update.
-    ///
-    /// Use `lang!(und)` to set fonts used when no language matches.
-    pub fn set_system_ui(&self, lang: Lang, font_names: impl Into<FontNames>) {
-        self.set_system_ui_impl(lang, font_names.into())
-    }
-    fn set_system_ui_impl(&self, lang: Lang, font_names: FontNames) {
-        UPDATES.once_update("GenericFonts.set_system_ui", move || {
-            GENERIC_FONTS_SV.write().system_ui.insert(lang.clone(), font_names);
-            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::GenericFont(FontName::system_ui(), lang)));
-        });
-    }
-
-    /// Gets the ultimate fallback font used when none of the other fonts support a glyph.
+    /// Gets the ultimate fallback fonts used when none of the other fonts support a glyph.
     ///
     /// Returns a font name.
-    pub fn fallback(&self, lang: &Lang) -> FontName {
+    pub fn fallback(&self, lang: &Lang) -> FontNames {
         GENERIC_FONTS_SV.read().fallback.get(lang).unwrap().clone()
     }
 
-    /// Sets the ultimate fallback font used when none of other fonts support a glyph.
+    /// Sets the ultimate fallback fonts used when none of other fonts support a glyph.
     ///
     /// The change applies for the next update.
     ///
     /// Use `lang!(und)` to set name used when no language matches.
-    pub fn set_fallback<F: Into<FontName>>(&self, lang: Lang, font_name: F) {
-        self.set_fallback_impl(lang, font_name.into());
+    pub fn set_fallback<F: Into<FontNames>>(&self, lang: Lang, font_names: F) {
+        self.set_fallback_impl(lang, font_names.into());
     }
-    fn set_fallback_impl(&self, lang: Lang, font_name: FontName) {
+    fn set_fallback_impl(&self, lang: Lang, font_names: FontNames) {
         UPDATES.once_update("GenericFonts.set", move || {
-            GENERIC_FONTS_SV.write().fallback.insert(lang.clone(), font_name);
+            GENERIC_FONTS_SV.write().fallback.insert(lang.clone(), font_names);
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Fallback(lang)));
         });
     }
 
-    /// Returns the font name registered for the generic `name` and `lang`.
-    ///
-    /// Returns `None` if `name` if not one of the generic font names.
-    ///
-    /// Note that this does not resolve `"system-ui"`, use [`resolve_list`] for that.
+    /// Returns the font names registered for the generic `name` and `lang`.
     ///
     /// [`resolve_list`]: GenericFonts::resolve_list
-    pub fn resolve(&self, name: &FontName, lang: &Lang) -> Option<FontName> {
+    pub fn resolve(&self, name: &FontName, lang: &Lang) -> Option<FontNames> {
         match &**name {
             "serif" => Some(self.serif(lang)),
             "sans-serif" => Some(self.sans_serif(lang)),
             "monospace" => Some(self.monospace(lang)),
             "cursive" => Some(self.cursive(lang)),
             "fantasy" => Some(self.fantasy(lang)),
+            "system-ui" => Some(self.system_ui(lang)),
             _ => None,
         }
     }
@@ -2651,7 +2611,7 @@ impl GenericFonts {
             let mut r = FontNames(Vec::with_capacity(names.len()));
             for name in names {
                 match self.resolve(name, lang) {
-                    Some(n) => r.push(n),
+                    Some(n) => r.extend(n),
                     None => {
                         if name == "system-ui" {
                             r.extend(self.system_ui(lang));
@@ -2661,6 +2621,8 @@ impl GenericFonts {
                     }
                 }
             }
+            let mut dedup = HashSet::with_capacity(r.len());
+            r.retain(|n| dedup.insert(n.clone()));
             Some(r)
         } else {
             None
@@ -3897,28 +3859,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generic_fonts_default() {
-        let _app = APP.minimal().run_headless(false);
-
-        assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(und)))
-    }
-
-    #[test]
-    fn generic_fonts_fallback() {
-        let _app = APP.minimal().run_headless(false);
-
-        assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(en_US)));
-        assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(es)));
-    }
-
-    #[test]
     fn generic_fonts_get1() {
         let mut app = APP.minimal().run_headless(false);
         GenericFonts {}.set_sans_serif(lang!(en_US), "Test Value");
         app.update(false).assert_wait();
 
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
+        assert!(GenericFonts {}.sans_serif(&lang!("en-US")).contains(&FontName::from("Test Value")));
+        assert!(GenericFonts {}.sans_serif(&lang!("en")).contains(&FontName::from("Test Value")));
     }
 
     #[test]
@@ -3927,8 +3874,8 @@ mod tests {
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
         app.update(false).assert_wait();
 
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
+        assert!(GenericFonts {}.sans_serif(&lang!("en-US")).contains(&FontName::from("Test Value")));
+        assert!(GenericFonts {}.sans_serif(&lang!("en")).contains(&FontName::from("Test Value")));
     }
 
     #[test]
@@ -3938,9 +3885,8 @@ mod tests {
         GenericFonts {}.set_sans_serif(lang!(en_US), "Best");
         app.update(false).assert_wait();
 
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Best");
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en")), "Test Value");
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("und")), "sans-serif");
+        assert!(GenericFonts {}.sans_serif(&lang!("en-US")).contains(&FontName::from("Best")));
+        assert!(GenericFonts {}.sans_serif(&lang!("en")).contains(&FontName::from("Test Value")));
     }
 
     #[test]
@@ -3949,8 +3895,8 @@ mod tests {
         GenericFonts {}.set_sans_serif(lang!(es_US), "Test Value");
         app.update(false).assert_wait();
 
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "sans-serif");
-        assert_eq!(&GenericFonts {}.sans_serif(&lang!("es")), "Test Value");
+        assert!(!GenericFonts {}.sans_serif(&lang!("en")).contains(&FontName::from("Test Value")));
+        assert!(GenericFonts {}.sans_serif(&lang!("es")).contains(&FontName::from("Test Value")));
     }
 
     #[test]

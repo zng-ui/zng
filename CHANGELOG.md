@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* **Breaking** `FONTS.generics` fonts are now defined as lists.
+    - Defined better defaults across many languages for the supported systems.
 * Fix `FONTS.find`, now also resolves `"system-ui"`.
 * Add `zng::fs_watcher::WatchDir`.
     - **Breaking** `WATCHER.read_dir` closure now uses this type.

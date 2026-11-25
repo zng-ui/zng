@@ -56,8 +56,15 @@ pub fn best(
 
     // fontique does basic replacement for QueryFamily::Generic,
     // but generic names only appear here if they where not resolved by FONTS
-    // and we want the system replacement
-    let family = QueryFamily::Named(font_name.name());
+    // where we already define replacements
+    let family = if cfg!(target_os = "macos") && font_name == "system-ui" {
+        // macOS has a special function to get the UI font
+        QueryFamily::Generic(fontique::GenericFamily::SystemUi)
+    } else {
+        // on Linux fontconfig handles generic names so we can just pass the name
+        // other systems will just not match
+        QueryFamily::Named(font_name.name())
+    };
 
     let attributes = fontique::Attributes {
         width: fontique::FontWidth::from_ratio(stretch.0),

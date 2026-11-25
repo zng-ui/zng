@@ -499,7 +499,6 @@ pub(crate) fn layout_open_view(a: &mut WidgetUpdateArgs, updates: &Arc<LayoutUpd
                 a.node
                     .with_root(|n| WidgetLayout::with_root_widget(updates.clone(), |wl| n.layout(wl)))
             });
-            println!("!!: vp {viewport:?}, ds {desired_size:?}");
 
             // clamp desired_size
             let mut final_size = size;
