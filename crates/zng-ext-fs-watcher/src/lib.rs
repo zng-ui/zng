@@ -52,6 +52,9 @@ use zng_var::{AnyVar, BoxAnyVarValue, Var, VarHandle, VarValue, WeakAnyVar, var}
 mod service;
 use service::*;
 
+mod fs_util;
+pub use fs_util::*;
+
 mod lock;
 use lock::*;
 
@@ -123,7 +126,9 @@ impl WATCHER {
         WATCHER_SV.write().watch(file.into())
     }
 
-    /// Enable [file change events] for files inside `dir`, also include inner directories if `recursive` is `true`.
+    /// Enable [file change events] for files inside `dir`.
+    ///
+    /// If `recursive` is `true` also watches all descendant files inside inner directories.
     ///
     /// Returns a handle that will stop the dir watch when dropped, if there is no other active handler for the same directory.
     ///
@@ -342,16 +347,12 @@ impl WATCHER {
             .perm();
     }
 
-    // TODO(breaking) rename to `walk_dir`, implement `read_dir` to use the std implementation as it
-    // avoids allocating paths in non-recursive searches.
-    // Or custom WalkDir API that provides the root path?
-
     /// Read a directory into a variable, the `init` value will start the variable and the `read` closure will be called
     /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
-    /// The `read` closure parameter is a directory walker from the [`walkdir`](https://docs.rs/walkdir) crate.
+    /// The `read` closure parameter is a [`WatchDir`] that can be used to start a [`walkdir`] iterator.
     ///
-    /// The directory walker is pre-configured to skip the `dir` itself and to have a max-depth of 1 if not `recursive`, these configs can.
+    /// If `recursive` is `true` also watches all descendant files inside inner directories.
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
@@ -361,12 +362,14 @@ impl WATCHER {
     ///
     /// [`task::wait`]: zng_task::wait
     /// [`debounce`]: Self::debounce
+    ///
+    /// [`walkdir`]: https://docs.rs/walkdir/latest/walkdir/
     pub fn read_dir<O: VarValue>(
         &self,
         dir: impl Into<PathBuf>,
         recursive: bool,
         init: O,
-        mut read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
+        mut read: impl FnMut(WatchDir) -> Option<O> + Send + 'static,
     ) -> Var<O> {
         let out = var(init);
         self.read_dir_impl(
@@ -382,12 +385,12 @@ impl WATCHER {
         dir: PathBuf,
         out: WeakAnyVar,
         recursive: bool,
-        read: Box<dyn FnMut(walkdir::WalkDir) -> Option<BoxAnyVarValue> + Send + 'static>,
+        read: Box<dyn FnMut(WatchDir) -> Option<BoxAnyVarValue> + Send + 'static>,
     ) {
         let _handle = WATCHER.watch_dir(dir.clone(), recursive);
         struct Data {
             dir: PathBuf,
-            read: Mutex<Box<dyn FnMut(walkdir::WalkDir) -> Option<BoxAnyVarValue> + Send + 'static>>,
+            read: Mutex<Box<dyn FnMut(WatchDir) -> Option<BoxAnyVarValue> + Send + 'static>>,
             requested: AtomicBool,
         }
         let data = Arc::new(Data {
@@ -399,10 +402,9 @@ impl WATCHER {
             zng_task::spawn_wait(clmv!(data, || {
                 let mut read = data.read.lock();
                 while data.requested.swap(false, Ordering::Relaxed) {
-                    let dir = if recursive {
-                        walkdir::WalkDir::new(&data.dir).min_depth(1)
-                    } else {
-                        walkdir::WalkDir::new(&data.dir).min_depth(1).max_depth(1)
+                    let dir = WatchDir {
+                        path: data.dir.clone(),
+                        recursive,
                     };
                     if let Some(r) = read(dir) {
                         // did read update, set output
@@ -976,6 +978,134 @@ impl AnyWatcherWriteStatus {
             writing: writing_impl::<ER, EW, S>,
             write_error: write_error_impl::<ER, EW, S>,
         }
+    }
+}
+
+/// Represents a directory watched by [`WATCHER.read_dir`].
+///
+/// This type is just a launchpad for starting the directory walker iterators.
+///
+/// [`WATCHER.read_dir`]: WATCHER::read_dir
+#[derive(Debug)]
+pub struct WatchDir {
+    path: PathBuf,
+    recursive: bool,
+}
+impl WatchDir {
+    /// New.
+    pub fn new(path: PathBuf, recursive: bool) -> Self {
+        Self { path, recursive }
+    }
+
+    /// Directory path.
+    ///
+    /// Note that this is not validated, it might not be an existing directory.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Directory path.
+    pub fn path_mut(&mut self) -> &mut PathBuf {
+        &mut self.path
+    }
+
+    /// Unwrap into the directory path.
+    pub fn into_path(self) -> PathBuf {
+        self.path
+    }
+
+    /// If is watching for changes in all descendant files, not just top level ones.
+    pub fn recursive(&self) -> bool {
+        self.recursive
+    }
+
+    /// Begin a [`walkdir`] iterator builder.
+    ///
+    /// The builder is configured to skip the root [`path`] (min_depth=1) and if not [`recursive`] is
+    /// only lists the top level entries (max_depth=1).
+    ///
+    /// [`path`]: Self::path
+    /// [`recursive`]: Self::recursive
+    ///
+    /// [`walkdir`]: https://docs.rs/walkdir/latest/walkdir/
+    pub fn walk(self) -> walkdir::WalkDir {
+        let mut w = walkdir::WalkDir::new(self.path).min_depth(1);
+        if !self.recursive {
+            w = w.max_depth(1);
+        }
+        w
+    }
+
+    /// Begin a [`walk`] iterator builder configured to sort using the system name sorting function.
+    ///
+    /// See [`FileNameSortKey`] for details on the sorting function.
+    ///
+    /// See also [`sorted_names`] for a highly efficient way to build a sorted file name list.
+    ///
+    /// [`walk`]: Self::walk
+    /// [`sorted_names`]: Self::sorted_names
+    pub fn walk_sorted(self) -> walkdir::WalkDir {
+        self.walk().sort_by(|a, b| FileNameSortKey::cmp_ref(a.file_name(), b.file_name()))
+    }
+
+    /// Begin a [`std::fs::read_dir`] operation, includes the first error in the iterator for convenience.
+    ///
+    /// Note that this iterator only reads the direct children of [`path`].
+    ///
+    /// [`path`]: Self::path
+    pub fn read(self) -> Box<dyn Iterator<Item = io::Result<fs::DirEntry>> + Send + Sync> {
+        match fs::read_dir(self.path) {
+            Ok(iter) => Box::new(iter),
+            Err(e) => Box::new([Err(e)].into_iter()),
+        }
+    }
+
+    /// Begin a [`walk_sorted`] filtered by the glob `relative_pattern`.
+    ///
+    /// The pattern matches [`path`] descendants only, it must be relative to it.
+    ///
+    /// See also [`glob`] and [`glob_build`] for advances cases.
+    ///
+    /// [`walk_sorted`]: Self::walk_sorted
+    /// [`path`]: Self::path
+    pub fn glob(
+        self,
+        relative_pattern: &str,
+        case_insensitive: bool,
+    ) -> Result<impl Iterator<Item = Result<walkdir::DirEntry, walkdir::Error>> + Send + Sync, globset::Error> {
+        glob(self.path.join(relative_pattern), case_insensitive)
+    }
+}
+impl WatchDir {
+    /// Read the top level entries of [`path`], `filter_map` each entry to a name, sort the result.
+    ///
+    /// You can use use binary search on the result too very quickly find the previous/next file by file name.
+    ///
+    /// This method exists as a demonstration of how specialization can optimize handling massive file lists. If
+    /// the `filter_map` only uses [`fs::DirEntry::file_type`] and [`fs::DirEntry::file_name`] no
+    /// extra system calls are made and only the file name is allocated. The `walk` based iterators will allocate full paths for each entry.
+    ///
+    /// The [`FileNameSortKey`] implements total order, two keys are only equal if they are byte equal, this means [`slice::sort_unstable`]
+    /// will perfectly sort the entries without allocation, if you don't care about what string pointer ends up first when values are equal.
+    /// The `walk_sorted` iterator uses the stable sorting algorithm that can allocate.
+    ///
+    /// The convenient iterators are not slow, but depending on what value you are computing a specialized read like this method can be faster.
+    ///
+    /// [`path`]: Self::path
+    pub fn sorted_names(&self, mut filter_map: impl FnMut(fs::DirEntry) -> Option<std::ffi::OsString>) -> io::Result<Vec<FileNameSortKey>> {
+        let mut r = vec![];
+
+        // read_dir does not allocate a path unless requested.
+        for entry in fs::read_dir(&self.path)? {
+            if let Some(name) = filter_map(entry?) {
+                r.push(FileNameSortKey::from(name));
+            }
+        }
+        // FileNameSortKey implements total order, and if `filter_map` just returns the file name
+        // there are no equal names in the vec.
+        r.sort_unstable();
+
+        Ok(r)
     }
 }
 

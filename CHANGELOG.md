@@ -4,18 +4,29 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Add `zng::fs_watcher::WatchDir`.
+    - **Breaking** `WATCHER.read_dir` closure now uses this type.
+    - Gives access to the path and multiple ways of iterating the entries.
+* Add `zng::fs_watcher::FileNameSortKey` for sorting by file name using the system order.
+* Add `zng::fs_watcher::{glob, glob_builder}` with support for advanced glob patterns.
+
 * Add `zng::task::{Stream, StreamExt}` traits.
+
 * **Breaking** Replaces hyphenation backend.
     - Removed `hyphenation_embed_all` Cargo feature.
     - Added `hypher_full` Cargo feature.
     - Removed `HYPHENATION.init_data_source` and related types.
     - Renamed `HYPHENATION` methods that reference the backend language.
+
 * **Breaking** Remove `zng::app::RunOnDrop`.
     - Use the new `std::mem::DropGuard`.
+
 * `WATCHER.debounce` and `sync_debounce` are now awaited by `read_status` and `sync_status` before returning to idle status.
+
 * **Breaking** Upgrade `parking_lot`.
     - Breaks `zng::task::parking_lot` reexport.
     - Breaks all APIs that return a lock guard, like `AppLocal` and other app context types.
+
 * Fix `Markdown!` parser issues.
     - Fix converting strikethrough to bold.
     - Fix images not inlining.
