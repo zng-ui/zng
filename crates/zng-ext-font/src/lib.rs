@@ -29,7 +29,6 @@ use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
 use skrifa::MetadataProvider;
 use std::{borrow::Cow, fmt, io, ops, path::PathBuf, slice::SliceIndex, sync::Arc};
-#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 use zng_task::channel::WeakIpcBytes;
 
 #[macro_use]
@@ -2707,14 +2706,12 @@ impl GenericFonts {
     }
 }
 
-#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 pub(crate) enum WeakFontBytes {
     Ipc(WeakIpcBytes),
     Arc(std::sync::Weak<Vec<u8>>),
     Static(&'static [u8]),
     Mmap(std::sync::Weak<SystemFontBytes>),
 }
-#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 impl WeakFontBytes {
     pub(crate) fn upgrade(&self) -> Option<FontBytes> {
         match self {
@@ -2869,7 +2866,6 @@ impl FontBytes {
         }
     }
 
-    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     pub(crate) fn downgrade(&self) -> WeakFontBytes {
         match &self.0 {
             FontBytesImpl::Ipc(ipc) => WeakFontBytes::Ipc(ipc.downgrade()),
