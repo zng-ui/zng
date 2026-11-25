@@ -16,7 +16,7 @@ mod form;
 fn main() {
     zng::env::init!();
 
-    // zng::app::print_tracing(tracing::Level::TRACE, false, |m| m.target().contains("_undo"));
+    // zng::app::print_tracing(tracing::Level::DEBUG, false, |m| m.target().contains("font_loading"));
 
     APP.defaults().run_window("main", async {
         let fs = var(Length::Pt(11.0));
