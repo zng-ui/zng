@@ -916,7 +916,57 @@ impl FontFace {
         );
         flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.svg().is_ok());
 
-        let harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+        let mut harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+
+        if let Some(f) = &mut harfrust_font {
+            use harfrust::{Tag, font::Variation};
+            let mut variable_cfg = vec![];
+
+            let axes = f.axes();
+
+            const WGHT: Tag = Tag::new(b"wght");
+            if axes.get_by_tag(WGHT).is_some_and(|axis| axis.min_value() < axis.max_value()) {
+                variable_cfg.push(Variation::new(WGHT, custom_font.weight.0));
+            }
+            const WDTH: Tag = Tag::new(b"wdth");
+            if axes.get_by_tag(WDTH).is_some_and(|a| a.min_value() < a.max_value()) {
+                variable_cfg.push(Variation::new(WDTH, custom_font.stretch.0));
+            }
+            const ITAL: Tag = Tag::new(b"ital");
+            const SLNT: Tag = Tag::new(b"slnt");
+            let has_ital = axes.get_by_tag(ITAL).is_some_and(|a| a.min_value() < a.max_value());
+            let slnt_axis = axes.get_by_tag(SLNT).filter(|a| a.min_value() < a.max_value());
+            match custom_font.style {
+                FontStyle::Normal => {
+                    if has_ital {
+                        variable_cfg.push(Variation::new(ITAL, 0.0));
+                    }
+                    if slnt_axis.is_some() {
+                        variable_cfg.push(Variation::new(SLNT, 0.0));
+                    }
+                }
+                FontStyle::Italic => {
+                    if has_ital {
+                        variable_cfg.push(Variation::new(ITAL, 1.0));
+                    } else if let Some(axis) = slnt_axis {
+                        let slant = (-12.0_f32).clamp(axis.min_value(), axis.max_value());
+                        variable_cfg.push(Variation::new(SLNT, slant));
+                    }
+                }
+                FontStyle::Oblique => {
+                    if let Some(axis) = slnt_axis {
+                        let slant = (-12.0_f32).clamp(axis.min_value(), axis.max_value());
+                        variable_cfg.push(Variation::new(SLNT, slant));
+                    } else if has_ital {
+                        variable_cfg.push(Variation::new(ITAL, 1.0));
+                    }
+                }
+            }
+
+            if !variable_cfg.is_empty() {
+                *f = f.instance_builder().variations(variable_cfg).build();
+            }
+        }
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
@@ -938,7 +988,7 @@ impl FontFace {
         })))
     }
 
-    fn load(bytes: FontBytes, mut face_index: u32) -> Result<Self, FontLoadingError> {
+    fn load(bytes: FontBytes, mut face_index: u32, variable_cfg: Vec<harfrust::font::Variation>) -> Result<Self, FontLoadingError> {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
         let ttf_face = match skrifa::FontRef::from_index(&bytes, face_index) {
@@ -1016,7 +1066,12 @@ impl FontFace {
 
         let attr = ttf_face.attributes();
 
-        let harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+        let mut harfrust_font = harfrust::Font::new(bytes.as_harfrust_font(), face_index);
+        if !variable_cfg.is_empty()
+            && let Some(f) = &mut harfrust_font
+        {
+            *f = f.instance_builder().variations(variable_cfg).build();
+        }
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
@@ -1838,7 +1893,7 @@ impl FontFaceLoader {
         }
 
         let load = task::wait(clmv!(font_name, || {
-            let (bytes, face_index) = match Self::get_system(&font_name, style, weight, stretch) {
+            let (bytes, face_index, variable_cfg) = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {
                     #[cfg(debug_assertions)]
@@ -1852,7 +1907,7 @@ impl FontFaceLoader {
                     return None;
                 }
             };
-            match FontFace::load(bytes, face_index) {
+            match FontFace::load(bytes, face_index, variable_cfg) {
                 Ok(f) => Some(f),
                 Err(FontLoadingError::UnknownFormat) => None,
                 Err(e) => {
@@ -1882,7 +1937,12 @@ impl FontFaceLoader {
         result
     }
 
-    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<(FontBytes, u32)> {
+    fn get_system(
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Option<(FontBytes, u32, Vec<harfrust::font::Variation>)> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         match query_util::best(font_name, style, weight, stretch) {
             Ok(r) => r,

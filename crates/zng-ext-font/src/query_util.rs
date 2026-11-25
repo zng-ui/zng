@@ -1,3 +1,4 @@
+use harfrust::{Tag, font::Variation};
 use zng_app_context::app_local;
 use zng_task::{channel::IpcBytes, parking_lot::MappedRecursiveRwLockWriteGuard};
 use zng_txt::Txt;
@@ -46,12 +47,13 @@ pub fn system_all() -> ResponseVar<Vec<FontName>> {
     })
 }
 
+/// Returns (Some(bytes, collection_index, variable_cfg))
 pub fn best(
     font_name: &FontName,
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
-) -> Result<Option<(FontBytes, u32)>, FontLoadingError> {
+) -> Result<Option<(FontBytes, u32, Vec<Variation>)>, FontLoadingError> {
     use fontique::QueryFamily;
 
     // fontique does basic replacement for QueryFamily::Generic,
@@ -85,7 +87,19 @@ pub fn best(
         q.set_families([family]);
         q.set_attributes(attributes);
         q.matches_with(|f| {
-            matched = Some((f.family, f.index));
+            // render synthesis are inferred from the font (synthesis_for),
+            // variation config is not really synthesis so its collected here
+            let var_cfg: Vec<Variation> = f
+                .synthesis
+                .variation_settings()
+                .iter()
+                .map(|&(tag, value)| Variation {
+                    tag: Tag::from_be_bytes(tag.to_be_bytes()),
+                    value,
+                })
+                .collect();
+
+            matched = Some((f.family, f.index, var_cfg));
             fontique::QueryStatus::Stop
         });
     }
@@ -93,7 +107,7 @@ pub fn best(
         tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
         return Ok(None);
     }
-    let ((family_id, font_file_idx), font_collection_idx) = matched.unwrap();
+    let ((family_id, font_file_idx), font_collection_idx, variable_cfg) = matched.unwrap();
 
     let mut active_ipc = None;
     c.ipc_cache.retain(|(f, i, b)| {
@@ -111,7 +125,7 @@ pub fn best(
     if let Some((_, _, b)) = c.ipc_cache.iter().find(|(f, i, _)| f == &family_id && *i == font_file_idx)
         && let Some(b) = b.upgrade()
     {
-        return Ok(Some((b, font_collection_idx)));
+        return Ok(Some((b, font_collection_idx, variable_cfg)));
     }
 
     let family_info = c.collection.family(family_id).unwrap();
@@ -121,5 +135,5 @@ pub fn best(
     };
     c.ipc_cache.push((family_id, font_file_idx, bytes.downgrade()));
 
-    Ok(Some((bytes, font_collection_idx)))
+    Ok(Some((bytes, font_collection_idx, variable_cfg)))
 }
