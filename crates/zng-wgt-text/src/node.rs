@@ -541,6 +541,9 @@ bitflags! {
         const CARET = 0b0000_1000;
         /// Overflow.
         const OVERFLOW = 0b0001_0000;
+        /// All pending that is not updated in measure passes.
+        const LAYOUT_ONLY = 0b0011_1111;
+
         /// Text lines position, retains line glyphs but reposition for new align and outer box.
         const RESHAPE_LINES = 0b0111_1111;
         /// Full reshape, re-compute all glyphs.

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 * Fix text line decorators issues.
     - Underline not matching text vertical alignment when any `UnderlineSkip` is active.
     - Decorators out of viewport in texts with more than two lines.
+    - Fix decorators not rendering after a slow font load.
 * Implement support for variable font style, weight and stretch.
 * **Breaking** `FONTS.generics` fonts are now defined as lists.
     - Defined better defaults across many languages for the supported systems.
