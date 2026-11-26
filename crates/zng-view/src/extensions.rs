@@ -544,7 +544,10 @@ impl ExternalImages {
     ///
     /// [`unregister`]: Self::unregister
     pub fn register_texture(&mut self, uv: TexelRect, texture: gleam::gl::GLuint) -> ExternalImageId {
-        self.register(crate::image_cache::ImageData::NativeTexture { uv, texture })
+        self.register(crate::image_cache::ImageData::NativeTexture {
+            uv,
+            texture: webrender::api::ExternalTextureHandle(texture as _),
+        })
     }
 
     /// Register a loaded image.

@@ -40,6 +40,10 @@ All notable changes to this project are documented in this file.
     - Fix images not inlining.
     - Fix nested list items out of order.
 
+* **Breaking** Upgrade Webrender to `zng-webrender 0.71`.
+    - Extensive breaking changes.
+    - Only affects advanced users of the view API.
+
 ## 0.25.7
 
 * Replace avif native decoder with a pure Rust implementation, making it easy to support in normal builds.
