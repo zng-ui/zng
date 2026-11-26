@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Implement support for variable font style, weight and stretch.
 * **Breaking** `FONTS.generics` fonts are now defined as lists.
     - Defined better defaults across many languages for the supported systems.
 * Fix `FONTS.find`, now also resolves `"system-ui"`.
