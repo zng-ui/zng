@@ -276,7 +276,7 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 size
             } else {
                 let size = txt.layout(&metrics, true, false);
-                txt.pending = PendingLayout::empty();
+                txt.pending &= PendingLayout::LAYOUT_ONLY;
 
                 if let Some(inline) = wm.inline() {
                     let ctx = TEXT.laidout();
