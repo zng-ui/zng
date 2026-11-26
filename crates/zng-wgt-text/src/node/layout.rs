@@ -564,7 +564,7 @@ impl LayoutTextFinal {
             self.pending.insert(PendingLayout::STRIKETHROUGH);
         }
         if !self.pending.contains(PendingLayout::UNDERLINE)
-            && ((ctx.underline_thickness == 0) != (underline == 0) || (ctx.ime_underline_thickness != 0) != (ime_underline != 0))
+            && ((ctx.underline_thickness == 0) != (underline == 0) || (ctx.ime_underline_thickness == 0) != (ime_underline == 0))
         {
             self.pending.insert(PendingLayout::UNDERLINE);
         }

@@ -940,12 +940,6 @@ impl ShapedText {
                 line_start = line.end;
             }
 
-            let y_transform_px = Px(y_transform as i32);
-            self.underline -= y_transform_px;
-            self.baseline -= y_transform_px;
-            self.overline -= y_transform_px;
-            self.strikethrough -= y_transform_px;
-            self.underline_descent -= y_transform_px;
             self.mid_offset = mid_offset.y;
         }
 
@@ -3945,7 +3939,8 @@ impl<'a> ShapedSegment<'a> {
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let (x, width) = self.x_width();
-        let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - bottom_up_offset;
+        let r = self.rect();
+        let y = r.max_y() - bottom_up_offset;
         (PxPoint::new(x, y), width)
     }
 
@@ -3972,7 +3967,8 @@ impl<'a> ShapedSegment<'a> {
     ///
     /// Returns an iterator of start point + width for underline segments.
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + use<'a> {
-        let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
+        let r = self.rect();
+        let y = r.max_y() - self.text.underline;
         let (x, _) = self.x_width();
 
         let line_y = -(self.text.baseline - self.text.underline).0 as f32;
