@@ -564,7 +564,7 @@ impl LayoutTextFinal {
             self.pending.insert(PendingLayout::STRIKETHROUGH);
         }
         if !self.pending.contains(PendingLayout::UNDERLINE)
-            && ((ctx.underline_thickness == 0) != (underline == 0) || (ctx.ime_underline_thickness != 0) != (ime_underline != 0))
+            && ((ctx.underline_thickness == 0) != (underline == 0) || (ctx.ime_underline_thickness == 0) != (ime_underline == 0))
         {
             self.pending.insert(PendingLayout::UNDERLINE);
         }
@@ -820,7 +820,6 @@ impl LayoutTextFinal {
                         *sel = ctx.shaped_text.snap_caret_line(*sel);
                         ctx.caret_selection_origin = Some(ctx.shaped_text.caret_origin(*sel, resolved_mut.segmented_text.text()));
                     } else {
-                        debug_assert!(ctx.caret_selection_origin.is_none());
                         ctx.caret_selection_origin = None;
                     }
 
