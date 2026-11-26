@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use webrender::api as wr;
 use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
 use zng_view_api::{
-    GradientStop, ReferenceFrameId, RepeatMode,
+    GradientStop, RepeatMode,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
     font::{GlyphIndex, GlyphInstance},
@@ -118,7 +118,6 @@ pub struct SpaceAndClip {
     clip_stack: Vec<wr::ClipId>,
     clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
     prim_flags: wr::PrimitiveFlags,
-    view_process_frame_id: u64,
 }
 impl SpaceAndClip {
     pub(crate) fn new(pipeline_id: wr::PipelineId) -> Self {
@@ -128,7 +127,6 @@ impl SpaceAndClip {
             clip_stack: vec![],
             clip_chain_stack: vec![],
             prim_flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
-            view_process_frame_id: 0,
         }
     }
 
@@ -192,12 +190,6 @@ impl SpaceAndClip {
     /// Set the `IS_BACKFACE_VISIBLE` flag to the next items.
     pub fn set_backface_visibility(&mut self, visible: bool) {
         self.prim_flags.set(wr::PrimitiveFlags::IS_BACKFACE_VISIBLE, visible);
-    }
-
-    /// Generate a reference frame ID, unique on this list.
-    pub fn next_view_process_frame_id(&mut self) -> ReferenceFrameId {
-        self.view_process_frame_id = self.view_process_frame_id.wrapping_add(1);
-        ReferenceFrameId(self.view_process_frame_id, 1 << 63)
     }
 
     pub(crate) fn clear(&mut self, pipeline_id: wr::PipelineId) {
@@ -458,7 +450,6 @@ fn display_item_to_webrender(
         } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, images, sc),
 
         DisplayItem::PushReferenceFrame {
-            id,
             transform,
             transform_style,
             is_2d_scale_translation,

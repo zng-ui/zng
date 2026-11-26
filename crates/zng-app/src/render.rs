@@ -18,7 +18,7 @@ use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
 use zng_unique_id::{impl_unique_id_bytemuck, unique_id_32};
 use zng_var::{Var, VarCapability, VarValue, impl_from_and_into_var};
 use zng_view_api::{
-    ReferenceFrameId as RenderReferenceFrameId, ViewProcessGen,
+    ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseStart},
@@ -973,7 +973,6 @@ impl FrameBuilder {
                         macro_rules! push_reference_frame {
                             () => {
                                 builder.display_list.push_reference_frame(
-                                    ReferenceFrameId::from_widget(builder.widget_id).into(),
                                     layout_translation_key.bind(inner_transform, layout_translation_animating),
                                     builder.transform_style.into(),
                                     !data.inner_is_set,
@@ -1232,7 +1231,6 @@ impl FrameBuilder {
     /// [`Preserve3D`]: TransformStyle::Preserve3D
     pub fn push_reference_frame(
         &mut self,
-        key: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
@@ -1245,7 +1243,7 @@ impl FrameBuilder {
 
         if self.visible {
             self.display_list
-                .push_reference_frame(key.into(), transform, self.transform_style, is_2d_scale_translation);
+                .push_reference_frame(transform, self.transform_style, is_2d_scale_translation);
         }
 
         let hit_test = hit_test || self.auto_hit_test;
@@ -2883,123 +2881,6 @@ unique_id_32! {
     struct FrameBindingKeyId;
 }
 impl_unique_id_bytemuck!(FrameBindingKeyId);
-
-unique_id_32! {
-    /// Unique ID of a reference frame.
-    #[derive(Debug)]
-    pub struct SpatialFrameId;
-}
-impl_unique_id_bytemuck!(SpatialFrameId);
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ReferenceFrameIdInner {
-    Unique(SpatialFrameId),
-    UniqueIndex(SpatialFrameId, u32),
-    Widget(WidgetId),
-    WidgetIndex(WidgetId, u32),
-    FrameValue(FrameValueKey<PxTransform>),
-    FrameValueIndex(FrameValueKey<PxTransform>, u32),
-}
-impl ReferenceFrameIdInner {
-    const _RESERVED: u64 = 1 << 63; // view process
-    const UNIQUE: u64 = 1 << 62;
-    const WIDGET: u64 = 1 << 61;
-    const FRAME_VALUE: u64 = 1 << 60;
-}
-impl From<ReferenceFrameIdInner> for RenderReferenceFrameId {
-    fn from(value: ReferenceFrameIdInner) -> Self {
-        match value {
-            ReferenceFrameIdInner::UniqueIndex(id, index) => {
-                RenderReferenceFrameId(id.get() as u64, index as u64 | ReferenceFrameIdInner::UNIQUE)
-            }
-            ReferenceFrameIdInner::WidgetIndex(id, index) => RenderReferenceFrameId(id.get(), index as u64 | ReferenceFrameIdInner::WIDGET),
-            ReferenceFrameIdInner::FrameValue(key) => {
-                RenderReferenceFrameId(((key.id.get() as u64) << 32) | u32::MAX as u64, ReferenceFrameIdInner::FRAME_VALUE)
-            }
-            ReferenceFrameIdInner::FrameValueIndex(key, index) => {
-                RenderReferenceFrameId(((key.id.get() as u64) << 32) | index as u64, ReferenceFrameIdInner::FRAME_VALUE)
-            }
-            ReferenceFrameIdInner::Unique(id) => {
-                RenderReferenceFrameId(id.get() as u64, (u32::MAX as u64 + 1) | ReferenceFrameIdInner::UNIQUE)
-            }
-            ReferenceFrameIdInner::Widget(id) => RenderReferenceFrameId(id.get(), (u32::MAX as u64 + 1) | ReferenceFrameIdInner::WIDGET),
-        }
-    }
-}
-
-/// Represents an unique key for a spatial reference frame that is recreated in multiple frames.
-///
-/// The key can be generated from [`WidgetId`], [`SpatialFrameId`] or [`FrameValueKey<PxTransform>`] all guaranteed
-/// to be unique even if the inner value of IDs is the same.
-///
-/// [`FrameValueKey<PxTransform>`]: FrameValueKey
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ReferenceFrameId(ReferenceFrameIdInner);
-impl ReferenceFrameId {
-    /// Key used for the widget inner transform.
-    ///
-    /// See [`FrameBuilder::push_inner`].
-    fn from_widget(widget_id: WidgetId) -> Self {
-        Self(ReferenceFrameIdInner::Widget(widget_id))
-    }
-
-    /// Key from [`WidgetId`] and [`u32`] index.
-    ///
-    /// This can be used in nodes that know that they are the only one rendering children nodes.
-    pub fn from_widget_child(parent_id: WidgetId, child_index: u32) -> Self {
-        Self(ReferenceFrameIdInner::WidgetIndex(parent_id, child_index))
-    }
-
-    /// Key from [`SpatialFrameId`].
-    pub fn from_unique(id: SpatialFrameId) -> Self {
-        Self(ReferenceFrameIdInner::Unique(id))
-    }
-
-    /// Key from [`SpatialFrameId`] and [`u32`] index.
-    pub fn from_unique_child(id: SpatialFrameId, child_index: u32) -> Self {
-        Self(ReferenceFrameIdInner::UniqueIndex(id, child_index))
-    }
-
-    /// Key from a [`FrameValueKey<PxTransform>`].
-    pub fn from_frame_value(frame_value_key: FrameValueKey<PxTransform>) -> Self {
-        Self(ReferenceFrameIdInner::FrameValue(frame_value_key))
-    }
-
-    /// Key from a [`FrameValueKey<PxTransform>`] and [`u32`] index.
-    pub fn from_frame_value_child(frame_value_key: FrameValueKey<PxTransform>, child_index: u32) -> Self {
-        Self(ReferenceFrameIdInner::FrameValueIndex(frame_value_key, child_index))
-    }
-}
-impl From<ReferenceFrameId> for RenderReferenceFrameId {
-    fn from(value: ReferenceFrameId) -> Self {
-        value.0.into()
-    }
-}
-impl From<FrameValueKey<PxTransform>> for ReferenceFrameId {
-    fn from(value: FrameValueKey<PxTransform>) -> Self {
-        Self::from_frame_value(value)
-    }
-}
-impl From<SpatialFrameId> for ReferenceFrameId {
-    fn from(id: SpatialFrameId) -> Self {
-        Self::from_unique(id)
-    }
-}
-impl From<(SpatialFrameId, u32)> for ReferenceFrameId {
-    fn from((id, index): (SpatialFrameId, u32)) -> Self {
-        Self::from_unique_child(id, index)
-    }
-}
-impl From<(WidgetId, u32)> for ReferenceFrameId {
-    fn from((id, index): (WidgetId, u32)) -> Self {
-        Self::from_widget_child(id, index)
-    }
-}
-impl From<(FrameValueKey<PxTransform>, u32)> for ReferenceFrameId {
-    fn from((key, index): (FrameValueKey<PxTransform>, u32)) -> Self {
-        Self::from_frame_value_child(key, index)
-    }
-}
 
 /// Unique key of an updatable value in the view-process frame.
 #[derive(Debug)]

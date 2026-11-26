@@ -1102,9 +1102,7 @@ pub fn selection_toolbar_node(child: impl IntoUiNode) -> UiNode {
                             let transform = l_txt.render_info.transform.then_translate(translate.cast());
                             let transform = adjust_viewport_bound(transform, c.node());
 
-                            frame.push_reference_frame(transform_key.into(), FrameValue::Value(transform), true, false, |frame| {
-                                c.render(frame)
-                            });
+                            frame.push_reference_frame(FrameValue::Value(transform), true, false, |frame| c.render(frame));
                         }
                         UiNodeOp::RenderUpdate { update } => {
                             let l_txt = TEXT.laidout();

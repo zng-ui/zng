@@ -53,13 +53,9 @@ pub fn transform(child: impl IntoUiNode, transform: impl IntoVar<Transform>) -> 
             if frame.is_outer() {
                 frame.push_inner_transform(&render_transform, |frame| child.render(frame));
             } else {
-                frame.push_reference_frame(
-                    binding_key.into(),
-                    binding_key.bind_var_mapped(&transform, render_transform),
-                    false,
-                    false,
-                    |frame| child.render(frame),
-                );
+                frame.push_reference_frame(binding_key.bind_var_mapped(&transform, render_transform), false, false, |frame| {
+                    child.render(frame)
+                });
             }
         }
         UiNodeOp::RenderUpdate { update } => {

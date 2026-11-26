@@ -657,7 +657,7 @@ fn child_insert_node(child: UiNode, placement: Var<ChildInsert>, node: UiNode, i
                 children.delegated();
                 children.node().for_each_child(|i, child| {
                     if i as u8 == offset_child {
-                        frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
+                        frame.push_reference_frame(offset_key.bind(offset.into(), false), true, true, |frame| {
                             child.render(frame);
                         });
                     } else {

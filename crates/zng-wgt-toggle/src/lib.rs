@@ -1294,7 +1294,7 @@ fn combomark_visual_fallback() -> UiNode {
             clip.origin.y += clip.size.height;
 
             frame.push_clip_rect(clip, false, false, |frame| {
-                frame.push_reference_frame((WIDGET.id(), 0).into(), transform.into(), false, false, |frame| {
+                frame.push_reference_frame(transform.into(), false, false, |frame| {
                     frame.push_color(PxRect::from_size(size), color_key.bind_var(&zng_wgt_text::FONT_COLOR_VAR, |&c| c));
                 })
             });
