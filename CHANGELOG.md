@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+* Fix incorrect text baseline after slow font loading in inlined text.
 * Fix text line decorators issues.
     - Underline not matching text vertical alignment when any `UnderlineSkip` is active.
     - Decorators out of viewport in texts with more than two lines.
