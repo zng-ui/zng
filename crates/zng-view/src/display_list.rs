@@ -258,7 +258,7 @@ impl DisplayListCache {
     fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
         let mut list = self.wr_list.take().unwrap();
         let sc = self.space_and_clip.take().unwrap();
-        list.begin(1.0); // !!: TODO dip scale here only used for scroll stuff?
+        list.begin(1.0);
         (list, sc)
     }
 
@@ -638,7 +638,7 @@ fn display_item_to_webrender(
                     bottom: bottom.to_wr(),
                     radius: radius.to_wr(),
                     do_aa: true,
-                    inset: euclid::SideOffsets2D::zero(), // !!: TODO same as in clip
+                    inset: euclid::SideOffsets2D::zero(),
                 }),
                 &[],
             );
@@ -723,7 +723,7 @@ fn display_item_to_webrender(
                     start: start_point.to_vector().cast_unit(),
                     end: end_point.to_vector().cast_unit(),
                     extend_mode: extend_mode.to_wr(),
-                    alpha_mode: wr::AlphaMode::Premultiplied, // !!: TODO review this, it should be true already
+                    alpha_mode: wr::AlphaMode::Premultiplied,
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
