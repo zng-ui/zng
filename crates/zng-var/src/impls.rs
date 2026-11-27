@@ -6,8 +6,8 @@ use zng_app_context::app_local;
 use zng_time::{DInstant, Deadline};
 use zng_txt::Txt;
 use zng_unit::{
-    AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits, Orientation2D,
-    Px, PxDensity, Rgba, euclid,
+    AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, CornerShape, Dip, Factor, FactorPercent, FactorUnits,
+    Orientation2D, Px, PxDensity, Rgba, Superellipse, euclid,
 };
 
 use crate::{
@@ -196,6 +196,52 @@ impl Transitionable for ByteLength {
     }
 }
 
+impl Transitionable for Superellipse {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        /// Convert to diagonal midpoint t
+        fn t(k: f32) -> f32 {
+            if k == f32::NEG_INFINITY {
+                0.0
+            } else if k == f32::INFINITY {
+                1.0
+            } else {
+                // t = 2^(-2^(-K))
+                2.0_f32.powf(-2.0_f32.powf(-k))
+            }
+        }
+        /// Convert back
+        fn k(t: f32) -> f32 {
+            let t = t.clamp(0.0, 1.0);
+
+            if t <= 0.0 {
+                f32::NEG_INFINITY
+            } else if t >= 1.0 {
+                f32::INFINITY
+            } else {
+                // K = -log2(-log2(t))
+                -(-t.log2()).log2()
+            }
+        }
+
+        let t_from = t(self.0);
+        let t_to = t(to.0);
+
+        let t_r = t_from.lerp(&t_to, step);
+
+        Self(k(t_r))
+    }
+}
+impl Transitionable for CornerShape {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self {
+            top_left: self.top_left.lerp(&to.top_left, step),
+            top_right: self.top_right.lerp(&to.top_right, step),
+            bottom_right: self.bottom_right.lerp(&to.bottom_right, step),
+            bottom_left: self.bottom_left.lerp(&to.bottom_left, step),
+        }
+    }
+}
+
 impl_from_and_into_var! {
     fn from(s: &'static str) -> Txt;
     fn from(s: String) -> Txt;
@@ -230,6 +276,14 @@ impl_from_and_into_var! {
     fn from(rad: AngleRadian) -> AngleDegree;
     fn from(grad: AngleGradian) -> AngleDegree;
     fn from(turn: AngleTurn) -> AngleDegree;
+
+    fn from(f: f32) -> Superellipse;
+    fn from(f: Superellipse) -> CornerShape;
+    fn from(f: f32) -> CornerShape;
+    /// (top-left, top-right, bottom-left, bottom-right) corners.
+    fn from<TL: Into<Superellipse>, TR: Into<Superellipse>, BR: Into<Superellipse>, BL: Into<Superellipse>>(
+        (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL),
+    ) -> CornerShape;
 }
 
 macro_rules! impl_into_var_option {
