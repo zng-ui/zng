@@ -245,12 +245,14 @@ impl DisplayListBuilder {
         bottom: BorderSide,
         left: BorderSide,
         radius: PxCornerRadius,
+        shape: CornerShape,
     ) {
         self.list.push(DisplayItem::Border {
             bounds,
             widths,
             sides: [top, right, bottom, left],
             radius,
+            shape,
         })
     }
 
@@ -829,6 +831,7 @@ pub enum DisplayItem {
         widths: PxSideOffsets,
         sides: [BorderSide; 4],
         radius: PxCornerRadius,
+        shape: CornerShape,
     },
     NinePatchBorder {
         bounds: PxRect,

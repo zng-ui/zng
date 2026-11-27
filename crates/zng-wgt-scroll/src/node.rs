@@ -1720,6 +1720,7 @@ pub fn default_auto_scroll_indicator() -> UiNode {
                     PxSideOffsets::new_all_same(widths),
                     colors::BLACK.with_alpha(80.pct()).into(),
                     corners,
+                    CornerShape::ROUND,
                 );
                 // black point middle
                 let pt_size = PxSize::splat(Dip::new(4).to_px(frame.scale_factor()));
@@ -1759,6 +1760,7 @@ pub fn default_auto_scroll_indicator() -> UiNode {
                                 PxSideOffsets::new_all_same(widths),
                                 colors::BLACK.with_alpha(80.pct()).into(),
                                 PxCornerRadius::zero(),
+                                CornerShape::default(),
                             );
                         });
                     });

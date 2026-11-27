@@ -239,7 +239,7 @@ impl PxToWr for PxCornerRadius {
             top_right: self.top_right.to_wr(),
             bottom_left: self.bottom_left.to_wr(),
             bottom_right: self.bottom_right.to_wr(),
-            // !!: TODO support this in the PxCornerRadius, value is superellipse(k)
+            // defined by CornerShape
             shape_top_left: 1.0,
             shape_top_right: 1.0,
             shape_bottom_left: 1.0,
@@ -329,9 +329,8 @@ impl PxToWr for FilterOp {
     }
 
     fn to_wr(self) -> Self::AsLayout {
-        // !!: TODO review all new SVG filters
         match self {
-            FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h, true), // !!: TODO add should_inflate to filter
+            FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h, true),
             FilterOp::Brightness(b) => wr::FilterOp::Brightness(b),
             FilterOp::Contrast(c) => wr::FilterOp::Contrast(c),
             FilterOp::Grayscale(g) => wr::FilterOp::Grayscale(g),

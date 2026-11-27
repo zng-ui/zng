@@ -42,7 +42,7 @@ pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, PARALLEL_VAR, Parall
 pub use zng_app::widget::{WIDGET, WidgetId, WidgetUpdateMode, widget_impl, widget_set};
 
 pub use zng_app::widget::border::{
-    BORDER, BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle,
+    BORDER, BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, CornerShape, LineOrientation, LineStyle,
 };
 pub use zng_app::widget::info::Visibility;
 pub use zng_app::widget::node::ZIndex;

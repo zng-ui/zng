@@ -18,6 +18,8 @@ use zng_var::{
 
 pub use zng_view_api::LineOrientation;
 
+pub use zng_layout::unit::CornerShape;
+
 use crate::widget::VarLayout;
 
 use super::{WIDGET, WidgetId, info::WidgetBorderInfo};

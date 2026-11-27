@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{CornerRadius2D, Factor, side_offsets::SideOffsets2D};
 
-/// Same value used in `60`.
+/// Same value used by Firefox.
 const DIP_TO_PX: i32 = 60;
 
 /// Device pixel.

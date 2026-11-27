@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::SideOffsets2D;
 
-/// Ellipses that define the radius of the four corners of a 2D box.
+/// Ellipses that define the radii of the four corners of a 2D box.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct CornerRadius2D<T, U> {

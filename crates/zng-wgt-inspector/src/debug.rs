@@ -81,6 +81,7 @@ pub fn show_bounds(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> U
                     PxSideOffsets::new_all_same(p),
                     BorderSides::dotted(web_colors::PINK),
                     PxCornerRadius::zero(),
+                    CornerShape::default(),
                 );
             }
 
@@ -90,6 +91,7 @@ pub fn show_bounds(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> U
                     PxSideOffsets::new_all_same(p),
                     BorderSides::solid(web_colors::ROYAL_BLUE),
                     PxCornerRadius::zero(),
+                    CornerShape::default(),
                 );
             }
         },
@@ -116,6 +118,7 @@ pub fn show_rows(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> UiN
                                 PxSideOffsets::new_all_same(p),
                                 BorderSides::dotted(web_colors::LIGHT_SALMON),
                                 PxCornerRadius::zero(),
+                                CornerShape::default(),
                             );
                         }
                     }
@@ -280,13 +283,13 @@ pub fn show_hit_test(child: impl IntoUiNode, enabled: impl IntoVar<bool>) -> UiN
                 frame.with_hit_tests_disabled(|frame| {
                     for fail in &fails {
                         if !fail.size.is_empty() {
-                            frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero());
+                            frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero(), CornerShape::default());
                         }
                     }
 
                     for hit in &hits {
                         if !hit.size.is_empty() {
-                            frame.push_border(*hit, widths, hits_sides, PxCornerRadius::zero());
+                            frame.push_border(*hit, widths, hits_sides, PxCornerRadius::zero(), CornerShape::default());
                         }
                     }
                 });
@@ -380,7 +383,7 @@ pub fn show_directional_query(child: impl IntoUiNode, orientation: impl IntoVar<
                 frame.with_hit_tests_disabled(|frame| {
                     for quad in &search_quads {
                         if !quad.size.is_empty() {
-                            frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero());
+                            frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero(), CornerShape::default());
                         }
                     }
                 });

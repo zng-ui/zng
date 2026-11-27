@@ -2,7 +2,7 @@ use std::{cell::Cell, mem};
 
 use rustc_hash::FxHashMap;
 use webrender::api as wr;
-use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
+use zng_unit::{Factor, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
 use zng_view_api::{
     GradientStop, RepeatMode,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -18,8 +18,9 @@ pub fn display_list_to_webrender(
     ext: &mut crate::extensions::DisplayListExtAdapter,
     images: &mut ImageUseMap,
     cache: &mut DisplayListCache,
+    scale_factor: Factor,
 ) -> wr::BuiltDisplayList {
-    let r = display_list_build(&list, cache, ext, images, false);
+    let r = display_list_build(&list, cache, ext, images, scale_factor, false);
     cache.insert(list);
 
     r
@@ -255,10 +256,10 @@ impl DisplayListCache {
         self.id_namespace
     }
 
-    fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
+    fn begin_wr(&mut self, scale_factor: Factor) -> (wr::DisplayListBuilder, SpaceAndClip) {
         let mut list = self.wr_list.take().unwrap();
         let sc = self.space_and_clip.take().unwrap();
-        list.begin(1.0); // !!: TODO dip scale here only used for scroll stuff?
+        list.begin(60.0 / scale_factor.0); // Dip is 60
         (list, sc)
     }
 
@@ -351,6 +352,7 @@ impl DisplayListCache {
         colors: Vec<FrameValueUpdate<Rgba>>,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
         resized: bool,
+        scale_factor: Factor,
     ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
         let mut new_frame = resized;
 
@@ -386,7 +388,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let r = display_list_build(&list, self, ext, images, true);
+            let r = display_list_build(&list, self, ext, images, scale_factor, true);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)
@@ -409,11 +411,12 @@ fn display_list_build(
     cache: &mut DisplayListCache,
     ext: &mut crate::extensions::DisplayListExtAdapter,
     images: &mut ImageUseMap,
+    scale_factor: Factor,
     is_reuse: bool,
 ) -> wr::BuiltDisplayList {
     let _s = tracing::trace_span!("DisplayList::build").entered();
 
-    let (mut wr_list, mut sc) = cache.begin_wr();
+    let (mut wr_list, mut sc) = cache.begin_wr(scale_factor);
 
     ext.display_list_start(&mut DisplayExtensionArgs {
         list: &mut wr_list,
@@ -619,9 +622,15 @@ fn display_item_to_webrender(
             widths,
             sides: [top, right, bottom, left],
             radius,
+            shape,
         } => {
             let bounds = bounds.to_wr();
             let clip = sc.clip_chain_id(wr_list);
+            let mut radius = radius.to_wr();
+            radius.shape_top_left = shape.top_left.0;
+            radius.shape_top_right = shape.top_right.0;
+            radius.shape_bottom_right = shape.bottom_right.0;
+            radius.shape_bottom_left = shape.bottom_left.0;
             wr_list.push_border(
                 &wr::CommonItemProperties {
                     clip_rect: bounds,
@@ -636,9 +645,9 @@ fn display_item_to_webrender(
                     right: right.to_wr(),
                     top: top.to_wr(),
                     bottom: bottom.to_wr(),
-                    radius: radius.to_wr(),
+                    radius,
                     do_aa: true,
-                    inset: euclid::SideOffsets2D::zero(), // !!: TODO same as in clip
+                    inset: euclid::SideOffsets2D::zero(),
                 }),
                 &[],
             );
@@ -723,7 +732,7 @@ fn display_item_to_webrender(
                     start: start_point.to_vector().cast_unit(),
                     end: end_point.to_vector().cast_unit(),
                     extend_mode: extend_mode.to_wr(),
-                    alpha_mode: wr::AlphaMode::Premultiplied, // !!: TODO review this, it should be true already
+                    alpha_mode: wr::AlphaMode::Premultiplied,
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
@@ -863,8 +872,8 @@ fn nine_patch_border_to_webrender(
     wr_list: &mut wr::DisplayListBuilder,
     source: &NinePatchSource,
     cache: &DisplayListCache,
-    mut bounds: PxRect,
-    mut widths: PxSideOffsets,
+    bounds: PxRect,
+    widths: PxSideOffsets,
     repeat_horizontal: RepeatMode,
     slice: PxSideOffsets,
     img_size: PxSize,
@@ -931,187 +940,6 @@ fn nine_patch_border_to_webrender(
         }
     };
 
-    // !!: TODO remove this, webrender now implements Space
-    //
-    // webrender does not implement RepeatMode::Space, so we hide the space lines (and corners) and do a manual repeat
-    let actual_bounds = bounds;
-    let actual_widths = widths;
-    let mut render_corners = false;
-    if let wr::NinePatchBorderSource::Image(image_key, rendering) = source {
-        use wr::euclid::rect as r;
-
-        if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
-            bounds.origin.y += widths.top;
-            bounds.size.height -= widths.vertical();
-            widths.top = Px(0);
-            widths.bottom = Px(0);
-            render_corners = true;
-
-            for (bounds, slice) in [
-                // top
-                (
-                    r::<_, Px>(
-                        actual_widths.left,
-                        Px(0),
-                        actual_bounds.width() - actual_widths.horizontal(),
-                        actual_widths.top,
-                    ),
-                    r::<_, Px>(slice.left, Px(0), img_size.width - slice.horizontal(), slice.top),
-                ),
-                // bottom
-                (
-                    r(
-                        actual_widths.left,
-                        actual_bounds.height() - actual_widths.bottom,
-                        actual_bounds.width() - actual_widths.horizontal(),
-                        actual_widths.bottom,
-                    ),
-                    r(
-                        slice.left,
-                        img_size.height - slice.bottom,
-                        img_size.width - slice.horizontal(),
-                        slice.bottom,
-                    ),
-                ),
-            ] {
-                let scale = Factor(bounds.height().0 as f32 / slice.height().0 as f32);
-
-                let size = PxRect::from_size(img_size * scale).to_wr();
-                let clip = slice * scale;
-
-                let mut offset_x = (bounds.origin.x - clip.origin.x).0 as f32;
-                let offset_y = (bounds.origin.y - clip.origin.y).0 as f32;
-
-                let bounds_width = bounds.width().0 as f32;
-                let clip = clip.to_wr();
-                let n = (bounds_width / clip.width()).floor();
-                let space = bounds_width - clip.width() * n;
-                let space = space / (n + 1.0);
-
-                offset_x += space;
-                let advance = clip.width() + space;
-                for _ in 0..n as u32 {
-                    let spatial_id = wr_list.define_reference_frame(
-                        wr::units::LayoutPoint::zero(),
-                        sc.spatial_id(),
-                        wr::TransformStyle::Flat,
-                        wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x, offset_y, 0.0)),
-                        wr::ReferenceFrameKind::Transform {
-                            is_2d_scale_translation: true,
-                            should_snap: false,
-                            paired_with_perspective: false,
-                        },
-                    );
-                    sc.push_spatial(spatial_id);
-
-                    let clip_id = sc.clip_chain_id(wr_list);
-                    wr_list.push_image(
-                        &wr::CommonItemProperties {
-                            clip_rect: clip,
-                            clip_chain_id: clip_id,
-                            spatial_id: sc.spatial_id(),
-                            flags: sc.primitive_flags(),
-                        },
-                        size,
-                        rendering,
-                        wr::AlphaType::Alpha,
-                        image_key,
-                        wr::ColorF::WHITE,
-                    );
-
-                    sc.pop_spatial();
-
-                    offset_x += advance;
-                }
-            }
-        }
-        if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
-            bounds.origin.x += widths.left;
-            bounds.size.width -= widths.horizontal();
-            widths.left = Px(0);
-            widths.right = Px(0);
-            render_corners = true;
-
-            for (bounds, slice) in [
-                // left
-                (
-                    r::<_, Px>(
-                        Px(0),
-                        actual_widths.top,
-                        actual_widths.left,
-                        actual_bounds.height() - actual_widths.vertical(),
-                    ),
-                    r::<_, Px>(Px(0), slice.top, slice.left, img_size.height - slice.vertical()),
-                ),
-                // right
-                (
-                    r(
-                        actual_bounds.width() - actual_widths.right,
-                        actual_widths.top,
-                        actual_widths.right,
-                        actual_bounds.height() - actual_widths.vertical(),
-                    ),
-                    r(
-                        img_size.width - slice.right,
-                        slice.left,
-                        slice.right,
-                        img_size.height - slice.vertical(),
-                    ),
-                ),
-            ] {
-                let scale = Factor(bounds.width().0 as f32 / slice.width().0 as f32);
-
-                let size = PxRect::from_size(img_size * scale).to_wr();
-                let clip = slice * scale;
-
-                let offset_x = (bounds.origin.x - clip.origin.x).0 as f32;
-                let mut offset_y = (bounds.origin.y - clip.origin.y).0 as f32;
-
-                let bounds_height = bounds.height().0 as f32;
-                let clip = clip.to_wr();
-                let n = (bounds_height / clip.height()).floor();
-                let space = bounds_height - clip.height() * n;
-                let space = space / (n + 1.0);
-
-                offset_y += space;
-                let advance = clip.height() + space;
-                for _ in 0..n as u32 {
-                    let spatial_id = wr_list.define_reference_frame(
-                        wr::units::LayoutPoint::zero(),
-                        sc.spatial_id(),
-                        wr::TransformStyle::Flat,
-                        wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x, offset_y, 0.0)),
-                        wr::ReferenceFrameKind::Transform {
-                            is_2d_scale_translation: true,
-                            should_snap: false,
-                            paired_with_perspective: false,
-                        },
-                    );
-                    sc.push_spatial(spatial_id);
-
-                    let clip_id = sc.clip_chain_id(wr_list);
-                    wr_list.push_image(
-                        &wr::CommonItemProperties {
-                            clip_rect: clip,
-                            clip_chain_id: clip_id,
-                            spatial_id: sc.spatial_id(),
-                            flags: sc.primitive_flags(),
-                        },
-                        size,
-                        rendering,
-                        wr::AlphaType::Alpha,
-                        image_key,
-                        wr::ColorF::WHITE,
-                    );
-
-                    sc.pop_spatial();
-
-                    offset_y += advance;
-                }
-            }
-        }
-    }
-
     let wr_bounds = bounds.to_wr();
 
     wr_list.push_border(
@@ -1134,104 +962,6 @@ fn nine_patch_border_to_webrender(
         }),
         cast_gradient_stops_to_wr(stops),
     );
-
-    // if we rendered RepeatMode::Space
-    if render_corners {
-        let wr::NinePatchBorderSource::Image(image_key, rendering) = source else {
-            unreachable!()
-        };
-
-        use wr::euclid::rect as r;
-
-        for (bounds, slice) in [
-            // top-left
-            (
-                r::<_, Px>(Px(0), Px(0), actual_widths.left, actual_widths.top),
-                r::<_, Px>(Px(0), Px(0), slice.left, slice.top),
-            ),
-            // top-right
-            (
-                r(
-                    actual_bounds.width() - actual_widths.right,
-                    Px(0),
-                    actual_widths.right,
-                    actual_widths.top,
-                ),
-                r(img_size.width - slice.right, Px(0), slice.right, slice.top),
-            ),
-            // bottom-right
-            (
-                r(
-                    actual_bounds.width() - actual_widths.right,
-                    actual_bounds.height() - actual_widths.bottom,
-                    actual_widths.right,
-                    actual_widths.bottom,
-                ),
-                r(
-                    img_size.width - slice.right,
-                    img_size.height - slice.bottom,
-                    slice.right,
-                    slice.bottom,
-                ),
-            ),
-            // bottom-left
-            (
-                r(
-                    Px(0),
-                    actual_bounds.height() - actual_widths.bottom,
-                    actual_widths.left,
-                    actual_widths.bottom,
-                ),
-                r(Px(0), img_size.height - slice.bottom, slice.left, slice.bottom),
-            ),
-        ] {
-            let scale_x = bounds.size.width.0 as f32 / slice.size.width.0 as f32;
-            let scale_y = bounds.size.height.0 as f32 / slice.size.height.0 as f32;
-
-            let mut size = img_size;
-            size.width *= scale_x;
-            size.height *= scale_y;
-
-            let mut clip = slice;
-            clip.origin.x *= scale_x;
-            clip.origin.y *= scale_y;
-            clip.size.width *= scale_x;
-            clip.size.height *= scale_y;
-
-            let offset_x = bounds.origin.x - clip.origin.x;
-            let offset_y = bounds.origin.y - clip.origin.y;
-
-            let spatial_id = wr_list.define_reference_frame(
-                wr::units::LayoutPoint::zero(),
-                sc.spatial_id(),
-                wr::TransformStyle::Flat,
-                wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x.0 as _, offset_y.0 as _, 0.0)),
-                wr::ReferenceFrameKind::Transform {
-                    is_2d_scale_translation: true,
-                    should_snap: false,
-                    paired_with_perspective: false,
-                },
-            );
-            sc.push_spatial(spatial_id);
-
-            let clip_id = sc.clip_chain_id(wr_list);
-            wr_list.push_image(
-                &wr::CommonItemProperties {
-                    clip_rect: clip.to_wr(),
-                    clip_chain_id: clip_id,
-                    spatial_id: sc.spatial_id(),
-                    flags: sc.primitive_flags(),
-                },
-                PxRect::from_size(size).to_wr(),
-                rendering,
-                wr::AlphaType::Alpha,
-                image_key,
-                wr::ColorF::WHITE,
-            );
-
-            sc.pop_spatial();
-        }
-    }
 }
 
 fn display_item_register_bindings(item: &DisplayItem, bindings: &mut FxHashMap<FrameValueId, (FrameId, usize)>, value: (FrameId, usize)) {

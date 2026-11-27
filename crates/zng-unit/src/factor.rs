@@ -1,8 +1,8 @@
 use std::{fmt, ops, time::Duration};
 
 use crate::{
-    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_GRANULARITY, EQ_GRANULARITY_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq,
-    about_eq_hash, about_eq_ord,
+    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_GRANULARITY, EQ_GRANULARITY_100, Px, PxPoint, PxRect, PxSize, PxVector, Superellipse,
+    about_eq, about_eq_hash, about_eq_ord,
 };
 
 /// Extension methods for initializing factor units.
@@ -681,6 +681,31 @@ impl From<Factor> for FactorPercent {
 impl From<FactorPercent> for Factor {
     fn from(value: FactorPercent) -> Self {
         Self(value.0 / 100.0)
+    }
+}
+
+impl ops::Mul<Factor> for Superellipse {
+    type Output = Superellipse;
+
+    fn mul(self, rhs: Factor) -> Superellipse {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for Superellipse {
+    type Output = Superellipse;
+
+    fn div(self, rhs: Factor) -> Superellipse {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for Superellipse {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Superellipse {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
     }
 }
 
