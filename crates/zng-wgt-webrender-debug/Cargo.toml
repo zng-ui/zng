@@ -17,7 +17,7 @@ zng-wgt = { path = "../zng-wgt", version = "0.18.6", default-features = false }
 zng-ext-window = { path = "../zng-ext-window", version = "0.16.6", default-features = false }
 zng-view-api = { path = "../zng-view-api", version = "0.23.5", default-features = false }
 # path = "../../../zng-webrender/webrender_api"
-webrender_api = { version = "0.71.0", default-features = false, package = "zng-webrender-api", path = "../../../zng-webrender/webrender_api" }
+webrender_api = { version = "0.71.0", default-features = false, package = "zng-webrender-api" }
 
 serde = { version = "1.0", default-features = false }
 bitflags = { version = "2.5", default-features = false, features = ["serde", "bytemuck"] }

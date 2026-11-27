@@ -165,9 +165,9 @@ zng-env = { path = "../zng-env", version = "0.13.0", default-features = false }
 zng-task = { path = "../zng-task", version = "0.16.5", default-features = false }
 
 # path = "../../../zng-webrender/webrender"
-webrender = { version = "0.71.0", default-features = false, features = ["static_freetype", "serialize_program"], package = "zng-webrender", path = "../../../zng-webrender/webrender" }
+webrender = { version = "0.71.0", default-features = false, features = ["static_freetype", "serialize_program"], package = "zng-webrender" }
 # path = "../../../zng-webrender/swgl"
-swgl = { version = "0.71.0", default-features = false, optional = true, package = "zng-swgl", path = "../../../zng-webrender/swgl" }
+swgl = { version = "0.71.0", default-features = false, optional = true, package = "zng-swgl" }
 postcard = { version = "1", default-features = false, features = ["alloc", "use-std"] }
 
 linkme = { version = "0.3.35", default-features = false }
