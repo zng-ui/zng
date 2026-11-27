@@ -348,6 +348,7 @@ impl Surface {
             },
             &mut self.image_use,
             &mut self.display_list_cache,
+            self.scale_factor,
         );
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
@@ -406,6 +407,7 @@ impl Surface {
             frame.colors,
             frame.extensions,
             resized,
+            self.scale_factor,
         ) {
             Ok(p) => {
                 if let Some(p) = p {

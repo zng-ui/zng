@@ -329,7 +329,6 @@ impl PxToWr for FilterOp {
     }
 
     fn to_wr(self) -> Self::AsLayout {
-        // !!: TODO review all new SVG filters
         match self {
             FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h, true),
             FilterOp::Brightness(b) => wr::FilterOp::Brightness(b),

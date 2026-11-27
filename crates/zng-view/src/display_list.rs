@@ -2,7 +2,7 @@ use std::{cell::Cell, mem};
 
 use rustc_hash::FxHashMap;
 use webrender::api as wr;
-use zng_unit::{PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
+use zng_unit::{Factor, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
 use zng_view_api::{
     GradientStop, RepeatMode,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -18,8 +18,9 @@ pub fn display_list_to_webrender(
     ext: &mut crate::extensions::DisplayListExtAdapter,
     images: &mut ImageUseMap,
     cache: &mut DisplayListCache,
+    scale_factor: Factor,
 ) -> wr::BuiltDisplayList {
-    let r = display_list_build(&list, cache, ext, images, false);
+    let r = display_list_build(&list, cache, ext, images, scale_factor, false);
     cache.insert(list);
 
     r
@@ -255,10 +256,10 @@ impl DisplayListCache {
         self.id_namespace
     }
 
-    fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
+    fn begin_wr(&mut self, scale_factor: Factor) -> (wr::DisplayListBuilder, SpaceAndClip) {
         let mut list = self.wr_list.take().unwrap();
         let sc = self.space_and_clip.take().unwrap();
-        list.begin(1.0); // !!: TODO review this again
+        list.begin(60.0 / scale_factor.0); // Dip is 60
         (list, sc)
     }
 
@@ -351,6 +352,7 @@ impl DisplayListCache {
         colors: Vec<FrameValueUpdate<Rgba>>,
         extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
         resized: bool,
+        scale_factor: Factor,
     ) -> Result<Option<wr::DynamicProperties>, wr::BuiltDisplayList> {
         let mut new_frame = resized;
 
@@ -386,7 +388,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let r = display_list_build(&list, self, ext, images, true);
+            let r = display_list_build(&list, self, ext, images, scale_factor, true);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)
@@ -409,11 +411,12 @@ fn display_list_build(
     cache: &mut DisplayListCache,
     ext: &mut crate::extensions::DisplayListExtAdapter,
     images: &mut ImageUseMap,
+    scale_factor: Factor,
     is_reuse: bool,
 ) -> wr::BuiltDisplayList {
     let _s = tracing::trace_span!("DisplayList::build").entered();
 
-    let (mut wr_list, mut sc) = cache.begin_wr();
+    let (mut wr_list, mut sc) = cache.begin_wr(scale_factor);
 
     ext.display_list_start(&mut DisplayExtensionArgs {
         list: &mut wr_list,

@@ -1624,6 +1624,8 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), true, false, frame_render_reasons(&frame));
 
+        let scale_factor = self.scale_factor();
+
         let display_list = display_list_to_webrender(
             frame.display_list,
             &mut DisplayListExtAdapter {
@@ -1637,6 +1639,7 @@ impl Window {
             },
             &mut self.image_use,
             &mut self.display_list_cache,
+            scale_factor,
         );
 
         txn.reset_dynamic_properties();
@@ -1682,6 +1685,8 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(self.frame_id().get(), true, false, render_reasons);
 
+        let scale_factor = self.scale_factor();
+
         let frame_scope = match self.display_list_cache.update(
             &mut DisplayListExtAdapter {
                 frame_id: self.frame_id(),
@@ -1698,6 +1703,7 @@ impl Window {
             frame.colors,
             frame.extensions,
             resized,
+            scale_factor,
         ) {
             Ok(p) => {
                 if let Some(p) = p {
