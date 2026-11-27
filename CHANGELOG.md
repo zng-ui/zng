@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+
+## 0.26.0
+
 * Fix incorrect text baseline after slow font loading in inlined text.
 * Fix text line decorators issues.
     - Underline not matching text vertical alignment when any `UnderlineSkip` is active.
