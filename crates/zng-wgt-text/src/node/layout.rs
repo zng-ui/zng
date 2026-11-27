@@ -276,7 +276,17 @@ fn layout_text_layout(child: impl IntoUiNode) -> UiNode {
                 size
             } else {
                 let size = txt.layout(&metrics, true, false);
-                txt.pending &= PendingLayout::LAYOUT_ONLY;
+
+                txt.pending &= if metrics.inline_constraints().is_some() {
+                    // RESHAPE_INLINE not updated in inline measure
+                    PendingLayout::UNDERLINE
+                        | PendingLayout::STRIKETHROUGH
+                        | PendingLayout::OVERLINE
+                        | PendingLayout::CARET
+                        | PendingLayout::OVERFLOW
+                } else {
+                    PendingLayout::RESHAPE_LINES
+                };
 
                 if let Some(inline) = wm.inline() {
                     let ctx = TEXT.laidout();
