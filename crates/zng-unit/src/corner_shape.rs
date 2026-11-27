@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Superellipses that define the shape (curvature) of the four corners.
 ///
-/// See also [`CornerRadius`] for the radii definitions.
+/// See also [`CornerRadius2D`] for the radii definitions.
 ///
 /// [`CornerRadius2D`]: crate::CornerRadius2D
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
