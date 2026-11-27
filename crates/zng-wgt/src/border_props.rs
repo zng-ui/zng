@@ -1,4 +1,5 @@
 use zng_app::widget::border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR, CORNER_RADIUS_FIT_VAR, CORNER_RADIUS_VAR};
+use zng_layout::unit::CornerShape;
 
 use crate::prelude::*;
 
@@ -233,7 +234,8 @@ pub fn border(child: impl IntoUiNode, widths: impl IntoVar<SideOffsets>, sides: 
             UiNodeOp::Render { frame } => {
                 let (rect, offsets) = BORDER.border_layout();
                 if !rect.size.is_empty() {
-                    frame.push_border(rect, offsets, sides.get(), corners);
+                    // TODO(CornerShape)
+                    frame.push_border(rect, offsets, sides.get(), corners, CornerShape::ROUND);
                 }
             }
             _ => {}

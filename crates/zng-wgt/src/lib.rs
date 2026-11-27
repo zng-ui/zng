@@ -67,12 +67,12 @@ mod __prelude {
     pub use zng_layout::{
         context::{DIRECTION_VAR, LAYOUT, LayoutDirection, LayoutMetrics},
         unit::{
-            Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
-            DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _, FrequencyUnits as _,
-            Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _, Point, Px, PxBox,
-            PxConstraints, PxConstraints2d, PxCornerRadius, PxDensity, PxDensity2d, PxDensityUnits as _, PxDensityUnits, PxLine, PxPoint,
-            PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform, PxVector, Rect, RectFromTuplesBuilder as _, SideOffsets, Size,
-            TimeUnits as _, Transform, Vector,
+            Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, CornerShape, Dip, DipBox, DipPoint, DipRect,
+            DipSideOffsets, DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _,
+            FrequencyUnits as _, Layout1d as _, Layout2d as _, LayoutAxis, Length, LengthUnits as _, Line, LineFromTuplesBuilder as _,
+            Point, Px, PxBox, PxConstraints, PxConstraints2d, PxCornerRadius, PxDensity, PxDensity2d, PxDensityUnits as _, PxDensityUnits,
+            PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxToDip as _, PxTransform, PxVector, Rect, RectFromTuplesBuilder as _,
+            SideOffsets, Size, TimeUnits as _, Transform, Vector,
         },
     };
 

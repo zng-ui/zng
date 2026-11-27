@@ -239,7 +239,7 @@ impl PxToWr for PxCornerRadius {
             top_right: self.top_right.to_wr(),
             bottom_left: self.bottom_left.to_wr(),
             bottom_right: self.bottom_right.to_wr(),
-            // !!: TODO support this in the PxCornerRadius, value is superellipse(k)
+            // defined by CornerShape
             shape_top_left: 1.0,
             shape_top_right: 1.0,
             shape_bottom_left: 1.0,

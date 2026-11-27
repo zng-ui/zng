@@ -12,7 +12,8 @@ use zng_color::{
     gradient::{RenderExtendMode, RenderGradientStop},
 };
 use zng_layout::unit::{
-    AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, euclid,
+    AngleRadian, CornerShape, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform,
+    PxVector, euclid,
 };
 use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
 use zng_unique_id::{impl_unique_id_bytemuck, unique_id_32};
@@ -1327,7 +1328,7 @@ impl FrameBuilder {
     }
 
     /// Push a border.
-    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
+    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius, shape: CornerShape) {
         expect_inner!(self.push_border);
         warn_empty!(self.push_border(bounds));
 
@@ -1340,6 +1341,7 @@ impl FrameBuilder {
                 sides.bottom.into(),
                 sides.left.into(),
                 radius,
+                shape,
             );
         }
 
@@ -1781,6 +1783,7 @@ impl FrameBuilder {
                         },
                         zng_view_api::BorderSide { color, style },
                         PxCornerRadius::zero(),
+                        CornerShape::default(),
                     );
                 }
             }

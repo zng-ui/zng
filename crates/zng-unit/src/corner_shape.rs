@@ -77,7 +77,9 @@ impl CornerShape {
 }
 
 /// [`CornerShape::new`]
-impl<TL: Into<Superellipse>, TR: Into<Superellipse>, BR: Into<Superellipse>, BL: Into<Superellipse>> From<(TL, TR, BR, BL)> for CornerShape {
+impl<TL: Into<Superellipse>, TR: Into<Superellipse>, BR: Into<Superellipse>, BL: Into<Superellipse>> From<(TL, TR, BR, BL)>
+    for CornerShape
+{
     fn from((top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)) -> Self {
         Self::new(top_left, top_right, bottom_right, bottom_left)
     }

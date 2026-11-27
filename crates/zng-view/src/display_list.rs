@@ -258,7 +258,7 @@ impl DisplayListCache {
     fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
         let mut list = self.wr_list.take().unwrap();
         let sc = self.space_and_clip.take().unwrap();
-        list.begin(1.0);
+        list.begin(1.0); // !!: TODO review this again
         (list, sc)
     }
 
@@ -619,9 +619,15 @@ fn display_item_to_webrender(
             widths,
             sides: [top, right, bottom, left],
             radius,
+            shape,
         } => {
             let bounds = bounds.to_wr();
             let clip = sc.clip_chain_id(wr_list);
+            let mut radius = radius.to_wr();
+            radius.shape_top_left = shape.top_left.0;
+            radius.shape_top_right = shape.top_right.0;
+            radius.shape_bottom_right = shape.bottom_right.0;
+            radius.shape_bottom_left = shape.bottom_left.0;
             wr_list.push_border(
                 &wr::CommonItemProperties {
                     clip_rect: bounds,
@@ -636,7 +642,7 @@ fn display_item_to_webrender(
                     right: right.to_wr(),
                     top: top.to_wr(),
                     bottom: bottom.to_wr(),
-                    radius: radius.to_wr(),
+                    radius,
                     do_aa: true,
                     inset: euclid::SideOffsets2D::zero(),
                 }),

@@ -222,7 +222,8 @@ pub fn foreground_highlight(
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
-            frame.push_border(render_bounds, render_widths, sides.get(), render_radius);
+            // TODO(CornerShape)
+            frame.push_border(render_bounds, render_widths, sides.get(), render_radius, CornerShape::ROUND);
         }
         _ => {}
     })

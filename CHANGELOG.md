@@ -40,6 +40,10 @@ All notable changes to this project are documented in this file.
     - Fix images not inlining.
     - Fix nested list items out of order.
 
+* **Breaking** `FrameBuilder::push_border` and view-process API now requires a shape.
+    - Add `zng::widget::CornerShape` and `zng::layout::Superellipse`.
+    - No surface API to use this yet, a `corner_shape` property will be added in a subsequent non-breaking release.
+
 * **Breaking** Removed `ReferenceFrameId`, `SpatialFrameId`.
     - Removed from view-process API and from `FrameBuilder`.
     - To upgrade render that uses `push_reference_frame` just remove the id, no longer needed.

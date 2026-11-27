@@ -392,6 +392,7 @@ pub fn arc_shape(
                             PxSideOffsets::new_all_same(render_thickness),
                             b,
                             PxCornerRadius::new_all(render_size),
+                            CornerShape::ROUND,
                         );
                     });
                 });
@@ -406,6 +407,7 @@ pub fn arc_shape(
                             PxSideOffsets::new_all_same(render_thickness),
                             b,
                             PxCornerRadius::new_all(render_size),
+                            CornerShape::ROUND,
                         );
                     });
                 });

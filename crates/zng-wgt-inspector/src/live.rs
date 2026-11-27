@@ -169,6 +169,7 @@ fn adorn_selected(child: impl IntoUiNode, selected_wgt: Var<Option<data_model::I
                             PxSideOffsets::new_all_same(widths),
                             SELECTED_BORDER_VAR.get().into(),
                             PxCornerRadius::default(),
+                            CornerShape::default(),
                         );
                     });
                 }
