@@ -99,10 +99,10 @@ pub use zng_env::init_built_res;
 ///
 /// ```toml
 /// [dependencies]
-/// zng = "0.25.7"
+/// zng = "0.26.0"
 ///
 /// [target.'cfg(windows)'.build-dependencies]
-/// zng-env = { version = "0.13.0", features = ["build_cli_com_proxy"] }
+/// zng-env = { version = "0.14.0", features = ["build_cli_com_proxy"] }
 /// ```
 ///
 /// And in `build.rs` the [`build_cli_com_proxy`] function is called.
