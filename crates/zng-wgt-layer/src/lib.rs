@@ -538,13 +538,9 @@ impl LAYERS {
                             if mode.viewport_bound {
                                 transform = adjust_viewport_bound(transform, widget.node());
                             }
-                            frame.push_reference_frame(
-                                transform_key.into(),
-                                transform_key.bind(transform, true),
-                                is_translate_only,
-                                false,
-                                |frame| widget.render(frame),
-                            );
+                            frame.push_reference_frame(transform_key.bind(transform, true), is_translate_only, false, |frame| {
+                                widget.render(frame)
+                            });
                         };
 
                         match mode.transform {

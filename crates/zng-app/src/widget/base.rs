@@ -549,7 +549,7 @@ pub mod node {
             UiNodeOp::Render { frame } => {
                 let offset = WIDGET.bounds().child_offset();
                 if define_ref_frame {
-                    frame.push_reference_frame(key.into(), key.bind(offset.into(), true), true, false, |frame| child.render(frame));
+                    frame.push_reference_frame(key.bind(offset.into(), true), true, false, |frame| child.render(frame));
                 } else {
                     frame.push_child(offset, |frame| {
                         child.render(frame);

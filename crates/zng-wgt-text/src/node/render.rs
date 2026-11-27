@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use zng_app::{
-    render::{FontSynthesis, FrameValueKey, ReferenceFrameId},
+    render::{FontSynthesis, FrameValueKey},
     widget::{
         WIDGET,
         border::{LineOrientation, LineStyle},
@@ -229,7 +229,6 @@ pub fn render_text() -> UiNode {
     let mut reuse = None;
     let mut rendered = None;
     let mut color_key = None;
-    let image_spatial_id = SpatialFrameId::new_unique();
     let mut has_loading_images = false;
 
     match_node_leaf(move |op| match op {
@@ -311,7 +310,6 @@ pub fn render_text() -> UiNode {
 
             frame.push_reuse(&mut reuse, |frame| {
                 if t.shaped_text.has_images() {
-                    let mut img_count = 0;
                     let mut push_img_glyphs = |font: &Font, glyphs, offset: Option<euclid::Vector2D<f32, Px>>| match glyphs {
                         ShapedImageGlyphs::Normal(glyphs) => {
                             if let Some(offset) = offset {
@@ -329,7 +327,6 @@ pub fn render_text() -> UiNode {
                             let is_loading = img.with(|i| {
                                 if i.is_loaded() {
                                     frame.push_reference_frame(
-                                        ReferenceFrameId::from_unique_child(image_spatial_id, img_count),
                                         FrameValue::Value(PxTransform::translation(rect.origin.x, rect.origin.y)),
                                         true,
                                         true,
@@ -345,7 +342,6 @@ pub fn render_text() -> UiNode {
                                             );
                                         },
                                     );
-                                    img_count = img_count.wrapping_add(1);
                                 }
                                 i.is_loading()
                             });

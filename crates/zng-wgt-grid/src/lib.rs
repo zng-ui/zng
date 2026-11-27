@@ -383,45 +383,26 @@ pub fn node(
             let columns = children.next().unwrap();
             let rows = children.next().unwrap();
             let cells: &mut PanelList = children.next().unwrap().downcast_mut().unwrap();
-            let offset_key = cells.offset_key();
 
             columns.for_each_child(|i, child| {
                 let offset = PxVector::new(grid.columns[i].x, Px(0));
-                frame.push_reference_frame(
-                    (offset_key, i as u32).into(),
-                    FrameValue::Value(offset.into()),
-                    true,
-                    true,
-                    |frame| {
-                        child.render(frame);
-                    },
-                );
+                frame.push_reference_frame(FrameValue::Value(offset.into()), true, true, |frame| {
+                    child.render(frame);
+                });
             });
-            let i_extra = columns.children_len();
+
             rows.for_each_child(|i, child| {
                 let offset = PxVector::new(Px(0), grid.rows[i].y);
-                frame.push_reference_frame(
-                    (offset_key, (i + i_extra) as u32).into(),
-                    FrameValue::Value(offset.into()),
-                    true,
-                    true,
-                    |frame| {
-                        child.render(frame);
-                    },
-                );
+                frame.push_reference_frame(FrameValue::Value(offset.into()), true, true, |frame| {
+                    child.render(frame);
+                });
             });
-            let i_extra = i_extra + rows.children_len();
-            cells.for_each_z_sorted(|i, child, data| {
+
+            cells.for_each_z_sorted(|_, child, data| {
                 if data.define_reference_frame {
-                    frame.push_reference_frame(
-                        (offset_key, (i + i_extra) as u32).into(),
-                        FrameValue::Value(data.child_offset.into()),
-                        true,
-                        true,
-                        |frame| {
-                            child.render(frame);
-                        },
-                    );
+                    frame.push_reference_frame(FrameValue::Value(data.child_offset.into()), true, true, |frame| {
+                        child.render(frame);
+                    });
                 } else {
                     frame.push_child(data.child_offset, |frame| child.render(frame));
                 }

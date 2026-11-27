@@ -2,9 +2,9 @@ use std::{cell::Cell, mem};
 
 use rustc_hash::FxHashMap;
 use webrender::api as wr;
-use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba};
+use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba, euclid};
 use zng_view_api::{
-    GradientStop, ReferenceFrameId, RepeatMode,
+    GradientStop, RepeatMode,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
     font::{GlyphIndex, GlyphInstance},
@@ -118,7 +118,6 @@ pub struct SpaceAndClip {
     clip_stack: Vec<wr::ClipId>,
     clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
     prim_flags: wr::PrimitiveFlags,
-    view_process_frame_id: u64,
 }
 impl SpaceAndClip {
     pub(crate) fn new(pipeline_id: wr::PipelineId) -> Self {
@@ -128,7 +127,6 @@ impl SpaceAndClip {
             clip_stack: vec![],
             clip_chain_stack: vec![],
             prim_flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
-            view_process_frame_id: 0,
         }
     }
 
@@ -192,12 +190,6 @@ impl SpaceAndClip {
     /// Set the `IS_BACKFACE_VISIBLE` flag to the next items.
     pub fn set_backface_visibility(&mut self, visible: bool) {
         self.prim_flags.set(wr::PrimitiveFlags::IS_BACKFACE_VISIBLE, visible);
-    }
-
-    /// Generate a reference frame ID, unique on this list.
-    pub fn next_view_process_frame_id(&mut self) -> ReferenceFrameId {
-        self.view_process_frame_id = self.view_process_frame_id.wrapping_add(1);
-        ReferenceFrameId(self.view_process_frame_id, 1 << 63)
     }
 
     pub(crate) fn clear(&mut self, pipeline_id: wr::PipelineId) {
@@ -266,7 +258,7 @@ impl DisplayListCache {
     fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
         let mut list = self.wr_list.take().unwrap();
         let sc = self.space_and_clip.take().unwrap();
-        list.begin();
+        list.begin(1.0); // !!: TODO dip scale here only used for scroll stuff?
         (list, sc)
     }
 
@@ -458,12 +450,11 @@ fn display_item_to_webrender(
         } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, images, sc),
 
         DisplayItem::PushReferenceFrame {
-            id,
             transform,
             transform_style,
             is_2d_scale_translation,
         } => {
-            let spatial_id = wr_list.push_reference_frame(
+            let spatial_id = wr_list.define_reference_frame(
                 wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
                 transform_style.to_wr(),
@@ -473,12 +464,10 @@ fn display_item_to_webrender(
                     should_snap: false,
                     paired_with_perspective: false,
                 },
-                id.to_wr(),
             );
             sc.push_spatial(spatial_id);
         }
         DisplayItem::PopReferenceFrame => {
-            wr_list.pop_reference_frame();
             sc.pop_spatial();
         }
 
@@ -489,14 +478,12 @@ fn display_item_to_webrender(
         } => {
             let clip = sc.clip_chain_id(wr_list);
             wr_list.push_stacking_context(
-                wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
                 sc.primitive_flags(),
                 Some(clip),
                 transform_style.to_wr(),
                 blend_mode.to_wr(),
                 &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
-                &[],
                 &[],
                 wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
                 wr::StackingContextFlags::empty(),
@@ -509,7 +496,12 @@ fn display_item_to_webrender(
             let clip_id = if *clip_out {
                 wr_list.define_clip_rounded_rect(
                     sc.spatial_id(),
-                    wr::ComplexClipRegion::new(clip_rect.to_wr(), PxCornerRadius::zero().to_wr(), wr::ClipMode::ClipOut),
+                    wr::ComplexClipRegion::new(
+                        clip_rect.to_wr(),
+                        PxCornerRadius::zero().to_wr(),
+                        euclid::SideOffsets2D::zero(),
+                        wr::ClipMode::ClipOut,
+                    ),
                 )
             } else {
                 wr_list.define_clip_rect(sc.spatial_id(), clip_rect.to_wr())
@@ -527,6 +519,7 @@ fn display_item_to_webrender(
                 wr::ComplexClipRegion::new(
                     clip_rect.to_wr(),
                     corners.to_wr(),
+                    euclid::SideOffsets2D::zero(), // !! TODO insets for  what?
                     if *clip_out { wr::ClipMode::ClipOut } else { wr::ClipMode::Clip },
                 ),
             );
@@ -547,13 +540,11 @@ fn display_item_to_webrender(
             sc.push_clip(clip_id);
             let clip = sc.clip_chain_id(wr_list);
             wr_list.push_stacking_context(
-                wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
                 sc.primitive_flags(),
                 Some(clip),
                 wr::TransformStyle::Flat,
                 wr::MixBlendMode::Normal,
-                &[],
                 &[],
                 &[],
                 wr::RasterSpace::Screen,
@@ -620,7 +611,6 @@ fn display_item_to_webrender(
                 },
                 &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                 &[],
-                &[],
             )
         }
 
@@ -648,7 +638,9 @@ fn display_item_to_webrender(
                     bottom: bottom.to_wr(),
                     radius: radius.to_wr(),
                     do_aa: true,
+                    inset: euclid::SideOffsets2D::zero(), // !!: TODO same as in clip
                 }),
+                &[],
             );
         }
         DisplayItem::NinePatchBorder {
@@ -719,9 +711,6 @@ fn display_item_to_webrender(
             .to_wr();
 
             let clip = sc.clip_chain_id(wr_list);
-            // stops needs to be immediately followed by the gradient, if the clip-chain item
-            // is inserted in the between the stops are lost.
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
             wr_list.push_gradient(
                 &wr::CommonItemProperties {
                     clip_rect: clip_rect.to_wr(),
@@ -731,12 +720,14 @@ fn display_item_to_webrender(
                 },
                 bounds,
                 wr::Gradient {
-                    start_point: start_point.cast_unit(),
-                    end_point: end_point.cast_unit(),
+                    start: start_point.to_vector().cast_unit(),
+                    end: end_point.to_vector().cast_unit(),
                     extend_mode: extend_mode.to_wr(),
+                    alpha_mode: wr::AlphaMode::Premultiplied, // !!: TODO review this, it should be true already
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
+                cast_gradient_stops_to_wr(stops),
             )
         }
         DisplayItem::RadialGradient {
@@ -761,7 +752,6 @@ fn display_item_to_webrender(
             .to_wr();
 
             let clip = sc.clip_chain_id(wr_list);
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
             wr_list.push_radial_gradient(
                 &wr::CommonItemProperties {
                     clip_rect: clip_rect.to_wr(),
@@ -771,14 +761,16 @@ fn display_item_to_webrender(
                 },
                 bounds,
                 wr::RadialGradient {
-                    center: center.cast_unit(),
+                    center: center.to_vector().cast_unit(),
                     radius: radius.cast_unit(),
                     start_offset: *start_offset,
                     end_offset: *end_offset,
                     extend_mode: extend_mode.to_wr(),
+                    alpha_mode: wr::AlphaMode::Premultiplied,
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
+                cast_gradient_stops_to_wr(stops),
             )
         }
         DisplayItem::ConicGradient {
@@ -803,7 +795,6 @@ fn display_item_to_webrender(
             .to_wr();
 
             let clip = sc.clip_chain_id(wr_list);
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
             wr_list.push_conic_gradient(
                 &wr::CommonItemProperties {
                     clip_rect: clip_rect.to_wr(),
@@ -813,14 +804,16 @@ fn display_item_to_webrender(
                 },
                 bounds,
                 wr::ConicGradient {
-                    center: center.cast_unit(),
+                    center: center.to_vector().cast_unit(),
                     angle: angle.0,
                     start_offset: *start_offset,
                     end_offset: *end_offset,
                     extend_mode: extend_mode.to_wr(),
+                    alpha_mode: wr::AlphaMode::Premultiplied,
                 },
                 tile_size.to_wr(),
                 tile_spacing.to_wr(),
+                cast_gradient_stops_to_wr(stops),
             )
         }
         DisplayItem::Line {
@@ -880,9 +873,11 @@ fn nine_patch_border_to_webrender(
 ) {
     let clip = sc.clip_chain_id(wr_list);
 
-    let source = match source {
+    let no_stops: Box<[GradientStop]> = Box::new([]);
+    let (source, stops) = match source {
         NinePatchSource::Image { image_id, rendering } => {
-            wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), rendering.to_wr())
+            let source = wr::NinePatchBorderSource::Image(wr::ImageKey(cache.id_namespace(), image_id.get()), rendering.to_wr());
+            (source, &no_stops)
         }
         NinePatchSource::LinearGradient {
             start_point,
@@ -890,12 +885,13 @@ fn nine_patch_border_to_webrender(
             extend_mode,
             stops,
         } => {
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr::NinePatchBorderSource::Gradient(wr::Gradient {
-                start_point: start_point.cast_unit(),
-                end_point: end_point.cast_unit(),
+            let source = wr::NinePatchBorderSource::Gradient(wr::Gradient {
+                start: start_point.to_vector().cast_unit(),
+                end: end_point.to_vector().cast_unit(),
                 extend_mode: extend_mode.to_wr(),
-            })
+                alpha_mode: wr::AlphaMode::Premultiplied,
+            });
+            (source, stops)
         }
         NinePatchSource::RadialGradient {
             center,
@@ -905,14 +901,15 @@ fn nine_patch_border_to_webrender(
             extend_mode,
             stops,
         } => {
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr::NinePatchBorderSource::RadialGradient(wr::RadialGradient {
-                center: center.cast_unit(),
+            let source = wr::NinePatchBorderSource::RadialGradient(wr::RadialGradient {
+                center: center.to_vector().cast_unit(),
                 radius: radius.cast_unit(),
                 start_offset: *start_offset,
                 end_offset: *end_offset,
                 extend_mode: extend_mode.to_wr(),
-            })
+                alpha_mode: wr::AlphaMode::Premultiplied,
+            });
+            (source, stops)
         }
         NinePatchSource::ConicGradient {
             center,
@@ -922,17 +919,20 @@ fn nine_patch_border_to_webrender(
             extend_mode,
             stops,
         } => {
-            wr_list.push_stops(cast_gradient_stops_to_wr(stops));
-            wr::NinePatchBorderSource::ConicGradient(wr::ConicGradient {
-                center: center.cast_unit(),
+            let source = wr::NinePatchBorderSource::ConicGradient(wr::ConicGradient {
+                center: center.to_vector().cast_unit(),
                 angle: angle.0,
                 start_offset: *start_offset,
                 end_offset: *end_offset,
                 extend_mode: extend_mode.to_wr(),
-            })
+                alpha_mode: wr::AlphaMode::Premultiplied,
+            });
+            (source, stops)
         }
     };
 
+    // !!: TODO remove this, webrender now implements Space
+    //
     // webrender does not implement RepeatMode::Space, so we hide the space lines (and corners) and do a manual repeat
     let actual_bounds = bounds;
     let actual_widths = widths;
@@ -991,7 +991,7 @@ fn nine_patch_border_to_webrender(
                 offset_x += space;
                 let advance = clip.width() + space;
                 for _ in 0..n as u32 {
-                    let spatial_id = wr_list.push_reference_frame(
+                    let spatial_id = wr_list.define_reference_frame(
                         wr::units::LayoutPoint::zero(),
                         sc.spatial_id(),
                         wr::TransformStyle::Flat,
@@ -1001,7 +1001,6 @@ fn nine_patch_border_to_webrender(
                             should_snap: false,
                             paired_with_perspective: false,
                         },
-                        sc.next_view_process_frame_id().to_wr(),
                     );
                     sc.push_spatial(spatial_id);
 
@@ -1020,7 +1019,6 @@ fn nine_patch_border_to_webrender(
                         wr::ColorF::WHITE,
                     );
 
-                    wr_list.pop_reference_frame();
                     sc.pop_spatial();
 
                     offset_x += advance;
@@ -1078,7 +1076,7 @@ fn nine_patch_border_to_webrender(
                 offset_y += space;
                 let advance = clip.height() + space;
                 for _ in 0..n as u32 {
-                    let spatial_id = wr_list.push_reference_frame(
+                    let spatial_id = wr_list.define_reference_frame(
                         wr::units::LayoutPoint::zero(),
                         sc.spatial_id(),
                         wr::TransformStyle::Flat,
@@ -1088,7 +1086,6 @@ fn nine_patch_border_to_webrender(
                             should_snap: false,
                             paired_with_perspective: false,
                         },
-                        sc.next_view_process_frame_id().to_wr(),
                     );
                     sc.push_spatial(spatial_id);
 
@@ -1107,7 +1104,6 @@ fn nine_patch_border_to_webrender(
                         wr::ColorF::WHITE,
                     );
 
-                    wr_list.pop_reference_frame();
                     sc.pop_spatial();
 
                     offset_y += advance;
@@ -1136,6 +1132,7 @@ fn nine_patch_border_to_webrender(
             repeat_horizontal: repeat_horizontal.to_wr(),
             repeat_vertical: repeat_vertical.to_wr(),
         }),
+        cast_gradient_stops_to_wr(stops),
     );
 
     // if we rendered RepeatMode::Space
@@ -1204,7 +1201,7 @@ fn nine_patch_border_to_webrender(
             let offset_x = bounds.origin.x - clip.origin.x;
             let offset_y = bounds.origin.y - clip.origin.y;
 
-            let spatial_id = wr_list.push_reference_frame(
+            let spatial_id = wr_list.define_reference_frame(
                 wr::units::LayoutPoint::zero(),
                 sc.spatial_id(),
                 wr::TransformStyle::Flat,
@@ -1214,7 +1211,6 @@ fn nine_patch_border_to_webrender(
                     should_snap: false,
                     paired_with_perspective: false,
                 },
-                sc.next_view_process_frame_id().to_wr(),
             );
             sc.push_spatial(spatial_id);
 
@@ -1233,7 +1229,6 @@ fn nine_patch_border_to_webrender(
                 wr::ColorF::WHITE,
             );
 
-            wr_list.pop_reference_frame();
             sc.pop_spatial();
         }
     }

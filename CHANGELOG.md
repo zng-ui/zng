@@ -40,6 +40,13 @@ All notable changes to this project are documented in this file.
     - Fix images not inlining.
     - Fix nested list items out of order.
 
+* **Breaking** Removed `ReferenceFrameId`, `SpatialFrameId`.
+    - Removed from view-process API and from `FrameBuilder`.
+    - To upgrade render that uses `push_reference_frame` just remove the id, no longer needed.
+
+* **Breaking** Upgrade Webrender to `zng-webrender 0.71`.
+    - Only breaks `zng-view` extensions API.
+
 ## 0.25.7
 
 * Replace avif native decoder with a pure Rust implementation, making it easy to support in normal builds.

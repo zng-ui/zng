@@ -8,8 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId, RepeatMode,
-    TransformStyle,
+    BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, RepeatMode, TransformStyle,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontId, GlyphInstance, GlyphOptions},
     image::ImageTextureId,
@@ -141,16 +140,12 @@ impl DisplayListBuilder {
     /// [`pop_reference_frame`]: Self::pop_reference_frame
     pub fn push_reference_frame(
         &mut self,
-        key: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
         transform_style: TransformStyle,
         is_2d_scale_translation: bool,
     ) {
-        debug_assert!(key.is_app_generated());
-
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
-            id: key,
             transform,
             transform_style,
             is_2d_scale_translation,
@@ -800,7 +795,6 @@ pub enum DisplayItem {
         end: usize,
     },
     PushReferenceFrame {
-        id: ReferenceFrameId,
         transform: FrameValue<PxTransform>,
         transform_style: TransformStyle,
         is_2d_scale_translation: bool,

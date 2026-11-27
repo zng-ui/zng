@@ -772,7 +772,7 @@ mod __prelude_wgt {
             EventArgs as _, EventPropagationHandle, command, event, event_args,
         },
         handler::{Handler, HandlerExt as _, async_hn, async_hn_once, hn, hn_once},
-        render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
+        render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, TransformStyle},
         shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
         timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
         update::{UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},

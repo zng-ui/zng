@@ -214,7 +214,6 @@ fn scroll_node(
 
     let mut viewport = PxSize::zero();
     let mut joiner = PxSize::zero();
-    let spatial_id = SpatialFrameId::new_unique();
 
     match_node(children, move |cs, op| match op {
         UiNodeOp::Info { info } => {
@@ -284,21 +283,21 @@ fn scroll_node(
 
             if joiner.width > Px(0) {
                 let transform = PxTransform::from(PxVector::new(viewport.width, Px(0)));
-                frame.push_reference_frame((spatial_id, 1).into(), FrameValue::Value(transform), true, false, |frame| {
+                frame.push_reference_frame(FrameValue::Value(transform), true, false, |frame| {
                     cs.node().with_child(1, |n| n.render(frame));
                 });
             }
 
             if joiner.height > Px(0) {
                 let transform = PxTransform::from(PxVector::new(Px(0), viewport.height));
-                frame.push_reference_frame((spatial_id, 2).into(), FrameValue::Value(transform), true, false, |frame| {
+                frame.push_reference_frame(FrameValue::Value(transform), true, false, |frame| {
                     cs.node().with_child(2, |n| n.render(frame));
                 });
             }
 
             if joiner.width > Px(0) && joiner.height > Px(0) {
                 let transform = PxTransform::from(viewport.to_vector());
-                frame.push_reference_frame((spatial_id, 3).into(), FrameValue::Value(transform), true, false, |frame| {
+                frame.push_reference_frame(FrameValue::Value(transform), true, false, |frame| {
                     cs.node().with_child(3, |n| n.render(frame));
                 });
             }

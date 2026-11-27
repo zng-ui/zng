@@ -1305,7 +1305,7 @@ pub fn fill_node(content: impl IntoUiNode) -> UiNode {
             };
 
             if define_frame {
-                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
+                frame.push_reference_frame(offset_key.bind(offset.into(), false), true, false, |frame| {
                     render(frame);
                 });
             } else {

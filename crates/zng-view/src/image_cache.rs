@@ -1000,7 +1000,7 @@ pub(crate) enum ImageData {
     },
     NativeTexture {
         uv: webrender::api::units::TexelRect,
-        texture: gleam::gl::GLuint,
+        texture: webrender::api::ExternalTextureHandle,
     },
 }
 impl ImageData {

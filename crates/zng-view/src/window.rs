@@ -403,8 +403,9 @@ impl Window {
         }
         opts.blob_image_handler = Some(Box::new(blobs));
 
+        let gpu_cfg = webrender::GpuBackendConfig::Gl(webrender::GlBackendConfig::new(context.gl().clone()));
         let (mut renderer, sender) =
-            webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender.clone()), opts, None).unwrap();
+            webrender::create_webrender_instance(gpu_cfg, WrNotifier::create(id, event_sender.clone()), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let mut external_images = extensions::ExternalImages::default();
@@ -1648,7 +1649,11 @@ impl Window {
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color.to_wr());
         self.clear_color = Some(frame.clear_color);
 
-        txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, display_list));
+        txn.set_display_list(
+            webrender::api::Epoch(frame.id.epoch()),
+            self.api.get_namespace_id(),
+            (self.pipeline_id, display_list),
+        );
 
         let frame_scope =
             tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = false, thread = %self.frame_span_lane)
@@ -1709,7 +1714,11 @@ impl Window {
                     colors: vec![],
                 });
 
-                txn.set_display_list(webrender::api::Epoch(frame.id.epoch()), (self.pipeline_id, d));
+                txn.set_display_list(
+                    webrender::api::Epoch(frame.id.epoch()),
+                    self.api.get_namespace_id(),
+                    (self.pipeline_id, d),
+                );
 
                 tracing::trace_span!("<frame>", ?frame.id, capture = ?frame.capture, from_update = true, thread = %self.frame_span_lane)
             }

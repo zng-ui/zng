@@ -209,7 +209,6 @@ pub fn image_presenter() -> UiNode {
     let mut render_tile_size = PxSize::zero();
     let mut render_tile_spacing = PxSize::zero();
     let mut render_offset = PxVector::zero();
-    let spatial_id = SpatialFrameId::new_unique();
     let mut reduced_img = None;
 
     match_node_leaf(move |op| match op {
@@ -450,7 +449,7 @@ pub fn image_presenter() -> UiNode {
             let render = |img: &ImageEntry| {
                 if render_offset != PxVector::zero() {
                     let transform = PxTransform::from(render_offset);
-                    frame.push_reference_frame(spatial_id.into(), FrameValue::Value(transform), true, false, |frame| {
+                    frame.push_reference_frame(FrameValue::Value(transform), true, false, |frame| {
                         frame.push_image(
                             render_clip,
                             render_img_size,

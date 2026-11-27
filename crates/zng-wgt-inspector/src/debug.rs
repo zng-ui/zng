@@ -100,16 +100,15 @@ pub fn show_bounds(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> U
 /// Draws a border over every inlined widget row in the window.
 #[property(CONTEXT, default(false))]
 pub fn show_rows(child: impl IntoUiNode, mode: impl IntoVar<InspectMode>) -> UiNode {
-    let spatial_id = SpatialFrameId::new_unique();
     show_widget_tree(
         child,
-        move |i, wgt, frame| {
+        move |_, wgt, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor());
 
             let wgt = wgt.bounds_info();
             let transform = wgt.inner_transform();
             if let Some(inline) = wgt.inline() {
-                frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
+                frame.push_reference_frame(FrameValue::Value(transform), false, false, |frame| {
                     for row in &inline.rows {
                         if !row.size.is_empty() {
                             frame.push_border(
@@ -133,7 +132,6 @@ fn show_widget_tree(
     mode: impl IntoVar<InspectMode>,
 ) -> UiNode {
     let mode = mode.into_var();
-    let cancel_space = SpatialFrameId::new_unique();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render(&mode);
@@ -148,7 +146,7 @@ fn show_widget_tree(
                         render(wgt, frame);
                     } else if let Some(t) = frame.transform().inverse() {
                         // cancel current transform
-                        frame.push_reference_frame(cancel_space.into(), t.into(), false, false, |frame| {
+                        frame.push_reference_frame(t.into(), false, false, |frame| {
                             render(wgt, frame);
                         })
                     } else {

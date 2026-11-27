@@ -378,56 +378,38 @@ pub fn arc_shape(
             let [start_t, half0_t, half1_t] = rotates(render_size, start.get(), end.get());
             let is_animating = start.is_animating() || end.is_animating();
 
-            frame.push_reference_frame(
-                rotate_start_key.into(),
-                rotate_start_key.bind(start_t, is_animating),
-                false,
-                true,
-                |frame| {
-                    let half = PxPoint::new(render_size.width / Px(2), Px(0));
-                    let color = BorderSide::from(color.get());
+            frame.push_reference_frame(rotate_start_key.bind(start_t, is_animating), false, true, |frame| {
+                let half = PxPoint::new(render_size.width / Px(2), Px(0));
+                let color = BorderSide::from(color.get());
 
-                    frame.push_clip_rect(PxRect::new(half, render_size), false, true, |frame| {
-                        frame.push_reference_frame(
-                            rotate_half0_key.into(),
-                            rotate_half0_key.bind(half0_t, is_animating),
-                            false,
-                            true,
-                            |frame| {
-                                let mut b = BorderSides::hidden();
-                                b.top = color;
-                                b.right = b.top;
-                                frame.push_border(
-                                    PxRect::from(render_size),
-                                    PxSideOffsets::new_all_same(render_thickness),
-                                    b,
-                                    PxCornerRadius::new_all(render_size),
-                                );
-                            },
+                frame.push_clip_rect(PxRect::new(half, render_size), false, true, |frame| {
+                    frame.push_reference_frame(rotate_half0_key.bind(half0_t, is_animating), false, true, |frame| {
+                        let mut b = BorderSides::hidden();
+                        b.top = color;
+                        b.right = b.top;
+                        frame.push_border(
+                            PxRect::from(render_size),
+                            PxSideOffsets::new_all_same(render_thickness),
+                            b,
+                            PxCornerRadius::new_all(render_size),
                         );
                     });
+                });
 
-                    frame.push_clip_rect(PxRect::new(-half, render_size), false, true, |frame| {
-                        frame.push_reference_frame(
-                            rotate_half1_key.into(),
-                            rotate_half1_key.bind(half1_t, is_animating),
-                            false,
-                            true,
-                            |frame| {
-                                let mut b = BorderSides::hidden();
-                                b.bottom = color;
-                                b.left = b.bottom;
-                                frame.push_border(
-                                    PxRect::from(render_size),
-                                    PxSideOffsets::new_all_same(render_thickness),
-                                    b,
-                                    PxCornerRadius::new_all(render_size),
-                                );
-                            },
+                frame.push_clip_rect(PxRect::new(-half, render_size), false, true, |frame| {
+                    frame.push_reference_frame(rotate_half1_key.bind(half1_t, is_animating), false, true, |frame| {
+                        let mut b = BorderSides::hidden();
+                        b.bottom = color;
+                        b.left = b.bottom;
+                        frame.push_border(
+                            PxRect::from(render_size),
+                            PxSideOffsets::new_all_same(render_thickness),
+                            b,
+                            PxCornerRadius::new_all(render_size),
                         );
                     });
-                },
-            );
+                });
+            });
         }
         UiNodeOp::RenderUpdate { update } => {
             let [start_t, half0_t, half1_t] = rotates(render_size, start.get(), end.get());

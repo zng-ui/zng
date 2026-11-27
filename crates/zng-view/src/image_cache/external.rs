@@ -50,9 +50,9 @@ impl ExternalImageHandler for WrImageCache {
                     source: ExternalImageSource::RawData(&pixels[range.clone()]),
                 }
             }
-            ImageData::NativeTexture { uv, texture: id } => ExternalImage {
+            ImageData::NativeTexture { uv, texture: h } => ExternalImage {
                 uv: *uv,
-                source: ExternalImageSource::NativeTexture(*id),
+                source: ExternalImageSource::NativeTexture(*h),
             },
         }
     }
@@ -287,7 +287,7 @@ impl ImageUseMap {
                         r
                     };
                     if scaled_y != Px(0) {
-                        let spatial_id = wr_list.push_reference_frame(
+                        let spatial_id = wr_list.define_reference_frame(
                             PxPoint::zero().to_wr(),
                             sc.spatial_id(),
                             wr::TransformStyle::Flat,
@@ -297,7 +297,6 @@ impl ImageUseMap {
                                 should_snap: false,
                                 paired_with_perspective: false,
                             },
-                            sc.next_view_process_frame_id().to_wr(),
                         );
                         sc.push_spatial(spatial_id);
                     }
@@ -319,7 +318,6 @@ impl ImageUseMap {
                         wr::ColorF::WHITE,
                     );
                     if scaled_y != Px(0) {
-                        wr_list.pop_reference_frame();
                         sc.pop_spatial();
                     }
                     scaled_y += scaled_stripe.height;

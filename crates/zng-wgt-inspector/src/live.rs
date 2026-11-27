@@ -143,7 +143,6 @@ fn adorn_selected(child: impl IntoUiNode, selected_wgt: Var<Option<data_model::I
             const_var(None)
         }
     });
-    let transform_id = SpatialFrameId::new_unique();
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -163,7 +162,7 @@ fn adorn_selected(child: impl IntoUiNode, selected_wgt: Var<Option<data_model::I
                     let transform = bounds.inner_transform();
                     let size = bounds.inner_size();
 
-                    frame.push_reference_frame(transform_id.into(), transform.into(), false, false, |frame| {
+                    frame.push_reference_frame(transform.into(), false, false, |frame| {
                         let widths = Dip::new(3).to_px(frame.scale_factor());
                         frame.push_border(
                             PxRect::from_size(size).inflate(widths, widths),

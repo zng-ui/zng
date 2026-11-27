@@ -2260,13 +2260,9 @@ where
                 let mut data = data[i].try_lock().expect("render_list called visitor twice on same index");
                 let offset = data.child_offset();
                 if data.define_reference_frame() {
-                    frame.push_reference_frame(
-                        (offset_key, i as u32).into(),
-                        offset_key.bind_child(i as u32, offset.into(), false),
-                        true,
-                        true,
-                        |frame| render(i, child, &mut *data, frame),
-                    );
+                    frame.push_reference_frame(offset_key.bind_child(i as u32, offset.into(), false), true, true, |frame| {
+                        render(i, child, &mut *data, frame)
+                    });
                 } else {
                     frame.push_child(offset, |frame| render(i, child, &mut *data, frame));
                 }
@@ -2275,13 +2271,9 @@ where
             self.for_each_z_sorted(|i, child, data| {
                 let offset = data.child_offset();
                 if data.define_reference_frame() {
-                    frame.push_reference_frame(
-                        (offset_key, i as u32).into(),
-                        offset_key.bind_child(i as u32, offset.into(), false),
-                        true,
-                        true,
-                        |frame| render(i, child, data, frame),
-                    );
+                    frame.push_reference_frame(offset_key.bind_child(i as u32, offset.into(), false), true, true, |frame| {
+                        render(i, child, data, frame)
+                    });
                 } else {
                     frame.push_child(offset, |frame| render(i, child, data, frame));
                 }
@@ -2419,7 +2411,7 @@ where
         changes
     }
 
-    /// Key used to define reference frames for each item.
+    /// Key that can be used to bind the reference frame transform for each item.
     ///
     /// The default implementation of `render_all` uses this key and the item index.
     pub fn offset_key(&self) -> FrameValueKey<PxTransform> {

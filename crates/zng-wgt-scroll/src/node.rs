@@ -248,7 +248,7 @@ pub fn viewport(child: impl IntoUiNode, mode: impl IntoVar<ScrollMode>, child_al
             } else {
                 content_offset.into()
             };
-            frame.push_reference_frame(binding_key.into(), binding_key.bind(transform, true), true, false, |frame| {
+            frame.push_reference_frame(binding_key.bind(transform, true), true, false, |frame| {
                 frame.with_auto_hide_rect(culling_rect, |frame| {
                     child.render(frame);
                 });
@@ -1752,7 +1752,7 @@ pub fn default_auto_scroll_indicator() -> UiNode {
                 let arrow_size = PxSize::splat(arrow_length);
 
                 let mut arrow = |clip| {
-                    frame.push_reference_frame(SpatialFrameId::new_unique().into(), transform, false, false, |frame| {
+                    frame.push_reference_frame(transform, false, false, |frame| {
                         frame.push_clip_rect(clip, false, false, |frame| {
                             frame.push_border(
                                 PxRect::from_size(ar_size),
